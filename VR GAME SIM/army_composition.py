@@ -16,7 +16,9 @@ from constants import (
     EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
     EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
     EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Import Olena's new effect
+    EFFECT_NAME_PENDING_HEROIC_BLESSING_DEBUFF,
     EFFECT_NAME_PENDING_HEROIC_BLESSING_BUFF,
+    EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF,
     EFFECT_NAME_HEROIC_BLESSING_BURN_BOOST
 )
 
@@ -505,6 +507,27 @@ class Army:
                         self.simulator._log_skill_trigger(self, effect.name,
                                                           f"gains {', '.join(log_parts)} ({gained_this_tick} total this round). New rage: {self.current_rage:.0f}")
 
+            elif effect.name == EFFECT_NAME_PENDING_HEROIC_BLESSING_DEBUFF and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round' and effect.duration <= 0:
+                    debuff_duration = effect.config.get("debuff_duration", 30)
+                    debuff_data = {
+                        "effect_type": EffectType.STAT_MOD,
+                        "name": EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF,
+                        "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+                        "magnitude": -0.30,
+                        "duration": debuff_duration,
+                    }
+                    created = self._create_and_add_single_effect(
+                        debuff_data, effect.source_skill_id, self, self, opponent
+                    )
+                    if created:
+                        self.simulator._log_skill_trigger(
+                            self,
+                            effect.name,
+                            f"Gains '{EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF}': {created.get_functionality_description()} for {debuff_duration} rounds."
+                        )
+                    effect.duration = -1
+
             elif effect.name == EFFECT_NAME_PENDING_HEROIC_BLESSING_BUFF and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round' and effect.duration <= 0:
                     boost_mag = effect.config.get("burn_boost_magnitude", 0.0)
@@ -525,6 +548,10 @@ class Army:
                                 effect.name,
                                 f"Heroic Blessing debuff expired. Gains permanent burn damage boost (+{boost_mag*100:.0f}%)."
                             )
+                    for i in range(len(self.active_effects) - 1, -1, -1):
+                        if self.active_effects[i].name == EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF:
+                            self.active_effects.pop(i)
+                            break
                     effect.duration = -1
 
 

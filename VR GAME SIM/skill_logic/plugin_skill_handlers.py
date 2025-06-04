@@ -1490,3 +1490,431 @@ def handle_plugin_bloody_rage(
                 )
 
     return an_effect_happened, log_details
+
+
+def handle_plugin_tidal_attack(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    damage_factor = skill_config.get("damage_factor", 290.0)
+    is_h1 = (
+        triggering_army.heroes
+        and len(triggering_army.heroes) > 0
+        and skill_id in [s["id"] for s in triggering_army.heroes[0].skills]
+    )
+    if is_h1:
+        damage_factor = skill_config.get("damage_factor_h1", 370.0)
+
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_splinter(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    trigger_interval = skill_config.get("trigger_interval", 12)
+
+    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+        return False, []
+
+    damage_factor = skill_config.get("damage_factor", 800.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    if random.random() < skill_config.get("slow_chance", 0.35):
+        slow_duration = skill_config.get("slow_duration", 2)
+        slow_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_SLOW_DEBUFF,
+            "duration": slow_duration,
+            "activate_next_round": True,
+            "config": {},
+        }
+        created_slow = opponent_army._create_and_add_single_effect(
+            slow_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created_slow:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {opponent_army.name} for {slow_duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_hale_of_thorns(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_id = skill_def["id"]
+
+    is_h1 = (
+        triggering_army.heroes
+        and len(triggering_army.heroes) > 0
+        and skill_id in [s["id"] for s in triggering_army.heroes[0].skills]
+    )
+    if not is_h1:
+        return False, []
+
+    gen_data = {
+        "effect_type": EffectType.STAT_MOD,
+        "name": EFFECT_NAME_HALE_OF_THORNS_GENERAL_REDUCTION,
+        "stat_to_mod": StatType.GENERAL_DAMAGE_MODIFIER,
+        "magnitude": -0.15,
+        "duration": -1,
+        "activate_next_round": False,
+    }
+    ctr_data = {
+        "effect_type": EffectType.STAT_MOD,
+        "name": EFFECT_NAME_HALE_OF_THORNS_COUNTER_BUFF,
+        "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+        "magnitude": 0.50,
+        "duration": -1,
+        "activate_next_round": False,
+    }
+    eff1 = triggering_army._create_and_add_single_effect(gen_data, skill_id, triggering_army, triggering_army, opponent_army)
+    if eff1:
+        an_effect_happened = True
+        log_details.append((f"Gains permanent effect: {eff1.get_functionality_description()}.", None))
+    eff2 = triggering_army._create_and_add_single_effect(ctr_data, skill_id, triggering_army, triggering_army, opponent_army)
+    if eff2:
+        an_effect_happened = True
+        log_details.append((f"Gains permanent effect: {eff2.get_functionality_description()}.", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_halo_of_sacrifice(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    buff_mag = skill_config.get("buff_magnitude", 0.75)
+    buff_dur = skill_config.get("buff_duration", 2)
+    buff_data = {
+        "effect_type": EffectType.STAT_MOD,
+        "name": EFFECT_NAME_HALO_OF_SACRIFICE_BASIC_BUFF,
+        "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
+        "magnitude": buff_mag,
+        "duration": buff_dur,
+        "activate_next_round": True,
+    }
+    created_buff = triggering_army._create_and_add_single_effect(
+        buff_data, skill_id, triggering_army, triggering_army, opponent_army
+    )
+    if created_buff:
+        an_effect_happened = True
+        log_details.append(
+            (
+                f"Gains basic attack buff {buff_mag * 100:.0f}% for {buff_dur + 1} rounds (starting next round).",
+                None,
+            )
+        )
+
+    debuff_ids = []
+    for eff in triggering_army.active_effects:
+        is_debuff = (
+            eff.effect_type == EffectType.DEBUFF
+            or eff.config.get("prevents_counterattack")
+            or eff.config.get("prevents_basic_attack")
+            or eff.name == EFFECT_NAME_SILENCE_DEBUFF
+        )
+        if is_debuff:
+            debuff_ids.append(eff.id)
+
+    if debuff_ids:
+        cleanse_data = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_PENDING_HALO_OF_SACRIFICE_CLEANSE,
+            "duration": 0,
+            "config": {"debuff_ids_to_remove": debuff_ids},
+            "activate_next_round": True,
+        }
+        created_cleanse = triggering_army._create_and_add_single_effect(
+            cleanse_data, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created_cleanse:
+            an_effect_happened = True
+            log_details.append((f"Schedules self-cleanse for {len(debuff_ids)} debuff(s) next round.", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_heightened_chance(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    basic_buff_mag = skill_config.get("basic_buff_magnitude", 0.40)
+    buff_dur = skill_config.get("buff_duration", 2)
+    basic_buff_data = {
+        "effect_type": EffectType.STAT_MOD,
+        "name": EFFECT_NAME_HEIGHTENED_CHANCE_BASIC_BUFF,
+        "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
+        "magnitude": basic_buff_mag,
+        "duration": buff_dur,
+        "activate_next_round": True,
+    }
+    created_basic = triggering_army._create_and_add_single_effect(
+        basic_buff_data, skill_id, triggering_army, triggering_army, opponent_army
+    )
+    if created_basic:
+        an_effect_happened = True
+        log_details.append(
+            (
+                f"Gains basic attack buff {basic_buff_mag * 100:.0f}% for {buff_dur + 1} rounds (starting next round).",
+                None,
+            )
+        )
+
+    enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
+    if enemy_has_slow:
+        counter_buff_mag = skill_config.get("counter_buff_magnitude", 0.40)
+        counter_buff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_HEIGHTENED_CHANCE_COUNTER_BUFF,
+            "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+            "magnitude": counter_buff_mag,
+            "duration": buff_dur,
+            "activate_next_round": True,
+        }
+        created_counter = triggering_army._create_and_add_single_effect(
+            counter_buff_data, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created_counter:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Enemy slowed; gains counterattack buff {counter_buff_mag * 100:.0f}% for {buff_dur + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_tenacity(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+
+    heal_factor = skill_config.get("heal_factor", 700.0)
+    if heal_factor > 0:
+        healed_amount = triggering_army.calculate_and_add_pending_healing(
+            heal_factor, triggering_army, opponent_army
+        )
+        if healed_amount > 0:
+            an_effect_happened = True
+            log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_blessed_healing(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    trigger_interval = skill_config.get("trigger_interval", 12)
+
+    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+        return False, []
+
+    heal_factor = skill_config.get("heal_factor", 850.0)
+    if heal_factor > 0:
+        healed_amount = triggering_army.calculate_and_add_pending_healing(
+            heal_factor, triggering_army, opponent_army
+        )
+        if healed_amount > 0:
+            an_effect_happened = True
+            log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_dampened_spirits(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    if random.random() < skill_config.get("damage_proc_chance", 0.50):
+        damage_factor = skill_config.get("damage_factor", 550.0)
+        if damage_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                an_effect_happened = True
+            log_details.append(
+                (
+                    f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                )
+            )
+
+    if random.random() < skill_config.get("rage_reduction_chance", 0.15):
+        rage_reduction = skill_config.get("rage_reduction", 300.0)
+        if rage_reduction > 0:
+            opponent_army.current_rage = max(0.0, opponent_army.current_rage - rage_reduction)
+            an_effect_happened = True
+            log_details.append((f"Reduces enemy rage by {rage_reduction:.0f}.", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_rapid_defense(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    buff_mag = skill_config.get("buff_magnitude", 0.40)
+    buff_dur = skill_config.get("buff_duration", 2)
+    buff_data = {
+        "effect_type": EffectType.STAT_MOD,
+        "name": EFFECT_NAME_RAPID_DEFENSE_BUFF,
+        "stat_to_mod": StatType.BASE_DEFENSE_MULTIPLIER,
+        "magnitude": buff_mag,
+        "duration": buff_dur,
+        "activate_next_round": True,
+    }
+    created_buff = triggering_army._create_and_add_single_effect(
+        buff_data, skill_id, triggering_army, triggering_army, opponent_army
+    )
+    if created_buff:
+        an_effect_happened = True
+        log_details.append((f"Gains defense buff {buff_mag * 100:.0f}% for {buff_dur + 1} rounds (starting next round).", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_rare_viking_hymn(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    buff_mag = skill_config.get("buff_magnitude", 0.20)
+    buff_dur = skill_config.get("buff_duration", 2)
+    buff_data = {
+        "effect_type": EffectType.STAT_MOD,
+        "name": EFFECT_NAME_RARE_VIKING_HYMN_ATTACK_BUFF,
+        "stat_to_mod": StatType.BASE_ATTACK_MULTIPLIER,
+        "magnitude": buff_mag,
+        "duration": buff_dur,
+        "activate_next_round": True,
+    }
+    created_buff = triggering_army._create_and_add_single_effect(
+        buff_data, skill_id, triggering_army, triggering_army, opponent_army
+    )
+    if created_buff:
+        an_effect_happened = True
+        log_details.append((f"Gains attack buff {buff_mag * 100:.0f}% for {buff_dur + 1} rounds (starting next round).", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_rare_defense_up(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    buff_mag = skill_config.get("buff_magnitude", 0.20)
+    buff_dur = skill_config.get("buff_duration", 2)
+    buff_data = {
+        "effect_type": EffectType.STAT_MOD,
+        "name": EFFECT_NAME_RARE_DEFENSE_UP_BUFF,
+        "stat_to_mod": StatType.BASE_DEFENSE_MULTIPLIER,
+        "magnitude": buff_mag,
+        "duration": buff_dur,
+        "activate_next_round": True,
+    }
+    created_buff = triggering_army._create_and_add_single_effect(
+        buff_data, skill_id, triggering_army, triggering_army, opponent_army
+    )
+    if created_buff:
+        an_effect_happened = True
+        log_details.append((f"Gains defense buff {buff_mag * 100:.0f}% for {buff_dur + 1} rounds (starting next round).", None))
+
+    return an_effect_happened, log_details

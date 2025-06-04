@@ -413,9 +413,6 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_divine_punishment", "name": "Divine Punishment", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_talent_divine_punishment,
-        "effects_to_apply": [{"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_DIVINE_PUNISHMENT_BASIC_BUFF,
-                               "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST, "magnitude": 0.20,
-                               "duration": -1, "activate_next_round": False}],
         "config": {"damage_chance": 0.20, "damage_factor": 500.0}
     },
 

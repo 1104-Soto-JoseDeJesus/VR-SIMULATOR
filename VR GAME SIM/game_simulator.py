@@ -179,8 +179,7 @@ class GameSimulator:
                         if is_on_cooldown:
                             continue
 
-                        if skill_id in triggering_army.triggered_skills_this_round and \
-                                skill_id in ["plugin_chance_of_reversal", "talent_full_focus", "talent_healing_hymn"]:
+                        if skill_id in triggering_army.triggered_skills_this_round:
                             continue
 
                         logic_handler: Optional[SkillLogicHandler] = skill_def.get("logic_handler")
@@ -232,7 +231,7 @@ class GameSimulator:
                             if cooldown is not None:
                                 triggering_army.skill_last_triggered_round[skill_id] = self.round
 
-                            if skill_id in ["plugin_chance_of_reversal", "talent_full_focus", "talent_healing_hymn"]:
+                            if skill_id not in triggering_army.triggered_skills_this_round:
                                 triggering_army.triggered_skills_this_round.append(skill_id)
 
     def _execute_rage_skills(self, army: Army, opponent: Army, is_hero2_delayed_trigger: bool = False):

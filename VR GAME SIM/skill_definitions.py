@@ -75,7 +75,10 @@ from skill_logic.rage_skill_handlers import (
     # FREYDIS RAGE SKILL HANDLER
     handle_rage_desperate_strike
 )
-from skill_logic.utility_skill_handlers import handle_generic_single_damage_skill
+from skill_logic.utility_skill_handlers import (
+    handle_generic_single_damage_skill,
+    handle_generic_heal_skill,
+)
 
 SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
     # --- Talent Skills ---

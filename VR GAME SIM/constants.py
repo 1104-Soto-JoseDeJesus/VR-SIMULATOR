@@ -117,6 +117,32 @@ EFFECT_NAME_GODLY_WRATH_COOP_RATE = "Godly Wrath Cooperation Boost"
 EFFECT_NAME_DIVINE_ENERGIZE_VULNERABILITY = "Divine Energize Vulnerability"
 EFFECT_NAME_HEAVENLY_DESCENT_BLEED = "Heavenly Descent Bleed"
 EFFECT_NAME_DIVINE_PUNISHMENT_BASIC_BUFF = "Divine Punishment Attack Buff"
+# --- Rollo Skill Effect Names ---
+EFFECT_NAME_PATIENT_WAITING_BUFF = "Patient and Waiting Attack Buff"
+EFFECT_NAME_TOUGH_CHOICE_BASIC_BUFF = "Tough Choice Basic Damage Buff"
+EFFECT_NAME_TOUGH_CHOICE_COUNTER_DEBUFF = "Tough Choice Counter Damage Debuff"
+EFFECT_NAME_BLOODY_PILLAGE_BLEED = "Bloody Pillage Bleed"
+
+# --- Harald Skill Effect Names ---
+EFFECT_NAME_BATTLE_PREPARATION_BUFF = "Battle Preparation Attack Buff"
+EFFECT_NAME_BATTLE_PREPARATION_DISARM_IMMUNITY = "Battle Preparation Disarm Immunity"
+EFFECT_NAME_COORDINATED_STRIKE_BUFF = "Coordinated Strike Coop Damage Buff"
+EFFECT_NAME_SLOW_STRIKE_BASIC_BUFF = "Slow Strike Basic Damage Buff"
+EFFECT_NAME_FLEET_RAIDER_BUFF = "Fleet Raider Attack Buff"
+EFFECT_NAME_RAGING_SMASH_SLOW = EFFECT_NAME_SLOW_DEBUFF
+
+# --- Bjorn Skill Effect Names ---
+EFFECT_NAME_FATAL_BLEEDING_DOT = "Fatal Bleeding DoT"
+EFFECT_NAME_LETHAL_FRACTURE_ATK_BUFF = "Lethal Fracture Attack Buff"
+
+# --- Hobert Skill Effect Names ---
+EFFECT_NAME_BOLD_SHIELDAXE_BUFF = "Bold Shieldaxe Attack Buff"
+EFFECT_NAME_STEADFAST_ARMOR_REDUCTION = "Steadfast Armor Damage Reduction"
+EFFECT_NAME_BERSERK_FURY_BUFF = "Berserk Fury Basic Attack Buff"
+EFFECT_NAME_BERSERK_FURY_RAGE_GAIN = "Berserk Fury Rage Gain"
+EFFECT_NAME_BRUTAL_BLOW_SHIELD = "Brutal Blow Shield"
+EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL = "PENDING_BRUTAL_BLOW_BUFF_REMOVAL"
+EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE = "PENDING_BRUTAL_BLOW_CLEANSE"
 # --- Additional Plugin Effect Names ---
 EFFECT_NAME_HALE_OF_THORNS_GENERAL_REDUCTION = "Hale of Thorns General Damage Debuff"
 EFFECT_NAME_HALE_OF_THORNS_COUNTER_BUFF = "Hale of Thorns Counterattack Buff"

@@ -16,10 +16,13 @@ from constants import (
     EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
     EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
     EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Import Olena's new effect
+    EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
     EFFECT_NAME_PENDING_HEROIC_BLESSING_DEBUFF,
     EFFECT_NAME_PENDING_HEROIC_BLESSING_BUFF,
     EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF,
-    EFFECT_NAME_HEROIC_BLESSING_BURN_BOOST
+    EFFECT_NAME_HEROIC_BLESSING_BURN_BOOST,
+    EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
+    EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE
 )
 
 GameSimulatorRef = "GameSimulator"  # Forward reference
@@ -389,7 +392,9 @@ class Army:
                 EFFECT_NAME_FIRST_STRIKE_RAGE_AURA, EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
                 EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL, EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
                 EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE, EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
-                EFFECT_NAME_CONCENTRATION_RAGE_GAIN  # Add Olena's custom rage gain effect
+                EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Add Olena's custom rage gain effect
+                EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
+                EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE
             ]
             if effect.applied_this_round and phase == 'start_of_round' and not is_immediate_custom_effect:
                 continue
@@ -520,6 +525,16 @@ class Army:
                         self.simulator._log_skill_trigger(self, effect.name,
                                                           f"gains {', '.join(log_parts)} ({gained_this_tick} total this round). New rage: {self.current_rage:.0f}")
 
+            elif effect.name == EFFECT_NAME_BERSERK_FURY_RAGE_GAIN and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round':
+                    gain_amt = effect.config.get("rage_per_round", 0)
+                    if gain_amt > 0:
+                        self.current_rage += gain_amt
+                        if self.simulator:
+                            self.simulator._log_skill_trigger(
+                                self, effect.name,
+                                f"gains {gain_amt} rage from Berserk Fury. New rage: {self.current_rage:.0f}")
+
             elif effect.name == EFFECT_NAME_PENDING_HEROIC_BLESSING_DEBUFF and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round' and effect.duration <= 0:
                     debuff_duration = effect.config.get("debuff_duration", 30)
@@ -571,7 +586,7 @@ class Army:
 
 
             elif effect.name in [EFFECT_NAME_PENDING_AWAKENING_CLEANSE, EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
-                                 EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE] \
+                                 EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE] \
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
                     debuff_ids_to_remove = effect.config.get("debuff_ids_to_remove", [])
@@ -591,7 +606,8 @@ class Army:
                                                           f"Removes targeted debuffs: {', '.join(debuff_names_removed_log)}.")
 
             elif effect.name in [EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
-                                 EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL] \
+                                 EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
+                                 EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL] \
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
                     buff_ids_to_remove = effect.config.get("buff_ids_to_remove", [])

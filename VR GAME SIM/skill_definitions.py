@@ -11,6 +11,11 @@ from skill_logic.talent_handlers import (
     handle_talent_power_of_silence, handle_talent_deadly_raid,
     handle_talent_strategize, handle_talent_adaptable_to_changes,
     handle_talent_hunting_experience, handle_talent_targeted_strike,
+    handle_talent_patient_waiting, handle_talent_revolutionary_resolve,
+    handle_talent_adaptable_agility, handle_talent_battle_preparation,
+    handle_talent_coordinated_strike, handle_talent_slow_strike,
+    handle_talent_trained_up, handle_talent_fatal_bleeding,
+    handle_talent_steadfast_armor, handle_talent_fearless_pursuit,
     # OLENA TALENT HANDLERS
     handle_talent_multi_shot_arrow, handle_talent_poised_shot,
     # ARTUR TALENT HANDLER
@@ -38,7 +43,11 @@ from skill_logic.base_skill_handlers import (
     # JENS BASE SKILL HANDLER
     handle_base_skill_divine_energize,
     # FREYDIS BASE SKILL HANDLER
-    handle_base_skill_blades_judgment
+    handle_base_skill_blades_judgment,
+    handle_base_skill_tough_choice, handle_rage_bloody_pillage,
+    handle_base_skill_fleet_raider, handle_rage_raging_smash,
+    handle_base_skill_crippling_pursuit, handle_rage_lethal_fracture,
+    handle_base_skill_berserk_fury, handle_rage_brutal_blow
 )
 from skill_logic.plugin_skill_handlers import (
     handle_plugin_divine_blessing, handle_plugin_shield_support, handle_plugin_freyas_blessing,
@@ -672,6 +681,135 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_rage_skill_heavenly_descent,
         "config": {"damage_factor": 825.0, "vulnerability_magnitude": 0.10, "vulnerability_duration": 4,
                    "bleed_factor": 0}
+    },
+
+    # --- Rollo Skills ---
+    "talent_patient_waiting": {
+        "id": "talent_patient_waiting", "name": "Patient and Waiting", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_patient_waiting,
+        "config": {"duration": 30, "buff_magnitude": 0.20, "damage_chance": 0.50, "damage_factor": 500.0}
+    },
+    "talent_revolutionary_resolve": {
+        "id": "talent_revolutionary_resolve", "name": "Revolutionary Resolve", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_revolutionary_resolve,
+        "config": {"damage_chance": 0.40, "damage_factor": 1500.0, "slow_duration": 2}
+    },
+    "talent_adaptable_agility": {
+        "id": "talent_adaptable_agility", "name": "Adaptable Agility", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_adaptable_agility,
+        "config": {"damage_chance_high": 0.25, "damage_factor": 900.0, "heal_chance_low": 0.20, "heal_factor": 500.0}
+    },
+    "base_skill_tough_choice": {
+        "id": "base_skill_tough_choice", "name": "Tough Choice", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_base_skill_tough_choice,
+        "config": {"basic_buff": 0.30, "counter_debuff": -0.30, "heal_chance": 0.20, "heal_factor": 900.0}
+    },
+    "base_skill_bloody_pillage": {
+        "id": "base_skill_bloody_pillage", "name": "Bloody Pillage", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_bloody_pillage,
+        "config": {"damage_factor": 1500.0, "bleed_factor": 350.0, "bleed_duration": 2}
+    },
+
+    # --- Harald Skills ---
+    "talent_battle_preparation": {
+        "id": "talent_battle_preparation", "name": "Battle Preparation", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_talent_battle_preparation,
+        "config": {"duration": 30, "buff_magnitude": 0.45}
+    },
+    "talent_coordinated_strike": {
+        "id": "talent_coordinated_strike", "name": "Coordinated Strike", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_talent_coordinated_strike,
+        "config": {"damage_factor": 300.0, "buff_magnitude": 0.12, "buff_duration": 3, "damage_chance": 1.0}
+    },
+    "talent_slow_strike": {
+        "id": "talent_slow_strike", "name": "Slow Strike", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_slow_strike,
+        "config": {"buff_magnitude": 0.50, "damage_chance": 0.30, "damage_factor": 600.0}
+    },
+    "base_skill_fleet_raider": {
+        "id": "base_skill_fleet_raider", "name": "Fleet Raider", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_base_skill_fleet_raider,
+        "config": {"damage_factor": 300.0, "buff_magnitude": 0.25, "buff_duration": 5}
+    },
+    "base_skill_raging_smash": {
+        "id": "base_skill_raging_smash", "name": "Raging Smash", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_raging_smash,
+        "config": {"damage_factor": 2000.0, "slow_duration": 4}
+    },
+
+    # --- Bjorn Skills ---
+    "talent_trained_up": {
+        "id": "talent_trained_up", "name": "Trained Up", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.25, "target": "ENEMY",
+        "logic_handler": handle_talent_trained_up,
+        "config": {"damage_factor": 300.0, "slow_chance": 0.30, "slow_duration": 2, "damage_chance": 1.0}
+    },
+    "talent_undefeated": {
+        "id": "talent_undefeated", "name": "Undefeated", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
+        "effects_to_apply": [{"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_COORDINATED_STRIKE_BUFF,
+                              "stat_to_mod": StatType.REACTIVE_SKILL_DAMAGE_ADJUST, "magnitude": 0.15, "duration": -1}]
+    },
+    "talent_fatal_bleeding": {
+        "id": "talent_fatal_bleeding", "name": "Fatal Bleeding", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_fatal_bleeding,
+        "config": {"trigger_interval": 6, "bleed_factor": 500.0, "bleed_duration": 2}
+    },
+    "base_skill_crippling_pursuit": {
+        "id": "base_skill_crippling_pursuit", "name": "Crippling Pursuit", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_base_skill_crippling_pursuit,
+        "config": {"damage_factor": 500.0, "extra_damage_factor": 250.0}
+    },
+    "base_skill_lethal_fracture": {
+        "id": "base_skill_lethal_fracture", "name": "Lethal Fracture", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_lethal_fracture,
+        "config": {"damage_factor": 2000.0, "slow_duration": 3, "attack_buff": 0.15, "attack_duration": 3}
+    },
+
+    # --- Hobert Skills ---
+    "talent_bold_shieldaxe": {
+        "id": "talent_bold_shieldaxe", "name": "Bold Shieldaxe", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
+        "effects_to_apply": [{"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_BOLD_SHIELDAXE_BUFF,
+                              "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST, "magnitude": 0.35, "duration": -1}]
+    },
+    "talent_fearless_pursuit": {
+        "id": "talent_fearless_pursuit", "name": "Fearless Pursuit", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_generic_single_damage_skill,
+        "config": {"damage_factor": 350.0, "alt_damage_factor": 700.0}
+    },
+    "talent_steadfast_armor": {
+        "id": "talent_steadfast_armor", "name": "Steadfast Armor", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.30, "target": "ENEMY",
+        "logic_handler": handle_talent_steadfast_armor,
+        "config": {"reduction": -0.28, "duration": 1, "slow_duration": 2}
+    },
+    "base_skill_berserk_fury": {
+        "id": "base_skill_berserk_fury", "name": "Berserk Fury", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_base_skill_berserk_fury,
+        "config": {"loss_per_stack": 0.06, "basic_buff": 0.12, "rage_per_round": 3}
+    },
+    "base_skill_brutal_blow": {
+        "id": "base_skill_brutal_blow", "name": "Brutal Blow", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_brutal_blow,
+        "config": {"damage_factor": 1200.0, "shield_factor": 400.0, "shield_duration": 2,
+                   "buff_removal_count": 2, "self_cleanse_count": 1}
     },
 
 

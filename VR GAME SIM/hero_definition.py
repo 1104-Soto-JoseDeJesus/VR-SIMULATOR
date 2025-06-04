@@ -120,4 +120,24 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_divine_energize", "base_skill_heavenly_descent"],
         'plugin_skills': [],
     },
+    'rollo': {
+        'talents': ["talent_patient_waiting", "talent_revolutionary_resolve", "talent_adaptable_agility"],
+        'base_skills': ["base_skill_tough_choice", "base_skill_bloody_pillage"],
+        'plugin_skills': [],
+    },
+    'harald': {
+        'talents': ["talent_battle_preparation", "talent_coordinated_strike", "talent_slow_strike"],
+        'base_skills': ["base_skill_fleet_raider", "base_skill_raging_smash"],
+        'plugin_skills': [],
+    },
+    'bjorn': {
+        'talents': ["talent_trained_up", "talent_undefeated", "talent_fatal_bleeding"],
+        'base_skills': ["base_skill_crippling_pursuit", "base_skill_lethal_fracture"],
+        'plugin_skills': [],
+    },
+    'hobert': {
+        'talents': ["talent_bold_shieldaxe", "talent_fearless_pursuit", "talent_steadfast_armor"],
+        'base_skills': ["base_skill_berserk_fury", "base_skill_brutal_blow"],
+        'plugin_skills': [],
+    },
 }

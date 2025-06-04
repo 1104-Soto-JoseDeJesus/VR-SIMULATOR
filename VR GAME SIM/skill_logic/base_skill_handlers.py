@@ -625,3 +625,258 @@ def handle_base_skill_divine_energize(
     return an_effect_happened, log_details
 
 
+# --- Rollo Base Skill Handlers ---
+def handle_base_skill_tough_choice(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                                   skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+                                   simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    if not any(eff.name == EFFECT_NAME_TOUGH_CHOICE_BASIC_BUFF and eff.source_skill_id == skill_def["id"] for eff in triggering_army.active_effects):
+        bdata = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_TOUGH_CHOICE_BASIC_BUFF,
+                 "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST, "magnitude": cfg.get("basic_buff", 0.3),
+                 "duration": -1, "activate_next_round": False}
+        cdata = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_TOUGH_CHOICE_COUNTER_DEBUFF,
+                 "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST, "magnitude": cfg.get("counter_debuff", -0.3),
+                 "duration": -1, "activate_next_round": False}
+        if triggering_army._create_and_add_single_effect(bdata, skill_def["id"], triggering_army, triggering_army, opponent_army):
+            happened = True
+            logs.append((f"Gains permanent '{EFFECT_NAME_TOUGH_CHOICE_BASIC_BUFF}'.", None))
+        if triggering_army._create_and_add_single_effect(cdata, skill_def["id"], triggering_army, triggering_army, opponent_army):
+            happened = True
+            logs.append((f"Gains permanent '{EFFECT_NAME_TOUGH_CHOICE_COUNTER_DEBUFF}'.", None))
+    if any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects):
+        if random.random() < cfg.get("heal_chance", 0.0):
+            heal_factor = cfg.get("heal_factor", 0.0)
+            healed = triggering_army.calculate_and_add_pending_healing(heal_factor, triggering_army, opponent_army)
+            if healed > 0:
+                happened = True
+                logs.append((f"Heals for {healed:.0f} HP (Factor: {heal_factor}).", None))
+    return happened, logs
+
+
+def handle_rage_bloody_pillage(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                               skill_def: SkillDefinition, event_data: Dict[str, Any],
+                               simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    dmg_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    dmg_factor = cfg.get("damage_factor", 0.0)
+    if dmg_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, dmg_factor, is_hero2_rage_skill=event_data.get("is_hero2_delayed_rage", False), source_skill_def=skill_def)
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            dmg_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
+                     {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+    bleed_factor = cfg.get("bleed_factor", 0.0)
+    bleed_dur = cfg.get("bleed_duration", 2)
+    if bleed_factor > 0:
+        bleed_data = {"effect_type": EffectType.DAMAGE_OVER_TIME, "name": EFFECT_NAME_BLOODY_PILLAGE_BLEED,
+                      "dot_type": DoTType.BLEED, "status_effect_factor": bleed_factor,
+                      "duration": bleed_dur, "activate_next_round": True}
+        if opponent_army._create_and_add_single_effect(bleed_data, skill_def["id"], triggering_army, opponent_army, triggering_army):
+            happened = True
+            dmg_flag = True
+            logs.append((f"Inflicts '{EFFECT_NAME_BLOODY_PILLAGE_BLEED}' on {opponent_army.name} (Factor: {bleed_factor}) for {bleed_dur + 1} rounds (starting next round).", None))
+    return happened, logs, dmg_flag
+
+
+# --- Harald Base Skill Handlers ---
+def handle_base_skill_fleet_raider(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                                   skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+                                   simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    if random.random() < cfg.get("damage_chance", 0.0):
+        dmg_factor = cfg.get("damage_factor", 0.0)
+        if dmg_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, dmg_factor, source_skill_def=skill_def)
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append((f"Deals damage to {opponent_army.name}.",
+                         {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+        buff_mag = cfg.get("buff_magnitude", 0.25)
+        buff_dur = cfg.get("buff_duration", 5)
+        buff = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_FLEET_RAIDER_BUFF,
+                "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST, "magnitude": buff_mag,
+                "duration": buff_dur, "activate_next_round": True}
+        if triggering_army._create_and_add_single_effect(buff, skill_def["id"], triggering_army, triggering_army, opponent_army):
+            happened = True
+            logs.append((f"Gains '{EFFECT_NAME_FLEET_RAIDER_BUFF}' for {buff_dur + 1} rounds (starting next round).", None))
+    return happened, logs
+
+
+def handle_rage_raging_smash(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                              skill_def: SkillDefinition, event_data: Dict[str, Any], simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    dmg_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    dmg_factor = cfg.get("damage_factor", 0.0)
+    if dmg_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, dmg_factor, is_hero2_rage_skill=event_data.get("is_hero2_delayed_rage", False), source_skill_def=skill_def)
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            dmg_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
+                     {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+    slow_dur = cfg.get("slow_duration", 4)
+    slow_data = {"effect_type": EffectType.DEBUFF, "name": EFFECT_NAME_SLOW_DEBUFF, "duration": slow_dur,
+                 "activate_next_round": True, "config": {}}
+    if opponent_army._create_and_add_single_effect(slow_data, skill_def["id"], triggering_army, opponent_army, triggering_army):
+        happened = True
+        dmg_flag = True
+        logs.append((f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {opponent_army.name} for {slow_dur + 1} rounds (starting next round).", None))
+    return happened, logs, dmg_flag
+
+
+# --- Bjorn Base Skill Handlers ---
+def handle_base_skill_crippling_pursuit(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                                        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+                                        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    if random.random() < cfg.get("damage_chance", 0.0):
+        dmg_factor = cfg.get("damage_factor", 0.0)
+        if dmg_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, dmg_factor, source_skill_def=skill_def)
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append((f"Deals damage to {opponent_army.name}.",
+                         {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+        if any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects):
+            extra_factor = cfg.get("extra_damage_factor", 0.0)
+            if extra_factor > 0:
+                hp_damage2, abs2, kills2, raw2 = simulator._calculate_generic_skill_damage(
+                    triggering_army, opponent_army, extra_factor, source_skill_def=skill_def)
+                if hp_damage2 > 0:
+                    opponent_army.pending_hp_damage_this_round += hp_damage2
+                if hp_damage2 > 0 or abs2 > 0:
+                    happened = True
+                logs.append((f"Deals additional damage to {opponent_army.name} due to slow.",
+                             {"damage_done_hp": round(raw2), "absorbed_hp": round(abs2), "potential_kills": kills2}))
+    return happened, logs
+
+
+def handle_rage_lethal_fracture(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                                skill_def: SkillDefinition, event_data: Dict[str, Any], simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    dmg_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    dmg_factor = cfg.get("damage_factor", 0.0)
+    if dmg_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, dmg_factor, is_hero2_rage_skill=event_data.get("is_hero2_delayed_rage", False), source_skill_def=skill_def)
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            dmg_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
+                     {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+    slow_dur = cfg.get("slow_duration", 3)
+    slow_data = {"effect_type": EffectType.DEBUFF, "name": EFFECT_NAME_SLOW_DEBUFF, "duration": slow_dur,
+                 "activate_next_round": True, "config": {}}
+    if opponent_army._create_and_add_single_effect(slow_data, skill_def["id"], triggering_army, opponent_army, triggering_army):
+        happened = True
+        dmg_flag = True
+        logs.append((f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {opponent_army.name} for {slow_dur + 1} rounds (starting next round).", None))
+    atk_buff_mag = cfg.get("attack_buff", 0.15)
+    atk_buff_dur = cfg.get("attack_duration", 3)
+    buff_data = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_LETHAL_FRACTURE_ATK_BUFF,
+                 "stat_to_mod": StatType.BASE_ATTACK_MULTIPLIER, "magnitude": atk_buff_mag,
+                 "duration": atk_buff_dur, "activate_next_round": True, "unit_type_condition": "infantry"}
+    if triggering_army._create_and_add_single_effect(buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army):
+        happened = True
+        logs.append((f"Gains '{EFFECT_NAME_LETHAL_FRACTURE_ATK_BUFF}' for {atk_buff_dur + 1} rounds (starting next round).", None))
+    return happened, logs, dmg_flag
+
+
+# --- Hobert Base Skill Handlers ---
+def handle_base_skill_berserk_fury(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                                   skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+                                   simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    initial = triggering_army.unit.initial_count
+    if initial <= 0:
+        return False, []
+    lost_ratio = max(0.0, (initial - triggering_army.current_troop_count) / initial)
+    stacks_needed = min(5, int(lost_ratio / cfg.get("loss_per_stack", 0.06)))
+    existing_stacks = sum(1 for eff in triggering_army.active_effects if eff.name == EFFECT_NAME_BERSERK_FURY_BUFF and eff.source_skill_id == skill_def["id"])
+    while existing_stacks < stacks_needed:
+        buff = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_BERSERK_FURY_BUFF,
+                "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST, "magnitude": cfg.get("basic_buff", 0.12),
+                "duration": -1, "activate_next_round": False}
+        rage_eff = {"effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
+                    "duration": -1, "config": {"rage_per_round": cfg.get("rage_per_round", 3)}}
+        if triggering_army._create_and_add_single_effect(buff, skill_def["id"], triggering_army, triggering_army, opponent_army):
+            happened = True
+            logs.append((f"Gains Berserk Fury stack {existing_stacks + 1}/{stacks_needed}.", None))
+        triggering_army._create_and_add_single_effect(rage_eff, skill_def["id"], triggering_army, triggering_army, opponent_army)
+        existing_stacks += 1
+    return happened, logs
+
+
+def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                            skill_def: SkillDefinition, event_data: Dict[str, Any], simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    dmg_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    dmg_factor = cfg.get("damage_factor", 0.0)
+    if dmg_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, dmg_factor, is_hero2_rage_skill=event_data.get("is_hero2_delayed_rage", False), source_skill_def=skill_def)
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            dmg_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
+                     {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+    shield_factor = cfg.get("shield_factor", 0.0)
+    shield_dur = cfg.get("shield_duration", 2)
+    if shield_factor > 0:
+        shield_data = {"effect_type": EffectType.SHIELD, "name": EFFECT_NAME_BRUTAL_BLOW_SHIELD,
+                       "duration": shield_dur, "magnitude_calc_type": "dynamic_shield_resistance_v1",
+                       "shield_factor": shield_factor, "activate_next_round": True}
+        if triggering_army._create_and_add_single_effect(shield_data, skill_def["id"], triggering_army, triggering_army, opponent_army):
+            happened = True
+            logs.append((f"Gains shield for {shield_dur + 1} rounds (starting next round).", None))
+    # schedule buff removal and self cleanse
+    if cfg.get("buff_removal_count", 2) > 0:
+        opp_buff_ids = [eff.id for eff in opponent_army.active_effects if eff.duration != -1 and eff.effect_type != EffectType.SHIELD][:cfg.get("buff_removal_count", 2)]
+        pending = {"effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
+                   "duration": 0, "config": {"buff_ids_to_remove": opp_buff_ids,
+                                            "targeted_buff_names_initial_log": [eff.name for eff in opponent_army.active_effects if eff.id in opp_buff_ids]},
+                   "activate_next_round": True}
+        opponent_army._create_and_add_single_effect(pending, skill_def["id"], triggering_army, opponent_army, triggering_army)
+    if cfg.get("self_cleanse_count", 1) > 0:
+        own_debuff_ids = [eff.id for eff in triggering_army.active_effects if (eff.effect_type == EffectType.DEBUFF or eff.config.get("prevents_counterattack") or eff.config.get("prevents_basic_attack") or eff.config.get("prevents_rage_skill_cast"))][:cfg.get("self_cleanse_count", 1)]
+        pending_cleanse = {"effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
+                           "duration": 0, "config": {"debuff_ids_to_remove": own_debuff_ids,
+                                                    "debuff_names_removed_log": [eff.name for eff in triggering_army.active_effects if eff.id in own_debuff_ids]},
+                           "activate_next_round": True}
+        triggering_army._create_and_add_single_effect(pending_cleanse, skill_def["id"], triggering_army, triggering_army, opponent_army)
+    return happened, logs, dmg_flag
+
+

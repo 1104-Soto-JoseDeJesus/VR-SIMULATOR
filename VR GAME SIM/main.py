@@ -4,6 +4,9 @@ import random
 import json
 import os
 from typing import List, Optional, Dict, Any
+import contextlib
+import io
+import matplotlib.pyplot as plt
 
 from enums import SkillType
 from unit_definition import Unit as UnitClass
@@ -18,12 +21,19 @@ from skill_definitions import SKILL_REGISTRY_GLOBAL
 # --- Configuration for Save/Load ---
 SETUPS_DIR = "setups"
 LAST_SETUP_FILENAME = os.path.join(SETUPS_DIR, "_last_run_setup.json")
+HISTOGRAM_DIR = "histograms"
 
 
 def ensure_setups_dir():
     """Ensures the setups directory exists."""
     if not os.path.exists(SETUPS_DIR):
         os.makedirs(SETUPS_DIR)
+
+
+def ensure_histogram_dir():
+    """Ensures the histogram output directory exists."""
+    if not os.path.exists(HISTOGRAM_DIR):
+        os.makedirs(HISTOGRAM_DIR)
 
 
 def save_setup_to_file(setup_data: List[Dict[str, Any]], filename: str):
@@ -96,6 +106,48 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
         army_obj = Army(army_config["army_name"], unit, heroes_list)
         armies.append(army_obj)
     return armies
+
+
+def run_additional_simulations(setup_data: List[Dict[str, Any]], runs: int = 100) -> None:
+    """Runs extra simulations silently and generates histograms."""
+    own_remaining: List[float] = []
+    enemy_remaining: List[float] = []
+    rounds_taken: List[int] = []
+
+    for _ in range(runs):
+        armies = create_armies_from_data(setup_data)
+        sim = GameSimulator(armies[0], armies[1])
+        with contextlib.redirect_stdout(io.StringIO()):
+            sim.simulate_battle()
+        own_remaining.append(sim.army1.current_troop_count)
+        enemy_remaining.append(sim.army2.current_troop_count)
+        rounds_taken.append(sim.round)
+
+    ensure_histogram_dir()
+
+    plt.figure()
+    plt.hist(own_remaining, bins='auto', color='blue', alpha=0.7)
+    plt.title('Own Remaining Troops')
+    plt.xlabel('Troops')
+    plt.ylabel('Frequency')
+    plt.savefig(os.path.join(HISTOGRAM_DIR, 'own_remaining_troops.png'))
+    plt.close()
+
+    plt.figure()
+    plt.hist(enemy_remaining, bins='auto', color='red', alpha=0.7)
+    plt.title('Enemy Remaining Troops')
+    plt.xlabel('Troops')
+    plt.ylabel('Frequency')
+    plt.savefig(os.path.join(HISTOGRAM_DIR, 'enemy_remaining_troops.png'))
+    plt.close()
+
+    plt.figure()
+    plt.hist(rounds_taken, bins='auto', color='green', alpha=0.7)
+    plt.title('Rounds to Battle End')
+    plt.xlabel('Rounds')
+    plt.ylabel('Frequency')
+    plt.savefig(os.path.join(HISTOGRAM_DIR, 'rounds_to_battle_end.png'))
+    plt.close()
 
 
 def run_interactive_setup() -> List[Army]:
@@ -253,8 +305,11 @@ if __name__ == "__main__":
 
     if armies_to_simulate and len(armies_to_simulate) == 2:
         # The GameSimulator constructor will inject the simulator instance into each Army
+        setup_snapshot = get_setup_data_for_saving(armies_to_simulate)
         sim = GameSimulator(armies_to_simulate[0], armies_to_simulate[1])
         sim.simulate_battle()
+
+        run_additional_simulations(setup_snapshot)
     elif chosen_action != 'Q':  # If not quitting and setup failed
         print("Could not set up two armies. Exiting.")
 

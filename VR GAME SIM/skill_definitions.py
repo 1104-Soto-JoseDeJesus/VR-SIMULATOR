@@ -15,6 +15,10 @@ from skill_logic.talent_handlers import (
     handle_talent_multi_shot_arrow, handle_talent_poised_shot,
     # ARTUR TALENT HANDLER
     handle_talent_pent_up_anger,
+    # GREGORY TALENT HANDLER
+    handle_talent_missing_beat,
+    # JENS TALENT HANDLERS
+    handle_talent_godly_wrath, handle_talent_divine_punishment,
     # FREYDIS TALENT HANDLERS
     handle_talent_heroic_blessing, handle_talent_battle_chime, handle_talent_flames_judgment
 )
@@ -29,6 +33,10 @@ from skill_logic.base_skill_handlers import (
     handle_base_skill_enchanted_arrow,
     # ARTUR BASE SKILL HANDLER
     handle_base_skill_torment,
+    # GREGORY BASE SKILL HANDLER
+    handle_base_skill_drumming_disturbance,
+    # JENS BASE SKILL HANDLER
+    handle_base_skill_divine_energize,
     # FREYDIS BASE SKILL HANDLER
     handle_base_skill_blades_judgment
 )
@@ -60,6 +68,10 @@ from skill_logic.rage_skill_handlers import (
     handle_rage_concentration,
     # ARTUR RAGE SKILL HANDLER
     handle_rage_incineration,
+    # GREGORY RAGE SKILL HANDLER
+    handle_rage_inspiring_dance,
+    # JENS RAGE SKILL HANDLER
+    handle_rage_skill_heavenly_descent,
     # FREYDIS RAGE SKILL HANDLER
     handle_rage_desperate_strike
 )
@@ -361,6 +373,48 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_talent_flames_judgment,
         "config": {"damage_factor": 1000.0, "damage_chance": 0.30}
     },
+    # --- Gregory Talents ---
+    "talent_great_morale": {
+        "id": "talent_great_morale", "name": "Great Morale", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
+        "effects_to_apply": [{"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_GREAT_MORALE_BUFF,
+                               "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST, "magnitude": 0.30,
+                               "duration": -1, "activate_next_round": False}]
+    },
+    "talent_missing_beat": {
+        "id": "talent_missing_beat", "name": "Missing Beat", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_talent_missing_beat,
+        "config": {"damage_factor": 400.0, "slow_chance": 0.25, "slow_duration": 2}
+    },
+    "talent_excite": {
+        "id": "talent_excite", "name": "Excite", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 0.40, "target": "ENEMY",
+        "logic_handler": handle_generic_single_damage_skill,
+        "config": {"damage_factor": 1800.0}
+    },
+    # --- Jens Talents ---
+    "talent_godly_wrath": {
+        "id": "talent_godly_wrath", "name": "Godly Wrath", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_talent_godly_wrath,
+        "config": {"duration": 30, "magnitude": 0.06}
+    },
+    "talent_divine_blite": {
+        "id": "talent_divine_blite", "name": "Divine Blite", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "SELF",
+        "logic_handler": handle_generic_heal_skill,
+        "config": {"heal_factor": 450.0}
+    },
+    "talent_divine_punishment": {
+        "id": "talent_divine_punishment", "name": "Divine Punishment", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_divine_punishment,
+        "effects_to_apply": [{"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_DIVINE_PUNISHMENT_BASIC_BUFF,
+                               "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST, "magnitude": 0.20,
+                               "duration": -1, "activate_next_round": False}],
+        "config": {"damage_chance": 0.20, "damage_factor": 500.0}
+    },
 
     # --- Base Skills ---
     # ... (All existing base skills for other heroes) ...
@@ -590,6 +644,34 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
             "burn_factor": 350.0,
             "burn_duration": 3
         }
+    },
+    # --- Gregory Base Skills ---
+    "base_skill_drumming_disturbance": {
+        "id": "base_skill_drumming_disturbance", "name": "Drumming Disturbance", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "SELF",
+        "logic_handler": handle_base_skill_drumming_disturbance,
+        "config": {"heal_factor": 250.0, "heal_duration": 2,
+                   "rage_reduction_mag": -0.10, "rage_reduction_duration": 2}
+    },
+    "base_skill_inspiring_dance": {
+        "id": "base_skill_inspiring_dance", "name": "Inspiring Dance", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_inspiring_dance,
+        "config": {"bleed_factor": 400.0, "bleed_duration": 2}
+    },
+    # --- Jens Base Skills ---
+    "base_skill_divine_energize": {
+        "id": "base_skill_divine_energize", "name": "Divine Energize", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.25, "target": "ENEMY",
+        "logic_handler": handle_base_skill_divine_energize,
+        "config": {"damage_factor": 300.0, "vulnerability_magnitude": 0.20, "vulnerability_duration": 2}
+    },
+    "base_skill_heavenly_descent": {
+        "id": "base_skill_heavenly_descent", "name": "Heavenly Descent", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_skill_heavenly_descent,
+        "config": {"damage_factor": 825.0, "vulnerability_magnitude": 0.10, "vulnerability_duration": 4,
+                   "bleed_factor": 0}
     },
 
 

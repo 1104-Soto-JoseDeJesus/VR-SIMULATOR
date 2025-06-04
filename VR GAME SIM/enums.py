@@ -72,6 +72,7 @@ class StatType(Enum):
 
     # NEW StatType for Athelstan's "Strategize"
     COMMAND_SKILL_DAMAGE_MODIFIER = "command_skill_damage_modifier" # For skills that trigger periodically (e.g. every X rounds)
+    COOPERATION_TRIGGER_RATE_MODIFIER = "cooperation_trigger_rate_modifier"
 
 
 class SkillType(Enum):

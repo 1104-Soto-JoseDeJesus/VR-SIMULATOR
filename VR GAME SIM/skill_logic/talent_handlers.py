@@ -632,7 +632,7 @@ def handle_talent_heroic_blessing(
         "name": EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF,
         "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
         "magnitude": -0.30,
-        "duration": max(debuff_duration - 1, 0),
+        "duration": debuff_duration,
         "activate_next_round": True,
     }
     created_debuff = triggering_army._create_and_add_single_effect(
@@ -650,7 +650,7 @@ def handle_talent_heroic_blessing(
     pending_buff_data = {
         "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
         "name": EFFECT_NAME_PENDING_HEROIC_BLESSING_BUFF,
-        "duration": max(debuff_duration - 1, 0),
+        "duration": debuff_duration,
         "config": {"burn_boost_magnitude": burn_boost_magnitude},
         "activate_next_round": True,
     }
@@ -714,10 +714,9 @@ def handle_talent_flames_judgment(
     an_effect_happened = False
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_config = skill_def.get("config", {})
-    trigger_interval = skill_config.get("trigger_interval", 9)
     skill_id = skill_def["id"]
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not event_data or "source_command_skill_id" not in event_data:
         return False, []
 
     enemy_burning = any(

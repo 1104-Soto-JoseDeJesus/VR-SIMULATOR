@@ -371,7 +371,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
     "talent_heroic_blessing": {
         "id": "talent_heroic_blessing", "name": "Heroic Blessing", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": handle_talent_heroic_blessing,
-        "config": {"debuff_duration": 30, "burn_boost_magnitude": 0.15}
+        "config": {"debuff_duration": 29, "burn_boost_magnitude": 0.15}
     },
     "talent_battle_chime": {
         "id": "talent_battle_chime", "name": "Battle Chime", "type": SkillType.TALENT,
@@ -410,7 +410,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_godly_wrath", "name": "Godly Wrath", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_talent_godly_wrath,
-        "config": {"duration": 30, "magnitude": 0.06}
+        "config": {"duration": 29, "magnitude": 0.06}
     },
     "talent_divine_blite": {
         "id": "talent_divine_blite", "name": "Divine Blite", "type": SkillType.TALENT,
@@ -688,7 +688,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_patient_waiting", "name": "Patient and Waiting", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_talent_patient_waiting,
-        "config": {"duration": 30, "buff_magnitude": 0.20, "damage_chance": 0.50, "damage_factor": 500.0}
+        "config": {"duration": 29, "buff_magnitude": 0.20, "damage_chance": 0.50, "damage_factor": 500.0}
     },
     "talent_revolutionary_resolve": {
         "id": "talent_revolutionary_resolve", "name": "Revolutionary Resolve", "type": SkillType.TALENT,
@@ -720,7 +720,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_battle_preparation", "name": "Battle Preparation", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_talent_battle_preparation,
-        "config": {"duration": 30, "buff_magnitude": 0.45}
+        "config": {"duration": 29, "buff_magnitude": 0.45}
     },
     "talent_coordinated_strike": {
         "id": "talent_coordinated_strike", "name": "Coordinated Strike", "type": SkillType.TALENT,

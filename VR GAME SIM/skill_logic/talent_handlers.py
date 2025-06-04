@@ -831,6 +831,29 @@ def handle_talent_divine_punishment(
     damage_chance = skill_config.get("damage_chance", 0.0)
     damage_factor = skill_config.get("damage_factor", 0.0)
 
+    # Ensure the permanent basic attack buff is applied once
+    has_buff = any(
+        eff.name == EFFECT_NAME_DIVINE_PUNISHMENT_BASIC_BUFF and eff.effect_type == EffectType.STAT_MOD
+        for eff in triggering_army.active_effects
+    )
+    if not has_buff:
+        buff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_DIVINE_PUNISHMENT_BASIC_BUFF,
+            "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
+            "magnitude": 0.20,
+            "duration": -1,
+            "activate_next_round": False,
+        }
+        created_buff = triggering_army._create_and_add_single_effect(
+            buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_buff:
+            an_effect_happened = True
+            log_details.append(
+                (f"Gains '{EFFECT_NAME_DIVINE_PUNISHMENT_BASIC_BUFF}' permanently.", None)
+            )
+
     enemy_bleeding = any(
         eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
         for eff in opponent_army.active_effects

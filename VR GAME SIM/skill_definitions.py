@@ -738,7 +738,8 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "base_skill_fleet_raider", "name": "Fleet Raider", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_base_skill_fleet_raider,
-        "config": {"damage_factor": 300.0, "buff_magnitude": 0.25, "buff_duration": 5}
+        "config": {"damage_chance": 1.0, "damage_factor": 300.0,
+                   "buff_magnitude": 0.25, "buff_duration": 5}
     },
     "base_skill_raging_smash": {
         "id": "base_skill_raging_smash", "name": "Raging Smash", "type": SkillType.BASE_SKILL,
@@ -770,7 +771,8 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "base_skill_crippling_pursuit", "name": "Crippling Pursuit", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_base_skill_crippling_pursuit,
-        "config": {"damage_factor": 500.0, "extra_damage_factor": 250.0}
+        "config": {"damage_chance": 1.0, "damage_factor": 500.0,
+                   "extra_damage_factor": 250.0}
     },
     "base_skill_lethal_fracture": {
         "id": "base_skill_lethal_fracture", "name": "Lethal Fracture", "type": SkillType.BASE_SKILL,

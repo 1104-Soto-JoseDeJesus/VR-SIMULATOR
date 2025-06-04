@@ -88,10 +88,13 @@ class Army:
                     log_details_passive: List[Tuple[str, Optional[Dict[str, Any]]]] = []
 
                     if skill_def.get("effects_to_apply"):
-                        applied_logs = self._add_effects_from_skill_def(skill_def, self, source_army=self,
-                                                                        opponent_for_calc=None)
-                        for _, desc in applied_logs: log_details_passive.append((desc, None))
-                        if applied_logs: an_effect_truly_happened_passive = True
+                        applied_logs = self._add_effects_from_skill_def(
+                            skill_def, self, source_army=self, opponent_for_calc=None
+                        )
+                        for _, desc in applied_logs:
+                            log_details_passive.append((desc, None))
+                        if applied_logs:
+                            an_effect_truly_happened_passive = True
                     elif skill_def.get("sub_effects"):
                         for sub_effect_data in skill_def["sub_effects"]:
                             if random.random() < sub_effect_data.get("chance", 1.0):
@@ -105,6 +108,16 @@ class Army:
                                         (f"{sub_effect_data.get('name_suffix', 'Effect')}: {created_effect.get_functionality_description()} for {created_effect.duration + 1} rounds.",
                                          None)
                                     )
+                    elif skill_def.get("logic_handler"):
+                        opponent = None
+                        if self.simulator:
+                            opponent = (
+                                self.simulator.army2 if self is self.simulator.army1 else self.simulator.army1
+                            )
+                        logic_handler = skill_def.get("logic_handler")
+                        an_effect_truly_happened_passive, log_details_passive = logic_handler(
+                            self, opponent, skill_def, None, self.simulator
+                        )
                     if an_effect_truly_happened_passive:
                         self.simulator._log_skill_trigger(self, skill_def['name'], "Passive applied at start.")
                         for desc_str, dmg_details in log_details_passive:
@@ -526,7 +539,8 @@ class Army:
                             effect.name,
                             f"Gains '{EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF}': {created.get_functionality_description()} for {debuff_duration} rounds."
                         )
-                    effect.duration = -1
+                    if effect in self.active_effects:
+                        self.active_effects.remove(effect)
 
             elif effect.name == EFFECT_NAME_PENDING_HEROIC_BLESSING_BUFF and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round' and effect.duration <= 0:
@@ -552,7 +566,8 @@ class Army:
                         if self.active_effects[i].name == EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF:
                             self.active_effects.pop(i)
                             break
-                    effect.duration = -1
+                    if effect in self.active_effects:
+                        self.active_effects.remove(effect)
 
 
             elif effect.name in [EFFECT_NAME_PENDING_AWAKENING_CLEANSE, EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,

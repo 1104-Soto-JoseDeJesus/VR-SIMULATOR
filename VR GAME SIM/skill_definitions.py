@@ -397,7 +397,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_missing_beat", "name": "Missing Beat", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_talent_missing_beat,
-        "config": {"damage_factor": 400.0, "slow_chance": 0.25, "slow_duration": 2}
+        "config": {"damage_factor": 400.0, "slow_chance": 0.25, "slow_duration": 1}
     },
     "talent_excite": {
         "id": "talent_excite", "name": "Excite", "type": SkillType.TALENT,
@@ -659,27 +659,27 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "base_skill_drumming_disturbance", "name": "Drumming Disturbance", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "SELF",
         "logic_handler": handle_base_skill_drumming_disturbance,
-        "config": {"heal_factor": 250.0, "heal_duration": 2,
-                   "rage_reduction_mag": -0.10, "rage_reduction_duration": 2}
+        "config": {"heal_factor": 250.0, "heal_duration": 1,
+                   "rage_reduction_mag": -0.10, "rage_reduction_duration": 1}
     },
     "base_skill_inspiring_dance": {
         "id": "base_skill_inspiring_dance", "name": "Inspiring Dance", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_inspiring_dance,
-        "config": {"bleed_factor": 400.0, "bleed_duration": 2}
+        "config": {"bleed_factor": 400.0, "bleed_duration": 1}
     },
     # --- Jens Base Skills ---
     "base_skill_divine_energize": {
         "id": "base_skill_divine_energize", "name": "Divine Energize", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.25, "target": "ENEMY",
         "logic_handler": handle_base_skill_divine_energize,
-        "config": {"damage_factor": 300.0, "vulnerability_magnitude": 0.20, "vulnerability_duration": 2}
+        "config": {"damage_factor": 300.0, "vulnerability_magnitude": 0.20, "vulnerability_duration": 1}
     },
     "base_skill_heavenly_descent": {
         "id": "base_skill_heavenly_descent", "name": "Heavenly Descent", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_skill_heavenly_descent,
-        "config": {"damage_factor": 825.0, "vulnerability_magnitude": 0.10, "vulnerability_duration": 4,
+        "config": {"damage_factor": 825.0, "vulnerability_magnitude": 0.10, "vulnerability_duration": 3,
                    "bleed_factor": 0}
     },
 
@@ -694,7 +694,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_revolutionary_resolve", "name": "Revolutionary Resolve", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_talent_revolutionary_resolve,
-        "config": {"damage_chance": 0.40, "damage_factor": 1500.0, "slow_duration": 2}
+        "config": {"damage_chance": 0.40, "damage_factor": 1500.0, "slow_duration": 1}
     },
     "talent_adaptable_agility": {
         "id": "talent_adaptable_agility", "name": "Adaptable Agility", "type": SkillType.TALENT,
@@ -712,7 +712,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "base_skill_bloody_pillage", "name": "Bloody Pillage", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_bloody_pillage,
-        "config": {"damage_factor": 1500.0, "bleed_factor": 350.0, "bleed_duration": 2}
+        "config": {"damage_factor": 1500.0, "bleed_factor": 350.0, "bleed_duration": 1}
     },
 
     # --- Harald Skills ---
@@ -726,7 +726,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_coordinated_strike", "name": "Coordinated Strike", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_talent_coordinated_strike,
-        "config": {"damage_factor": 300.0, "buff_magnitude": 0.12, "buff_duration": 3, "damage_chance": 1.0}
+        "config": {"damage_factor": 300.0, "buff_magnitude": 0.12, "buff_duration": 2, "damage_chance": 1.0}
     },
     "talent_slow_strike": {
         "id": "talent_slow_strike", "name": "Slow Strike", "type": SkillType.TALENT,
@@ -739,13 +739,13 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_base_skill_fleet_raider,
         "config": {"damage_chance": 1.0, "damage_factor": 300.0,
-                   "buff_magnitude": 0.25, "buff_duration": 5}
+                   "buff_magnitude": 0.25, "buff_duration": 4}
     },
     "base_skill_raging_smash": {
         "id": "base_skill_raging_smash", "name": "Raging Smash", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_raging_smash,
-        "config": {"damage_factor": 2000.0, "slow_duration": 4}
+        "config": {"damage_factor": 2000.0, "slow_duration": 3}
     },
 
     # --- Bjorn Skills ---
@@ -753,7 +753,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_trained_up", "name": "Trained Up", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.25, "target": "ENEMY",
         "logic_handler": handle_talent_trained_up,
-        "config": {"damage_factor": 300.0, "slow_chance": 0.30, "slow_duration": 2, "damage_chance": 1.0}
+        "config": {"damage_factor": 300.0, "slow_chance": 0.30, "slow_duration": 1, "damage_chance": 1.0}
     },
     "talent_undefeated": {
         "id": "talent_undefeated", "name": "Undefeated", "type": SkillType.TALENT,
@@ -765,7 +765,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_fatal_bleeding", "name": "Fatal Bleeding", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_talent_fatal_bleeding,
-        "config": {"trigger_interval": 6, "bleed_factor": 500.0, "bleed_duration": 2}
+        "config": {"trigger_interval": 6, "bleed_factor": 500.0, "bleed_duration": 1}
     },
     "base_skill_crippling_pursuit": {
         "id": "base_skill_crippling_pursuit", "name": "Crippling Pursuit", "type": SkillType.BASE_SKILL,
@@ -778,7 +778,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "base_skill_lethal_fracture", "name": "Lethal Fracture", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_lethal_fracture,
-        "config": {"damage_factor": 2000.0, "slow_duration": 3, "attack_buff": 0.15, "attack_duration": 3}
+        "config": {"damage_factor": 2000.0, "slow_duration": 2, "attack_buff": 0.15, "attack_duration": 2}
     },
 
     # --- Hobert Skills ---
@@ -798,7 +798,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_steadfast_armor", "name": "Steadfast Armor", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.30, "target": "ENEMY",
         "logic_handler": handle_talent_steadfast_armor,
-        "config": {"reduction": -0.28, "duration": 1, "slow_duration": 2}
+        "config": {"reduction": -0.28, "duration": 0, "slow_duration": 1}
     },
     "base_skill_berserk_fury": {
         "id": "base_skill_berserk_fury", "name": "Berserk Fury", "type": SkillType.BASE_SKILL,
@@ -810,7 +810,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "base_skill_brutal_blow", "name": "Brutal Blow", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_brutal_blow,
-        "config": {"damage_factor": 1200.0, "shield_factor": 400.0, "shield_duration": 2,
+        "config": {"damage_factor": 1200.0, "shield_factor": 400.0, "shield_duration": 1,
                    "buff_removal_count": 2, "self_cleanse_count": 1}
     },
 
@@ -1001,14 +1001,14 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_fiery_rage", "name": "Fiery Rage", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.10, "target": "ENEMY",
         "logic_handler": handle_plugin_fiery_rage,
-        "config": {"burn_factor": 350.0, "boosted_burn_factor": 700.0, "burn_duration": 2}
+        "config": {"burn_factor": 350.0, "boosted_burn_factor": 700.0, "burn_duration": 1}
     },
     "plugin_fiery_detonation": {
         "id": "plugin_fiery_detonation", "name": "Fiery Detonation", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_fiery_detonation,
         "config": {"trigger_interval": 9, "damage_factor": 600.0,
-                   "defense_reduction_magnitude": -0.15, "defense_reduction_duration": 2}
+                   "defense_reduction_magnitude": -0.15, "defense_reduction_duration": 1}
     },
     "plugin_rage_leech": {
         "id": "plugin_rage_leech", "name": "Rage Leech", "type": SkillType.PLUGIN_SKILL,
@@ -1020,8 +1020,8 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_enchanted_pursuit", "name": "Enchanted Pursuit", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_enchanted_pursuit,
-        "config": {"burn_chance": 0.10, "burn_factor": 275.0, "burn_duration": 2,
-                   "bleed_chance": 0.10, "bleed_factor": 275.0, "bleed_duration": 2}
+        "config": {"burn_chance": 0.10, "burn_factor": 275.0, "burn_duration": 1,
+                   "bleed_chance": 0.10, "bleed_factor": 275.0, "bleed_duration": 1}
     },
     "plugin_blow_of_chaos": {
         "id": "plugin_blow_of_chaos", "name": "Blow of Chaos", "type": SkillType.PLUGIN_SKILL,
@@ -1040,16 +1040,16 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_helas_curse", "name": "Hela's Curse", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_helas_curse,
-        "config": {"trigger_interval": 9, "burn_factor": 500.0, "burn_duration": 2,
+        "config": {"trigger_interval": 9, "burn_factor": 500.0, "burn_duration": 1,
                    "defense_debuff_chance": 0.50, "defense_debuff_magnitude": -0.20,
-                   "defense_debuff_duration": 2}
+                   "defense_debuff_duration": 1}
     },
     "plugin_fearless": {
         "id": "plugin_fearless", "name": "Fearless", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_fearless,
         "config": {"trigger_interval": 12, "damage_factor": 800.0,
-                   "buff_chance": 0.20, "buff_magnitude": 0.15, "buff_duration": 2}
+                   "buff_chance": 0.20, "buff_magnitude": 0.15, "buff_duration": 1}
     },
     "plugin_joint_offense": {
         "id": "plugin_joint_offense", "name": "Joint Offense", "type": SkillType.PLUGIN_SKILL,
@@ -1074,7 +1074,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_splinter,
         "config": {"trigger_interval": 12, "damage_factor": 800.0,
-                   "slow_chance": 0.35, "slow_duration": 2}
+                   "slow_chance": 0.35, "slow_duration": 1}
     },
     "plugin_hale_of_thorns": {
         "id": "plugin_hale_of_thorns", "name": "Hale of Thorns", "type": SkillType.PLUGIN_SKILL,
@@ -1085,13 +1085,13 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_halo_of_sacrifice", "name": "Halo of Sacrifice", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "SELF",
         "logic_handler": handle_plugin_halo_of_sacrifice,
-        "config": {"buff_magnitude": 0.75, "buff_duration": 2}
+        "config": {"buff_magnitude": 0.75, "buff_duration": 1}
     },
     "plugin_heightened_chance": {
         "id": "plugin_heightened_chance", "name": "Heightened Chance", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.25, "target": "SELF",
         "logic_handler": handle_plugin_heightened_chance,
-        "config": {"basic_buff_magnitude": 0.40, "counter_buff_magnitude": 0.40, "buff_duration": 2}
+        "config": {"basic_buff_magnitude": 0.40, "counter_buff_magnitude": 0.40, "buff_duration": 1}
     },
     "plugin_tenacity": {
         "id": "plugin_tenacity", "name": "Tenacity", "type": SkillType.PLUGIN_SKILL,
@@ -1116,19 +1116,19 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_rapid_defense", "name": "Rapid Defense", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_plugin_rapid_defense,
-        "config": {"buff_magnitude": 0.40, "buff_duration": 2}
+        "config": {"buff_magnitude": 0.40, "buff_duration": 1}
     },
     "plugin_rare_viking_hymn": {
         "id": "plugin_rare_viking_hymn", "name": "Rare Viking Hymn", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.30, "target": "SELF",
         "logic_handler": handle_plugin_rare_viking_hymn,
-        "config": {"buff_magnitude": 0.20, "buff_duration": 2}
+        "config": {"buff_magnitude": 0.20, "buff_duration": 1}
     },
     "plugin_rare_defense_up": {
         "id": "plugin_rare_defense_up", "name": "Rare Defense Up", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.25, "target": "SELF",
         "logic_handler": handle_plugin_rare_defense_up,
-        "config": {"buff_magnitude": 0.20, "buff_duration": 2}
+        "config": {"buff_magnitude": 0.20, "buff_duration": 1}
     },
 
     # --- Dummy Talent ---

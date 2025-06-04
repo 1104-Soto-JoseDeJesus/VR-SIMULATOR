@@ -218,6 +218,17 @@ class GameSimulator:
                                 self._log_skill_trigger(triggering_army, f"  ↳", desc_str, damage_details=dmg_details)
                             triggering_army.increment_skill_trigger_count(skill_id)
 
+                            if skill_def.get("trigger") == SkillTriggerType.CHANCE_PER_ROUND:
+                                self._process_skill_triggers(
+                                    triggering_army,
+                                    opponent_army,
+                                    SkillTriggerType.ON_OWN_COMMAND_SKILL_CAST,
+                                    event_data={
+                                        "source_command_skill_id": skill_id,
+                                        "opponent_for_shield_calc": actual_opponent_for_calc,
+                                    },
+                                )
+
                             if cooldown is not None:
                                 triggering_army.skill_last_triggered_round[skill_id] = self.round
 

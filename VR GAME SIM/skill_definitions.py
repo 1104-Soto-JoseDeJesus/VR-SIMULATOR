@@ -350,9 +350,9 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
     },
     "talent_flames_judgment": {
         "id": "talent_flames_judgment", "name": "Flame's Judgment", "type": SkillType.TALENT,
-        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "trigger": SkillTriggerType.ON_OWN_COMMAND_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_talent_flames_judgment,
-        "config": {"trigger_interval": 9, "damage_factor": 1000.0, "damage_chance": 0.30}
+        "config": {"damage_factor": 1000.0, "damage_chance": 0.30}
     },
 
     # --- Base Skills ---

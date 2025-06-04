@@ -1,0 +1,36 @@
+[
+    {
+        "army_name": "Army 1",
+        "unit_type": "pikemen",
+        "tier": 5,
+        "count": 100000,
+        "atk_mod": 0.0,
+        "def_mod": 0.0,
+        "hp_mod": 0.0,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Freydis",
+                "talent_ids": [
+                    "talent_heroic_blessing",
+                    "talent_battle_chime",
+                    "talent_flames_judgment"
+                ],
+                "base_skill_ids": [
+                    "base_skill_blades_judgment",
+                    "base_skill_desperate_strike"
+                ],
+                "plugin_skill_ids": []
+            }
+        ]
+    },
+    {
+        "army_name": "Army 2",
+        "unit_type": "pikemen",
+        "tier": 5,
+        "count": 100000,
+        "atk_mod": 0.0,
+        "def_mod": 0.0,
+        "hp_mod": 0.0,
+        "heroes": []
+    }
+]

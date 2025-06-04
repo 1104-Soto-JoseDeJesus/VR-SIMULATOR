@@ -627,22 +627,21 @@ def handle_talent_heroic_blessing(
     debuff_duration = skill_config.get("debuff_duration", 30)
     burn_boost_magnitude = skill_config.get("burn_boost_magnitude", 0.15)
 
-    debuff_data = {
-        "effect_type": EffectType.STAT_MOD,
-        "name": EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF,
-        "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
-        "magnitude": -0.30,
-        "duration": debuff_duration,
+    pending_debuff_data = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": EFFECT_NAME_PENDING_HEROIC_BLESSING_DEBUFF,
+        "duration": 1,
+        "config": {"debuff_duration": debuff_duration},
         "activate_next_round": True,
     }
-    created_debuff = triggering_army._create_and_add_single_effect(
-        debuff_data, skill_id, triggering_army, triggering_army, opponent_army
+    created_pending_debuff = triggering_army._create_and_add_single_effect(
+        pending_debuff_data, skill_id, triggering_army, triggering_army, opponent_army
     )
-    if created_debuff:
+    if created_pending_debuff:
         an_effect_happened = True
         log_details.append(
             (
-                f"Gains '{EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF}': {created_debuff.get_functionality_description()} for {debuff_duration} rounds (starting next round).",
+                f"Schedules '{EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF}' application for next round.",
                 None,
             )
         )
@@ -650,7 +649,7 @@ def handle_talent_heroic_blessing(
     pending_buff_data = {
         "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
         "name": EFFECT_NAME_PENDING_HEROIC_BLESSING_BUFF,
-        "duration": debuff_duration,
+        "duration": debuff_duration + 1,
         "config": {"burn_boost_magnitude": burn_boost_magnitude},
         "activate_next_round": True,
     }

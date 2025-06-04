@@ -65,6 +65,16 @@ EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE = "PENDING_BREAKING_FREE_CLEANSE"
 EFFECT_NAME_BLESSED_BY_FATE_BASIC_ATK_BUFF = "Blessed by Fate Basic Attack Buff"
 EFFECT_NAME_BLESSED_BY_FATE_ENEMY_DMG_TAKEN_DEBUFF = "Blessed by Fate Enemy Damage Taken Debuff"
 
+# --- New Plugin Skill Effect Names ---
+EFFECT_NAME_FIERY_RAGE_BURN = "Fiery Rage Burn"
+EFFECT_NAME_FIERY_DETONATION_DEF_REDUCTION = "Fiery Detonation Defense Reduction"
+EFFECT_NAME_ENCHANTED_PURSUIT_BURN = "Enchanted Pursuit Burn"
+EFFECT_NAME_ENCHANTED_PURSUIT_BLEED = "Enchanted Pursuit Bleed"
+EFFECT_NAME_ON_ALERT_COUNTER_BUFF = "On Alert Counterattack Buff"
+EFFECT_NAME_HELAS_CURSE_BURN = "Hela's Curse Burn"
+EFFECT_NAME_HELAS_CURSE_DEF_REDUCTION = "Hela's Curse Defense Reduction"
+EFFECT_NAME_FEARLESS_ATTACK_BUFF = "Fearless Attack Buff"
+
 # --- Athelstan Skill Effect Names ---
 EFFECT_NAME_ERUDITE_BURN_BOOST = "Erudite Burn Boost"
 EFFECT_NAME_ERUDITE_POISON_BOOST = "Erudite Poison Boost"

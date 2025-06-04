@@ -37,7 +37,10 @@ from skill_logic.plugin_skill_handlers import (
     handle_plugin_hymn_of_life, handle_plugin_chance_of_reversal, handle_plugin_shield_reflector,
     handle_plugin_first_strike_control, handle_plugin_shield_attacker, handle_plugin_awakening,
     handle_plugin_baldr_blessing, handle_plugin_lokis_trick, handle_plugin_odins_asylum,
-    handle_plugin_thors_determination, handle_plugin_disarmament,
+    handle_plugin_thors_determination, handle_plugin_disarmament, handle_plugin_fiery_rage,
+    handle_plugin_fiery_detonation, handle_plugin_rage_leech, handle_plugin_enchanted_pursuit,
+    handle_plugin_blow_of_chaos, handle_plugin_on_alert, handle_plugin_helas_curse,
+    handle_plugin_fearless, handle_plugin_joint_offense, handle_plugin_bloody_rage,
     handle_plugin_silencer, handle_plugin_enrage, handle_plugin_blessed_negation,
     handle_plugin_wild_indulgence, handle_plugin_breaking_free, handle_plugin_battle_hymn,
     handle_plugin_rapid_attack, handle_plugin_blessed_by_fate
@@ -766,6 +769,73 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
                    "disarm_effect_name": EFFECT_NAME_DISARM_DEBUFF,
                    "slow_duration": 1, "slow_effect_name": EFFECT_NAME_SLOW_DEBUFF,
                    "activate_debuffs_next_round": True, "cooldown_rounds": 3}
+    },
+
+    "plugin_fiery_rage": {
+        "id": "plugin_fiery_rage", "name": "Fiery Rage", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.10, "target": "ENEMY",
+        "logic_handler": handle_plugin_fiery_rage,
+        "config": {"burn_factor": 350.0, "boosted_burn_factor": 700.0, "burn_duration": 2}
+    },
+    "plugin_fiery_detonation": {
+        "id": "plugin_fiery_detonation", "name": "Fiery Detonation", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_fiery_detonation,
+        "config": {"trigger_interval": 9, "damage_factor": 600.0,
+                   "defense_reduction_magnitude": -0.15, "defense_reduction_duration": 2}
+    },
+    "plugin_rage_leech": {
+        "id": "plugin_rage_leech", "name": "Rage Leech", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_plugin_rage_leech,
+        "config": {"heal_factor": 900.0, "rage_gain": 80.0}
+    },
+    "plugin_enchanted_pursuit": {
+        "id": "plugin_enchanted_pursuit", "name": "Enchanted Pursuit", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_enchanted_pursuit,
+        "config": {"burn_chance": 0.10, "burn_factor": 275.0, "burn_duration": 2,
+                   "bleed_chance": 0.10, "bleed_factor": 275.0, "bleed_duration": 2}
+    },
+    "plugin_blow_of_chaos": {
+        "id": "plugin_blow_of_chaos", "name": "Blow of Chaos", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_plugin_blow_of_chaos,
+        "config": {"damage_factor": 1000.0, "cooldown_rounds": 3}
+    },
+    "plugin_on_alert": {
+        "id": "plugin_on_alert", "name": "On Alert", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_plugin_on_alert,
+        "config": {"trigger_interval": 9, "buff_magnitude": 0.17, "max_stacks": 5,
+                   "buff_name": EFFECT_NAME_ON_ALERT_COUNTER_BUFF}
+    },
+    "plugin_helas_curse": {
+        "id": "plugin_helas_curse", "name": "Hela's Curse", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_helas_curse,
+        "config": {"trigger_interval": 9, "burn_factor": 500.0, "burn_duration": 2,
+                   "defense_debuff_chance": 0.50, "defense_debuff_magnitude": -0.20,
+                   "defense_debuff_duration": 2}
+    },
+    "plugin_fearless": {
+        "id": "plugin_fearless", "name": "Fearless", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_fearless,
+        "config": {"trigger_interval": 12, "damage_factor": 800.0,
+                   "buff_chance": 0.20, "buff_magnitude": 0.15, "buff_duration": 2}
+    },
+    "plugin_joint_offense": {
+        "id": "plugin_joint_offense", "name": "Joint Offense", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_joint_offense,
+        "config": {"damage_factor": 800.0, "proc_chance": 0.50}
+    },
+    "plugin_bloody_rage": {
+        "id": "plugin_bloody_rage", "name": "Bloody Rage", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_bloody_rage,
+        "config": {"hp_threshold_pct": 0.80, "proc_chance": 0.20, "damage_factor": 500.0}
     },
 
     # --- Dummy Talent ---

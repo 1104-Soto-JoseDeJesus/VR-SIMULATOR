@@ -43,7 +43,11 @@ from skill_logic.plugin_skill_handlers import (
     handle_plugin_fearless, handle_plugin_joint_offense, handle_plugin_bloody_rage,
     handle_plugin_silencer, handle_plugin_enrage, handle_plugin_blessed_negation,
     handle_plugin_wild_indulgence, handle_plugin_breaking_free, handle_plugin_battle_hymn,
-    handle_plugin_rapid_attack, handle_plugin_blessed_by_fate
+    handle_plugin_rapid_attack, handle_plugin_blessed_by_fate,
+    handle_plugin_tidal_attack, handle_plugin_splinter, handle_plugin_hale_of_thorns,
+    handle_plugin_halo_of_sacrifice, handle_plugin_heightened_chance, handle_plugin_tenacity,
+    handle_plugin_blessed_healing, handle_plugin_dampened_spirits, handle_plugin_rapid_defense,
+    handle_plugin_rare_viking_hymn, handle_plugin_rare_defense_up
 )
 from skill_logic.rage_skill_handlers import (
     handle_rage_sharp_pursuit, handle_rage_sacred_blade, handle_rage_vital_blessing,
@@ -836,6 +840,73 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_bloody_rage,
         "config": {"hp_threshold_pct": 0.80, "proc_chance": 0.20, "damage_factor": 500.0}
+    },
+    "plugin_tidal_attack": {
+        "id": "plugin_tidal_attack", "name": "Tidal Attack", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_plugin_tidal_attack,
+        "config": {"damage_factor": 290.0, "damage_factor_h1": 370.0}
+    },
+    "plugin_splinter": {
+        "id": "plugin_splinter", "name": "Splinter", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_splinter,
+        "config": {"trigger_interval": 12, "damage_factor": 800.0,
+                   "slow_chance": 0.35, "slow_duration": 2}
+    },
+    "plugin_hale_of_thorns": {
+        "id": "plugin_hale_of_thorns", "name": "Hale of Thorns", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF",
+        "logic_handler": handle_plugin_hale_of_thorns
+    },
+    "plugin_halo_of_sacrifice": {
+        "id": "plugin_halo_of_sacrifice", "name": "Halo of Sacrifice", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "SELF",
+        "logic_handler": handle_plugin_halo_of_sacrifice,
+        "config": {"buff_magnitude": 0.75, "buff_duration": 2}
+    },
+    "plugin_heightened_chance": {
+        "id": "plugin_heightened_chance", "name": "Heightened Chance", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.25, "target": "SELF",
+        "logic_handler": handle_plugin_heightened_chance,
+        "config": {"basic_buff_magnitude": 0.40, "counter_buff_magnitude": 0.40, "buff_duration": 2}
+    },
+    "plugin_tenacity": {
+        "id": "plugin_tenacity", "name": "Tenacity", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE, "trigger_chance": 0.50, "target": "SELF",
+        "logic_handler": handle_plugin_tenacity,
+        "config": {"heal_factor": 700.0}
+    },
+    "plugin_blessed_healing": {
+        "id": "plugin_blessed_healing", "name": "Blessed Healing", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_plugin_blessed_healing,
+        "config": {"trigger_interval": 12, "heal_factor": 850.0}
+    },
+    "plugin_dampened_spirits": {
+        "id": "plugin_dampened_spirits", "name": "Dampened Spirits", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_dampened_spirits,
+        "config": {"damage_proc_chance": 0.50, "damage_factor": 550.0,
+                   "rage_reduction_chance": 0.15, "rage_reduction": 300.0}
+    },
+    "plugin_rapid_defense": {
+        "id": "plugin_rapid_defense", "name": "Rapid Defense", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_plugin_rapid_defense,
+        "config": {"buff_magnitude": 0.40, "buff_duration": 2}
+    },
+    "plugin_rare_viking_hymn": {
+        "id": "plugin_rare_viking_hymn", "name": "Rare Viking Hymn", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.30, "target": "SELF",
+        "logic_handler": handle_plugin_rare_viking_hymn,
+        "config": {"buff_magnitude": 0.20, "buff_duration": 2}
+    },
+    "plugin_rare_defense_up": {
+        "id": "plugin_rare_defense_up", "name": "Rare Defense Up", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.25, "target": "SELF",
+        "logic_handler": handle_plugin_rare_defense_up,
+        "config": {"buff_magnitude": 0.20, "buff_duration": 2}
     },
 
     # --- Dummy Talent ---

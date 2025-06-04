@@ -706,3 +706,97 @@ def handle_rage_desperate_strike(
             )
 
     return an_effect_happened, log_details, damage_dealt_flag
+
+
+# --- Gregory Rage Skill Handler ---
+def handle_rage_inspiring_dance(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    damage_dealt_flag = False
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    is_hero2_delayed_rage = event_data.get("is_hero2_delayed_rage", False)
+
+    bleed_factor = skill_config.get("bleed_factor", 0.0)
+    bleed_duration = skill_config.get("bleed_duration", 2)
+    if bleed_factor > 0:
+        bleed_data = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_HEAVENLY_DESCENT_BLEED,
+            "dot_type": DoTType.BLEED,
+            "status_effect_factor": bleed_factor,
+            "duration": bleed_duration,
+            "activate_next_round": True,
+        }
+        created_bleed = opponent_army._create_and_add_single_effect(
+            bleed_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created_bleed:
+            an_effect_happened = True
+            damage_dealt_flag = True
+            log_details.append(
+                (f"Inflicts '{EFFECT_NAME_HEAVENLY_DESCENT_BLEED}' on {opponent_army.name} (Factor: {bleed_factor}) for {bleed_duration + 1} rounds (starting next round).",
+                 None)
+            )
+
+    return an_effect_happened, log_details, damage_dealt_flag
+
+
+# --- Jens Rage Skill Handler ---
+def handle_rage_skill_heavenly_descent(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    damage_dealt_flag = False
+
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    is_hero2_delayed_rage = event_data.get("is_hero2_delayed_rage", False)
+
+    damage_factor = skill_config.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor,
+            is_hero2_rage_skill=is_hero2_delayed_rage,
+            source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_dealt_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
+        )
+
+    vul_mag = skill_config.get("vulnerability_magnitude", 0.0)
+    vul_dur = skill_config.get("vulnerability_duration", 4)
+    if vul_mag != 0:
+        debuff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_DIVINE_ENERGIZE_VULNERABILITY,
+            "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+            "magnitude": vul_mag,
+            "duration": vul_dur,
+            "activate_next_round": True,
+            "config_filter": {"attack_type": "BASIC"}
+        }
+        created_debuff = opponent_army._create_and_add_single_effect(
+            debuff_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created_debuff:
+            an_effect_happened = True
+            log_details.append(
+                (f"Inflicts vulnerability: {created_debuff.get_functionality_description()} on {opponent_army.name} for {vul_dur + 1} rounds (starting next round).",
+                 None)
+            )
+
+    return an_effect_happened, log_details, damage_dealt_flag

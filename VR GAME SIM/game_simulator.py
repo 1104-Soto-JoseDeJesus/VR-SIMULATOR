@@ -164,7 +164,12 @@ class GameSimulator:
                 if skill_def["trigger"] == SkillTriggerType.PASSIVE: continue
 
                 if skill_def["trigger"] == trigger_type:
-                    if random.random() < skill_def.get("trigger_chance", 1.0):
+                    base_chance = skill_def.get("trigger_chance", 1.0)
+                    coop_bonus = 0.0
+                    if skill_def["trigger"] in [SkillTriggerType.ON_BASIC_ATTACK, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST]:
+                        coop_bonus = triggering_army.get_sum_stat_magnitudes(StatType.COOPERATION_TRIGGER_RATE_MODIFIER)
+                    final_chance = min(1.0, base_chance + coop_bonus)
+                    if random.random() < final_chance:
                         skill_id = skill_def["id"]
                         skill_cfg = skill_def.get("config", {})
                         cooldown = skill_cfg.get("cooldown_rounds")

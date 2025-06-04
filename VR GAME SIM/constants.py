@@ -107,6 +107,16 @@ EFFECT_NAME_PENDING_HEROIC_BLESSING_BUFF = "PENDING_HEROIC_BLESSING_BUFF"
 EFFECT_NAME_HEROIC_BLESSING_BURN_BOOST = "Heroic Blessing Burn Boost"
 EFFECT_NAME_BLADES_JUDGMENT_BURN = "Blade's Judgment Burn"
 EFFECT_NAME_DESPERATE_STRIKE_BURN = "Desperate Strike Burn"
+# --- Gregory Skill Effect Names ---
+EFFECT_NAME_GREAT_MORALE_BUFF = "Great Morale Attack Buff"
+EFFECT_NAME_DRUMMING_DISTURBANCE_HOT = "Drumming Disturbance Heal"
+EFFECT_NAME_DRUMMING_DISTURBANCE_RAGE_REDUCTION = "Drumming Disturbance Rage Damage Reduction"
+
+# --- Jens Skill Effect Names ---
+EFFECT_NAME_GODLY_WRATH_COOP_RATE = "Godly Wrath Cooperation Boost"
+EFFECT_NAME_DIVINE_ENERGIZE_VULNERABILITY = "Divine Energize Vulnerability"
+EFFECT_NAME_HEAVENLY_DESCENT_BLEED = "Heavenly Descent Bleed"
+EFFECT_NAME_DIVINE_PUNISHMENT_BASIC_BUFF = "Divine Punishment Attack Buff"
 # --- Additional Plugin Effect Names ---
 EFFECT_NAME_HALE_OF_THORNS_GENERAL_REDUCTION = "Hale of Thorns General Damage Debuff"
 EFFECT_NAME_HALE_OF_THORNS_COUNTER_BUFF = "Hale of Thorns Counterattack Buff"

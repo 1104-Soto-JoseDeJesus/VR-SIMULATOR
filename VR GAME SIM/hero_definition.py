@@ -110,4 +110,14 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_blades_judgment", "base_skill_desperate_strike"],
         'plugin_skills': [],
     },
+    'gregory': {
+        'talents': ["talent_great_morale", "talent_missing_beat", "talent_excite"],
+        'base_skills': ["base_skill_drumming_disturbance", "base_skill_inspiring_dance"],
+        'plugin_skills': [],
+    },
+    'jens': {
+        'talents': ["talent_godly_wrath", "talent_divine_blite", "talent_divine_punishment"],
+        'base_skills': ["base_skill_divine_energize", "base_skill_heavenly_descent"],
+        'plugin_skills': [],
+    },
 }

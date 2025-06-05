@@ -16,7 +16,11 @@ from hero_definition import Hero, HERO_PRESETS
 from army_composition import Army
 from game_simulator import GameSimulator
 from interactive_setup import (
-    input_choice_numbered, input_int, input_float, setup_hero_interactive
+    input_choice_numbered,
+    input_int,
+    input_float,
+    setup_hero_interactive,
+    input_multi_choice_numbered,
 )
 from skill_definitions import SKILL_REGISTRY_GLOBAL
 
@@ -265,52 +269,70 @@ def get_setup_data_for_saving(armies: List[Army]) -> List[Dict[str, Any]]:
 
 def run_win_simulation(base_setup: List[Dict[str, Any]]):
     """Searches for the hero and plugin skill combination with the best win rate."""
-    hero_excl_raw = input(
-        "Enter ineligible hero presets (comma separated, leave blank for none): "
-    ).strip()
-    plugin_excl_raw = input(
-        "Enter ineligible plugin skill IDs (comma separated, leave blank for none): "
-    ).strip()
 
-    hero_exclusions = {h.strip().lower() for h in hero_excl_raw.split(',') if h.strip()}
-    plugin_exclusions = {p.strip() for p in plugin_excl_raw.split(',') if p.strip()}
+    hero_options = [(name, name.capitalize()) for name in sorted(HERO_PRESETS.keys())]
+    plugin_options = [
+        (sid, f"{sdef.get('name', sid)} (ID: {sid})")
+        for sid, sdef in SKILL_REGISTRY_GLOBAL.items()
+        if sdef.get("type") == SkillType.PLUGIN_SKILL
+    ]
 
-    eligible_heroes = [h for h in HERO_PRESETS.keys() if h not in hero_exclusions]
-    eligible_plugins = [sid for sid, sdef in SKILL_REGISTRY_GLOBAL.items()
-                        if sdef.get("type") == SkillType.PLUGIN_SKILL and sid not in plugin_exclusions]
+    hero_exclusions = set(
+        input_multi_choice_numbered(
+            "Select ineligible hero presets (press Enter for none):",
+            hero_options,
+        )
+    )
+    plugin_exclusions = set(
+        input_multi_choice_numbered(
+            "Select ineligible plugin skills (press Enter for none):",
+            plugin_options,
+        )
+    )
+
+    eligible_heroes = [h for h, _ in hero_options if h not in hero_exclusions]
+    eligible_plugins = [sid for sid, _ in plugin_options if sid not in plugin_exclusions]
+
+    plugin_combos = [list(c) for r in range(min(2, len(eligible_plugins)) + 1)
+                     for c in itertools.combinations(eligible_plugins, r)]
 
     best_rate = -1.0
     best_combos: List[tuple] = []
 
-    for hero_key in eligible_heroes:
-        preset = HERO_PRESETS[hero_key]
-        max_plugins = min(2, len(eligible_plugins))
-        for count in range(max_plugins + 1):
-            for combo in itertools.combinations(eligible_plugins, count):
-                setup_candidate = copy.deepcopy(base_setup)
-                hero_conf = {
-                    "hero_name_or_preset": hero_key,
-                    "talent_ids": preset.get('talents', [])[:3],
-                    "base_skill_ids": preset.get('base_skills', [])[:2],
-                    "plugin_skill_ids": list(combo)
-                }
-                if setup_candidate[0].get("heroes"):
-                    setup_candidate[0]["heroes"][0] = hero_conf
-                else:
-                    setup_candidate[0]["heroes"] = [hero_conf]
-                rate = run_additional_simulations(setup_candidate, runs=200)
-                if rate > best_rate:
-                    best_rate = rate
-                    best_combos = [(hero_key, list(combo))]
-                elif rate == best_rate:
-                    best_combos.append((hero_key, list(combo)))
+    for hero1 in eligible_heroes:
+        preset1 = HERO_PRESETS[hero1]
+        for hero2 in eligible_heroes:
+            preset2 = HERO_PRESETS[hero2]
+            for combo1 in plugin_combos:
+                for combo2 in plugin_combos:
+                    setup_candidate = copy.deepcopy(base_setup)
+                    hero1_conf = {
+                        "hero_name_or_preset": hero1,
+                        "talent_ids": preset1.get('talents', [])[:3],
+                        "base_skill_ids": preset1.get('base_skills', [])[:2],
+                        "plugin_skill_ids": list(combo1),
+                    }
+                    hero2_conf = {
+                        "hero_name_or_preset": hero2,
+                        "talent_ids": preset2.get('talents', [])[:3],
+                        "base_skill_ids": preset2.get('base_skills', [])[:2],
+                        "plugin_skill_ids": list(combo2),
+                    }
+                    setup_candidate[0]["heroes"] = [hero1_conf, hero2_conf]
+                    rate = run_additional_simulations(setup_candidate, runs=200)
+                    if rate > best_rate:
+                        best_rate = rate
+                        best_combos = [(hero1, list(combo1), hero2, list(combo2))]
+                    elif rate == best_rate:
+                        best_combos.append((hero1, list(combo1), hero2, list(combo2)))
 
     print(f"\n=== Win Simulation Results ===")
     if best_combos:
         print(f"Best win rate: {best_rate * 100:.2f}%")
-        for hero_name, plugins in best_combos:
-            plugin_str = ', '.join(plugins) if plugins else 'None'
-            print(f"  Hero: {hero_name}, Plugins: {plugin_str}")
+        for h1, plugins1, h2, plugins2 in best_combos:
+            p1 = ', '.join(plugins1) if plugins1 else 'None'
+            p2 = ', '.join(plugins2) if plugins2 else 'None'
+            print(f"  Heroes: {h1} (Plugins: {p1}) & {h2} (Plugins: {p2})")
     else:
         print("No eligible combinations found.")
 

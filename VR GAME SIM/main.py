@@ -330,8 +330,16 @@ def run_win_simulation(base_setup: List[Dict[str, Any]]):
     eligible_heroes = [h for h, _ in hero_options if h not in hero_exclusions]
     eligible_plugins = [sid for sid, _ in plugin_options if sid not in plugin_exclusions]
 
-    plugin_combos = [list(c) for r in range(min(2, len(eligible_plugins)) + 1)
-                     for c in itertools.combinations(eligible_plugins, r)]
+    # Each hero must equip exactly two plugin skills for the win simulation.
+    # Only generate combinations that have exactly two skills. If there are less
+    # than two eligible skills available, no simulation will be run.
+    plugin_combos = [
+        list(c) for c in itertools.combinations(eligible_plugins, 2)
+    ]
+
+    if not plugin_combos:
+        print("Not enough eligible plugin skills to run win simulation.")
+        return
 
     best_rate = -1.0
     best_combos: List[tuple] = []

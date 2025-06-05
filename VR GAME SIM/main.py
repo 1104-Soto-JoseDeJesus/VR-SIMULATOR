@@ -3,6 +3,8 @@ import math
 import random
 import json
 import os
+import copy
+import itertools
 from typing import List, Optional, Dict, Any
 import contextlib
 import io
@@ -108,8 +110,10 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
     return armies
 
 
-def run_additional_simulations(setup_data: List[Dict[str, Any]], runs: int = 200) -> None:
-    """Runs extra simulations silently, generates histograms, and computes summary statistics."""
+def run_additional_simulations(setup_data: List[Dict[str, Any]], runs: int = 200) -> float:
+    """Runs extra simulations silently, generates histograms, and computes summary statistics.
+
+    Returns the win rate for Army 1 as a float between 0 and 1."""
     own_remaining: List[float] = []
     enemy_remaining: List[float] = []
     rounds_taken: List[int] = []
@@ -186,6 +190,8 @@ def run_additional_simulations(setup_data: List[Dict[str, Any]], runs: int = 200
             winner_text = army2_name
         print(f"Battle closest to average outcome: #{closest_idx + 1} -> Winner: {winner_text}; {army1_name}: {closest_own:.0f} troops, {army2_name}: {closest_enemy:.0f} troops")
 
+    return wins_army1 / runs
+
 
 def run_interactive_setup() -> List[Army]:
     """Runs the full interactive setup for two armies."""
@@ -257,18 +263,70 @@ def get_setup_data_for_saving(armies: List[Army]) -> List[Dict[str, Any]]:
     return save_data_list
 
 
+def run_win_simulation(base_setup: List[Dict[str, Any]]):
+    """Searches for the hero and plugin skill combination with the best win rate."""
+    hero_excl_raw = input(
+        "Enter ineligible hero presets (comma separated, leave blank for none): "
+    ).strip()
+    plugin_excl_raw = input(
+        "Enter ineligible plugin skill IDs (comma separated, leave blank for none): "
+    ).strip()
+
+    hero_exclusions = {h.strip().lower() for h in hero_excl_raw.split(',') if h.strip()}
+    plugin_exclusions = {p.strip() for p in plugin_excl_raw.split(',') if p.strip()}
+
+    eligible_heroes = [h for h in HERO_PRESETS.keys() if h not in hero_exclusions]
+    eligible_plugins = [sid for sid, sdef in SKILL_REGISTRY_GLOBAL.items()
+                        if sdef.get("type") == SkillType.PLUGIN_SKILL and sid not in plugin_exclusions]
+
+    best_rate = -1.0
+    best_combos: List[tuple] = []
+
+    for hero_key in eligible_heroes:
+        preset = HERO_PRESETS[hero_key]
+        max_plugins = min(2, len(eligible_plugins))
+        for count in range(max_plugins + 1):
+            for combo in itertools.combinations(eligible_plugins, count):
+                setup_candidate = copy.deepcopy(base_setup)
+                hero_conf = {
+                    "hero_name_or_preset": hero_key,
+                    "talent_ids": preset.get('talents', [])[:3],
+                    "base_skill_ids": preset.get('base_skills', [])[:2],
+                    "plugin_skill_ids": list(combo)
+                }
+                if setup_candidate[0].get("heroes"):
+                    setup_candidate[0]["heroes"][0] = hero_conf
+                else:
+                    setup_candidate[0]["heroes"] = [hero_conf]
+                rate = run_additional_simulations(setup_candidate, runs=200)
+                if rate > best_rate:
+                    best_rate = rate
+                    best_combos = [(hero_key, list(combo))]
+                elif rate == best_rate:
+                    best_combos.append((hero_key, list(combo)))
+
+    print(f"\n=== Win Simulation Results ===")
+    if best_combos:
+        print(f"Best win rate: {best_rate * 100:.2f}%")
+        for hero_name, plugins in best_combos:
+            plugin_str = ', '.join(plugins) if plugins else 'None'
+            print(f"  Hero: {hero_name}, Plugins: {plugin_str}")
+    else:
+        print("No eligible combinations found.")
+
+
 if __name__ == "__main__":
     print("=== Battle Simulator ===")
     ensure_setups_dir()
     armies_to_simulate: List[Army] = []
 
-    action_prompt = "Choose action: (N)ew setup, (L)oad setup, (R)un last setup (if available), (Q)uit: "
+    action_prompt = "Choose action: (N)ew setup, (L)oad setup, (R)un last setup (if available), (W)in Simulation, (Q)uit: "
     chosen_action = ""
 
     # Check if last run setup exists for the (R) option
     can_run_last = os.path.exists(LAST_SETUP_FILENAME)
     if not can_run_last:
-        action_prompt = "Choose action: (N)ew setup, (L)oad setup, (Q)uit: "
+        action_prompt = "Choose action: (N)ew setup, (L)oad setup, (W)in Simulation, (Q)uit: "
 
     while not armies_to_simulate or len(armies_to_simulate) != 2:
         chosen_action = input(action_prompt).strip().upper()
@@ -322,6 +380,16 @@ if __name__ == "__main__":
             except ValueError:
                 print("Invalid input. Please enter a number.")
 
+        elif chosen_action == 'W':
+            if os.path.exists(LAST_SETUP_FILENAME):
+                loaded_data_list = load_setup_from_file(os.path.basename(LAST_SETUP_FILENAME))
+                if loaded_data_list:
+                    run_win_simulation(loaded_data_list)
+                else:
+                    print("Could not load last setup for win simulation.")
+            else:
+                print("No last setup available for win simulation.")
+
         elif chosen_action == 'R' and can_run_last:
             print("Loading last run setup...")
             loaded_data_list = load_setup_from_file(os.path.basename(LAST_SETUP_FILENAME))
@@ -334,7 +402,7 @@ if __name__ == "__main__":
             print("No last setup available to run.")
 
         else:
-            print("Invalid action. Please choose N, L, R (if available), or Q.")
+            print("Invalid action. Please choose N, L, R (if available), W, or Q.")
 
         if len(armies_to_simulate) != 2 and chosen_action not in ['Q']:
             print("Setup was not completed or loaded correctly. Please try again.")

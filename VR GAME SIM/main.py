@@ -108,11 +108,17 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
     return armies
 
 
-def run_additional_simulations(setup_data: List[Dict[str, Any]], runs: int = 100) -> None:
-    """Runs extra simulations silently and generates histograms."""
+def run_additional_simulations(setup_data: List[Dict[str, Any]], runs: int = 200) -> None:
+    """Runs extra simulations silently, generates histograms, and computes summary statistics."""
     own_remaining: List[float] = []
     enemy_remaining: List[float] = []
     rounds_taken: List[int] = []
+    diff_results: List[float] = []
+    winners: List[int] = []  # 1 -> army1, 2 -> army2, 0 -> draw
+
+    army1_name = setup_data[0].get("army_name", "Army 1") if len(setup_data) > 0 else "Army 1"
+    army2_name = setup_data[1].get("army_name", "Army 2") if len(setup_data) > 1 else "Army 2"
+    battle_results: List[tuple] = []
 
     for _ in range(runs):
         armies = create_armies_from_data(setup_data)
@@ -122,12 +128,20 @@ def run_additional_simulations(setup_data: List[Dict[str, Any]], runs: int = 100
         own_remaining.append(sim.army1.current_troop_count)
         enemy_remaining.append(sim.army2.current_troop_count)
         rounds_taken.append(sim.round)
+        diff_results.append(sim.army1.current_troop_count - sim.army2.current_troop_count)
+        if sim.army1.current_troop_count > 0 and sim.army2.current_troop_count <= 0:
+            winners.append(1)
+        elif sim.army2.current_troop_count > 0 and sim.army1.current_troop_count <= 0:
+            winners.append(2)
+        else:
+            winners.append(0)
+        battle_results.append((sim.army1.current_troop_count, sim.army2.current_troop_count))
 
     ensure_histogram_dir()
 
     plt.figure()
     plt.hist(own_remaining, bins='auto', color='blue', alpha=0.7)
-    plt.title('Own Remaining Troops')
+    plt.title(f'{army1_name} Remaining Troops')
     plt.xlabel('Troops')
     plt.ylabel('Frequency')
     plt.savefig(os.path.join(HISTOGRAM_DIR, 'own_remaining_troops.png'))
@@ -135,7 +149,7 @@ def run_additional_simulations(setup_data: List[Dict[str, Any]], runs: int = 100
 
     plt.figure()
     plt.hist(enemy_remaining, bins='auto', color='red', alpha=0.7)
-    plt.title('Enemy Remaining Troops')
+    plt.title(f'{army2_name} Remaining Troops')
     plt.xlabel('Troops')
     plt.ylabel('Frequency')
     plt.savefig(os.path.join(HISTOGRAM_DIR, 'enemy_remaining_troops.png'))
@@ -148,6 +162,29 @@ def run_additional_simulations(setup_data: List[Dict[str, Any]], runs: int = 100
     plt.ylabel('Frequency')
     plt.savefig(os.path.join(HISTOGRAM_DIR, 'rounds_to_battle_end.png'))
     plt.close()
+
+    # Pie chart for win percentages
+    wins_army1 = winners.count(1)
+    wins_army2 = winners.count(2)
+    if wins_army1 + wins_army2 > 0:
+        plt.figure()
+        plt.pie([wins_army1, wins_army2], labels=[army1_name, army2_name], autopct='%1.1f%%', startangle=90)
+        plt.title('Victory Distribution')
+        plt.axis('equal')
+        plt.savefig(os.path.join(HISTOGRAM_DIR, 'victory_distribution.png'))
+        plt.close()
+
+    # Determine battle closest to average outcome
+    if diff_results:
+        avg_diff = sum(diff_results) / len(diff_results)
+        closest_idx = min(range(len(diff_results)), key=lambda i: abs(diff_results[i] - avg_diff))
+        closest_own, closest_enemy = battle_results[closest_idx]
+        winner_text = 'Draw'
+        if winners[closest_idx] == 1:
+            winner_text = army1_name
+        elif winners[closest_idx] == 2:
+            winner_text = army2_name
+        print(f"Battle closest to average outcome: #{closest_idx + 1} -> Winner: {winner_text}; {army1_name}: {closest_own:.0f} troops, {army2_name}: {closest_enemy:.0f} troops")
 
 
 def run_interactive_setup() -> List[Army]:

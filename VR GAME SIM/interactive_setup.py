@@ -41,6 +41,31 @@ def input_choice_numbered(prompt: str, choices_ordered: List[str], default: Opti
             print("Invalid input. Please enter a number or press Enter for default.")
 
 
+def input_multi_choice_numbered(prompt: str, option_pairs: List[Tuple[str, str]]) -> List[str]:
+    """Allows the user to select multiple options presented in a numbered list.
+
+    `option_pairs` should be a list of tuples where the first element is the
+    value to return and the second is the text displayed to the user. Returns
+    the list of selected values. An empty return list means no selection.
+    """
+    print(prompt)
+    for idx, (_, display) in enumerate(option_pairs, start=1):
+        print(f"  [{idx}] {display}")
+
+    while True:
+        raw = input("Enter numbers separated by commas (leave blank for none): ").strip()
+        if not raw:
+            return []
+        try:
+            nums = [int(val.strip()) for val in raw.split(',') if val.strip()]
+        except ValueError:
+            print("Invalid input. Please enter numbers only.")
+            continue
+        if all(1 <= n <= len(option_pairs) for n in nums):
+            return [option_pairs[n - 1][0] for n in nums]
+        print(f"Invalid selection. Choose numbers between 1 and {len(option_pairs)}.")
+
+
 def input_int(prompt: str, min_val: Optional[int] = None, max_val: Optional[int] = None,
               default: Optional[int] = None) -> int:
     prompt_text = prompt

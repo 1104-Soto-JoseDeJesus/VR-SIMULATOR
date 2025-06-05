@@ -114,8 +114,14 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
     return armies
 
 
-def run_additional_simulations(setup_data: List[Dict[str, Any]], runs: int = 200) -> float:
-    """Runs extra simulations silently, generates histograms, and computes summary statistics.
+def run_additional_simulations(
+    setup_data: List[Dict[str, Any]],
+    runs: int = 200,
+    *,
+    generate_histograms: bool = True,
+    verbose: bool = True,
+) -> float:
+    """Runs extra simulations silently, optionally generates histograms, and computes summary statistics.
 
     Returns the win rate for Army 1 as a float between 0 and 1."""
     own_remaining: List[float] = []
@@ -145,36 +151,37 @@ def run_additional_simulations(setup_data: List[Dict[str, Any]], runs: int = 200
             winners.append(0)
         battle_results.append((sim.army1.current_troop_count, sim.army2.current_troop_count))
 
-    ensure_histogram_dir()
+    if generate_histograms:
+        ensure_histogram_dir()
 
-    plt.figure()
-    plt.hist(own_remaining, bins='auto', color='blue', alpha=0.7)
-    plt.title(f'{army1_name} Remaining Troops')
-    plt.xlabel('Troops')
-    plt.ylabel('Frequency')
-    plt.savefig(os.path.join(HISTOGRAM_DIR, 'own_remaining_troops.png'))
-    plt.close()
+        plt.figure()
+        plt.hist(own_remaining, bins='auto', color='blue', alpha=0.7)
+        plt.title(f'{army1_name} Remaining Troops')
+        plt.xlabel('Troops')
+        plt.ylabel('Frequency')
+        plt.savefig(os.path.join(HISTOGRAM_DIR, 'own_remaining_troops.png'))
+        plt.close()
 
-    plt.figure()
-    plt.hist(enemy_remaining, bins='auto', color='red', alpha=0.7)
-    plt.title(f'{army2_name} Remaining Troops')
-    plt.xlabel('Troops')
-    plt.ylabel('Frequency')
-    plt.savefig(os.path.join(HISTOGRAM_DIR, 'enemy_remaining_troops.png'))
-    plt.close()
+        plt.figure()
+        plt.hist(enemy_remaining, bins='auto', color='red', alpha=0.7)
+        plt.title(f'{army2_name} Remaining Troops')
+        plt.xlabel('Troops')
+        plt.ylabel('Frequency')
+        plt.savefig(os.path.join(HISTOGRAM_DIR, 'enemy_remaining_troops.png'))
+        plt.close()
 
-    plt.figure()
-    plt.hist(rounds_taken, bins='auto', color='green', alpha=0.7)
-    plt.title('Rounds to Battle End')
-    plt.xlabel('Rounds')
-    plt.ylabel('Frequency')
-    plt.savefig(os.path.join(HISTOGRAM_DIR, 'rounds_to_battle_end.png'))
-    plt.close()
+        plt.figure()
+        plt.hist(rounds_taken, bins='auto', color='green', alpha=0.7)
+        plt.title('Rounds to Battle End')
+        plt.xlabel('Rounds')
+        plt.ylabel('Frequency')
+        plt.savefig(os.path.join(HISTOGRAM_DIR, 'rounds_to_battle_end.png'))
+        plt.close()
 
     # Pie chart for win percentages
     wins_army1 = winners.count(1)
     wins_army2 = winners.count(2)
-    if wins_army1 + wins_army2 > 0:
+    if generate_histograms and wins_army1 + wins_army2 > 0:
         plt.figure()
         plt.pie([wins_army1, wins_army2], labels=[army1_name, army2_name], autopct='%1.1f%%', startangle=90)
         plt.title('Victory Distribution')
@@ -183,7 +190,7 @@ def run_additional_simulations(setup_data: List[Dict[str, Any]], runs: int = 200
         plt.close()
 
     # Determine battle closest to average outcome
-    if diff_results:
+    if verbose and diff_results:
         avg_diff = sum(diff_results) / len(diff_results)
         closest_idx = min(range(len(diff_results)), key=lambda i: abs(diff_results[i] - avg_diff))
         closest_own, closest_enemy = battle_results[closest_idx]
@@ -267,6 +274,36 @@ def get_setup_data_for_saving(armies: List[Army]) -> List[Dict[str, Any]]:
     return save_data_list
 
 
+def _eval_candidate(args: tuple) -> tuple:
+    """Worker function for win simulation multiprocessing."""
+    hero1, combo1, hero2, combo2, base_setup = args
+    preset1 = HERO_PRESETS[hero1]
+    preset2 = HERO_PRESETS[hero2]
+
+    setup_candidate = copy.deepcopy(base_setup)
+    hero1_conf = {
+        "hero_name_or_preset": hero1,
+        "talent_ids": preset1.get("talents", [])[:3],
+        "base_skill_ids": preset1.get("base_skills", [])[:2],
+        "plugin_skill_ids": list(combo1),
+    }
+    hero2_conf = {
+        "hero_name_or_preset": hero2,
+        "talent_ids": preset2.get("talents", [])[:3],
+        "base_skill_ids": preset2.get("base_skills", [])[:2],
+        "plugin_skill_ids": list(combo2),
+    }
+    setup_candidate[0]["heroes"] = [hero1_conf, hero2_conf]
+
+    rate = run_additional_simulations(
+        setup_candidate,
+        runs=200,
+        generate_histograms=False,
+        verbose=False,
+    )
+    return hero1, list(combo1), hero2, list(combo2), rate
+
+
 def run_win_simulation(base_setup: List[Dict[str, Any]]):
     """Searches for the hero and plugin skill combination with the best win rate."""
 
@@ -299,32 +336,22 @@ def run_win_simulation(base_setup: List[Dict[str, Any]]):
     best_rate = -1.0
     best_combos: List[tuple] = []
 
+    candidate_args: List[tuple] = []
     for hero1 in eligible_heroes:
-        preset1 = HERO_PRESETS[hero1]
         for hero2 in eligible_heroes:
-            preset2 = HERO_PRESETS[hero2]
             for combo1 in plugin_combos:
                 for combo2 in plugin_combos:
-                    setup_candidate = copy.deepcopy(base_setup)
-                    hero1_conf = {
-                        "hero_name_or_preset": hero1,
-                        "talent_ids": preset1.get('talents', [])[:3],
-                        "base_skill_ids": preset1.get('base_skills', [])[:2],
-                        "plugin_skill_ids": list(combo1),
-                    }
-                    hero2_conf = {
-                        "hero_name_or_preset": hero2,
-                        "talent_ids": preset2.get('talents', [])[:3],
-                        "base_skill_ids": preset2.get('base_skills', [])[:2],
-                        "plugin_skill_ids": list(combo2),
-                    }
-                    setup_candidate[0]["heroes"] = [hero1_conf, hero2_conf]
-                    rate = run_additional_simulations(setup_candidate, runs=200)
-                    if rate > best_rate:
-                        best_rate = rate
-                        best_combos = [(hero1, list(combo1), hero2, list(combo2))]
-                    elif rate == best_rate:
-                        best_combos.append((hero1, list(combo1), hero2, list(combo2)))
+                    candidate_args.append((hero1, combo1, hero2, combo2, base_setup))
+
+    from multiprocessing import Pool
+
+    with Pool() as pool:
+        for hero1, combo1, hero2, combo2, rate in pool.imap_unordered(_eval_candidate, candidate_args):
+            if rate > best_rate:
+                best_rate = rate
+                best_combos = [(hero1, combo1, hero2, combo2)]
+            elif rate == best_rate:
+                best_combos.append((hero1, combo1, hero2, combo2))
 
     print(f"\n=== Win Simulation Results ===")
     if best_combos:

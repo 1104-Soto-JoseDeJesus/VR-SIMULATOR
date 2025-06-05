@@ -5,7 +5,7 @@ import json
 import os
 import copy
 import itertools
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Set, Tuple
 import contextlib
 import io
 import matplotlib.pyplot as plt
@@ -337,11 +337,24 @@ def run_win_simulation(base_setup: List[Dict[str, Any]]):
     best_combos: List[tuple] = []
 
     candidate_args: List[tuple] = []
-    for hero1 in eligible_heroes:
-        for hero2 in eligible_heroes:
-            for combo1 in plugin_combos:
-                for combo2 in plugin_combos:
-                    candidate_args.append((hero1, combo1, hero2, combo2, base_setup))
+    # Track previously used hero/skill combinations so ordering of heroes or skills
+    # does not produce duplicate evaluations.
+    used_combos: Set[Tuple[frozenset, frozenset]] = set()
+
+    for hero1, hero2 in itertools.combinations(eligible_heroes, 2):
+        for combo1 in plugin_combos:
+            for combo2 in plugin_combos:
+                # Skip if any plugin skill is used by both heroes in this pairing
+                if set(combo1) & set(combo2):
+                    continue
+
+                all_skills = frozenset(combo1 + combo2)
+                hero_pair = frozenset({hero1, hero2})
+                combo_key = (hero_pair, all_skills)
+                if combo_key in used_combos:
+                    continue
+                used_combos.add(combo_key)
+                candidate_args.append((hero1, combo1, hero2, combo2, base_setup))
 
     from multiprocessing import Pool
 

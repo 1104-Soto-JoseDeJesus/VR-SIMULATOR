@@ -332,7 +332,7 @@ if __name__ == "__main__":
 
         if chosen_action == 'Q':
             print("Exiting simulator.")
-            exit()
+            sys.exit(0)
 
         elif chosen_action == 'N':
             armies_to_simulate = run_interactive_setup()

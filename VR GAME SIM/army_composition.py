@@ -1,6 +1,7 @@
 # === File: army_composition.py ===
 import uuid
 import random
+from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Tuple
 
 from enums import EffectType, SkillTriggerType, StatType, DoTType
@@ -28,39 +29,39 @@ from constants import (
 GameSimulatorRef = "GameSimulator"  # Forward reference
 
 
+@dataclass(slots=True)
 class Army:
-    def __init__(self, name: str, unit: Unit, heroes: Optional[List[Hero]] = None,
-                 simulator: Optional[GameSimulatorRef] = None):
-        self.name: str = name
-        self.unit: Unit = unit
-        self.heroes: List[Hero] = heroes or []
-        self.simulator: Optional[GameSimulatorRef] = simulator
+    name: str
+    unit: Unit
+    heroes: List[Hero] = field(default_factory=list)
+    simulator: Optional[GameSimulatorRef] = None
 
-        self.current_troop_count: float = 0.0
-        self.active_effects: List[EffectInstance] = []
-        self.upcoming_effects: List[EffectInstance] = []
-        self.effects_to_activate_next_round: List[EffectInstance] = []
+    current_troop_count: float = field(init=False, default=0.0)
+    active_effects: List[EffectInstance] = field(init=False, default_factory=list)
+    upcoming_effects: List[EffectInstance] = field(init=False, default_factory=list)
+    effects_to_activate_next_round: List[EffectInstance] = field(init=False, default_factory=list)
 
-        self.triggered_skills_this_round: List[str] = []
-        self.pending_hp_damage_this_round: float = 0.0
-        self.pending_hp_healing_this_round: float = 0.0
-        self.unrevivable_troops: float = 0.0
+    triggered_skills_this_round: List[str] = field(init=False, default_factory=list)
+    pending_hp_damage_this_round: float = field(init=False, default=0.0)
+    pending_hp_healing_this_round: float = field(init=False, default=0.0)
+    unrevivable_troops: float = field(init=False, default=0.0)
 
-        self.skill_trigger_counts: Dict[str, int] = {}
-        self.skill_last_triggered_round: Dict[str, int] = {}
+    skill_trigger_counts: Dict[str, int] = field(init=False, default_factory=dict)
+    skill_last_triggered_round: Dict[str, int] = field(init=False, default_factory=dict)
 
-        self.current_rage: float = 0.0
-        self.hero1_rage_skill_id: Optional[str] = None
-        self.hero2_rage_skill_id: Optional[str] = None
-        self.hero1_rage_skill_queued_this_round: bool = False
-        self.hero1_rage_skill_used_round: Optional[int] = None
-        self.hero2_rage_skill_primed_for_round: Optional[int] = None
+    current_rage: float = field(init=False, default=0.0)
+    hero1_rage_skill_id: Optional[str] = field(init=False, default=None)
+    hero2_rage_skill_id: Optional[str] = field(init=False, default=None)
+    hero1_rage_skill_queued_this_round: bool = field(init=False, default=False)
+    hero1_rage_skill_used_round: Optional[int] = field(init=False, default=None)
+    hero2_rage_skill_primed_for_round: Optional[int] = field(init=False, default=None)
 
-        self.army_used_rage_skill_this_round_for_rage_gain_block: bool = False
-        self.healing_hymn_triggered_this_round: bool = False
-        self.started_round_with_active_shield: bool = False
-        self.hero1_rage_skill_cast_blocked_by_silence_this_round: bool = False
+    army_used_rage_skill_this_round_for_rage_gain_block: bool = field(init=False, default=False)
+    healing_hymn_triggered_this_round: bool = field(init=False, default=False)
+    started_round_with_active_shield: bool = field(init=False, default=False)
+    hero1_rage_skill_cast_blocked_by_silence_this_round: bool = field(init=False, default=False)
 
+    def __post_init__(self):
         self.reset_for_new_battle()
 
     def increment_skill_trigger_count(self, skill_id: str):

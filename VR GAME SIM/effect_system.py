@@ -2,6 +2,7 @@
 Defines the EffectInstance class, representing an active buff, debuff, shield, etc.
 """
 import uuid
+from dataclasses import dataclass, field
 from typing import Dict, Any, Optional
 from enums import EffectType, StatType, DoTType
 from constants import (
@@ -15,26 +16,20 @@ from constants import (
     EFFECT_NAME_BERSERK_FURY_RAGE_GAIN
 )
 
+@dataclass(slots=True)
 class EffectInstance:
-    def __init__(self, id: uuid.UUID, source_skill_id: str, effect_type: EffectType,
-                 duration: int, magnitude: float = 0.0,
-                 config: Optional[Dict[str, Any]] = None,
-                 name: Optional[str] = None):
-        self.id: uuid.UUID = id
-        self.source_skill_id: str = source_skill_id
-        self.name: str = name if name else f"Unnamed_{effect_type.value}_{str(id)[:4]}"
-        self.effect_type: EffectType = effect_type
-        self.duration: int = duration
-        self.magnitude: float = magnitude
-        self.config: Dict[str, Any] = config or {}
-        # Config for Bleed/Poison/Burn DoTs will include:
-        #   dot_type: DoTType
-        #   status_effect_factor: float
-        #   snapshotted_attacker_total_attack: float
-        #   snapshotted_attacker_troop_scalar: float
-        #   snapshotted_defender_total_defense: float (defender's defense AT TIME OF APPLICATION)
-        #   original_caster_army_name: str
-        self.applied_this_round: bool = True
+    id: uuid.UUID
+    source_skill_id: str
+    effect_type: EffectType
+    duration: int
+    magnitude: float = 0.0
+    config: Dict[str, Any] = field(default_factory=dict)
+    name: Optional[str] = None
+    applied_this_round: bool = True
+
+    def __post_init__(self):
+        if not self.name:
+            self.name = f"Unnamed_{self.effect_type.value}_{str(self.id)[:4]}"
 
     def get_functionality_description(self) -> str:
         desc_parts = []

@@ -1,6 +1,7 @@
 # === File: game_simulator.py ===
 import math
 import random
+from functools import lru_cache
 from typing import List, Optional, Dict, Any, Tuple
 
 from enums import SkillTriggerType, StatType, EffectType, SkillType, DoTType
@@ -9,12 +10,14 @@ from army_composition import Army
 from skill_system import SkillDefinition, SkillLogicHandler, RageSkillLogicHandler
 from skill_definitions import SKILL_REGISTRY_GLOBAL
 from constants import EFFECT_NAME_BROKEN_BLADE_DEBUFF, EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_SILENCE_DEBUFF
+from report_builder import ReportBuilder
 
 
 class GameSimulator:
     SKILL_REGISTRY_GLOBAL = SKILL_REGISTRY_GLOBAL
 
     @staticmethod
+    @lru_cache(maxsize=None)
     def troop_scalar(T: float) -> float:
         # This function calculates a scalar based on troop count.
         if T <= 0: return 0.0
@@ -34,7 +37,7 @@ class GameSimulator:
         if adv.get(def_type) == atk_type: return 0.95
         return 1.0
 
-    def __init__(self, army1: Army, army2: Army):
+    def __init__(self, army1: Army, army2: Army, report_builder: Optional[ReportBuilder] = None):
         self.army1: Army = army1
         self.army2: Army = army2
         self.army1.simulator = self
@@ -44,21 +47,23 @@ class GameSimulator:
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
             self.army1.name: [], self.army2.name: []
         }
+        self.report_builder = report_builder or ReportBuilder()
 
-    def _log_active_effects_for_report(self):
+    def _log_active_effects_for_report(self) -> List[str]:
+        lines: List[str] = []
         for army in [self.army1, self.army2]:
-            print(
+            lines.append(
                 f"\n{army.name} active effects (Rage: {army.current_rage:.0f}, Unrevivable: {round(army.unrevivable_troops)}):")
             if not army.active_effects:
-                print("  None")
+                lines.append("  None")
                 continue
             sorted_effects = sorted(army.active_effects, key=lambda e: (e.source_skill_id, e.name or ""))
             for eff in sorted_effects:
-                source_skill_name = self.SKILL_REGISTRY_GLOBAL.get(eff.source_skill_id, {}).get("name",
-                                                                                                eff.source_skill_id)
+                source_skill_name = self.SKILL_REGISTRY_GLOBAL.get(eff.source_skill_id, {}).get("name", eff.source_skill_id)
                 duration_str = f"{eff.duration + 1} rounds" if eff.duration != -1 else "Permanent"
-                print(
+                lines.append(
                     f"  - Src: {source_skill_name}, Name: {eff.name}, Func: {eff.get_functionality_description()}, Dur: {duration_str}")
+        return lines
 
     def _log_combat_action(self, attacker: Army, defender: Army,
                            damage_potential_hp: float, absorbed_hp: float,
@@ -409,7 +414,6 @@ class GameSimulator:
 
         while self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
             self.round += 1
-            print(f"\n--- Round {self.round} ---")
 
             # CORRECTED: Reset pending damage/healing at the start of each round
             self.army1.pending_hp_damage_this_round = 0.0
@@ -500,31 +504,14 @@ class GameSimulator:
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 
-            print("\nCombat Actions this Round:")
-            if not self.round_combat_actions_log: print("  No combat actions.")
-            for action in self.round_combat_actions_log:
-                print(
-                    f"  {action['attacker_name']} Launches {action['action_type']} on {action['defender_name']}: DmgPot={action['damage_potential_hp']:.0f}, Absorb={action['absorbed_hp']:.0f}, FinalDmg={action['final_hp_damage']:.0f} -> Kills={action['potential_kills']}")
+            active_lines = self._log_active_effects_for_report()
+            self.report_builder.log_active_effects(active_lines)
+            self.report_builder.emit_round(self.round, self.round_combat_actions_log, self.round_skill_triggers_log)
 
-            for army_obj in [self.army1, self.army2]:
-                print(f"\n{army_obj.name} Skill Triggers this Round:")
-                if not self.round_skill_triggers_log.get(army_obj.name):
-                    print("  None")
-                else:
-                    for trigger in self.round_skill_triggers_log[army_obj.name]:
-                        log_line = f"  - {trigger['skill_name']}: {trigger['effect_description']}"
-                        if "damage_done_hp" in trigger:
-                            log_line += f" (DMG: {trigger['damage_done_hp']:.0f}, Absorb: {trigger.get('absorbed_hp', 0):.0f}, Kills: {trigger.get('potential_kills', 0)})"
-                        elif "shield_hp_gained" in trigger:
-                            log_line += f" (Shield HP: {trigger['shield_hp_gained']:.0f})"
-                        print(log_line)
-
-            print("\nCommitting Round Outcomes (Damage & Healing):")
             self.army1.commit_pending_healing_and_damage()
             self.army2.commit_pending_healing_and_damage()
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 
-            print("\nEnd of Round Periodic Effects & Rage Management Phase:")
             for army, opponent in [(self.army1, self.army2), (self.army2, self.army1)]:
                 if army.current_troop_count <= 0: continue
                 army.process_periodic_effects('end_of_round', opponent=opponent)
@@ -549,15 +536,17 @@ class GameSimulator:
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 
-            print(
+
+            self.report_builder.lines.append(
                 f"\nEnd of Round {self.round} Status -> {self.army1.name}: {self.army1.current_troop_count:.0f} troops (Rage: {self.army1.current_rage:.0f}), "
                 f"{self.army2.name}: {self.army2.current_troop_count:.0f} troops (Rage: {self.army2.current_rage:.0f})")
 
-        print("\n--- Battle Over ---")
-        print("\n--- Skill Trigger Counts ---")
+        self.report_builder.lines.append("\n--- Skill Trigger Counts ---")
         for army_obj in [self.army1, self.army2]:
-            print(f"\n*{army_obj.name}*:")
-            if not army_obj.heroes: print("  No heroes."); continue
+            self.report_builder.lines.append(f"\n*{army_obj.name}*:")
+            if not army_obj.heroes:
+                self.report_builder.lines.append("  No heroes.")
+                continue
             has_printed_for_army = False
             for hero_obj in army_obj.heroes:
                 talents_triggered, base_skills_triggered, plugin_skills_triggered = [], [], []
@@ -576,13 +565,20 @@ class GameSimulator:
 
                 if talents_triggered or base_skills_triggered or plugin_skills_triggered:
                     has_printed_for_army = True
-                    print(f"\n  *{hero_obj.name}*:")
-                    if talents_triggered: print("    Talents:"); print("\n".join(talents_triggered))
-                    if base_skills_triggered: print("    Base Skills:"); print("\n".join(base_skills_triggered))
-                    if plugin_skills_triggered: print("    Plugin Skills:"); print("\n".join(plugin_skills_triggered))
-            if not has_printed_for_army: print("  No skills triggered or no skills equipped for any hero.")
+                    self.report_builder.lines.append(f"\n  *{hero_obj.name}*:")
+                    if talents_triggered:
+                        self.report_builder.lines.append("    Talents:")
+                        self.report_builder.lines.append("\n".join(talents_triggered))
+                    if base_skills_triggered:
+                        self.report_builder.lines.append("    Base Skills:")
+                        self.report_builder.lines.append("\n".join(base_skills_triggered))
+                    if plugin_skills_triggered:
+                        self.report_builder.lines.append("    Plugin Skills:")
+                        self.report_builder.lines.append("\n".join(plugin_skills_triggered))
+            if not has_printed_for_army:
+                self.report_builder.lines.append("  No skills triggered or no skills equipped for any hero.")
 
-        print(f"\nTotal Rounds: {self.round}")
+        self.report_builder.lines.append(f"\nTotal Rounds: {self.round}")
         winner = "Neither (Draw - Both armies were defeated simultaneously)"
         if self.army1.current_troop_count > 0 and self.army2.current_troop_count <= 0:
             winner = self.army1.name
@@ -591,7 +587,10 @@ class GameSimulator:
         elif self.army1.current_troop_count <= 0 and self.army2.current_troop_count <= 0 and self.round > 0:
             winner = "Mutual Destruction"
 
-        print(f"Winner: {winner}")
-        print(
-            f"Final State: {self.army1.name}: {self.army1.current_troop_count:.0f} troops, {self.army2.name}: {self.army2.current_troop_count:.0f} troops")
+        self.report_builder.emit_final(
+            winner,
+            self.round,
+            f"Final State: {self.army1.name}: {self.army1.current_troop_count:.0f} troops",
+            f"{self.army2.name}: {self.army2.current_troop_count:.0f} troops")
+        self.report_builder.print_report()
 

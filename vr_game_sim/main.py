@@ -8,6 +8,11 @@ import sys
 from typing import List, Optional, Dict, Any
 import contextlib
 import io
+import matplotlib
+
+# Use a non-interactive backend so matplotlib doesn't block the script when
+# generating figures. This avoids hangs after the battle summary prints.
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from vr_game_sim.enums import SkillType

@@ -1,12 +1,19 @@
 from typing import List, Dict, Any
 from tabulate import tabulate
 from colorama import Fore, Style, init
+import sys
+
+# Track whether colorama has been initialized to avoid repeated global wrapping
+_COLORAMA_INITIALIZED = False
 
 class ReportBuilder:
     def __init__(self, use_color: bool = True):
-        init(autoreset=True)
+        global _COLORAMA_INITIALIZED
+        self.use_color = use_color and sys.stdout.isatty()
+        if self.use_color and not _COLORAMA_INITIALIZED:
+            init(autoreset=True)
+            _COLORAMA_INITIALIZED = True
         self.lines: List[str] = []
-        self.use_color = use_color
 
     def _c(self, text: str, color: str) -> str:
         if self.use_color:

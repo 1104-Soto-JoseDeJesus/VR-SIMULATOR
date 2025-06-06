@@ -9,6 +9,7 @@ This project contains a simplified VR battle simulator. The code lives inside th
 * [matplotlib](https://matplotlib.org)
 * [tabulate](https://pypi.org/project/tabulate/)
 * [pytest](https://pytest.org) (for running tests)
+* [colorama](https://pypi.org/project/colorama) (for colored output)
 
 Install dependencies with:
 
@@ -22,6 +23,7 @@ A minimal `requirements.txt` could contain:
 matplotlib
 tabulate
 pytest
+colorama
 ```
 
 ## Running the simulator

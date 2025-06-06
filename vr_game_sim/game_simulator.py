@@ -11,6 +11,7 @@ from .skill_system import SkillDefinition, SkillLogicHandler, RageSkillLogicHand
 from .skill_definitions import SKILL_REGISTRY_GLOBAL
 from .constants import EFFECT_NAME_BROKEN_BLADE_DEBUFF, EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_SILENCE_DEBUFF
 from .report_builder import ReportBuilder
+from colorama import Fore
 
 
 class GameSimulator:
@@ -541,8 +542,15 @@ class GameSimulator:
 
 
             self.report_builder.lines.append(
-                f"\nEnd of Round {self.round} Status -> {self.army1.name}: {self.army1.current_troop_count:.0f} troops (Rage: {self.army1.current_rage:.0f}), "
-                f"{self.army2.name}: {self.army2.current_troop_count:.0f} troops (Rage: {self.army2.current_rage:.0f})")
+                f"\nEnd of Round {self.round} Status -> "
+                f"{self.army1.name}: {self.army1.current_troop_count:.0f} troops "
+                f"(Rage: {self.army1.current_rage:.0f}, DMG Taken: "
+                f"{self.report_builder._c(str(round(self.army1.pending_hp_damage_this_round)), Fore.RED)}, "
+                f"Healing: {self.report_builder._c(str(round(self.army1.pending_hp_healing_this_round)), Fore.GREEN)}); "
+                f"{self.army2.name}: {self.army2.current_troop_count:.0f} troops "
+                f"(Rage: {self.army2.current_rage:.0f}, DMG Taken: "
+                f"{self.report_builder._c(str(round(self.army2.pending_hp_damage_this_round)), Fore.RED)}, "
+                f"Healing: {self.report_builder._c(str(round(self.army2.pending_hp_healing_this_round)), Fore.GREEN)})")
 
         self.report_builder.lines.append("\n--- Skill Trigger Counts ---")
         for army_obj in [self.army1, self.army2]:

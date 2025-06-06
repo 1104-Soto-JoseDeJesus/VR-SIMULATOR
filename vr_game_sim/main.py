@@ -196,6 +196,10 @@ def run_additional_simulations(
         plt.savefig(os.path.join(HISTOGRAM_DIR, 'victory_distribution.png'))
         plt.close()
 
+    if generate_histograms:
+        # Ensure no figures remain open in case others were created
+        plt.close('all')
+
     # Determine battle closest to average outcome
     if verbose and diff_results:
         avg_diff = sum(diff_results) / len(diff_results)
@@ -390,6 +394,7 @@ if __name__ == "__main__":
         sim.simulate_battle()
 
         run_additional_simulations(setup_snapshot)
+        sys.exit(0)
     elif chosen_action != 'Q':  # If not quitting and setup failed
         print("Could not set up two armies. Exiting.")
 

@@ -224,6 +224,21 @@ def handle_plugin_shield_reflector(
         if created_buff:
             an_effect_happened = True
             log_details.append((f"Gains buff: {created_buff.get_functionality_description()} for this round.", None))
+
+            pending = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
+                "duration": 0,
+                "config": {
+                    "buff_ids_to_remove": [created_buff.id],
+                    "targeted_buff_names_initial_log": [created_buff.name],
+                },
+                "activate_next_round": True,
+            }
+            triggering_army._create_and_add_single_effect(
+                pending, skill_id, triggering_army, triggering_army, opponent_army
+            )
+            log_details.append(("Schedules Shield Reflector buff removal for next round.", None))
     return an_effect_happened, log_details
 
 

@@ -10,6 +10,7 @@ from .constants import (
     EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_SLOW_DEBUFF, EFFECT_NAME_SILENCE_DEBUFF,
     EFFECT_NAME_FIRST_STRIKE_RAGE_AURA, EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
     EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
+    EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
     EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
     EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
     EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
@@ -135,7 +136,9 @@ class EffectInstance:
                 desc_parts.append(f"Grants {rage_gain} rage each round (R{start_round}-R{end_round}, unaffected by restrictions)")
             elif self.name in [EFFECT_NAME_PENDING_AWAKENING_CLEANSE, EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE, EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE]:
                 desc_parts.append("Pending debuff cleanse for start of next round")
-            elif self.name in [EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL, EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL]:
+            elif self.name in [EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
+                               EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
+                               EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL]:
                 desc_parts.append("Pending buff removal for start of next round")
             else:
                 desc_parts.append(f"Custom Effect: {self.name}")

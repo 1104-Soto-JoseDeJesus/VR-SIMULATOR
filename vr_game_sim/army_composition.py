@@ -23,6 +23,7 @@ from .constants import (
     EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF,
     EFFECT_NAME_HEROIC_BLESSING_BURN_BOOST,
     EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
+    EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
     EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE
 )
 
@@ -395,7 +396,8 @@ class Army:
                 EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE, EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
                 EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Add Olena's custom rage gain effect
                 EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
-                EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE
+                EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
+                EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL
             ]
             if effect.applied_this_round and phase == 'start_of_round' and not is_immediate_custom_effect:
                 continue
@@ -608,7 +610,8 @@ class Army:
 
             elif effect.name in [EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
                                  EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
-                                 EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL] \
+                                 EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
+                                 EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL] \
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
                     buff_ids_to_remove = effect.config.get("buff_ids_to_remove", [])

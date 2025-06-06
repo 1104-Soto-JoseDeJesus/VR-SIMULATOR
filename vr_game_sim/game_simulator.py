@@ -4,13 +4,13 @@ import random
 from functools import lru_cache
 from typing import List, Optional, Dict, Any, Tuple
 
-from enums import SkillTriggerType, StatType, EffectType, SkillType, DoTType
-from unit_definition import Unit
-from army_composition import Army
-from skill_system import SkillDefinition, SkillLogicHandler, RageSkillLogicHandler
-from skill_definitions import SKILL_REGISTRY_GLOBAL
-from constants import EFFECT_NAME_BROKEN_BLADE_DEBUFF, EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_SILENCE_DEBUFF
-from report_builder import ReportBuilder
+from .enums import SkillTriggerType, StatType, EffectType, SkillType, DoTType
+from .unit_definition import Unit
+from .army_composition import Army
+from .skill_system import SkillDefinition, SkillLogicHandler, RageSkillLogicHandler
+from .skill_definitions import SKILL_REGISTRY_GLOBAL
+from .constants import EFFECT_NAME_BROKEN_BLADE_DEBUFF, EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_SILENCE_DEBUFF
+from .report_builder import ReportBuilder
 
 
 class GameSimulator:

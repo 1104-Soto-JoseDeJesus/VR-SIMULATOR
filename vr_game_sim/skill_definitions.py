@@ -1,10 +1,10 @@
 # === File: skill_definitions.py ===
 from typing import Dict
-from enums import EffectType, SkillTriggerType, StatType, SkillType, DoTType
-from skill_system import SkillDefinition
-from constants import *
+from .enums import EffectType, SkillTriggerType, StatType, SkillType, DoTType
+from .skill_system import SkillDefinition
+from .constants import *
 
-from skill_logic.talent_handlers import (
+from .skill_logic.talent_handlers import (
     handle_talent_blade_counter, handle_talent_shield_of_resistance, handle_talent_revenge_echo,
     handle_talent_healing_hymn, handle_talent_hold_fast, handle_talent_determined_defense,
     handle_talent_tit_for_tat, handle_talent_serpents_rage, handle_talent_full_focus,
@@ -27,7 +27,7 @@ from skill_logic.talent_handlers import (
     # FREYDIS TALENT HANDLERS
     handle_talent_heroic_blessing, handle_talent_battle_chime, handle_talent_flames_judgment
 )
-from skill_logic.base_skill_handlers import (
+from .skill_logic.base_skill_handlers import (
     handle_base_skill_planned_attack, handle_base_skill_flame_guardian,
     handle_base_skill_sanctity_of_life, handle_base_skill_zeal,
     handle_base_skill_snake_eyes, handle_base_skill_ready_to_pounce,
@@ -49,7 +49,7 @@ from skill_logic.base_skill_handlers import (
     handle_base_skill_crippling_pursuit, handle_rage_lethal_fracture,
     handle_base_skill_berserk_fury, handle_rage_brutal_blow
 )
-from skill_logic.plugin_skill_handlers import (
+from .skill_logic.plugin_skill_handlers import (
     handle_plugin_divine_blessing, handle_plugin_shield_support, handle_plugin_freyas_blessing,
     handle_plugin_hymn_of_life, handle_plugin_chance_of_reversal, handle_plugin_shield_reflector,
     handle_plugin_first_strike_control, handle_plugin_shield_attacker, handle_plugin_awakening,
@@ -66,7 +66,7 @@ from skill_logic.plugin_skill_handlers import (
     handle_plugin_blessed_healing, handle_plugin_dampened_spirits, handle_plugin_rapid_defense,
     handle_plugin_rare_viking_hymn, handle_plugin_rare_defense_up
 )
-from skill_logic.rage_skill_handlers import (
+from .skill_logic.rage_skill_handlers import (
     handle_rage_sharp_pursuit, handle_rage_sacred_blade, handle_rage_vital_blessing,
     handle_rage_vanquishing_blade, handle_generic_damage_rage_skill,
     handle_rage_skill_snakes_frenzy, handle_rage_skill_paralyzing_terror,
@@ -84,7 +84,7 @@ from skill_logic.rage_skill_handlers import (
     # FREYDIS RAGE SKILL HANDLER
     handle_rage_desperate_strike
 )
-from skill_logic.utility_skill_handlers import (
+from .skill_logic.utility_skill_handlers import (
     handle_generic_single_damage_skill,
     handle_generic_heal_skill,
 )

@@ -3,7 +3,7 @@ Defines the Hero class and hero presets.
 """
 from dataclasses import dataclass, field, InitVar
 from typing import List, Dict, Optional
-from skill_system import SkillDefinition
+from .skill_system import SkillDefinition
 
 _SKILL_REGISTRY_TYPE_HINT: Dict[str, SkillDefinition] = {}
 

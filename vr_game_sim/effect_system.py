@@ -4,8 +4,8 @@ Defines the EffectInstance class, representing an active buff, debuff, shield, e
 import uuid
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional
-from enums import EffectType, StatType, DoTType
-from constants import (
+from .enums import EffectType, StatType, DoTType
+from .constants import (
     EFFECT_NAME_AWAKENING_DMG_REDUCTION, EFFECT_NAME_BROKEN_BLADE_DEBUFF,
     EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_SLOW_DEBUFF, EFFECT_NAME_SILENCE_DEBUFF,
     EFFECT_NAME_FIRST_STRIKE_RAGE_AURA, EFFECT_NAME_PENDING_AWAKENING_CLEANSE,

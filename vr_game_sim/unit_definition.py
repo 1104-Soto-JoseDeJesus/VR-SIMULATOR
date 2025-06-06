@@ -3,8 +3,8 @@ Defines the Unit class, its base stats, and methods for calculating effective st
 """
 from dataclasses import dataclass, field, InitVar
 from typing import List, Dict, Tuple, Optional, ClassVar
-from enums import StatType, EffectType
-from effect_system import EffectInstance
+from .enums import StatType, EffectType
+from .effect_system import EffectInstance
 
 
 @dataclass(slots=True)

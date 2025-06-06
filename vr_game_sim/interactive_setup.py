@@ -1,10 +1,10 @@
 # === File: interactive_setup.py ===
 from typing import List, Optional, Dict, Tuple, Any
 
-from enums import SkillType
-from unit_definition import Unit
-from hero_definition import Hero, HERO_PRESETS  # HERO_PRESETS is imported here
-from skill_system import SkillDefinition
+from .enums import SkillType
+from .unit_definition import Unit
+from .hero_definition import Hero, HERO_PRESETS  # HERO_PRESETS is imported here
+from .skill_system import SkillDefinition
 
 
 def input_choice_numbered(prompt: str, choices_ordered: List[str], default: Optional[str] = None) -> str:

@@ -6,8 +6,8 @@ from typing import Tuple, List, Optional, Dict, Any
 # Use string forward references for type hints to avoid circular imports
 ArmyRef = "Army"
 GameSimulatorRef = "GameSimulator"
-SkillDefinition = Dict[str, Any] # from skill_system
-EffectInstance = "EffectInstance" # from effect_system
+SkillDefinition = Dict[str, Any] # from ..skill_system
+EffectInstance = "EffectInstance" # from ..effect_system
 # No direct need for enums here unless a utility handler becomes very complex
 
 def handle_generic_single_damage_skill(

@@ -2,10 +2,10 @@ import random
 import uuid
 from typing import Tuple, List, Optional, Dict, Any
 
-from enums import EffectType, StatType, SkillTriggerType, DoTType
-from effect_system import EffectInstance
-from skill_system import SkillDefinition, ArmyRef, GameSimulatorRef
-from constants import *
+from ..enums import EffectType, StatType, SkillTriggerType, DoTType
+from ..effect_system import EffectInstance
+from ..skill_system import SkillDefinition, ArmyRef, GameSimulatorRef
+from ..constants import *
 
 
 def handle_base_skill_planned_attack(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: SkillDefinition,

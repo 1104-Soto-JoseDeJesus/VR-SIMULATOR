@@ -1,10 +1,10 @@
 from typing import Tuple, List, Optional, Dict, Any
 import random
 
-from enums import EffectType, StatType, SkillTriggerType, DoTType
-from skill_system import SkillDefinition, ArmyRef, GameSimulatorRef
-from effect_system import EffectInstance
-from constants import *
+from ..enums import EffectType, StatType, SkillTriggerType, DoTType
+from ..skill_system import SkillDefinition, ArmyRef, GameSimulatorRef
+from ..effect_system import EffectInstance
+from ..constants import *
 
 
 def handle_rage_sharp_pursuit(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinition, ev_data: Dict[str, Any],

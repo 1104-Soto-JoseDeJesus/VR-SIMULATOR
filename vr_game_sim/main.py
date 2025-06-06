@@ -15,6 +15,10 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+# Explicitly disable interactive mode and clear any existing figures.
+plt.ioff()
+plt.close('all')
+
 from vr_game_sim.enums import SkillType
 from vr_game_sim.unit_definition import Unit as UnitClass
 from vr_game_sim.hero_definition import Hero, HERO_PRESETS
@@ -131,6 +135,9 @@ def run_additional_simulations(
     """Runs extra simulations silently, optionally generates histograms, and computes summary statistics.
 
     Returns the win rate for Army 1 as a float between 0 and 1."""
+    # Ensure any previous figures are closed before starting the additional runs
+    plt.close('all')
+
     own_remaining: List[float] = []
     enemy_remaining: List[float] = []
     rounds_taken: List[int] = []
@@ -212,6 +219,8 @@ def run_additional_simulations(
             winner_text = army2_name
         print(f"Battle closest to average outcome: #{closest_idx + 1} -> Winner: {winner_text}; {army1_name}: {closest_own:.0f} troops, {army2_name}: {closest_enemy:.0f} troops")
 
+    # Final cleanup to ensure matplotlib does not keep figures open
+    plt.close('all')
     return wins_army1 / runs
 
 
@@ -305,6 +314,7 @@ if __name__ == "__main__":
         sim = GameSimulator(armies[0], armies[1])
         sim.simulate_battle()
         run_additional_simulations(loaded)
+        plt.close('all')
         sys.exit(0)
 
     armies_to_simulate: List[Army] = []
@@ -394,6 +404,7 @@ if __name__ == "__main__":
         sim.simulate_battle()
 
         run_additional_simulations(setup_snapshot)
+        plt.close('all')
         sys.exit(0)
     elif chosen_action != 'Q':  # If not quitting and setup failed
         print("Could not set up two armies. Exiting.")

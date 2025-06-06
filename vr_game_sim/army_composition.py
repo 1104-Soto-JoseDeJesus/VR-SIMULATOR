@@ -4,12 +4,12 @@ import random
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Tuple
 
-from enums import EffectType, SkillTriggerType, StatType, DoTType
-from unit_definition import Unit
-from hero_definition import Hero
-from effect_system import EffectInstance
-from skill_system import SkillDefinition
-from constants import (
+from .enums import EffectType, SkillTriggerType, StatType, DoTType
+from .unit_definition import Unit
+from .hero_definition import Hero
+from .effect_system import EffectInstance
+from .skill_system import SkillDefinition
+from .constants import (
     EFFECT_NAME_BROKEN_BLADE_DEBUFF, EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_SILENCE_DEBUFF,
     EFFECT_NAME_FIRST_STRIKE_RAGE_AURA, EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
     EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,

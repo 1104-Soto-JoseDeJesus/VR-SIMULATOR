@@ -3,24 +3,26 @@ import math
 import random
 import json
 import os
+import argparse
+import sys
 from typing import List, Optional, Dict, Any
 import contextlib
 import io
 import matplotlib.pyplot as plt
 
-from enums import SkillType
-from unit_definition import Unit as UnitClass
-from hero_definition import Hero, HERO_PRESETS
-from army_composition import Army
-from game_simulator import GameSimulator
-from interactive_setup import (
+from .enums import SkillType
+from .unit_definition import Unit as UnitClass
+from .hero_definition import Hero, HERO_PRESETS
+from .army_composition import Army
+from .game_simulator import GameSimulator
+from .interactive_setup import (
     input_choice_numbered,
     input_int,
     input_float,
     setup_hero_interactive,
     input_multi_choice_numbered,
 )
-from skill_definitions import SKILL_REGISTRY_GLOBAL
+from .skill_definitions import SKILL_REGISTRY_GLOBAL
 
 # --- Configuration for Save/Load ---
 SETUPS_DIR = "setups"
@@ -56,13 +58,15 @@ def save_setup_to_file(setup_data: List[Dict[str, Any]], filename: str):
 
 
 def load_setup_from_file(filename: str) -> Optional[List[Dict[str, Any]]]:
-    """Loads army setup data from a JSON file."""
-    filepath = os.path.join(SETUPS_DIR, filename)
+    """Loads army setup data from a JSON file. Accepts absolute or relative path."""
+    filepath = filename
+    if not os.path.isabs(filename):
+        filepath = os.path.join(SETUPS_DIR, filename)
     if not os.path.exists(filepath):
         print(f"Error: Setup file {filepath} not found.")
         return None
     try:
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             setup_data = json.load(f)
         print(f"Setup loaded from {filepath}")
         return setup_data
@@ -275,8 +279,25 @@ def get_setup_data_for_saving(armies: List[Army]) -> List[Dict[str, Any]]:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run battle simulation")
+    parser.add_argument(
+        "--setup",
+        help="Path to JSON setup file to load and run non-interactively",
+    )
+    args = parser.parse_args()
+
     print("=== Battle Simulator ===")
     ensure_setups_dir()
+    if args.setup:
+        loaded = load_setup_from_file(args.setup)
+        if not loaded:
+            sys.exit(1)
+        armies = create_armies_from_data(loaded)
+        sim = GameSimulator(armies[0], armies[1])
+        sim.simulate_battle()
+        run_additional_simulations(loaded)
+        sys.exit(0)
+
     armies_to_simulate: List[Army] = []
 
     action_prompt = "Choose action: (N)ew setup, (L)oad setup, (R)un last setup (if available), (Q)uit: "

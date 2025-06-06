@@ -5,7 +5,7 @@ import json
 import os
 import copy
 import itertools
-from typing import List, Optional, Dict, Any, Set, Tuple
+from typing import List, Optional, Dict, Any
 import contextlib
 import io
 import matplotlib.pyplot as plt
@@ -305,7 +305,12 @@ def _eval_candidate(args: tuple) -> tuple:
 
 
 def run_win_simulation(base_setup: List[Dict[str, Any]]):
-    """Searches for the hero and plugin skill combination with the best win rate."""
+    """Search for the hero and plugin skill combination with the best win rate.
+
+    Hero order is significant in the underlying simulator, so this routine
+    evaluates every permutation of two heroes while still treating the order of
+    plugin skills as irrelevant.
+    """
 
     hero_options = [(name, name.capitalize()) for name in sorted(HERO_PRESETS.keys())]
     plugin_options = [
@@ -345,23 +350,18 @@ def run_win_simulation(base_setup: List[Dict[str, Any]]):
     best_combos: List[tuple] = []
 
     candidate_args: List[tuple] = []
-    # Track previously used hero/skill combinations so ordering of heroes or skills
-    # does not produce duplicate evaluations.
-    used_combos: Set[Tuple[frozenset, frozenset]] = set()
 
-    for hero1, hero2 in itertools.combinations(eligible_heroes, 2):
+    # Evaluate every permutation of hero ordering. We do not deduplicate based on
+    # hero order because the underlying simulation logic can yield different
+    # outcomes depending on which hero occupies the first or second slot. Plugin
+    # skill combinations themselves remain order-insensitive.
+    for hero1, hero2 in itertools.permutations(eligible_heroes, 2):
         for combo1 in plugin_combos:
             for combo2 in plugin_combos:
                 # Skip if any plugin skill is used by both heroes in this pairing
                 if set(combo1) & set(combo2):
                     continue
 
-                all_skills = frozenset(combo1 + combo2)
-                hero_pair = frozenset({hero1, hero2})
-                combo_key = (hero_pair, all_skills)
-                if combo_key in used_combos:
-                    continue
-                used_combos.add(combo_key)
                 candidate_args.append((hero1, combo1, hero2, combo2, base_setup))
 
     from multiprocessing import Pool

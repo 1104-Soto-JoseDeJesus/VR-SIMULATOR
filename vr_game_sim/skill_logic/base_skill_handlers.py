@@ -864,7 +864,17 @@ def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
             logs.append((f"Gains shield for {shield_dur + 1} rounds (starting next round).", None))
     # schedule buff removal and self cleanse
     if cfg.get("buff_removal_count", 2) > 0:
-        opp_buff_ids = [eff.id for eff in opponent_army.active_effects if eff.duration != -1 and eff.effect_type != EffectType.SHIELD][:cfg.get("buff_removal_count", 2)]
+        opp_buff_ids = [
+            eff.id
+            for eff in opponent_army.active_effects
+            if (
+                eff.duration != -1
+                and eff.effect_type != EffectType.SHIELD
+                and eff.effect_type != EffectType.HEAL_OVER_TIME
+            )
+        ][
+            : cfg.get("buff_removal_count", 2)
+        ]
         pending = {"effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
                    "duration": 0, "config": {"buff_ids_to_remove": opp_buff_ids,
                                             "targeted_buff_names_initial_log": [eff.name for eff in opponent_army.active_effects if eff.id in opp_buff_ids]},

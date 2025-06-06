@@ -449,6 +449,7 @@ def handle_plugin_lokis_trick(
                         eff.effect_type != EffectType.SHIELD and  # Don't remove shields this way
                         eff.duration != -1 and  # Don't remove permanent effects
                         eff.name != pending_removal_effect_name and  # Don't target self
+                        eff.effect_type != EffectType.HEAL_OVER_TIME and  # Don't remove heal over time
                         ((eff.effect_type == EffectType.STAT_MOD and eff.magnitude > 0) or \
                          (eff.effect_type != EffectType.DEBUFF and eff.effect_type != EffectType.DAMAGE_OVER_TIME))
                 # General buff definition
@@ -734,6 +735,7 @@ def handle_plugin_blessed_negation(
         is_removable_buff = (
                 eff.effect_type != EffectType.SHIELD and eff.duration != -1 and
                 eff.name != EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL and
+                eff.effect_type != EffectType.HEAL_OVER_TIME and
                 ((eff.effect_type == EffectType.STAT_MOD and eff.magnitude > 0) or \
                  (eff.effect_type != EffectType.DEBUFF and eff.effect_type != EffectType.DAMAGE_OVER_TIME))
         )

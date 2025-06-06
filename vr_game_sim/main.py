@@ -10,19 +10,19 @@ import contextlib
 import io
 import matplotlib.pyplot as plt
 
-from .enums import SkillType
-from .unit_definition import Unit as UnitClass
-from .hero_definition import Hero, HERO_PRESETS
-from .army_composition import Army
-from .game_simulator import GameSimulator
-from .interactive_setup import (
+from vr_game_sim.enums import SkillType
+from vr_game_sim.unit_definition import Unit as UnitClass
+from vr_game_sim.hero_definition import Hero, HERO_PRESETS
+from vr_game_sim.army_composition import Army
+from vr_game_sim.game_simulator import GameSimulator
+from vr_game_sim.interactive_setup import (
     input_choice_numbered,
     input_int,
     input_float,
     setup_hero_interactive,
     input_multi_choice_numbered,
 )
-from .skill_definitions import SKILL_REGISTRY_GLOBAL
+from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
 
 # --- Configuration for Save/Load ---
 SETUPS_DIR = "setups"

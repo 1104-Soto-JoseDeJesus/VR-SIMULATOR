@@ -1,42 +1,44 @@
 """
 Defines the Hero class and hero presets.
 """
+from dataclasses import dataclass, field, InitVar
 from typing import List, Dict, Optional
 from skill_system import SkillDefinition
 
 _SKILL_REGISTRY_TYPE_HINT: Dict[str, SkillDefinition] = {}
 
 
+@dataclass(slots=True)
 class Hero:
-    def __init__(self, name: str, talent_ids: List[str], base_skill_ids: List[str],
-                 plugin_skill_ids: List[str], skill_registry: Dict[str, SkillDefinition]):
-        if len(talent_ids) != 3:
-            if len(talent_ids) < 3:
-                talent_ids.extend(["dummy_talent_empty"] * (3 - len(talent_ids)))
+    name: str
+    talent_ids: List[str]
+    base_skill_ids: List[str]
+    plugin_skill_ids: List[str]
+    skill_registry: InitVar[Dict[str, SkillDefinition]]
+    skills: List[SkillDefinition] = field(init=False, default_factory=list)
+
+    def __post_init__(self, skill_registry: Dict[str, SkillDefinition]):
+        if len(self.talent_ids) != 3:
+            if len(self.talent_ids) < 3:
+                self.talent_ids.extend(["dummy_talent_empty"] * (3 - len(self.talent_ids)))
             else:
-                raise ValueError(f"Hero {name} must have exactly 3 talent slots. Got {len(talent_ids)}: {talent_ids}")
+                raise ValueError(f"Hero {self.name} must have exactly 3 talent slots. Got {len(self.talent_ids)}: {self.talent_ids}")
 
-        if len(base_skill_ids) > 2:
-            raise ValueError(f"Hero {name} base skills limited to a maximum of 2. Got {len(base_skill_ids)}")
-        if len(plugin_skill_ids) > 2:
-            raise ValueError(f"Hero {name} plugin skills limited to a maximum of 2. Got {len(plugin_skill_ids)}")
+        if len(self.base_skill_ids) > 2:
+            raise ValueError(f"Hero {self.name} base skills limited to a maximum of 2. Got {len(self.base_skill_ids)}")
+        if len(self.plugin_skill_ids) > 2:
+            raise ValueError(f"Hero {self.name} plugin skills limited to a maximum of 2. Got {len(self.plugin_skill_ids)}")
 
-        self.name: str = name
-        self.talent_ids: List[str] = talent_ids
-        self.base_skill_ids: List[str] = base_skill_ids
-        self.plugin_skill_ids: List[str] = plugin_skill_ids
-        self.skills: List[SkillDefinition] = []
-
-        for skill_id_list in [talent_ids, base_skill_ids, plugin_skill_ids]:
+        for skill_id_list in [self.talent_ids, self.base_skill_ids, self.plugin_skill_ids]:
             for skill_id in skill_id_list:
                 if skill_id and skill_id.lower() not in ["", "none", "blank"]:
                     if skill_id in skill_registry:
                         self.skills.append(skill_registry[skill_id])
                     else:
                         if skill_id != "dummy_talent_empty":
-                            print(f"Warning: Skill ID '{skill_id}' for hero '{name}' not found in SKILL_REGISTRY.")
-                        elif "dummy_talent_empty" in skill_registry :
-                             self.skills.append(skill_registry["dummy_talent_empty"])
+                            print(f"Warning: Skill ID '{skill_id}' for hero '{self.name}' not found in SKILL_REGISTRY.")
+                        elif "dummy_talent_empty" in skill_registry:
+                            self.skills.append(skill_registry["dummy_talent_empty"])
 
 
     def __repr__(self):

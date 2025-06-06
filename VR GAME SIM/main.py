@@ -89,7 +89,7 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
         unit = UnitClass(
             army_config["unit_type"],
             army_config["tier"],
-            army_config["count"],
+            initial_count=army_config["count"],
             initial_atk_modifier=army_config["atk_mod"],
             initial_def_modifier=army_config["def_mod"],
             initial_hp_modifier=army_config["hp_mod"]
@@ -218,7 +218,7 @@ def run_interactive_setup() -> List[Army]:
         def_mod = input_float("  Initial Defense Modifier", default=0.0)  # Changed default to float
         hp_mod = input_float("  Initial HP Modifier", default=0.0)  # Changed default to float
 
-        current_unit_obj = UnitClass(unit_type_str, tier, count,
+        current_unit_obj = UnitClass(unit_type_str, tier, initial_count=count,
                                      initial_atk_modifier=atk_mod,
                                      initial_def_modifier=def_mod,
                                      initial_hp_modifier=hp_mod)

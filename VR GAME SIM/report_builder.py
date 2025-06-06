@@ -8,8 +8,10 @@ class ReportBuilder:
     def log_active_effects(self, lines: List[str]):
         self.lines.extend(lines)
 
-    def emit_round(self, round_num: int, combat_actions: List[Dict[str, Any]], skill_triggers: Dict[str, List[Dict[str, Any]]]):
+    def emit_round(self, round_num: int, combat_actions: List[Dict[str, Any]], skill_triggers: Dict[str, List[Dict[str, Any]]], active_effects: List[str] | None = None):
         self.lines.append(f"\n--- Round {round_num} ---")
+        if active_effects:
+            self.lines.extend(active_effects)
         if combat_actions:
             table = tabulate(
                 [

@@ -462,7 +462,6 @@ class GameSimulator:
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 
-            self._log_active_effects_for_report()
 
             if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
                 self._process_skill_triggers(self.army1, self.army2, SkillTriggerType.ON_BASIC_ATTACK,
@@ -505,8 +504,12 @@ class GameSimulator:
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 
             active_lines = self._log_active_effects_for_report()
-            self.report_builder.log_active_effects(active_lines)
-            self.report_builder.emit_round(self.round, self.round_combat_actions_log, self.round_skill_triggers_log)
+            self.report_builder.emit_round(
+                self.round,
+                self.round_combat_actions_log,
+                self.round_skill_triggers_log,
+                active_effects=active_lines,
+            )
 
             self.army1.commit_pending_healing_and_damage()
             self.army2.commit_pending_healing_and_damage()

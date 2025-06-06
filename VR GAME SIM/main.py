@@ -3,8 +3,6 @@ import math
 import random
 import json
 import os
-import copy
-import itertools
 from typing import List, Optional, Dict, Any
 import contextlib
 import io
@@ -274,115 +272,6 @@ def get_setup_data_for_saving(armies: List[Army]) -> List[Dict[str, Any]]:
     return save_data_list
 
 
-def _eval_candidate(args: tuple) -> tuple:
-    """Worker function for win simulation multiprocessing."""
-    hero1, combo1, hero2, combo2, base_setup = args
-    preset1 = HERO_PRESETS[hero1]
-    preset2 = HERO_PRESETS[hero2]
-
-    setup_candidate = copy.deepcopy(base_setup)
-    hero1_conf = {
-        "hero_name_or_preset": hero1,
-        "talent_ids": preset1.get("talents", [])[:3],
-        "base_skill_ids": preset1.get("base_skills", [])[:2],
-        "plugin_skill_ids": list(combo1),
-    }
-    hero2_conf = {
-        "hero_name_or_preset": hero2,
-        "talent_ids": preset2.get("talents", [])[:3],
-        "base_skill_ids": preset2.get("base_skills", [])[:2],
-        "plugin_skill_ids": list(combo2),
-    }
-    setup_candidate[0]["heroes"] = [hero1_conf, hero2_conf]
-
-    rate = run_additional_simulations(
-        setup_candidate,
-        runs=200,
-        generate_histograms=False,
-        verbose=False,
-    )
-    return hero1, list(combo1), hero2, list(combo2), rate
-
-
-def run_win_simulation(base_setup: List[Dict[str, Any]]):
-    """Search for the hero and plugin skill combination with the best win rate.
-
-    Hero order is significant in the underlying simulator, so this routine
-    evaluates every permutation of two heroes while still treating the order of
-    plugin skills as irrelevant.
-    """
-
-    hero_options = [(name, name.capitalize()) for name in sorted(HERO_PRESETS.keys())]
-    plugin_options = [
-        (sid, f"{sdef.get('name', sid)} (ID: {sid})")
-        for sid, sdef in SKILL_REGISTRY_GLOBAL.items()
-        if sdef.get("type") == SkillType.PLUGIN_SKILL
-    ]
-
-    hero_exclusions = set(
-        input_multi_choice_numbered(
-            "Select ineligible hero presets (press Enter for none):",
-            hero_options,
-        )
-    )
-    plugin_exclusions = set(
-        input_multi_choice_numbered(
-            "Select ineligible plugin skills (press Enter for none):",
-            plugin_options,
-        )
-    )
-
-    eligible_heroes = [h for h, _ in hero_options if h not in hero_exclusions]
-    eligible_plugins = [sid for sid, _ in plugin_options if sid not in plugin_exclusions]
-
-    # Each hero must equip exactly two plugin skills for the win simulation.
-    # Only generate combinations that have exactly two skills. If there are less
-    # than two eligible skills available, no simulation will be run.
-    plugin_combos = [
-        list(c) for c in itertools.combinations(eligible_plugins, 2)
-    ]
-
-    if not plugin_combos:
-        print("Not enough eligible plugin skills to run win simulation.")
-        return
-
-    best_rate = -1.0
-    best_combos: List[tuple] = []
-
-    candidate_args: List[tuple] = []
-
-    # Evaluate every permutation of hero ordering. We do not deduplicate based on
-    # hero order because the underlying simulation logic can yield different
-    # outcomes depending on which hero occupies the first or second slot. Plugin
-    # skill combinations themselves remain order-insensitive.
-    for hero1, hero2 in itertools.permutations(eligible_heroes, 2):
-        for combo1 in plugin_combos:
-            for combo2 in plugin_combos:
-                # Skip if any plugin skill is used by both heroes in this pairing
-                if set(combo1) & set(combo2):
-                    continue
-
-                candidate_args.append((hero1, combo1, hero2, combo2, base_setup))
-
-    from multiprocessing import Pool
-
-    with Pool() as pool:
-        for hero1, combo1, hero2, combo2, rate in pool.imap_unordered(_eval_candidate, candidate_args):
-            if rate > best_rate:
-                best_rate = rate
-                best_combos = [(hero1, combo1, hero2, combo2)]
-            elif rate == best_rate:
-                best_combos.append((hero1, combo1, hero2, combo2))
-
-    print(f"\n=== Win Simulation Results ===")
-    if best_combos:
-        print(f"Best win rate: {best_rate * 100:.2f}%")
-        for h1, plugins1, h2, plugins2 in best_combos:
-            p1 = ', '.join(plugins1) if plugins1 else 'None'
-            p2 = ', '.join(plugins2) if plugins2 else 'None'
-            print(f"  Heroes: {h1} (Plugins: {p1}) & {h2} (Plugins: {p2})")
-    else:
-        print("No eligible combinations found.")
 
 
 if __name__ == "__main__":
@@ -390,13 +279,13 @@ if __name__ == "__main__":
     ensure_setups_dir()
     armies_to_simulate: List[Army] = []
 
-    action_prompt = "Choose action: (N)ew setup, (L)oad setup, (R)un last setup (if available), (W)in Simulation, (Q)uit: "
+    action_prompt = "Choose action: (N)ew setup, (L)oad setup, (R)un last setup (if available), (Q)uit: "
     chosen_action = ""
 
     # Check if last run setup exists for the (R) option
     can_run_last = os.path.exists(LAST_SETUP_FILENAME)
     if not can_run_last:
-        action_prompt = "Choose action: (N)ew setup, (L)oad setup, (W)in Simulation, (Q)uit: "
+        action_prompt = "Choose action: (N)ew setup, (L)oad setup, (Q)uit: "
 
     while not armies_to_simulate or len(armies_to_simulate) != 2:
         chosen_action = input(action_prompt).strip().upper()
@@ -450,16 +339,6 @@ if __name__ == "__main__":
             except ValueError:
                 print("Invalid input. Please enter a number.")
 
-        elif chosen_action == 'W':
-            if os.path.exists(LAST_SETUP_FILENAME):
-                loaded_data_list = load_setup_from_file(os.path.basename(LAST_SETUP_FILENAME))
-                if loaded_data_list:
-                    run_win_simulation(loaded_data_list)
-                else:
-                    print("Could not load last setup for win simulation.")
-            else:
-                print("No last setup available for win simulation.")
-
         elif chosen_action == 'R' and can_run_last:
             print("Loading last run setup...")
             loaded_data_list = load_setup_from_file(os.path.basename(LAST_SETUP_FILENAME))
@@ -472,7 +351,7 @@ if __name__ == "__main__":
             print("No last setup available to run.")
 
         else:
-            print("Invalid action. Please choose N, L, R (if available), W, or Q.")
+            print("Invalid action. Please choose N, L, R (if available), or Q.")
 
         if len(armies_to_simulate) != 2 and chosen_action not in ['Q']:
             print("Setup was not completed or loaded correctly. Please try again.")

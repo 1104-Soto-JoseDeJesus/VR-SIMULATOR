@@ -357,6 +357,20 @@ class GameSimulator:
             if army.current_troop_count > 0:
                 army.activate_queued_effects()
 
+    def _apply_base_rage_gain(self) -> None:
+        """Give each army 100 rage at round start unless their Hero 1 rage skill is queued."""
+        if self.round <= 1:
+            for army in [self.army1, self.army2]:
+                army.base_rage_awarded_this_round = False
+            return
+
+        for army in [self.army1, self.army2]:
+            if army.hero1_rage_skill_queued_this_round:
+                army.base_rage_awarded_this_round = False
+            else:
+                army.current_rage += 100
+                army.base_rage_awarded_this_round = True
+
     def _calculate_and_log_attack(self, att: Army, dfd: Army, is_counter: bool) -> Tuple[float, float, float, int]:
         if att.current_troop_count <= 0: return 0.0, 0.0, 0.0, 0
 
@@ -438,6 +452,7 @@ class GameSimulator:
             for army in [self.army1, self.army2]:
                 army.triggered_skills_this_round.clear()
                 army.healing_hymn_triggered_this_round = False
+                army.base_rage_awarded_this_round = False
 
             for army in [self.army1, self.army2]:
                 if army.effects_to_activate_next_round:
@@ -465,12 +480,10 @@ class GameSimulator:
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 
-            # Apply base rage gain unconditionally at the start of the round.
+            # Apply base rage gain unless Hero 1's rage skill is queued.
             # Any rage gained this way will be removed later in the same round
             # if the army's Hero 1 actually uses their rage skill.
-            if self.round > 1:
-                for army in [self.army1, self.army2]:
-                    army.current_rage += 100
+            self._apply_base_rage_gain()
 
             # Reset per-round tracking flags now that base rage has been applied
 
@@ -493,7 +506,8 @@ class GameSimulator:
                     self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=True)
 
                 for army in [self.army1, self.army2]:
-                    if army.hero1_rage_skill_used_round == self.round:
+                    if (army.hero1_rage_skill_used_round == self.round and
+                            army.base_rage_awarded_this_round):
                         army.current_rage = max(0, army.current_rage - 100)
 
 

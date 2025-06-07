@@ -459,9 +459,19 @@ def handle_plugin_lokis_trick(
             rage_to_reduce = skill_config.get("rage_reduction_amount", 0.0)
             if rage_to_reduce > 0 and opponent_army.current_rage > 0:
                 actual_reduced = min(opponent_army.current_rage, float(rage_to_reduce))
-                opponent_army.current_rage -= actual_reduced
-                an_effect_happened = True
-                log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduced:.0f}.", None))
+                effect_data = {
+                    "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                    "name": EFFECT_NAME_DELAYED_RAGE_REDUCTION,
+                    "duration": 0,
+                    "config": {"rage_reduction": actual_reduced},
+                    "activate_next_round": True,
+                }
+                created = opponent_army._create_and_add_single_effect(
+                    effect_data, skill_id, triggering_army, opponent_army, triggering_army
+                )
+                if created:
+                    an_effect_happened = True
+                    log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduced:.0f} next round.", None))
 
         if random.random() < skill_config.get("buff_removal_chance", 0.0):
             buff_ids_to_target = []
@@ -802,9 +812,19 @@ def handle_plugin_blessed_negation(
     rage_reduction = skill_config.get("rage_reduction", 0)
     if rage_reduction > 0 and opponent_army.current_rage > 0:
         actual_reduction = min(opponent_army.current_rage, float(rage_reduction))
-        opponent_army.current_rage -= actual_reduction
-        an_effect_happened = True
-        log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f}.", None))
+        effect_data = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DELAYED_RAGE_REDUCTION,
+            "duration": 0,
+            "config": {"rage_reduction": actual_reduction},
+            "activate_next_round": True,
+        }
+        created = opponent_army._create_and_add_single_effect(
+            effect_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created:
+            an_effect_happened = True
+            log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f} next round.", None))
 
     return an_effect_happened, log_details
 
@@ -1879,10 +1899,21 @@ def handle_plugin_dampened_spirits(
 
     if random.random() < skill_config.get("rage_reduction_chance", 0.15):
         rage_reduction = skill_config.get("rage_reduction", 300.0)
-        if rage_reduction > 0:
-            opponent_army.current_rage = max(0.0, opponent_army.current_rage - rage_reduction)
-            an_effect_happened = True
-            log_details.append((f"Reduces enemy rage by {rage_reduction:.0f}.", None))
+        if rage_reduction > 0 and opponent_army.current_rage > 0:
+            actual = min(opponent_army.current_rage, float(rage_reduction))
+            effect_data = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_DELAYED_RAGE_REDUCTION,
+                "duration": 0,
+                "config": {"rage_reduction": actual},
+                "activate_next_round": True,
+            }
+            created = opponent_army._create_and_add_single_effect(
+                effect_data, skill_id, triggering_army, opponent_army, triggering_army
+            )
+            if created:
+                an_effect_happened = True
+                log_details.append((f"Reduces enemy rage by {actual:.0f} next round.", None))
 
     return an_effect_happened, log_details
 

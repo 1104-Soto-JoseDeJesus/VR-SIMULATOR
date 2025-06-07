@@ -19,6 +19,7 @@ from .constants import (
     EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Import Olena's new effect
     EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
     EFFECT_NAME_DELAYED_RAGE_GAIN,
+    EFFECT_NAME_DELAYED_RAGE_REDUCTION,
     EFFECT_NAME_PENDING_HEROIC_BLESSING_DEBUFF,
     EFFECT_NAME_PENDING_HEROIC_BLESSING_BUFF,
     EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF,
@@ -548,6 +549,19 @@ class Army:
                             self.simulator._log_skill_trigger(
                                 self, effect.name,
                                 f"gains {rage_amt} rage (delayed). New rage: {self.current_rage:.0f}")
+                    if effect in self.active_effects:
+                        self.active_effects.remove(effect)
+
+            elif effect.name == EFFECT_NAME_DELAYED_RAGE_REDUCTION and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round' and effect.duration <= 0:
+                    reduction = effect.config.get("rage_reduction", 0)
+                    if reduction > 0 and self.current_rage > 0:
+                        actual = min(self.current_rage, float(reduction))
+                        self.current_rage -= actual
+                        if self.simulator:
+                            self.simulator._log_skill_trigger(
+                                self, effect.name,
+                                f"loses {actual:.0f} rage (delayed). New rage: {self.current_rage:.0f}")
                     if effect in self.active_effects:
                         self.active_effects.remove(effect)
 

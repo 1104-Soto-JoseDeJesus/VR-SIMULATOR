@@ -260,12 +260,22 @@ def handle_talent_power_of_silence(
 
     if is_opponent_silenced:
         rage_reduction = skill_config.get("rage_reduction", 125)
-        if opponent_army.current_rage > 0:
+        if opponent_army.current_rage > 0 and rage_reduction > 0:
             actual_reduction = min(opponent_army.current_rage, float(rage_reduction))
-            opponent_army.current_rage -= actual_reduction
-            an_effect_happened = True
-            log_details.append(
-                (f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f} (enemy was Silenced).", None))
+            effect_data = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_DELAYED_RAGE_REDUCTION,
+                "duration": 0,
+                "config": {"rage_reduction": actual_reduction},
+                "activate_next_round": True,
+            }
+            created = opponent_army._create_and_add_single_effect(
+                effect_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+            )
+            if created:
+                an_effect_happened = True
+                log_details.append(
+                    (f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f} next round (enemy was Silenced).", None))
         else:
             log_details.append(
                 (f"Attempted to reduce {opponent_army.name}'s rage via {skill_def['name']}, but enemy rage is already 0.",
@@ -580,9 +590,19 @@ def handle_talent_poised_shot(
         rage_to_reduce = skill_config.get("rage_reduction_amount", 0)
         if rage_to_reduce > 0 and opponent_army.current_rage > 0:
             actual_reduction = min(opponent_army.current_rage, float(rage_to_reduce))
-            opponent_army.current_rage -= actual_reduction
-            an_effect_happened = True
-            log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f}.", None))
+            effect_data = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_DELAYED_RAGE_REDUCTION,
+                "duration": 0,
+                "config": {"rage_reduction": actual_reduction},
+                "activate_next_round": True,
+            }
+            created = opponent_army._create_and_add_single_effect(
+                effect_data, skill_id, triggering_army, opponent_army, triggering_army
+            )
+            if created:
+                an_effect_happened = True
+                log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f} next round.", None))
     else:
         log_details.append(
             (f"Rage reduction chance ({skill_config.get('rage_reduction_chance', 0.0) * 100:.0f}%) not met.", None))

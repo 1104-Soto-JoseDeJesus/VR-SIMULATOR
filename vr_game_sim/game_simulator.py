@@ -262,7 +262,8 @@ class GameSimulator:
             else:
                 return
 
-        if not skill_to_execute_id: return
+        if not skill_to_execute_id:
+            return
         skill_def = self.SKILL_REGISTRY_GLOBAL.get(skill_to_execute_id)
         if not skill_def:
             print(f"Warning: Rage skill ID '{skill_to_execute_id}' not found in registry for {army.name}.")
@@ -291,6 +292,14 @@ class GameSimulator:
 
         if not is_hero2_delayed_trigger:
             rage_cost = skill_def.get("rage_cost", 1000)
+            if army.current_rage < rage_cost:
+                # Cancel the queued skill if rage requirement is not met
+                army.hero1_rage_skill_queued_this_round = False
+                self._log_skill_trigger(
+                    army,
+                    skill_def['name'],
+                    "Trigger canceled due to insufficient rage.")
+                return
             army.current_rage -= rage_cost
             army.current_rage = max(0, army.current_rage)
             army.army_used_rage_skill_this_round_for_rage_gain_block = True
@@ -424,11 +433,11 @@ class GameSimulator:
 
             self.round_combat_actions_log.clear()
             self.round_skill_triggers_log = {self.army1.name: [], self.army2.name: []}
+            # Reset flags that do not affect base rage calculation. Rage-related
+            # flags are reset later so we can inspect last round's values.
             for army in [self.army1, self.army2]:
-                army.army_used_rage_skill_this_round_for_rage_gain_block = False
-                army.healing_hymn_triggered_this_round = False
                 army.triggered_skills_this_round.clear()
-                army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+                army.healing_hymn_triggered_this_round = False
 
             for army in [self.army1, self.army2]:
                 if army.effects_to_activate_next_round:
@@ -440,17 +449,9 @@ class GameSimulator:
             self.army1.started_round_with_active_shield = self.army1.get_current_shield_hp() > 0
             self.army2.started_round_with_active_shield = self.army2.get_current_shield_hp() > 0
 
-            if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0 and self.army1.hero1_rage_skill_queued_this_round:
-                self._execute_rage_skills(self.army1, self.army2, is_hero2_delayed_trigger=False)
-            if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0 and self.army2.hero1_rage_skill_queued_this_round:
-                self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=False)
-
-            if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0 and self.army1.hero2_rage_skill_primed_for_round == self.round:
-                self._execute_rage_skills(self.army1, self.army2, is_hero2_delayed_trigger=True)
-            if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0 and self.army2.hero2_rage_skill_primed_for_round == self.round:
-                self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=True)
-
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
+            # Rage skills will now be executed after start-of-round effects and base rage gain
+            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+                break
 
             for army, opponent in [(self.army1, self.army2), (self.army2, self.army1)]:
                 if army.current_troop_count <= 0: continue
@@ -462,6 +463,35 @@ class GameSimulator:
                 army.activate_queued_effects()
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
+
+            # Apply base rage gain at the start of the round using last round's
+            # rage-skill usage flags. This occurs after all start-of-round
+            # effects so that any rage reductions happen first.
+            if self.round > 1:
+                for army in [self.army1, self.army2]:
+                    if not army.army_used_rage_skill_this_round_for_rage_gain_block and \
+                            not army.hero1_rage_skill_cast_blocked_by_silence_this_round:
+                        army.current_rage += 100
+
+            # Reset per-round tracking flags now that base rage has been applied
+
+            for army in [self.army1, self.army2]:
+                army.army_used_rage_skill_this_round_for_rage_gain_block = False
+                army.healing_hymn_triggered_this_round = False
+                army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+
+            # After applying base rage and resetting flags, verify any queued
+            # rage skills still meet rage requirements before execution.
+            if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
+                if self.army1.hero1_rage_skill_queued_this_round:
+                    self._execute_rage_skills(self.army1, self.army2, is_hero2_delayed_trigger=False)
+                if self.army2.hero1_rage_skill_queued_this_round:
+                    self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=False)
+
+                if self.army1.hero2_rage_skill_primed_for_round == self.round:
+                    self._execute_rage_skills(self.army1, self.army2, is_hero2_delayed_trigger=True)
+                if self.army2.hero2_rage_skill_primed_for_round == self.round:
+                    self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=True)
 
 
             if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
@@ -521,14 +551,7 @@ class GameSimulator:
                 army.process_periodic_effects('end_of_round', opponent=opponent)
                 army.activate_queued_effects()
 
-                if self.round > 1:
-                    if not army.army_used_rage_skill_this_round_for_rage_gain_block and \
-                            not army.hero1_rage_skill_cast_blocked_by_silence_this_round:
-                        army.current_rage += 100
-                    elif army.army_used_rage_skill_this_round_for_rage_gain_block:
-                        pass
-                    elif army.hero1_rage_skill_cast_blocked_by_silence_this_round:
-                        pass
+
 
                 if army.hero1_rage_skill_id and \
                         not army.hero1_rage_skill_queued_this_round and \

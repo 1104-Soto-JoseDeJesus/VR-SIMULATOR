@@ -60,6 +60,7 @@ class Army:
     hero2_rage_skill_primed_for_round: Optional[int] = field(init=False, default=None)
 
     army_used_rage_skill_this_round_for_rage_gain_block: bool = field(init=False, default=False)
+    base_rage_awarded_this_round: bool = field(init=False, default=False)
     healing_hymn_triggered_this_round: bool = field(init=False, default=False)
     started_round_with_active_shield: bool = field(init=False, default=False)
     hero1_rage_skill_cast_blocked_by_silence_this_round: bool = field(init=False, default=False)
@@ -755,6 +756,7 @@ class Army:
         self.hero1_rage_skill_used_round = None
         self.hero2_rage_skill_primed_for_round = None
         self.army_used_rage_skill_this_round_for_rage_gain_block = False
+        self.base_rage_awarded_this_round = False
         self.started_round_with_active_shield = False
         self.healing_hymn_triggered_this_round = False
         self.hero1_rage_skill_cast_blocked_by_silence_this_round = False

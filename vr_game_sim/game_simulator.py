@@ -465,14 +465,12 @@ class GameSimulator:
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 
-            # Apply base rage gain at the start of the round using last round's
-            # rage-skill usage flags. This occurs after all start-of-round
-            # effects so that any rage reductions happen first.
+            # Apply base rage gain unconditionally at the start of the round.
+            # Any rage gained this way will be removed later in the same round
+            # if the army's Hero 1 actually uses their rage skill.
             if self.round > 1:
                 for army in [self.army1, self.army2]:
-                    if not army.army_used_rage_skill_this_round_for_rage_gain_block and \
-                            not army.hero1_rage_skill_cast_blocked_by_silence_this_round:
-                        army.current_rage += 100
+                    army.current_rage += 100
 
             # Reset per-round tracking flags now that base rage has been applied
 
@@ -493,6 +491,10 @@ class GameSimulator:
                     self._execute_rage_skills(self.army1, self.army2, is_hero2_delayed_trigger=True)
                 if self.army2.hero2_rage_skill_primed_for_round == self.round:
                     self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=True)
+
+                for army in [self.army1, self.army2]:
+                    if army.hero1_rage_skill_used_round == self.round:
+                        army.current_rage = max(0, army.current_rage - 100)
 
 
             if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:

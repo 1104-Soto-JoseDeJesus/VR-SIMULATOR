@@ -14,7 +14,8 @@ from .constants import (
     EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
     EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
     EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
-    EFFECT_NAME_BERSERK_FURY_RAGE_GAIN
+    EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
+    EFFECT_NAME_DELAYED_RAGE_GAIN
 )
 
 @dataclass(slots=True)
@@ -140,6 +141,9 @@ class EffectInstance:
                                EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
                                EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL]:
                 desc_parts.append("Pending buff removal for start of next round")
+            elif self.name == EFFECT_NAME_DELAYED_RAGE_GAIN:
+                amt = self.config.get('rage_amount', 0)
+                desc_parts.append(f"Gain {amt} rage next round")
             else:
                 desc_parts.append(f"Custom Effect: {self.name}")
         else:

@@ -199,9 +199,19 @@ def handle_plugin_chance_of_reversal(
                              "potential_kills": kills}))
     rage_gain = skill_config.get("rage_gain", 0.0)
     if rage_gain > 0:
-        triggering_army.current_rage += rage_gain
-        an_effect_happened = True
-        log_details.append((f"Gains {rage_gain:.0f} rage.", None))
+        effect_data = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+            "duration": 0,
+            "config": {"rage_amount": rage_gain},
+            "activate_next_round": True,
+        }
+        created = triggering_army._create_and_add_single_effect(
+            effect_data, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created:
+            an_effect_happened = True
+            log_details.append((f"Gains {rage_gain:.0f} rage next round.", None))
     if an_effect_happened:
         triggering_army.triggered_skills_this_round.append(skill_id)
     return an_effect_happened, log_details
@@ -708,9 +718,19 @@ def handle_plugin_enrage(
 
     rage_gain = skill_config.get("rage_gain", 0)
     if rage_gain > 0:
-        triggering_army.current_rage += rage_gain
-        an_effect_happened = True
-        log_details.append((f"Gains {rage_gain:.0f} rage.", None))
+        effect_data = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+            "duration": 0,
+            "config": {"rage_amount": rage_gain},
+            "activate_next_round": True,
+        }
+        created = triggering_army._create_and_add_single_effect(
+            effect_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created:
+            an_effect_happened = True
+            log_details.append((f"Gains {rage_gain:.0f} rage next round.", None))
 
     return an_effect_happened, log_details
 
@@ -951,9 +971,19 @@ def handle_plugin_battle_hymn(
 
     rage_gain = skill_config.get("rage_gain", 0)
     if rage_gain > 0:
-        triggering_army.current_rage += rage_gain
-        an_effect_happened = True
-        log_details.append((f"Gains {rage_gain:.0f} rage.", None))
+        effect_data = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+            "duration": 0,
+            "config": {"rage_amount": rage_gain},
+            "activate_next_round": True,
+        }
+        created = triggering_army._create_and_add_single_effect(
+            effect_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created:
+            an_effect_happened = True
+            log_details.append((f"Gains {rage_gain:.0f} rage next round.", None))
 
     return an_effect_happened, log_details
 
@@ -1200,9 +1230,19 @@ def handle_plugin_rage_leech(
     else:
         rage_gain = skill_config.get("rage_gain", 80.0)
         if rage_gain > 0:
-            triggering_army.current_rage += rage_gain
-            an_effect_happened = True
-            log_details.append((f"Gains {rage_gain:.0f} rage.", None))
+            effect_data = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+                "duration": 0,
+                "config": {"rage_amount": rage_gain},
+                "activate_next_round": True,
+            }
+            created = triggering_army._create_and_add_single_effect(
+                effect_data, skill_id, triggering_army, triggering_army, opponent_army
+            )
+            if created:
+                an_effect_happened = True
+                log_details.append((f"Gains {rage_gain:.0f} rage next round.", None))
 
     return an_effect_happened, log_details
 

@@ -456,6 +456,7 @@ class GameSimulator:
             for army, opponent in [(self.army1, self.army2), (self.army2, self.army1)]:
                 if army.current_troop_count <= 0: continue
                 army.activate_queued_effects()
+                army.apply_start_of_round_rage_deductions()
                 army.process_periodic_effects('start_of_round', opponent=opponent)
                 army.activate_queued_effects()
                 self._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND,

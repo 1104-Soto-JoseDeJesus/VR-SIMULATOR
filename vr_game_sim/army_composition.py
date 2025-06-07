@@ -708,6 +708,28 @@ class Army:
                     next_active_effects.append(eff)
         self.active_effects = next_active_effects
 
+    def apply_start_of_round_rage_deductions(self):
+        """Apply all pending rage reduction effects before other start-of-round logic."""
+        to_remove = []
+        for eff in list(self.active_effects):
+            if (eff.name == EFFECT_NAME_DELAYED_RAGE_REDUCTION and
+                    eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and
+                    eff.duration <= 0):
+                reduction = eff.config.get("rage_reduction", 0)
+                if reduction > 0 and self.current_rage > 0:
+                    actual = min(self.current_rage, float(reduction))
+                    self.current_rage -= actual
+                    if self.simulator:
+                        self.simulator._log_skill_trigger(
+                            self,
+                            eff.name,
+                            f"loses {actual:.0f} rage (delayed). New rage: {self.current_rage:.0f}",
+                        )
+                to_remove.append(eff)
+        for r in to_remove:
+            if r in self.active_effects:
+                self.active_effects.remove(r)
+
     def has_active_debuff(self, debuff_name: str) -> bool:
         for effect in self.active_effects:
             if effect.name == debuff_name:

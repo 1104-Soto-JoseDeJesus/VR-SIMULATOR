@@ -322,9 +322,19 @@ def handle_base_skill_heart_of_tolerance(
         rage_to_reduce = skill_config.get("rage_reduction_amount", 0)
         if rage_to_reduce > 0 and opponent_army.current_rage > 0:
             actual_reduction = min(opponent_army.current_rage, float(rage_to_reduce))
-            opponent_army.current_rage -= actual_reduction
-            an_effect_happened = True
-            log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f}.", None))
+            effect_data = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_DELAYED_RAGE_REDUCTION,
+                "duration": 0,
+                "config": {"rage_reduction": actual_reduction},
+                "activate_next_round": True,
+            }
+            created = opponent_army._create_and_add_single_effect(
+                effect_data, skill_id, triggering_army, opponent_army, triggering_army
+            )
+            if created:
+                an_effect_happened = True
+                log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f} next round.", None))
     else:
         log_details.append(
             (f"Rage reduction chance ({skill_config.get('rage_reduction_chance', 0.0) * 100:.0f}%) not met.", None))
@@ -404,9 +414,19 @@ def handle_base_skill_rapid_fire(  # Verdandi's skill, already exists
     rage_to_reduce = skill_config.get("rage_reduction_amount", 0)
     if rage_to_reduce > 0 and opponent_army.current_rage > 0:
         actual_reduction = min(opponent_army.current_rage, float(rage_to_reduce))
-        opponent_army.current_rage -= actual_reduction
-        an_effect_happened = True
-        log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f}.", None))
+        effect_data = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DELAYED_RAGE_REDUCTION,
+            "duration": 0,
+            "config": {"rage_reduction": actual_reduction},
+            "activate_next_round": True,
+        }
+        created = opponent_army._create_and_add_single_effect(
+            effect_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created:
+            an_effect_happened = True
+            log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f} next round.", None))
 
     return an_effect_happened, log_details
 

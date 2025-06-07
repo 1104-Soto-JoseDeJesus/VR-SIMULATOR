@@ -292,9 +292,19 @@ def handle_rage_skill_intimidation(
     rage_reduction = skill_config.get("rage_reduction", 0)
     if rage_reduction > 0 and opponent_army.current_rage > 0:
         actual_reduction = min(opponent_army.current_rage, float(rage_reduction))
-        opponent_army.current_rage -= actual_reduction
-        an_effect_happened = True
-        log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f}.", None))
+        effect_data = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DELAYED_RAGE_REDUCTION,
+            "duration": 0,
+            "config": {"rage_reduction": actual_reduction},
+            "activate_next_round": True,
+        }
+        created = opponent_army._create_and_add_single_effect(
+            effect_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created:
+            an_effect_happened = True
+            log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f} next round.", None))
 
     if random.random() < skill_config.get("silence_chance", 0.0):
         silence_duration = skill_config.get("silence_duration", 1)

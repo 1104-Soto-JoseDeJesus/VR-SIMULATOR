@@ -15,7 +15,8 @@ from .constants import (
     EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
     EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
     EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
-    EFFECT_NAME_DELAYED_RAGE_GAIN
+    EFFECT_NAME_DELAYED_RAGE_GAIN,
+    EFFECT_NAME_DELAYED_RAGE_REDUCTION
 )
 
 @dataclass(slots=True)
@@ -144,6 +145,9 @@ class EffectInstance:
             elif self.name == EFFECT_NAME_DELAYED_RAGE_GAIN:
                 amt = self.config.get('rage_amount', 0)
                 desc_parts.append(f"Gain {amt} rage next round")
+            elif self.name == EFFECT_NAME_DELAYED_RAGE_REDUCTION:
+                amt = self.config.get('rage_reduction', 0)
+                desc_parts.append(f"Reduce rage by {amt} next round")
             else:
                 desc_parts.append(f"Custom Effect: {self.name}")
         else:

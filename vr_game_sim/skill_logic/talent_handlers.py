@@ -568,6 +568,7 @@ def handle_talent_poised_shot(
     an_effect_happened = False
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
 
     # Deal damage
     damage_factor = skill_config.get("damage_factor", 0.0)

@@ -18,6 +18,7 @@ from .constants import (
     EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
     EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Import Olena's new effect
     EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
+    EFFECT_NAME_DELAYED_RAGE_GAIN,
     EFFECT_NAME_PENDING_HEROIC_BLESSING_DEBUFF,
     EFFECT_NAME_PENDING_HEROIC_BLESSING_BUFF,
     EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF,
@@ -537,6 +538,18 @@ class Army:
                             self.simulator._log_skill_trigger(
                                 self, effect.name,
                                 f"gains {gain_amt} rage from Berserk Fury. New rage: {self.current_rage:.0f}")
+
+            elif effect.name == EFFECT_NAME_DELAYED_RAGE_GAIN and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round' and effect.duration <= 0:
+                    rage_amt = effect.config.get("rage_amount", 0)
+                    if rage_amt > 0:
+                        self.current_rage += rage_amt
+                        if self.simulator:
+                            self.simulator._log_skill_trigger(
+                                self, effect.name,
+                                f"gains {rage_amt} rage (delayed). New rage: {self.current_rage:.0f}")
+                    if effect in self.active_effects:
+                        self.active_effects.remove(effect)
 
             elif effect.name == EFFECT_NAME_PENDING_HEROIC_BLESSING_DEBUFF and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round' and effect.duration <= 0:

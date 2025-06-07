@@ -606,9 +606,19 @@ def handle_talent_pent_up_anger(
 
     rage_gain = skill_config.get("rage_gain", 0)
     if rage_gain > 0:
-        triggering_army.current_rage += rage_gain
-        an_effect_happened = True
-        log_details.append((f"Gains {rage_gain:.0f} rage.", None))
+        effect_data = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+            "duration": 0,
+            "config": {"rage_amount": rage_gain},
+            "activate_next_round": True,
+        }
+        created = triggering_army._create_and_add_single_effect(
+            effect_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created:
+            an_effect_happened = True
+            log_details.append((f"Gains {rage_gain:.0f} rage next round.", None))
 
     return an_effect_happened, log_details
 
@@ -696,9 +706,19 @@ def handle_talent_battle_chime(
     if triggering_army.current_rage < opponent_army.current_rage:
         rage_gain = skill_config.get("rage_gain_if_lower", 0)
         if rage_gain > 0:
-            triggering_army.current_rage += rage_gain
-            an_effect_happened = True
-            log_details.append((f"Gains {rage_gain:.0f} rage.", None))
+            effect_data = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+                "duration": 0,
+                "config": {"rage_amount": rage_gain},
+                "activate_next_round": True,
+            }
+            created = triggering_army._create_and_add_single_effect(
+                effect_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+            )
+            if created:
+                an_effect_happened = True
+                log_details.append((f"Gains {rage_gain:.0f} rage next round.", None))
     else:
         log_details.append(("No rage gained (rage not lower than enemy).", None))
 

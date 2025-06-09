@@ -311,18 +311,23 @@ def display_histograms(frame: tk.Frame) -> None:
         "rounds_to_battle_end.png",
         "victory_distribution.png",
     ]
+    max_width = 300
     for idx, img_name in enumerate(image_files):
         path = os.path.join("histograms", img_name)
         if not os.path.exists(path):
             continue
         try:
             img = Image.open(path)
+            if img.width > max_width:
+                ratio = max_width / img.width
+                img = img.resize((max_width, int(img.height * ratio)), Image.LANCZOS)
             photo = ImageTk.PhotoImage(img)
         except Exception:
             continue
         lbl = ttk.Label(frame, image=photo)
         lbl.image = photo
-        lbl.grid(row=0, column=idx, padx=5, pady=5)
+        row, col = divmod(idx, 2)
+        lbl.grid(row=row, column=col, padx=5, pady=5)
 
 
 def main() -> None:

@@ -280,8 +280,11 @@ def run_simulation(
             )
 
             def update():
+                output_widget.configure(state=tk.NORMAL)
                 output_widget.delete("1.0", tk.END)
                 output_widget.insert(tk.END, result_text)
+                output_widget.see("1.0")
+                output_widget.configure(state=tk.DISABLED)
                 display_histograms(histogram_frame)
                 progress.stop()
                 status_var.set("Ready")

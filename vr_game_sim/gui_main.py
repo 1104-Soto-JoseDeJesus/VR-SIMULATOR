@@ -11,10 +11,10 @@ from tkinter import ttk, messagebox, scrolledtext
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-from .hero_definition import HERO_PRESETS
-from .unit_definition import Unit
-from .game_simulator import GameSimulator
-from .main import create_armies_from_data, run_additional_simulations
+from vr_game_sim.hero_definition import HERO_PRESETS
+from vr_game_sim.unit_definition import Unit
+from vr_game_sim.game_simulator import GameSimulator
+from vr_game_sim.main import create_armies_from_data, run_additional_simulations
 
 
 class ArmyFrame(tk.LabelFrame):

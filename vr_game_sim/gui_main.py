@@ -16,6 +16,7 @@ from matplotlib.figure import Figure
 from vr_game_sim.hero_definition import HERO_PRESETS
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.game_simulator import GameSimulator
+from vr_game_sim.report_builder import ReportBuilder
 from vr_game_sim.main import (
     create_armies_from_data,
     run_additional_simulations,
@@ -268,7 +269,8 @@ def run_simulation(
         setup_data = [af.build_config() for af in army_frames]
         try:
             armies = create_armies_from_data(setup_data)
-            sim = GameSimulator(armies[0], armies[1])
+            report_builder = ReportBuilder(use_color=False)
+            sim = GameSimulator(armies[0], armies[1], report_builder)
             report_text = sim.simulate_battle()
             win_rate = run_additional_simulations(setup_data, verbose=False)
             result_text = (

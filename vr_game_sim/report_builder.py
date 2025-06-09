@@ -67,4 +67,8 @@ class ReportBuilder:
         self.lines.append(army2_state)
 
     def print_report(self):
-        print("\n".join(self.lines))
+        print(self.get_report_text())
+
+    def get_report_text(self) -> str:
+        """Returns the full report text without printing."""
+        return "\n".join(self.lines).lstrip()

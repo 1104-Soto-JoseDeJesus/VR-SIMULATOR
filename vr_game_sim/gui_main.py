@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-import io
 import os
 import threading
 import tkinter as tk
@@ -270,12 +269,10 @@ def run_simulation(
         try:
             armies = create_armies_from_data(setup_data)
             sim = GameSimulator(armies[0], armies[1])
-            buf = io.StringIO()
-            with contextlib.redirect_stdout(buf):
-                sim.simulate_battle()
+            report_text = sim.simulate_battle()
             win_rate = run_additional_simulations(setup_data, verbose=False)
             result_text = (
-                buf.getvalue()
+                report_text
                 + f"\nWin rate for {armies[0].name}: {win_rate*100:.1f}% over 200 runs.\n"
             )
 

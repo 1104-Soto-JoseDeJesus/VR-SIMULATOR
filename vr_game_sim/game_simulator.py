@@ -435,7 +435,7 @@ class GameSimulator:
 
         return hp_damage_to_troops, absorbed_by_shield, damage_after_all_percent_mods, potential_units_killed_this_hit_rounded
 
-    def simulate_battle(self):
+    def simulate_battle(self) -> str:
         self.army1.reset_for_new_battle()
         self.army2.reset_for_new_battle()
         self.round = 0
@@ -636,5 +636,7 @@ class GameSimulator:
             self.round,
             f"Final State: {self.army1.name}: {self.army1.current_troop_count:.0f} troops",
             f"{self.army2.name}: {self.army2.current_troop_count:.0f} troops")
+        report_text = self.report_builder.get_report_text()
         self.report_builder.print_report()
+        return report_text
 

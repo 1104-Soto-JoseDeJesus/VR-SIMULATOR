@@ -361,8 +361,13 @@ def main() -> None:
     army2_frame = ArmyFrame(army2_tab, 2)
     army2_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
-    output = scrolledtext.ScrolledText(root, width=90, height=20, wrap=tk.WORD)
-    output.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+    report_frame = ttk.LabelFrame(root, text="Battle Report")
+    report_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+    report_frame.columnconfigure(0, weight=1)
+    report_frame.rowconfigure(0, weight=1)
+
+    output = scrolledtext.ScrolledText(report_frame, width=90, height=20, wrap=tk.WORD)
+    output.grid(row=0, column=0, sticky="nsew")
 
     hist_frame = ttk.Frame(root)
     hist_frame.grid(row=2, column=0, padx=10, pady=10)

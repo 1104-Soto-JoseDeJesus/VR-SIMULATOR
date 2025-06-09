@@ -8,6 +8,8 @@ import sys
 from typing import List, Optional, Dict, Any
 import contextlib
 import io
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 import matplotlib
 
 # Use a non-interactive backend so matplotlib doesn't block the script when
@@ -125,16 +127,36 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
     return armies
 
 
+def _run_single_battle(setup_data: List[Dict[str, Any]]) -> tuple:
+    """Helper to run a single battle. Returns (own, enemy, rounds, diff, winner)."""
+    armies = create_armies_from_data(setup_data)
+    sim = GameSimulator(armies[0], armies[1])
+    with contextlib.redirect_stdout(io.StringIO()):
+        sim.simulate_battle()
+    winner = 0
+    if sim.army1.current_troop_count > 0 and sim.army2.current_troop_count <= 0:
+        winner = 1
+    elif sim.army2.current_troop_count > 0 and sim.army1.current_troop_count <= 0:
+        winner = 2
+    own = sim.army1.current_troop_count
+    enemy = sim.army2.current_troop_count
+    diff = own - enemy
+    return own, enemy, sim.round, diff, winner
+
+
 def run_additional_simulations(
     setup_data: List[Dict[str, Any]],
     runs: int = 200,
     *,
     generate_histograms: bool = True,
     verbose: bool = True,
+    num_workers: int = 1,
 ) -> float:
     """Runs extra simulations silently, optionally generates histograms, and computes summary statistics.
 
-    Returns the win rate for Army 1 as a float between 0 and 1."""
+    If ``num_workers`` is greater than 1, simulations are spread across multiple
+    processes to utilize additional CPU cores. Returns the win rate for Army 1
+    as a float between 0 and 1."""
     # Ensure any previous figures are closed before starting the additional runs
     plt.close('all')
 
@@ -148,22 +170,26 @@ def run_additional_simulations(
     army2_name = setup_data[1].get("army_name", "Army 2") if len(setup_data) > 1 else "Army 2"
     battle_results: List[tuple] = []
 
-    for _ in range(runs):
-        armies = create_armies_from_data(setup_data)
-        sim = GameSimulator(armies[0], armies[1])
-        with contextlib.redirect_stdout(io.StringIO()):
-            sim.simulate_battle()
-        own_remaining.append(sim.army1.current_troop_count)
-        enemy_remaining.append(sim.army2.current_troop_count)
-        rounds_taken.append(sim.round)
-        diff_results.append(sim.army1.current_troop_count - sim.army2.current_troop_count)
-        if sim.army1.current_troop_count > 0 and sim.army2.current_troop_count <= 0:
-            winners.append(1)
-        elif sim.army2.current_troop_count > 0 and sim.army1.current_troop_count <= 0:
-            winners.append(2)
-        else:
-            winners.append(0)
-        battle_results.append((sim.army1.current_troop_count, sim.army2.current_troop_count))
+    worker_inputs = [setup_data] * runs
+    if num_workers > 1:
+        with ProcessPoolExecutor(max_workers=num_workers, mp_context=multiprocessing.get_context("spawn")) as ex:
+            results_iter = ex.map(_run_single_battle, worker_inputs)
+            for own, enemy, r_taken, diff, winner in results_iter:
+                own_remaining.append(own)
+                enemy_remaining.append(enemy)
+                rounds_taken.append(r_taken)
+                diff_results.append(diff)
+                winners.append(winner)
+                battle_results.append((own, enemy))
+    else:
+        for _ in range(runs):
+            own, enemy, r_taken, diff, winner = _run_single_battle(setup_data)
+            own_remaining.append(own)
+            enemy_remaining.append(enemy)
+            rounds_taken.append(r_taken)
+            diff_results.append(diff)
+            winners.append(winner)
+            battle_results.append((own, enemy))
 
     if generate_histograms:
         ensure_histogram_dir()
@@ -313,7 +339,7 @@ if __name__ == "__main__":
         armies = create_armies_from_data(loaded)
         sim = GameSimulator(armies[0], armies[1])
         sim.simulate_battle()
-        run_additional_simulations(loaded)
+        run_additional_simulations(loaded, num_workers=os.cpu_count())
         plt.close('all')
         sys.exit(0)
 
@@ -403,7 +429,7 @@ if __name__ == "__main__":
         sim = GameSimulator(armies_to_simulate[0], armies_to_simulate[1])
         sim.simulate_battle()
 
-        run_additional_simulations(setup_snapshot)
+        run_additional_simulations(setup_snapshot, num_workers=os.cpu_count())
         plt.close('all')
         sys.exit(0)
     elif chosen_action != 'Q':  # If not quitting and setup failed

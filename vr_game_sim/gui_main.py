@@ -5,8 +5,11 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import threading
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox, scrolledtext, filedialog
+
+from PIL import Image, ImageTk
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -14,7 +17,101 @@ from matplotlib.figure import Figure
 from vr_game_sim.hero_definition import HERO_PRESETS
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.game_simulator import GameSimulator
-from vr_game_sim.main import create_armies_from_data, run_additional_simulations
+from vr_game_sim.main import (
+    create_armies_from_data,
+    run_additional_simulations,
+    save_setup_to_file,
+    load_setup_from_file,
+)
+from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
+
+
+class HeroEditDialog(tk.Toplevel):
+    """Popup dialog to edit or create a hero configuration."""
+
+    def __init__(self, master: tk.Misc, hero_config: dict | None = None):
+        super().__init__(master)
+        self.title("Edit Hero")
+        self.resizable(False, False)
+        self.result: dict | None = None
+
+        self.hero_name_var = tk.StringVar(value="" if hero_config is None else hero_config.get("hero_name_or_preset", ""))
+
+        def _skill_options(skill_type: SkillType, include_none: bool = True):
+            options = ["None"] if include_none else []
+            opts = sorted(
+                ((sid, sdef["name"]) for sid, sdef in SKILL_REGISTRY_GLOBAL.items() if sdef["type"] == skill_type),
+                key=lambda x: x[1],
+            )
+            options.extend(name for _, name in opts)
+            mapping = {sdef["name"]: sid for sid, sdef in SKILL_REGISTRY_GLOBAL.items() if sdef["type"] == skill_type}
+            mapping["None"] = "dummy_talent_empty" if skill_type == SkillType.TALENT else ""
+            return options, mapping
+
+        self.talent_vars: list[tk.StringVar] = []
+        self.base_vars: list[tk.StringVar] = []
+        self.plugin_vars: list[tk.StringVar] = []
+
+        ttk.Label(self, text="Hero Name:").grid(row=0, column=0, sticky="e")
+        ttk.Entry(self, textvariable=self.hero_name_var, width=20).grid(row=0, column=1, columnspan=2, pady=2, sticky="we")
+
+        talent_options, self.talent_map = _skill_options(SkillType.TALENT)
+        base_options, self.base_map = _skill_options(SkillType.BASE_SKILL)
+        plugin_options, self.plugin_map = _skill_options(SkillType.PLUGIN_SKILL)
+
+        row = 1
+        ttk.Label(self, text="Talents:").grid(row=row, column=0, sticky="e")
+        for i in range(3):
+            var = tk.StringVar(value="None")
+            if hero_config and i < len(hero_config.get("talent_ids", [])):
+                sid = hero_config["talent_ids"][i]
+                var.set(SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", "None"))
+            self.talent_vars.append(var)
+            ttk.OptionMenu(self, var, var.get(), *talent_options).grid(row=row, column=i + 1, sticky="we")
+        row += 1
+
+        ttk.Label(self, text="Base Skills:").grid(row=row, column=0, sticky="e")
+        for i in range(2):
+            var = tk.StringVar(value="None")
+            if hero_config and i < len(hero_config.get("base_skill_ids", [])):
+                sid = hero_config["base_skill_ids"][i]
+                var.set(SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", "None"))
+            self.base_vars.append(var)
+            ttk.OptionMenu(self, var, var.get(), *base_options).grid(row=row, column=i + 1, sticky="we")
+        row += 1
+
+        ttk.Label(self, text="Plugin Skills:").grid(row=row, column=0, sticky="e")
+        for i in range(2):
+            var = tk.StringVar(value="None")
+            if hero_config and i < len(hero_config.get("plugin_skill_ids", [])):
+                sid = hero_config["plugin_skill_ids"][i]
+                var.set(SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", "None"))
+            self.plugin_vars.append(var)
+            ttk.OptionMenu(self, var, var.get(), *plugin_options).grid(row=row, column=i + 1, sticky="we")
+
+        btn_frame = ttk.Frame(self)
+        btn_frame.grid(row=row + 1, column=0, columnspan=3, pady=5)
+        ttk.Button(btn_frame, text="OK", command=self._on_ok).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="left", padx=5)
+
+        self.grab_set()
+        self.wait_window(self)
+
+    def _on_ok(self):
+        name = self.hero_name_var.get().strip()
+        if not name:
+            messagebox.showerror("Error", "Hero name required")
+            return
+        talents = [self.talent_map.get(var.get(), "") for var in self.talent_vars]
+        base_skills = [self.base_map.get(var.get(), "") for var in self.base_vars if var.get() != "None"]
+        plugin_skills = [self.plugin_map.get(var.get(), "") for var in self.plugin_vars if var.get() != "None"]
+        self.result = {
+            "hero_name_or_preset": name,
+            "talent_ids": talents,
+            "base_skill_ids": base_skills,
+            "plugin_skill_ids": plugin_skills,
+        }
+        self.destroy()
 
 
 class ArmyFrame(tk.LabelFrame):
@@ -24,7 +121,7 @@ class ArmyFrame(tk.LabelFrame):
         super().__init__(master, text=f"Army {index}")
         self.index = index
 
-        hero_options = ["None"] + sorted(name.capitalize() for name in HERO_PRESETS.keys())
+        self.hero_options = ["None", "Custom"] + sorted(name.capitalize() for name in HERO_PRESETS.keys())
 
         self.name_var = tk.StringVar(value=f"Army {index}")
         self.unit_var = tk.StringVar(value="pikemen")
@@ -35,6 +132,8 @@ class ArmyFrame(tk.LabelFrame):
         self.hp_var = tk.StringVar(value="0")
         self.hero1_var = tk.StringVar(value="None")
         self.hero2_var = tk.StringVar(value="None")
+
+        self.custom_heroes: dict[int, dict] = {1: None, 2: None}
 
         row = 0
         ttk.Label(self, text="Name:").grid(row=row, column=0, sticky="e")
@@ -66,20 +165,76 @@ class ArmyFrame(tk.LabelFrame):
         row += 1
 
         ttk.Label(self, text="Hero 1:").grid(row=row, column=0, sticky="e")
-        ttk.OptionMenu(self, self.hero1_var, self.hero1_var.get(), *hero_options).grid(row=row, column=1, sticky="we")
+        self.hero1_menu = ttk.OptionMenu(self, self.hero1_var, self.hero1_var.get(), *self.hero_options, command=lambda val: self._hero_changed(1, val))
+        self.hero1_menu.grid(row=row, column=1, sticky="we")
+        ttk.Button(self, text="Edit", command=lambda: self.edit_hero(1)).grid(row=row, column=2, sticky="w")
         row += 1
 
         ttk.Label(self, text="Hero 2:").grid(row=row, column=0, sticky="e")
-        ttk.OptionMenu(self, self.hero2_var, self.hero2_var.get(), *hero_options).grid(row=row, column=1, sticky="we")
+        self.hero2_menu = ttk.OptionMenu(self, self.hero2_var, self.hero2_var.get(), *self.hero_options, command=lambda val: self._hero_changed(2, val))
+        self.hero2_menu.grid(row=row, column=1, sticky="we")
+        ttk.Button(self, text="Edit", command=lambda: self.edit_hero(2)).grid(row=row, column=2, sticky="w")
 
         for child in self.winfo_children():
             child.grid_configure(padx=2, pady=2)
 
+    def _add_custom_hero_option(self, name: str) -> None:
+        if name not in self.hero_options:
+            self.hero_options.append(name)
+            for menu in [self.hero1_menu['menu'], self.hero2_menu['menu']]:
+                menu.add_command(label=name, command=lambda v=name: None)
+
+    def _hero_changed(self, slot: int, value: str) -> None:
+        if value == "Custom":
+            self.edit_hero(slot)
+
+    def edit_hero(self, slot: int) -> None:
+        current_cfg = self.custom_heroes.get(slot)
+        dlg = HeroEditDialog(self, current_cfg)
+        if dlg.result:
+            self.custom_heroes[slot] = dlg.result
+            name = dlg.result["hero_name_or_preset"]
+            self._add_custom_hero_option(name)
+            if slot == 1:
+                self.hero1_var.set(name)
+            else:
+                self.hero2_var.set(name)
+
+    def populate_from_config(self, cfg: dict) -> None:
+        self.name_var.set(cfg.get("army_name", f"Army {self.index}"))
+        self.unit_var.set(cfg.get("unit_type", "pikemen"))
+        self.tier_var.set(str(cfg.get("tier", 5)))
+        self.count_var.set(str(cfg.get("count", 100000)))
+        self.atk_var.set(str(cfg.get("atk_mod", 0)))
+        self.def_var.set(str(cfg.get("def_mod", 0)))
+        self.hp_var.set(str(cfg.get("hp_mod", 0)))
+
+        hero_vars = [self.hero1_var, self.hero2_var]
+        for idx, hv in enumerate(hero_vars, start=1):
+            hv.set("None")
+            self.custom_heroes[idx] = None
+        for idx, hero_cfg in enumerate(cfg.get("heroes", []), start=1):
+            if idx > 2:
+                break
+            name = hero_cfg.get("hero_name_or_preset", "")
+            preset = HERO_PRESETS.get(name.lower())
+            if preset and preset.get("talents") == hero_cfg.get("talent_ids") and preset.get("base_skills") == hero_cfg.get("base_skill_ids") and preset.get("plugin_skills") == hero_cfg.get("plugin_skill_ids"):
+                hero_name_display = name.capitalize()
+            else:
+                hero_name_display = name
+                self.custom_heroes[idx] = hero_cfg
+                self._add_custom_hero_option(name)
+            hero_vars[idx - 1].set(hero_name_display)
+
     def build_config(self) -> dict:
         heroes_config = []
-        for hero_var in [self.hero1_var, self.hero2_var]:
+        for idx, hero_var in enumerate([self.hero1_var, self.hero2_var], start=1):
             hero_name = hero_var.get()
-            if hero_name and hero_name != "None":
+            if hero_name and hero_name != "None" and hero_name != "Custom":
+                custom_cfg = self.custom_heroes.get(idx)
+                if custom_cfg and custom_cfg.get("hero_name_or_preset") == hero_name:
+                    heroes_config.append(custom_cfg)
+                    continue
                 preset = HERO_PRESETS.get(hero_name.lower())
                 if preset:
                     heroes_config.append(
@@ -102,21 +257,47 @@ class ArmyFrame(tk.LabelFrame):
         }
 
 
-def run_simulation(army_frames: list[ArmyFrame], output_widget: tk.Text, histogram_frame: tk.Frame) -> None:
-    setup_data = [af.build_config() for af in army_frames]
-    try:
-        armies = create_armies_from_data(setup_data)
-        sim = GameSimulator(armies[0], armies[1])
-        buf = io.StringIO()
-        with contextlib.redirect_stdout(buf):
-            sim.simulate_battle()
-        output_widget.delete("1.0", tk.END)
-        output_widget.insert(tk.END, buf.getvalue())
-        win_rate = run_additional_simulations(setup_data, verbose=False)
-        output_widget.insert(tk.END, f"\nWin rate for {armies[0].name}: {win_rate*100:.1f}% over 200 runs.\n")
-        display_histograms(histogram_frame)
-    except Exception as exc:
-        messagebox.showerror("Error", str(exc))
+def run_simulation(
+    army_frames: list[ArmyFrame],
+    output_widget: tk.Text,
+    histogram_frame: tk.Frame,
+    status_var: tk.StringVar,
+    progress: ttk.Progressbar,
+) -> None:
+
+    def task() -> None:
+        setup_data = [af.build_config() for af in army_frames]
+        try:
+            armies = create_armies_from_data(setup_data)
+            sim = GameSimulator(armies[0], armies[1])
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                sim.simulate_battle()
+            win_rate = run_additional_simulations(setup_data, verbose=False)
+            result_text = (
+                buf.getvalue()
+                + f"\nWin rate for {armies[0].name}: {win_rate*100:.1f}% over 200 runs.\n"
+            )
+
+            def update():
+                output_widget.delete("1.0", tk.END)
+                output_widget.insert(tk.END, result_text)
+                display_histograms(histogram_frame)
+                progress.stop()
+                status_var.set("Ready")
+
+            output_widget.after(0, update)
+        except Exception as exc:
+            def show_err():
+                progress.stop()
+                status_var.set("Ready")
+                messagebox.showerror("Error", str(exc))
+
+            output_widget.after(0, show_err)
+
+    status_var.set("Running simulation...")
+    progress.start(10)
+    threading.Thread(target=task, daemon=True).start()
 
 
 def display_histograms(frame: tk.Frame) -> None:
@@ -135,7 +316,8 @@ def display_histograms(frame: tk.Frame) -> None:
         if not os.path.exists(path):
             continue
         try:
-            photo = tk.PhotoImage(file=path)
+            img = Image.open(path)
+            photo = ImageTk.PhotoImage(img)
         except Exception:
             continue
         lbl = ttk.Label(frame, image=photo)
@@ -177,12 +359,45 @@ def main() -> None:
     hist_frame = ttk.Frame(root)
     hist_frame.grid(row=2, column=0, padx=10, pady=10)
 
+    status_var = tk.StringVar(value="Ready")
+    status_label = ttk.Label(root, textvariable=status_var)
+    status_label.grid(row=3, column=0, pady=(0, 5))
+
+    progress = ttk.Progressbar(root, mode="indeterminate")
+    progress.grid(row=4, column=0, sticky="ew", padx=10)
+
+    btn_frame = ttk.Frame(root)
+    btn_frame.grid(row=5, column=0, pady=10)
+
+    def save_current_setup() -> None:
+        file_path = filedialog.asksaveasfilename(initialdir="setups", defaultextension=".json")
+        if file_path:
+            save_setup_to_file([army1_frame.build_config(), army2_frame.build_config()], os.path.basename(file_path))
+            status_var.set(f"Saved to {os.path.basename(file_path)}")
+
+    def load_setup() -> None:
+        file_path = filedialog.askopenfilename(initialdir="setups", filetypes=[("JSON files", "*.json")])
+        if file_path:
+            data = load_setup_from_file(file_path)
+            if data and len(data) >= 2:
+                army1_frame.populate_from_config(data[0])
+                army2_frame.populate_from_config(data[1])
+                status_var.set(f"Loaded {os.path.basename(file_path)}")
+
+    save_btn = ttk.Button(btn_frame, text="Save Setup", command=save_current_setup)
+    save_btn.pack(side="left", padx=5)
+
+    load_btn = ttk.Button(btn_frame, text="Load Setup", command=load_setup)
+    load_btn.pack(side="left", padx=5)
+
     run_btn = ttk.Button(
-        root,
+        btn_frame,
         text="Run Simulation",
-        command=lambda: run_simulation([army1_frame, army2_frame], output, hist_frame),
+        command=lambda: run_simulation(
+            [army1_frame, army2_frame], output, hist_frame, status_var, progress
+        ),
     )
-    run_btn.grid(row=3, column=0, pady=10)
+    run_btn.pack(side="left", padx=5)
 
     root.mainloop()
 

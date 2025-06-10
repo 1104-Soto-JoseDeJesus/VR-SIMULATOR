@@ -6,12 +6,65 @@ import contextlib
 import os
 import threading
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext, filedialog
+from tkinter import ttk, messagebox, scrolledtext, filedialog, font as tkfont
 
 from PIL import Image, ImageTk
 
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.figure import Figure
+
+class Tooltip:
+    """Simple tooltip implementation for Tk widgets."""
+
+    def __init__(self, widget: tk.Widget, text: str) -> None:
+        self.widget = widget
+        self.text = text
+        self.tipwindow: tk.Toplevel | None = None
+        widget.bind("<Enter>", self.show)
+        widget.bind("<Leave>", self.hide)
+
+    def show(self, *_: object) -> None:
+        if self.tipwindow or not self.text:
+            return
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 1
+        self.tipwindow = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(
+            tw,
+            text=self.text,
+            background="#ffffe0",
+            relief="solid",
+            borderwidth=1,
+            font=("tahoma", 8, "normal"),
+        )
+        label.pack()
+
+    def hide(self, *_: object) -> None:
+        if self.tipwindow:
+            self.tipwindow.destroy()
+            self.tipwindow = None
+
+
+def _validate_int(value: str) -> bool:
+    """Return True if the provided string is a valid integer."""
+    if value in {"", "-"}:
+        return True
+    try:
+        int(value)
+        return True
+    except ValueError:
+        return False
+
+
+def _validate_float(value: str) -> bool:
+    """Return True if the provided string is a valid float."""
+    if value in {"", "-", ".", "-."}:
+        return True
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
 
 from vr_game_sim.hero_definition import HERO_PRESETS
 from vr_game_sim.unit_definition import Unit
@@ -137,31 +190,78 @@ class ArmyFrame(tk.LabelFrame):
 
         row = 0
         ttk.Label(self, text="Name:").grid(row=row, column=0, sticky="e")
-        ttk.Entry(self, textvariable=self.name_var, width=15).grid(row=row, column=1)
+        name_entry = ttk.Entry(self, textvariable=self.name_var, width=15)
+        name_entry.grid(row=row, column=1)
+        Tooltip(name_entry, "Display name for this army")
         row += 1
 
         ttk.Label(self, text="Unit type:").grid(row=row, column=0, sticky="e")
-        ttk.OptionMenu(self, self.unit_var, self.unit_var.get(), *sorted(Unit.ALLOWED_TYPES)).grid(row=row, column=1, sticky="we")
+        unit_menu = ttk.OptionMenu(self, self.unit_var, self.unit_var.get(), *sorted(Unit.ALLOWED_TYPES))
+        unit_menu.grid(row=row, column=1, sticky="we")
+        Tooltip(unit_menu, "Unit type to use")
         row += 1
 
         ttk.Label(self, text="Tier:").grid(row=row, column=0, sticky="e")
-        ttk.OptionMenu(self, self.tier_var, self.tier_var.get(), *sorted(Unit.ALLOWED_TIERS)).grid(row=row, column=1, sticky="we")
+        tier_spin = ttk.Spinbox(
+            self,
+            textvariable=self.tier_var,
+            values=sorted(Unit.ALLOWED_TIERS),
+            width=5,
+            validate="key",
+            validatecommand=(self.register(_validate_int), "%P"),
+        )
+        tier_spin.grid(row=row, column=1, sticky="we")
+        Tooltip(tier_spin, "Unit tier")
         row += 1
 
         ttk.Label(self, text="Troops:").grid(row=row, column=0, sticky="e")
-        ttk.Entry(self, textvariable=self.count_var, width=10).grid(row=row, column=1)
+        count_spin = ttk.Spinbox(
+            self,
+            from_=0,
+            to=100000000,
+            textvariable=self.count_var,
+            width=10,
+            validate="key",
+            validatecommand=(self.register(_validate_int), "%P"),
+        )
+        count_spin.grid(row=row, column=1)
+        Tooltip(count_spin, "Number of troops in the army")
         row += 1
 
         ttk.Label(self, text="Atk mod:").grid(row=row, column=0, sticky="e")
-        ttk.Entry(self, textvariable=self.atk_var, width=10).grid(row=row, column=1)
+        atk_entry = ttk.Entry(
+            self,
+            textvariable=self.atk_var,
+            width=10,
+            validate="key",
+            validatecommand=(self.register(_validate_float), "%P"),
+        )
+        atk_entry.grid(row=row, column=1)
+        Tooltip(atk_entry, "Attack modifier (decimal)")
         row += 1
 
         ttk.Label(self, text="Def mod:").grid(row=row, column=0, sticky="e")
-        ttk.Entry(self, textvariable=self.def_var, width=10).grid(row=row, column=1)
+        def_entry = ttk.Entry(
+            self,
+            textvariable=self.def_var,
+            width=10,
+            validate="key",
+            validatecommand=(self.register(_validate_float), "%P"),
+        )
+        def_entry.grid(row=row, column=1)
+        Tooltip(def_entry, "Defense modifier (decimal)")
         row += 1
 
         ttk.Label(self, text="HP mod:").grid(row=row, column=0, sticky="e")
-        ttk.Entry(self, textvariable=self.hp_var, width=10).grid(row=row, column=1)
+        hp_entry = ttk.Entry(
+            self,
+            textvariable=self.hp_var,
+            width=10,
+            validate="key",
+            validatecommand=(self.register(_validate_float), "%P"),
+        )
+        hp_entry.grid(row=row, column=1)
+        Tooltip(hp_entry, "HP modifier (decimal)")
         row += 1
 
         ttk.Label(self, text="Hero 1:").grid(row=row, column=0, sticky="e")
@@ -391,8 +491,8 @@ def display_histograms(frame: tk.Frame) -> None:
             continue
         lbl = ttk.Label(frame, image=photo)
         lbl.image = photo
-        # Display all histogram images in a single horizontal row
         lbl.grid(row=0, column=idx, padx=5, pady=5)
+        lbl.bind("<Button-1>", lambda e, p=path: Image.open(p).show())
 
 
 def main() -> None:
@@ -405,19 +505,28 @@ def main() -> None:
     with contextlib.suppress(tk.TclError):
         style.theme_use("clam")
 
-    primary_bg = "#f0f0f0"
-    style.configure("TFrame", background=primary_bg)
-    style.configure("TLabel", background=primary_bg, font=("Segoe UI", 10))
-    style.configure("Header.TLabel", background=primary_bg, font=("Segoe UI", 12, "bold"))
-    style.configure("TButton", font=("Segoe UI", 10))
-    style.configure("Custom.TLabelframe", background=primary_bg)
-    style.configure("Custom.TLabelframe.Label", background=primary_bg, font=("Segoe UI", 12, "bold"))
-    style.configure(
-        "Success.Horizontal.TProgressbar",
-        troughcolor="#ddd",
-        background="#4caf50",
-    )
-    root.configure(background=primary_bg)
+    available_fonts = set(tkfont.families())
+    default_font = ("Segoe UI", 10) if "Segoe UI" in available_fonts else None
+    header_font = ("Segoe UI", 12, "bold") if "Segoe UI" in available_fonts else ("", 12, "bold")
+
+    def apply_theme(dark: bool) -> None:
+        bg = "#333333" if dark else "#f0f0f0"
+        fg = "#ffffff" if dark else "#000000"
+        style.configure("TFrame", background=bg)
+        style.configure("TLabel", background=bg, foreground=fg, font=default_font)
+        style.configure("Header.TLabel", background=bg, foreground=fg, font=header_font)
+        style.configure("TButton", font=default_font)
+        style.configure("Custom.TLabelframe", background=bg)
+        style.configure("Custom.TLabelframe.Label", background=bg, foreground=fg, font=header_font)
+        style.configure(
+            "Success.Horizontal.TProgressbar",
+            troughcolor="#555" if dark else "#ddd",
+            background="#4caf50",
+        )
+        root.configure(background=bg)
+
+    dark_mode = False
+    apply_theme(dark_mode)
 
     # Configure grid to make widgets expand with the window
     root.columnconfigure(0, weight=1)
@@ -495,6 +604,14 @@ def main() -> None:
     load_btn = ttk.Button(btn_frame, text="Load Setup", command=load_setup)
     load_btn.pack(side="left", padx=5)
 
+    def clear_output() -> None:
+        output.configure(state=tk.NORMAL)
+        output.delete("1.0", tk.END)
+        output.configure(state=tk.DISABLED)
+
+    clear_btn = ttk.Button(btn_frame, text="Clear Output", command=clear_output)
+    clear_btn.pack(side="left", padx=5)
+
     run_btn = ttk.Button(
         btn_frame,
         text="Run Simulation",
@@ -503,6 +620,25 @@ def main() -> None:
         ),
     )
     run_btn.pack(side="left", padx=5)
+
+    menubar = tk.Menu(root)
+    filemenu = tk.Menu(menubar, tearoff=0)
+    filemenu.add_command(label="Save Setup", command=save_current_setup)
+    filemenu.add_command(label="Load Setup", command=load_setup)
+    filemenu.add_separator()
+    filemenu.add_command(label="Exit", command=root.destroy)
+    menubar.add_cascade(label="File", menu=filemenu)
+
+    def toggle_theme() -> None:
+        nonlocal dark_mode
+        dark_mode = not dark_mode
+        apply_theme(dark_mode)
+
+    viewmenu = tk.Menu(menubar, tearoff=0)
+    viewmenu.add_command(label="Toggle Dark Mode", command=toggle_theme)
+    menubar.add_cascade(label="View", menu=viewmenu)
+
+    root.config(menu=menubar)
 
     root.mainloop()
 

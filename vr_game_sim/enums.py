@@ -79,3 +79,10 @@ class SkillType(Enum):
     TALENT = "TALENT"
     BASE_SKILL = "BASE_SKILL"
     PLUGIN_SKILL = "PLUGIN_SKILL"
+
+
+class PluginSkillLabel(Enum):
+    """Categorization for plugin skills used by buff interactions."""
+    COOPERATION = "COOPERATION"
+    REACTIVE = "REACTIVE"
+    COMMAND = "COMMAND"

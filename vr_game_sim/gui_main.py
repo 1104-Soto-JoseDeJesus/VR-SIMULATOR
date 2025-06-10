@@ -276,12 +276,20 @@ class ScrollableFrame(ttk.Frame):
         self.vscroll = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
         self.scrollable_frame = ttk.Frame(self.canvas)
 
+        # Create the interior window and remember its id so we can resize it
+        self._window_id = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+
         self.scrollable_frame.bind(
             "<Configure>",
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")),
         )
 
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        # Ensure the interior frame always matches the canvas width
+        self.canvas.bind(
+            "<Configure>",
+            lambda e: self.canvas.itemconfigure(self._window_id, width=e.width),
+        )
+
         self.canvas.configure(yscrollcommand=self.vscroll.set)
 
         self.canvas.pack(side="left", fill="both", expand=True)
@@ -409,7 +417,7 @@ def main() -> None:
     report_frame.columnconfigure(0, weight=1)
     report_frame.rowconfigure(0, weight=1)
 
-    output = scrolledtext.ScrolledText(report_frame, width=90, height=20, wrap=tk.NONE)
+    output = scrolledtext.ScrolledText(report_frame, height=20, wrap=tk.NONE)
     output.grid(row=0, column=0, sticky="nsew")
     x_scroll = ttk.Scrollbar(report_frame, orient="horizontal", command=output.xview)
     x_scroll.grid(row=1, column=0, sticky="ew")

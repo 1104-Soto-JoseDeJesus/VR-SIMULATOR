@@ -5,7 +5,7 @@ import json
 import os
 import argparse
 import sys
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Callable
 import contextlib
 import io
 from concurrent.futures import ProcessPoolExecutor
@@ -151,12 +151,14 @@ def run_additional_simulations(
     generate_histograms: bool = True,
     verbose: bool = True,
     num_workers: int = 1,
+    progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> float:
-    """Runs extra simulations silently, optionally generates histograms, and computes summary statistics.
+    """Runs extra simulations silently and computes summary statistics.
 
     If ``num_workers`` is greater than 1, simulations are spread across multiple
-    processes to utilize additional CPU cores. Returns the win rate for Army 1
-    as a float between 0 and 1."""
+    processes to utilize additional CPU cores. ``progress_callback`` can be used
+    to report completion status as ``(completed, total)``. The function returns
+    the win rate for Army 1 as a float between 0 and 1."""
     # Ensure any previous figures are closed before starting the additional runs
     plt.close('all')
 
@@ -174,6 +176,7 @@ def run_additional_simulations(
     if num_workers > 1:
         with ProcessPoolExecutor(max_workers=num_workers, mp_context=multiprocessing.get_context("spawn")) as ex:
             results_iter = ex.map(_run_single_battle, worker_inputs)
+            completed = 0
             for own, enemy, r_taken, diff, winner in results_iter:
                 own_remaining.append(own)
                 enemy_remaining.append(enemy)
@@ -181,8 +184,11 @@ def run_additional_simulations(
                 diff_results.append(diff)
                 winners.append(winner)
                 battle_results.append((own, enemy))
+                completed += 1
+                if progress_callback:
+                    progress_callback(completed, runs)
     else:
-        for _ in range(runs):
+        for i in range(runs):
             own, enemy, r_taken, diff, winner = _run_single_battle(setup_data)
             own_remaining.append(own)
             enemy_remaining.append(enemy)
@@ -190,6 +196,8 @@ def run_additional_simulations(
             diff_results.append(diff)
             winners.append(winner)
             battle_results.append((own, enemy))
+            if progress_callback:
+                progress_callback(i + 1, runs)
 
     if generate_histograms:
         ensure_histogram_dir()

@@ -805,7 +805,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_undefeated", "name": "Undefeated", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
         "effects_to_apply": [{"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_COORDINATED_STRIKE_BUFF,
-                              "stat_to_mod": StatType.REACTIVE_SKILL_DAMAGE_ADJUST, "magnitude": 0.15, "duration": -1}]
+                              "stat_to_mod": StatType.COOPERATION_SKILL_DAMAGE_MODIFIER, "magnitude": 0.15, "duration": -1}]
     },
     "talent_fatal_bleeding": {
         "id": "talent_fatal_bleeding", "name": "Fatal Bleeding", "type": SkillType.TALENT,

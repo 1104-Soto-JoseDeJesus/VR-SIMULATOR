@@ -380,8 +380,11 @@ def main() -> None:
     report_frame.columnconfigure(0, weight=1)
     report_frame.rowconfigure(0, weight=1)
 
-    output = scrolledtext.ScrolledText(report_frame, width=90, height=20, wrap=tk.WORD)
+    output = scrolledtext.ScrolledText(report_frame, width=90, height=20, wrap=tk.NONE)
     output.grid(row=0, column=0, sticky="nsew")
+    x_scroll = ttk.Scrollbar(report_frame, orient="horizontal", command=output.xview)
+    x_scroll.grid(row=1, column=0, sticky="ew")
+    output.configure(xscrollcommand=x_scroll.set)
 
     hist_frame = ttk.Frame(root)
     hist_frame.grid(row=2, column=0, padx=10, pady=10)

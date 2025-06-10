@@ -106,14 +106,30 @@ class GameSimulator:
                 skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
                     StatType.HERO2_RAGE_SKILL_DAMAGE_MODIFIER)
 
-        if source_skill_def and source_skill_def.get("trigger") == SkillTriggerType.CHANCE_PER_ROUND and \
-                source_skill_def.get("config", {}).get("trigger_interval", 0) > 0:
-            skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(StatType.COMMAND_SKILL_DAMAGE_MODIFIER)
+        if (
+            source_skill_def
+            and source_skill_def.get("trigger") == SkillTriggerType.CHANCE_PER_ROUND
+            and source_skill_def.get("config", {}).get("trigger_interval", 0) > 0
+            and PluginSkillLabel.COMMAND in source_skill_def.get("labels", [])
+        ):
+            skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
+                StatType.COMMAND_SKILL_DAMAGE_MODIFIER
+            )
 
-        if current_skill_trigger_type in [SkillTriggerType.ON_COUNTER_ATTACK, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
-                                          SkillTriggerType.ON_RECEIVING_HEALING,
-                                          SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE]:
-            skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(StatType.REACTIVE_SKILL_DAMAGE_ADJUST)
+        if (
+            current_skill_trigger_type
+            in [
+                SkillTriggerType.ON_COUNTER_ATTACK,
+                SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+                SkillTriggerType.ON_RECEIVING_HEALING,
+                SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE,
+            ]
+            and source_skill_def
+            and PluginSkillLabel.REACTIVE in source_skill_def.get("labels", [])
+        ):
+            skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
+                StatType.REACTIVE_SKILL_DAMAGE_ADJUST
+            )
 
         if source_skill_def and PluginSkillLabel.COOPERATION in source_skill_def.get("labels", []):
             skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
@@ -176,8 +192,14 @@ class GameSimulator:
                 if skill_def["trigger"] == trigger_type:
                     base_chance = skill_def.get("trigger_chance", 1.0)
                     coop_bonus = 0.0
-                    if skill_def["trigger"] in [SkillTriggerType.ON_BASIC_ATTACK, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST]:
-                        coop_bonus = triggering_army.get_sum_stat_magnitudes(StatType.COOPERATION_TRIGGER_RATE_MODIFIER)
+                    if (
+                        skill_def["trigger"]
+                        in [SkillTriggerType.ON_BASIC_ATTACK, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST]
+                        and PluginSkillLabel.COOPERATION in skill_def.get("labels", [])
+                    ):
+                        coop_bonus = triggering_army.get_sum_stat_magnitudes(
+                            StatType.COOPERATION_TRIGGER_RATE_MODIFIER
+                        )
                     final_chance = min(1.0, base_chance + coop_bonus)
                     if random.random() < final_chance:
                         skill_id = skill_def["id"]

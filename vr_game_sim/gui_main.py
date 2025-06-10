@@ -187,6 +187,25 @@ class ArmyFrame(tk.LabelFrame):
     def _hero_changed(self, slot: int, value: str) -> None:
         if value == "Custom":
             self.edit_hero(slot)
+            return
+
+        # Clear or set hero configuration when a different hero is selected so
+        # the base skills and talents match the newly chosen hero.  This avoids
+        # the previously selected hero's configuration becoming "locked" in
+        # place when switching between heroes via the dropdown.
+        if value in ("None", ""):
+            self.custom_heroes[slot] = None
+            return
+
+        # If the selected name is one of the predefined presets, discard any
+        # custom configuration so the preset values are used.
+        if value.lower() in HERO_PRESETS:
+            self.custom_heroes[slot] = None
+        else:
+            # Otherwise attempt to carry over an existing custom hero by name.
+            cfg = self.custom_heroes.get(slot)
+            if not (cfg and cfg.get("hero_name_or_preset") == value):
+                self.custom_heroes[slot] = None
 
     def edit_hero(self, slot: int) -> None:
         current_cfg = self.custom_heroes.get(slot)

@@ -405,6 +405,20 @@ def main() -> None:
     with contextlib.suppress(tk.TclError):
         style.theme_use("clam")
 
+    primary_bg = "#f0f0f0"
+    style.configure("TFrame", background=primary_bg)
+    style.configure("TLabel", background=primary_bg, font=("Segoe UI", 10))
+    style.configure("Header.TLabel", background=primary_bg, font=("Segoe UI", 12, "bold"))
+    style.configure("TButton", font=("Segoe UI", 10))
+    style.configure("Custom.TLabelframe", background=primary_bg)
+    style.configure("Custom.TLabelframe.Label", background=primary_bg, font=("Segoe UI", 12, "bold"))
+    style.configure(
+        "Success.Horizontal.TProgressbar",
+        troughcolor="#ddd",
+        background="#4caf50",
+    )
+    root.configure(background=primary_bg)
+
     # Configure grid to make widgets expand with the window
     root.columnconfigure(0, weight=1)
     root.rowconfigure(0, weight=1)
@@ -431,7 +445,7 @@ def main() -> None:
     army2_frame = ArmyFrame(army2_tab, 2)
     army2_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
-    report_frame = ttk.LabelFrame(main_frame, text="Battle Report")
+    report_frame = ttk.LabelFrame(main_frame, text="Battle Report", style="Custom.TLabelframe")
     report_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
     report_frame.columnconfigure(0, weight=1)
     report_frame.rowconfigure(0, weight=1)
@@ -450,7 +464,11 @@ def main() -> None:
     status_label = ttk.Label(main_frame, textvariable=status_var)
     status_label.grid(row=3, column=0, pady=(0, 5))
 
-    progress = ttk.Progressbar(main_frame, mode="indeterminate")
+    progress = ttk.Progressbar(
+        main_frame,
+        mode="indeterminate",
+        style="Success.Horizontal.TProgressbar",
+    )
     progress.grid(row=4, column=0, sticky="ew", padx=10)
 
     btn_frame = ttk.Frame(main_frame)

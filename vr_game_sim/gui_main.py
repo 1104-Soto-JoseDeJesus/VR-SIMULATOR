@@ -267,6 +267,27 @@ class ArmyFrame(tk.LabelFrame):
         }
 
 
+class ScrollableFrame(ttk.Frame):
+    """A simple vertically scrollable frame."""
+
+    def __init__(self, master: tk.Misc, **kwargs) -> None:
+        super().__init__(master, **kwargs)
+        self.canvas = tk.Canvas(self, borderwidth=0, highlightthickness=0)
+        self.vscroll = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.scrollable_frame = ttk.Frame(self.canvas)
+
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")),
+        )
+
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.vscroll.set)
+
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.vscroll.pack(side="right", fill="y")
+
+
 def run_simulation(
     army_frames: list[ArmyFrame],
     output_widget: tk.Text,
@@ -360,6 +381,7 @@ def main() -> None:
     # Configure grid to make widgets expand with the window
     root.columnconfigure(0, weight=1)
     root.rowconfigure(1, weight=1)
+    root.rowconfigure(2, weight=1)
 
     notebook = ttk.Notebook(root)
     notebook.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
@@ -386,8 +408,9 @@ def main() -> None:
     x_scroll.grid(row=1, column=0, sticky="ew")
     output.configure(xscrollcommand=x_scroll.set)
 
-    hist_frame = ttk.Frame(root)
-    hist_frame.grid(row=2, column=0, padx=10, pady=10)
+    hist_scroll = ScrollableFrame(root)
+    hist_scroll.grid(row=2, column=0, padx=10, pady=10, sticky="nsew")
+    hist_frame = hist_scroll.scrollable_frame
 
     status_var = tk.StringVar(value="Ready")
     status_label = ttk.Label(root, textvariable=status_var)

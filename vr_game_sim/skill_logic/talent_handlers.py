@@ -1051,7 +1051,7 @@ def handle_talent_coordinated_strike(triggering_army: ArmyRef, opponent_army: Ar
         buff_mag = cfg.get("buff_magnitude", 0.12)
         buff_dur = cfg.get("buff_duration", 3)
         buff_data = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_COORDINATED_STRIKE_BUFF,
-                     "stat_to_mod": StatType.REACTIVE_SKILL_DAMAGE_ADJUST,
+                     "stat_to_mod": StatType.COOPERATION_SKILL_DAMAGE_MODIFIER,
                      "magnitude": buff_mag, "duration": buff_dur, "activate_next_round": True}
         created = triggering_army._create_and_add_single_effect(buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army)
         if created:

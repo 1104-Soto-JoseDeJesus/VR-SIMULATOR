@@ -4,7 +4,7 @@ import random
 from functools import lru_cache
 from typing import List, Optional, Dict, Any, Tuple
 
-from .enums import SkillTriggerType, StatType, EffectType, SkillType, DoTType
+from .enums import SkillTriggerType, StatType, EffectType, SkillType, DoTType, PluginSkillLabel
 from .unit_definition import Unit
 from .army_composition import Army
 from .skill_system import SkillDefinition, SkillLogicHandler, RageSkillLogicHandler
@@ -114,6 +114,10 @@ class GameSimulator:
                                           SkillTriggerType.ON_RECEIVING_HEALING,
                                           SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE]:
             skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(StatType.REACTIVE_SKILL_DAMAGE_ADJUST)
+
+        if source_skill_def and PluginSkillLabel.COOPERATION in source_skill_def.get("labels", []):
+            skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
+                StatType.COOPERATION_SKILL_DAMAGE_MODIFIER)
 
         damage_taken_percent_mods = target_army.get_sum_stat_magnitudes(StatType.DAMAGE_TAKEN_MULTIPLIER,
                                                                         attack_type_filter="SKILL")

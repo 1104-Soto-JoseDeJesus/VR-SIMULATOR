@@ -80,6 +80,8 @@ class EffectInstance:
             elif stat_to_mod_val == StatType.COOPERATION_TRIGGER_RATE_MODIFIER:
                 verb = "Reduces" if self.magnitude < 0 else "Increases"
                 desc_parts.append(f"{verb} Cooperation Skill Trigger Rate by {abs(self.magnitude * 100):.0f}%")
+            elif stat_to_mod_val == StatType.COOPERATION_SKILL_DAMAGE_MODIFIER:
+                desc_parts.append(f"{self.magnitude * 100:+.0f}% to Cooperation Skill Damage")
             elif stat_to_mod_val == StatType.GENERAL_DAMAGE_MODIFIER:
                 verb = "Reduces General Damage Dealt by" if self.magnitude < 0 else "Increases General Damage Dealt by"
                 desc_parts.append(f"{verb} {abs(self.magnitude * 100):.0f}%")

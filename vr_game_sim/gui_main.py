@@ -391,8 +391,8 @@ def display_histograms(frame: tk.Frame) -> None:
             continue
         lbl = ttk.Label(frame, image=photo)
         lbl.image = photo
-        row, col = divmod(idx, 2)
-        lbl.grid(row=row, column=col, padx=5, pady=5)
+        # Display all histogram images in a single horizontal row
+        lbl.grid(row=0, column=idx, padx=5, pady=5)
 
 
 def main() -> None:

@@ -380,10 +380,17 @@ def main() -> None:
 
     # Configure grid to make widgets expand with the window
     root.columnconfigure(0, weight=1)
-    root.rowconfigure(1, weight=1)
-    root.rowconfigure(2, weight=1)
+    root.rowconfigure(0, weight=1)
 
-    notebook = ttk.Notebook(root)
+    # Wrap the entire interface in a scrollable frame so the UI works on small screens
+    scroll = ScrollableFrame(root)
+    scroll.grid(row=0, column=0, sticky="nsew")
+    main_frame = scroll.scrollable_frame
+    main_frame.columnconfigure(0, weight=1)
+    main_frame.rowconfigure(1, weight=1)
+    main_frame.rowconfigure(2, weight=1)
+
+    notebook = ttk.Notebook(main_frame)
     notebook.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 
     army1_tab = ttk.Frame(notebook)
@@ -397,7 +404,7 @@ def main() -> None:
     army2_frame = ArmyFrame(army2_tab, 2)
     army2_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
-    report_frame = ttk.LabelFrame(root, text="Battle Report")
+    report_frame = ttk.LabelFrame(main_frame, text="Battle Report")
     report_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
     report_frame.columnconfigure(0, weight=1)
     report_frame.rowconfigure(0, weight=1)
@@ -408,18 +415,18 @@ def main() -> None:
     x_scroll.grid(row=1, column=0, sticky="ew")
     output.configure(xscrollcommand=x_scroll.set)
 
-    hist_scroll = ScrollableFrame(root)
+    hist_scroll = ScrollableFrame(main_frame)
     hist_scroll.grid(row=2, column=0, padx=10, pady=10, sticky="nsew")
     hist_frame = hist_scroll.scrollable_frame
 
     status_var = tk.StringVar(value="Ready")
-    status_label = ttk.Label(root, textvariable=status_var)
+    status_label = ttk.Label(main_frame, textvariable=status_var)
     status_label.grid(row=3, column=0, pady=(0, 5))
 
-    progress = ttk.Progressbar(root, mode="indeterminate")
+    progress = ttk.Progressbar(main_frame, mode="indeterminate")
     progress.grid(row=4, column=0, sticky="ew", padx=10)
 
-    btn_frame = ttk.Frame(root)
+    btn_frame = ttk.Frame(main_frame)
     btn_frame.grid(row=5, column=0, pady=10)
 
     def save_current_setup() -> None:

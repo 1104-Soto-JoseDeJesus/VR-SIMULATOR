@@ -1,6 +1,13 @@
 # === File: skill_definitions.py ===
 from typing import Dict
-from .enums import EffectType, SkillTriggerType, StatType, SkillType, DoTType
+from .enums import (
+    EffectType,
+    SkillTriggerType,
+    StatType,
+    SkillType,
+    DoTType,
+    PluginSkillLabel,
+)
 from .skill_system import SkillDefinition
 from .constants import *
 
@@ -821,36 +828,42 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_silencer", "name": "Silencer", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_plugin_silencer,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_factor": 450.0, "silence_duration": 1}
     },
     "plugin_enrage": {
         "id": "plugin_enrage", "name": "Enrage", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_plugin_enrage,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_factor": 300.0, "rage_gain": 100}
     },
     "plugin_retaliate": {
         "id": "plugin_retaliate", "name": "Retaliate", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.15, "target": "ENEMY",
         "logic_handler": handle_generic_single_damage_skill,
+        "labels": [PluginSkillLabel.REACTIVE],
         "config": {"damage_factor": 350.0}
     },
     "plugin_blessed_negation": {
         "id": "plugin_blessed_negation", "name": "Blessed Negation", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_blessed_negation,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"damage_factor": 700.0, "trigger_interval": 9, "rage_reduction": 100}
     },
     "plugin_wild_indulgence": {
         "id": "plugin_wild_indulgence", "name": "Wild Indulgence", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_wild_indulgence,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"damage_factor": 1000.0, "trigger_interval": 10}
     },
     "plugin_breaking_free": {
         "id": "plugin_breaking_free", "name": "Breaking Free", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_plugin_breaking_free,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"trigger_interval": 10,
                    "damage_buff_magnitude": 0.30, "damage_buff_duration": 2,
                    "counter_reduction_magnitude": -0.30, "counter_reduction_duration": 2}
@@ -859,18 +872,21 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_fading_battle", "name": "Fading Battle", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_generic_single_damage_skill,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_factor": 350.0}
     },
     "plugin_battle_hymn": {
         "id": "plugin_battle_hymn", "name": "Battle Hymn", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.10, "target": "ENEMY",
         "logic_handler": handle_plugin_battle_hymn,
+        "labels": [PluginSkillLabel.REACTIVE],
         "config": {"damage_factor": 850.0, "rage_gain": 75, "cooldown_rounds": 5}
     },
     "plugin_rapid_attack": {
         "id": "plugin_rapid_attack", "name": "Rapid Attack", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.10, "target": "ENEMY",
         "logic_handler": handle_plugin_rapid_attack,
+        "labels": [PluginSkillLabel.REACTIVE],
         "config": {"damage_factor": 650.0, "broken_blade_duration": 1, "cooldown_rounds": 5}
     },
     "plugin_blessed_by_fate": {
@@ -895,6 +911,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_shield_support", "name": "Shield Support", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_plugin_shield_support,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"base_shield_factor": 750.0, "boosted_shield_factor": 1000.0,
                    "shield_duration": 1, "trigger_interval": 9, "effect_name": EFFECT_NAME_SHIELD_SUPPORT_EFFECT}
     },
@@ -902,6 +919,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_freyas_blessing", "name": "Freya's Blessing", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.15, "target": "SELF",
         "logic_handler": handle_plugin_freyas_blessing,
+        "labels": [PluginSkillLabel.REACTIVE],
         "config": {"direct_heal_factor": 550.0, "buff_details": {
             "effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_FREYAS_BLESSING_HEAL_BOOST,
             "stat_to_mod": StatType.HEAL_ADJUSTMENT, "magnitude": 0.25, "duration": 2,
@@ -911,6 +929,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_hymn_of_life", "name": "Hymn of Life", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.20, "target": "SELF",
         "logic_handler": handle_plugin_hymn_of_life,
+        "labels": [PluginSkillLabel.REACTIVE],
         "config": {"hot_heal_factor": 275.0, "hot_duration": 1, "hot_effect_name": EFFECT_NAME_HYMN_OF_LIFE_HOT,
                    "hp_buff_magnitude": 0.10, "hp_buff_duration": 0, "hp_buff_effect_name": EFFECT_NAME_HYMN_OF_LIFE_HP_BOOST}
     },
@@ -939,6 +958,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_shield_attacker", "name": "Shield Attacker", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_shield_attacker,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_factor": 500.0, "proc_chance": 0.50}
     },
     "plugin_awakening": {
@@ -957,6 +977,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_baldr_blessing", "name": "Baldr's Blessing", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_plugin_baldr_blessing,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"trigger_interval": 9, "shield_factor": 900.0, "shield_duration": 1,
                    "shield_effect_name": EFFECT_NAME_BALDRS_SHIELD,
                    "damage_reduction_magnitude": -0.30, "damage_reduction_duration": 1,
@@ -967,6 +988,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_lokis_trick", "name": "Loki's Trick", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_plugin_lokis_trick,
+        "labels": [PluginSkillLabel.REACTIVE],
         "config": {"damage_factor": 450.0, "rage_reduction_chance": 0.30, "rage_reduction_amount": 100.0,
                    "buff_removal_chance": 0.30,
                    "pending_buff_removal_effect_name": EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
@@ -976,6 +998,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_odins_asylum", "name": "Odin's Asylum", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_plugin_odins_asylum,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_factor": 450.0, "shield_factor": 200.0, "shield_duration": 1,
                    "shield_activate_next_round": True, "shield_name": EFFECT_NAME_ODINS_ASYLUM_SHIELD}
     },
@@ -983,6 +1006,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_thors_determination", "name": "Thor's Determination", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_plugin_thors_determination,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"trigger_interval": 9, "buff_magnitude": 2.25, "buff_duration": 1,
                    "buff_activate_next_round": True, "buff_stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
                    "buff_name": EFFECT_NAME_THORS_DETERMINATION_BUFF}
@@ -991,6 +1015,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_disarmament", "name": "Disarmament", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_plugin_disarmament,
+        "labels": [PluginSkillLabel.REACTIVE],
         "config": {"damage_factor": 325.0, "disarm_duration": 0,
                    "disarm_effect_name": EFFECT_NAME_DISARM_DEBUFF,
                    "slow_duration": 1, "slow_effect_name": EFFECT_NAME_SLOW_DEBUFF,
@@ -1001,12 +1026,14 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_fiery_rage", "name": "Fiery Rage", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.10, "target": "ENEMY",
         "logic_handler": handle_plugin_fiery_rage,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"burn_factor": 350.0, "boosted_burn_factor": 700.0, "burn_duration": 1}
     },
     "plugin_fiery_detonation": {
         "id": "plugin_fiery_detonation", "name": "Fiery Detonation", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_fiery_detonation,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"trigger_interval": 9, "damage_factor": 600.0,
                    "defense_reduction_magnitude": -0.15, "defense_reduction_duration": 1}
     },
@@ -1014,12 +1041,14 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_rage_leech", "name": "Rage Leech", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_plugin_rage_leech,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"heal_factor": 900.0, "rage_gain": 80.0}
     },
     "plugin_enchanted_pursuit": {
         "id": "plugin_enchanted_pursuit", "name": "Enchanted Pursuit", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_enchanted_pursuit,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"burn_chance": 0.10, "burn_factor": 275.0, "burn_duration": 1,
                    "bleed_chance": 0.10, "bleed_factor": 275.0, "bleed_duration": 1}
     },
@@ -1027,12 +1056,14 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_blow_of_chaos", "name": "Blow of Chaos", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_plugin_blow_of_chaos,
+        "labels": [PluginSkillLabel.REACTIVE],
         "config": {"damage_factor": 1000.0, "cooldown_rounds": 3}
     },
     "plugin_on_alert": {
         "id": "plugin_on_alert", "name": "On Alert", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_plugin_on_alert,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"trigger_interval": 9, "buff_magnitude": 0.17, "max_stacks": 5,
                    "buff_name": EFFECT_NAME_ON_ALERT_COUNTER_BUFF}
     },
@@ -1040,6 +1071,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_helas_curse", "name": "Hela's Curse", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_helas_curse,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"trigger_interval": 9, "burn_factor": 500.0, "burn_duration": 1,
                    "defense_debuff_chance": 0.50, "defense_debuff_magnitude": -0.20,
                    "defense_debuff_duration": 1}
@@ -1048,6 +1080,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_fearless", "name": "Fearless", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_fearless,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"trigger_interval": 12, "damage_factor": 800.0,
                    "buff_chance": 0.20, "buff_magnitude": 0.15, "buff_duration": 1}
     },
@@ -1055,24 +1088,28 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_joint_offense", "name": "Joint Offense", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_joint_offense,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_factor": 800.0, "proc_chance": 0.50}
     },
     "plugin_bloody_rage": {
         "id": "plugin_bloody_rage", "name": "Bloody Rage", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_bloody_rage,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"hp_threshold_pct": 0.80, "proc_chance": 0.20, "damage_factor": 500.0}
     },
     "plugin_tidal_attack": {
         "id": "plugin_tidal_attack", "name": "Tidal Attack", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_plugin_tidal_attack,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_factor": 290.0, "damage_factor_h1": 370.0}
     },
     "plugin_splinter": {
         "id": "plugin_splinter", "name": "Splinter", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_splinter,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"trigger_interval": 12, "damage_factor": 800.0,
                    "slow_chance": 0.35, "slow_duration": 1}
     },
@@ -1085,30 +1122,35 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_halo_of_sacrifice", "name": "Halo of Sacrifice", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "SELF",
         "logic_handler": handle_plugin_halo_of_sacrifice,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"buff_magnitude": 0.75, "buff_duration": 1}
     },
     "plugin_heightened_chance": {
         "id": "plugin_heightened_chance", "name": "Heightened Chance", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.25, "target": "SELF",
         "logic_handler": handle_plugin_heightened_chance,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"basic_buff_magnitude": 0.40, "counter_buff_magnitude": 0.40, "buff_duration": 1}
     },
     "plugin_tenacity": {
         "id": "plugin_tenacity", "name": "Tenacity", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE, "trigger_chance": 0.50, "target": "SELF",
         "logic_handler": handle_plugin_tenacity,
+        "labels": [PluginSkillLabel.REACTIVE],
         "config": {"heal_factor": 700.0}
     },
     "plugin_blessed_healing": {
         "id": "plugin_blessed_healing", "name": "Blessed Healing", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_plugin_blessed_healing,
+        "labels": [PluginSkillLabel.COMMAND],
         "config": {"trigger_interval": 12, "heal_factor": 850.0}
     },
     "plugin_dampened_spirits": {
         "id": "plugin_dampened_spirits", "name": "Dampened Spirits", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_plugin_dampened_spirits,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_proc_chance": 0.50, "damage_factor": 550.0,
                    "rage_reduction_chance": 0.15, "rage_reduction": 300.0}
     },
@@ -1116,18 +1158,21 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_rapid_defense", "name": "Rapid Defense", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_plugin_rapid_defense,
+        "labels": [PluginSkillLabel.REACTIVE],
         "config": {"buff_magnitude": 0.40, "buff_duration": 1}
     },
     "plugin_rare_viking_hymn": {
         "id": "plugin_rare_viking_hymn", "name": "Rare Viking Hymn", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.30, "target": "SELF",
         "logic_handler": handle_plugin_rare_viking_hymn,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"buff_magnitude": 0.20, "buff_duration": 1}
     },
     "plugin_rare_defense_up": {
         "id": "plugin_rare_defense_up", "name": "Rare Defense Up", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.25, "target": "SELF",
         "logic_handler": handle_plugin_rare_defense_up,
+        "labels": [PluginSkillLabel.REACTIVE],
         "config": {"buff_magnitude": 0.20, "buff_duration": 1}
     },
 

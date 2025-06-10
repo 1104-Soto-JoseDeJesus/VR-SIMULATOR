@@ -190,6 +190,16 @@ class ArmyFrame(tk.LabelFrame):
 
     def edit_hero(self, slot: int) -> None:
         current_cfg = self.custom_heroes.get(slot)
+        if current_cfg is None:
+            hero_name = self.hero1_var.get() if slot == 1 else self.hero2_var.get()
+            preset = HERO_PRESETS.get(hero_name.lower())
+            if preset:
+                current_cfg = {
+                    "hero_name_or_preset": hero_name,
+                    "talent_ids": preset.get("talents", []),
+                    "base_skill_ids": preset.get("base_skills", []),
+                    "plugin_skill_ids": preset.get("plugin_skills", []),
+                }
         dlg = HeroEditDialog(self, current_cfg)
         if dlg.result:
             self.custom_heroes[slot] = dlg.result
@@ -272,7 +282,12 @@ def run_simulation(
             report_builder = ReportBuilder(use_color=False)
             sim = GameSimulator(armies[0], armies[1], report_builder)
             report_text = sim.simulate_battle()
-            win_rate = run_additional_simulations(setup_data, verbose=False)
+            def progress_cb(done: int, total: int) -> None:
+                output_widget.after(0, lambda: progress.configure(value=done, maximum=total))
+
+            win_rate = run_additional_simulations(
+                setup_data, verbose=False, progress_callback=progress_cb
+            )
             result_text = (
                 report_text
                 + f"\nWin rate for {armies[0].name}: {win_rate*100:.1f}% over 200 runs.\n"
@@ -285,20 +300,20 @@ def run_simulation(
                 output_widget.see("1.0")
                 output_widget.configure(state=tk.DISABLED)
                 display_histograms(histogram_frame)
-                progress.stop()
+                progress.configure(value=0)
                 status_var.set("Ready")
 
             output_widget.after(0, update)
         except Exception as exc:
             def show_err():
-                progress.stop()
+                progress.configure(value=0)
                 status_var.set("Ready")
                 messagebox.showerror("Error", str(exc))
 
             output_widget.after(0, show_err)
 
     status_var.set("Running simulation...")
-    progress.start(10)
+    progress.configure(mode="determinate", value=0, maximum=200)
     threading.Thread(target=task, daemon=True).start()
 
 

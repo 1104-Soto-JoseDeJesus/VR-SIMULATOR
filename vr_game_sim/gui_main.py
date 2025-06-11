@@ -443,6 +443,8 @@ def display_histograms(scroll: QtWidgets.QScrollArea) -> None:
         old_widget.deleteLater()
 
     frame = QtWidgets.QWidget()
+    # Keep frame width constant so images do not grow after each simulation
+    frame.setFixedWidth(scroll.viewport().width())
 
     image_files = [
         "own_remaining_troops.png",

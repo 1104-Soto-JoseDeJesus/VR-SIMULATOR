@@ -200,7 +200,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.hero1_img = QtWidgets.QLabel()
         self.hero2_img = QtWidgets.QLabel()
         for lbl in (self.hero1_img, self.hero2_img):
-            lbl.setFixedSize(64, 64)
+            lbl.setFixedSize(64, 92)
             lbl.setScaledContents(True)
         layout.addWidget(self.hero1_img, row, 1)
         layout.addWidget(self.hero2_img, row, 2)
@@ -272,7 +272,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             img_path = os.path.join(os.path.dirname(__file__), "Hero Images", f"{name.capitalize()}.png")
             if os.path.exists(img_path):
                 pix = QtGui.QPixmap(img_path)
-                img_label.setPixmap(pix.scaled(64, 64, QtCore.Qt.AspectRatioMode.KeepAspectRatio))
+                img_label.setPixmap(pix.scaled(64, 92, QtCore.Qt.AspectRatioMode.KeepAspectRatio))
 
     def populate_from_config(self, cfg: dict) -> None:
         self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))

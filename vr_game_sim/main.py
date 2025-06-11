@@ -45,6 +45,8 @@ HISTOGRAM_DIR = "histograms"
 # Reduced size so the four histogram images can be displayed together in a
 # 2x2 layout without exceeding a typical screen resolution.
 HISTOGRAM_FIGSIZE = (2.5, 1.5)
+# Higher DPI improves clarity without affecting the displayed size of the figure
+HISTOGRAM_DPI = 600
 
 
 def ensure_setups_dir():
@@ -212,7 +214,7 @@ def run_additional_simulations(
         avg_enemy = sum(enemy_remaining) / len(enemy_remaining) if enemy_remaining else 0
         avg_rounds = sum(rounds_taken) / len(rounds_taken) if rounds_taken else 0
 
-        plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=300)
+        plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
         plt.hist(
             own_remaining,
             bins="auto",
@@ -227,12 +229,12 @@ def run_additional_simulations(
         plt.tight_layout()
         plt.savefig(
             os.path.join(HISTOGRAM_DIR, 'own_remaining_troops.png'),
-            dpi=300,
+            dpi=HISTOGRAM_DPI,
             bbox_inches='tight',
         )
         plt.close()
 
-        plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=300)
+        plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
         plt.hist(
             enemy_remaining,
             bins="auto",
@@ -247,12 +249,12 @@ def run_additional_simulations(
         plt.tight_layout()
         plt.savefig(
             os.path.join(HISTOGRAM_DIR, 'enemy_remaining_troops.png'),
-            dpi=300,
+            dpi=HISTOGRAM_DPI,
             bbox_inches='tight',
         )
         plt.close()
 
-        plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=300)
+        plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
         plt.hist(
             rounds_taken,
             bins="auto",
@@ -267,7 +269,7 @@ def run_additional_simulations(
         plt.tight_layout()
         plt.savefig(
             os.path.join(HISTOGRAM_DIR, 'rounds_to_battle_end.png'),
-            dpi=300,
+            dpi=HISTOGRAM_DPI,
             bbox_inches='tight',
         )
         plt.close()
@@ -276,7 +278,7 @@ def run_additional_simulations(
     wins_army1 = winners.count(1)
     wins_army2 = winners.count(2)
     if generate_histograms and wins_army1 + wins_army2 > 0:
-        plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=300)
+        plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
         plt.pie(
             [wins_army1, wins_army2],
             labels=[army1_name, army2_name],
@@ -288,7 +290,7 @@ def run_additional_simulations(
         plt.tight_layout()
         plt.savefig(
             os.path.join(HISTOGRAM_DIR, 'victory_distribution.png'),
-            dpi=300,
+            dpi=HISTOGRAM_DPI,
             bbox_inches='tight',
         )
         plt.close()

@@ -432,19 +432,18 @@ class SimulationWorker(QtCore.QThread):
 def display_histograms(scroll: QtWidgets.QScrollArea) -> None:
     """Render histogram images into the scroll area.
 
-    The previous implementation attempted to clear and reuse the same
-    container widget which was prone to crashes on some systems.  Instead
-    we create a fresh widget each time and replace the scroll area's widget
-    entirely.  This avoids layout re-parenting issues that were causing the
-    ``0xC0000005`` crashes reported on Windows."""
+    A new widget is created each time to avoid layout re-parenting issues that
+    previously caused crashes on some systems.  Images are scaled so that a
+    2x2 grid fits within the available screen without clipping and the entire
+    layout is centered within the scroll area."""
 
     old_widget = scroll.takeWidget()
     if old_widget is not None:
         old_widget.deleteLater()
 
     frame = QtWidgets.QWidget()
-    # Keep frame width constant so images do not grow after each simulation
-    frame.setFixedWidth(scroll.viewport().width())
+    # Allow the frame to resize with the scroll area so images are not clipped
+    scroll.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
     image_files = [
         "own_remaining_troops.png",
@@ -455,8 +454,11 @@ def display_histograms(scroll: QtWidgets.QScrollArea) -> None:
     layout = QtWidgets.QGridLayout()
     layout.setSpacing(10)
     layout.setContentsMargins(10, 10, 10, 10)
+
     scroll_width = scroll.viewport().width()
-    max_width = scroll_width - 40 if scroll_width > 40 else 300
+    screen_geom = QtWidgets.QApplication.primaryScreen().availableGeometry()
+    max_width = min(scroll_width - 40 if scroll_width > 40 else 300, screen_geom.width() // 2)
+    max_height = screen_geom.height() // 2
     row = col = 0
     for img_name in image_files:
         path = os.path.join("histograms", img_name)
@@ -464,9 +466,9 @@ def display_histograms(scroll: QtWidgets.QScrollArea) -> None:
             continue
         try:
             img = Image.open(path)
-            if img.width > max_width:
-                ratio = max_width / img.width
-                img = img.resize((max_width, int(img.height * ratio)), Image.LANCZOS)
+            if img.width > max_width or img.height > max_height:
+                ratio = min(max_width / img.width, max_height / img.height)
+                img = img.resize((int(img.width * ratio), int(img.height * ratio)), Image.LANCZOS)
             qimg = ImageQt.ImageQt(img)
             pix = QtGui.QPixmap.fromImage(qimg)
         except Exception:
@@ -486,7 +488,12 @@ def display_histograms(scroll: QtWidgets.QScrollArea) -> None:
             col = 0
             row += 2
 
-    frame.setLayout(layout)
+    outer = QtWidgets.QVBoxLayout()
+    outer.addStretch()
+    outer.addLayout(layout)
+    outer.addStretch()
+    outer.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+    frame.setLayout(outer)
     scroll.setWidget(frame)
 
 

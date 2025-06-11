@@ -429,9 +429,8 @@ def display_histograms(frame: QtWidgets.QWidget) -> None:
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()
-        # Remove the layout from the widget so a new one can be assigned
-        frame.setLayout(None)
-        # Now delete the old layout object
+        # Delete the old layout object; Qt will automatically clear the
+        # association with the widget when the layout is destroyed.
         existing_layout.deleteLater()
 
     image_files = [

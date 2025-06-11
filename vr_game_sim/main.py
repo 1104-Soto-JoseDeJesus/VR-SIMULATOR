@@ -20,6 +20,8 @@ import matplotlib.pyplot as plt
 # Explicitly disable interactive mode and clear any existing figures.
 plt.ioff()
 plt.close('all')
+# Apply a modern style for all generated figures
+plt.style.use("seaborn-v0_8-darkgrid")
 
 from vr_game_sim.enums import SkillType
 from vr_game_sim.unit_definition import Unit as UnitClass
@@ -206,8 +208,19 @@ def run_additional_simulations(
     if generate_histograms:
         ensure_histogram_dir()
 
+        avg_own = sum(own_remaining) / len(own_remaining) if own_remaining else 0
+        avg_enemy = sum(enemy_remaining) / len(enemy_remaining) if enemy_remaining else 0
+        avg_rounds = sum(rounds_taken) / len(rounds_taken) if rounds_taken else 0
+
         plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=300)
-        plt.hist(own_remaining, bins='auto', color='blue', alpha=0.7)
+        plt.hist(
+            own_remaining,
+            bins="auto",
+            color="blue",
+            alpha=0.7,
+            edgecolor="black",
+        )
+        plt.axvline(avg_own, color="black", linestyle="dashed", linewidth=1)
         plt.title(f'{army1_name} Remaining Troops')
         plt.xlabel('Troops')
         plt.ylabel('Frequency')
@@ -220,7 +233,14 @@ def run_additional_simulations(
         plt.close()
 
         plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=300)
-        plt.hist(enemy_remaining, bins='auto', color='red', alpha=0.7)
+        plt.hist(
+            enemy_remaining,
+            bins="auto",
+            color="red",
+            alpha=0.7,
+            edgecolor="black",
+        )
+        plt.axvline(avg_enemy, color="black", linestyle="dashed", linewidth=1)
         plt.title(f'{army2_name} Remaining Troops')
         plt.xlabel('Troops')
         plt.ylabel('Frequency')
@@ -233,7 +253,14 @@ def run_additional_simulations(
         plt.close()
 
         plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=300)
-        plt.hist(rounds_taken, bins='auto', color='green', alpha=0.7)
+        plt.hist(
+            rounds_taken,
+            bins="auto",
+            color="green",
+            alpha=0.7,
+            edgecolor="black",
+        )
+        plt.axvline(avg_rounds, color="black", linestyle="dashed", linewidth=1)
         plt.title('Rounds to Battle End')
         plt.xlabel('Rounds')
         plt.ylabel('Frequency')

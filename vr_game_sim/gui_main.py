@@ -310,14 +310,22 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         img_label = self.hero1_img if slot == 1 else self.hero2_img
         img_label.clear()
+        img_label.setToolTip(name if name not in {"None", "Custom"} else "")
         plugin_labels = self.hero1_plugin_imgs if slot == 1 else self.hero2_plugin_imgs
         for lbl in plugin_labels:
             lbl.clear()
+            lbl.setToolTip("")
         if name not in {"None", "Custom"}:
             img_path = os.path.join(os.path.dirname(__file__), "Hero Images", f"{name.capitalize()}.png")
             if os.path.exists(img_path):
                 pix = QtGui.QPixmap(img_path)
-                img_label.setPixmap(pix.scaled(64, 92, QtCore.Qt.AspectRatioMode.KeepAspectRatio))
+                img_label.setPixmap(
+                    pix.scaled(64, 92, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+                )
+                img_label.setText("")
+            else:
+                img_label.setText(name)
+                img_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
             plugin_ids: list[str] = []
             if cfg and cfg.get("hero_name_or_preset") == name:
@@ -332,9 +340,16 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     continue
                 img_name = skill_def["name"].replace("'", "").replace(" ", "-") + ".png"
                 skill_img_path = os.path.join(os.path.dirname(__file__), "Plugin Skill Images", img_name)
+                lbl.setToolTip(skill_def.get("name", sid))
                 if os.path.exists(skill_img_path):
                     pix = QtGui.QPixmap(skill_img_path)
-                    lbl.setPixmap(pix.scaled(75, 92, QtCore.Qt.AspectRatioMode.KeepAspectRatio))
+                    lbl.setPixmap(
+                        pix.scaled(75, 92, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+                    )
+                    lbl.setText("")
+                else:
+                    lbl.setText(skill_def.get("name", sid))
+                    lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
     def populate_from_config(self, cfg: dict) -> None:
         self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))
@@ -460,8 +475,9 @@ def display_histograms(scroll: QtWidgets.QScrollArea) -> None:
     max_width = min(scroll_width - 40 if scroll_width > 40 else 300, screen_geom.width() // 2)
     max_height = screen_geom.height() // 2
     row = col = 0
+    base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
     for img_name in image_files:
-        path = os.path.join("histograms", img_name)
+        path = os.path.join(base_hist_dir, img_name)
         if not os.path.exists(path):
             continue
         try:
@@ -508,6 +524,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.tabs = QtWidgets.QTabWidget()
         main_layout.addWidget(self.tabs)
+
+        # Remember the directory last used when loading/saving setups
+        self.last_setup_dir = os.path.join(os.path.dirname(__file__), "setups")
 
         # --- Army Setup tab ---
         setup_tab = QtWidgets.QWidget()
@@ -575,14 +594,29 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # --- Setup load/save -------------------------------------------------
     def save_setup(self) -> None:
-        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save Setup", "setups", "JSON Files (*.json)")
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Save Setup",
+            self.last_setup_dir,
+            "JSON Files (*.json)",
+        )
         if file_path:
-            save_setup_to_file([self.army1_frame.build_config(), self.army2_frame.build_config()], os.path.basename(file_path))
+            self.last_setup_dir = os.path.dirname(file_path)
+            save_setup_to_file(
+                [self.army1_frame.build_config(), self.army2_frame.build_config()],
+                os.path.basename(file_path),
+            )
             self.status.setText(f"Saved to {os.path.basename(file_path)}")
 
     def load_setup(self) -> None:
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Load Setup", "setups", "JSON Files (*.json)")
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Load Setup",
+            self.last_setup_dir,
+            "JSON Files (*.json)",
+        )
         if file_path:
+            self.last_setup_dir = os.path.dirname(file_path)
             data = load_setup_from_file(file_path)
             if data and len(data) >= 2:
                 self.army1_frame.populate_from_config(data[0])
@@ -595,6 +629,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status.setText("Running simulation...")
         self.progress.setRange(0, 200)
         self.progress.setValue(0)
+        self.run_btn.setEnabled(False)
         self.worker = SimulationWorker(setup_data)
         self.worker.progress_update.connect(lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d)))
         self.worker.finished_text.connect(self._sim_finished)
@@ -607,15 +642,33 @@ class MainWindow(QtWidgets.QMainWindow):
         display_histograms(self.hist_scroll)
         self.progress.setValue(0)
         self.status.setText("Ready")
+        self.run_btn.setEnabled(True)
 
     def _sim_error(self, msg: str) -> None:  # pragma: no cover - GUI feedback
         QtWidgets.QMessageBox.critical(self, "Error", msg)
         self.progress.setValue(0)
         self.status.setText("Ready")
+        self.run_btn.setEnabled(True)
 
 
 def main() -> None:
     app = QtWidgets.QApplication([])
+    app.setStyle("Fusion")
+    dark_palette = QtGui.QPalette()
+    dark_palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(53, 53, 53))
+    dark_palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtCore.Qt.GlobalColor.white)
+    dark_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(35, 35, 35))
+    dark_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor(53, 53, 53))
+    dark_palette.setColor(QtGui.QPalette.ColorRole.ToolTipBase, QtCore.Qt.GlobalColor.white)
+    dark_palette.setColor(QtGui.QPalette.ColorRole.ToolTipText, QtCore.Qt.GlobalColor.white)
+    dark_palette.setColor(QtGui.QPalette.ColorRole.Text, QtCore.Qt.GlobalColor.white)
+    dark_palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor(53, 53, 53))
+    dark_palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtCore.Qt.GlobalColor.white)
+    dark_palette.setColor(QtGui.QPalette.ColorRole.BrightText, QtCore.Qt.GlobalColor.red)
+    dark_palette.setColor(QtGui.QPalette.ColorRole.Link, QtGui.QColor(42, 130, 218))
+    dark_palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor(42, 130, 218))
+    dark_palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtCore.Qt.GlobalColor.black)
+    app.setPalette(dark_palette)
     window = MainWindow()
     window.resize(800, 600)
     window.show()

@@ -140,6 +140,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
         for combo in [self.hero1_combo, self.hero2_combo]:
             for opt in self.hero_options:
                 combo.addItem(opt)
+        self.hero1_combo.currentTextChanged.connect(lambda n: self._hero_selected(1, n))
+        self.hero2_combo.currentTextChanged.connect(lambda n: self._hero_selected(2, n))
 
         self.edit_btn1 = QtWidgets.QPushButton("Edit")
         self.edit_btn2 = QtWidgets.QPushButton("Edit")
@@ -179,13 +181,23 @@ class ArmyFrame(QtWidgets.QGroupBox):
         row += 1
 
         layout.addWidget(QtWidgets.QLabel("Hero 1:"), row, 0)
+        self.hero1_info = QtWidgets.QLabel()
+        self.hero1_info.setWordWrap(True)
         layout.addWidget(self.hero1_combo, row, 1)
         layout.addWidget(self.edit_btn1, row, 2)
+        layout.addWidget(self.hero1_info, row, 3)
         row += 1
 
         layout.addWidget(QtWidgets.QLabel("Hero 2:"), row, 0)
+        self.hero2_info = QtWidgets.QLabel()
+        self.hero2_info.setWordWrap(True)
         layout.addWidget(self.hero2_combo, row, 1)
         layout.addWidget(self.edit_btn2, row, 2)
+        layout.addWidget(self.hero2_info, row, 3)
+
+        # Initialize info labels
+        self._hero_selected(1, self.hero1_combo.currentText())
+        self._hero_selected(2, self.hero2_combo.currentText())
 
     def _add_custom_option(self, name: str) -> None:
         if name not in self.hero_options:
@@ -218,6 +230,32 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 else:
                     self.hero2_combo.setCurrentText(name)
 
+    def _hero_selected(self, slot: int, name: str) -> None:
+        """Update preset info labels and reset custom config if preset changed."""
+        if name in {"None", "Custom"}:
+            info = ""
+        else:
+            preset = HERO_PRESETS.get(name.lower())
+            if preset:
+                talents = ", ".join(
+                    SKILL_REGISTRY_GLOBAL.get(t, {}).get("name", t) for t in preset.get("talents", [])
+                )
+                bases = ", ".join(
+                    SKILL_REGISTRY_GLOBAL.get(b, {}).get("name", b) for b in preset.get("base_skills", [])
+                )
+                info = f"Talents: {talents} | Base: {bases}"
+            else:
+                info = ""
+
+        if slot == 1:
+            self.hero1_info.setText(info)
+        else:
+            self.hero2_info.setText(info)
+
+        cfg = self.custom_heroes.get(slot)
+        if cfg and cfg.get("hero_name_or_preset") != name and name not in {"None", "Custom"}:
+            self.custom_heroes[slot] = None
+
     def populate_from_config(self, cfg: dict) -> None:
         self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))
         self.unit_combo.setCurrentText(cfg.get("unit_type", "pikemen"))
@@ -243,6 +281,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 self.custom_heroes[idx] = hero_cfg
                 self._add_custom_option(name)
             hero_combos[idx - 1].setCurrentText(hero_name_display)
+            self._hero_selected(idx, hero_name_display)
+        for idx, combo in enumerate(hero_combos, start=1):
+            self._hero_selected(idx, combo.currentText())
 
     def build_config(self) -> dict:
         heroes_cfg = []
@@ -357,13 +398,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.output = QtWidgets.QTextEdit()
         self.output.setReadOnly(True)
-        main_layout.addWidget(self.output)
 
         self.hist_container = QtWidgets.QWidget()
         self.hist_scroll = QtWidgets.QScrollArea()
         self.hist_scroll.setWidgetResizable(True)
         self.hist_scroll.setWidget(self.hist_container)
-        main_layout.addWidget(self.hist_scroll)
+
+        self.results_tabs = QtWidgets.QTabWidget()
+        self.results_tabs.addTab(self.output, "Report")
+        self.results_tabs.addTab(self.hist_scroll, "Figures")
+        main_layout.addWidget(self.results_tabs)
 
         self.status = QtWidgets.QLabel("Ready")
         main_layout.addWidget(self.status)

@@ -202,15 +202,13 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.hero1_img.setScaledContents(True)
         self.hero1_plugin_imgs = [QtWidgets.QLabel(), QtWidgets.QLabel()]
         for lbl in self.hero1_plugin_imgs:
-            lbl.setFixedSize(32, 32)
+            lbl.setFixedSize(75, 92)
             lbl.setScaledContents(True)
-        hero1_preview_layout = QtWidgets.QVBoxLayout()
+        hero1_preview_layout = QtWidgets.QHBoxLayout()
         hero1_preview_layout.setContentsMargins(0, 0, 0, 0)
-        hero1_preview_layout.addWidget(self.hero1_img, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-        hero1_plugins_row = QtWidgets.QHBoxLayout()
+        hero1_preview_layout.addWidget(self.hero1_img)
         for lbl in self.hero1_plugin_imgs:
-            hero1_plugins_row.addWidget(lbl)
-        hero1_preview_layout.addLayout(hero1_plugins_row)
+            hero1_preview_layout.addWidget(lbl)
         hero1_preview_widget = QtWidgets.QWidget()
         hero1_preview_widget.setLayout(hero1_preview_layout)
 
@@ -220,20 +218,18 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.hero2_img.setScaledContents(True)
         self.hero2_plugin_imgs = [QtWidgets.QLabel(), QtWidgets.QLabel()]
         for lbl in self.hero2_plugin_imgs:
-            lbl.setFixedSize(32, 32)
+            lbl.setFixedSize(75, 92)
             lbl.setScaledContents(True)
-        hero2_preview_layout = QtWidgets.QVBoxLayout()
+        hero2_preview_layout = QtWidgets.QHBoxLayout()
         hero2_preview_layout.setContentsMargins(0, 0, 0, 0)
-        hero2_preview_layout.addWidget(self.hero2_img, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-        hero2_plugins_row = QtWidgets.QHBoxLayout()
+        hero2_preview_layout.addWidget(self.hero2_img)
         for lbl in self.hero2_plugin_imgs:
-            hero2_plugins_row.addWidget(lbl)
-        hero2_preview_layout.addLayout(hero2_plugins_row)
+            hero2_preview_layout.addWidget(lbl)
         hero2_preview_widget = QtWidgets.QWidget()
         hero2_preview_widget.setLayout(hero2_preview_layout)
 
         self.preview_widget = QtWidgets.QWidget()
-        preview_layout = QtWidgets.QHBoxLayout(self.preview_widget)
+        preview_layout = QtWidgets.QVBoxLayout(self.preview_widget)
         preview_layout.setContentsMargins(0, 0, 0, 0)
         preview_layout.addWidget(hero1_preview_widget)
         preview_layout.addWidget(hero2_preview_widget)
@@ -327,7 +323,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 skill_img_path = os.path.join(os.path.dirname(__file__), "Plugin Skill Images", img_name)
                 if os.path.exists(skill_img_path):
                     pix = QtGui.QPixmap(skill_img_path)
-                    lbl.setPixmap(pix.scaled(32, 32, QtCore.Qt.AspectRatioMode.KeepAspectRatio))
+                    lbl.setPixmap(pix.scaled(75, 92, QtCore.Qt.AspectRatioMode.KeepAspectRatio))
 
     def populate_from_config(self, cfg: dict) -> None:
         self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))

@@ -36,7 +36,7 @@ Execute the simulator interactively:
 python -m vr_game_sim.main
 ```
 
-Use the optional `--rich` flag to display the battle report with rich formatted tables.
+Rich formatted tables are enabled by default. Pass `--no-rich` to disable them.
 
 You will be prompted to create a new setup or load a saved one from the
 `vr_game_sim/setups` directory. Setups can be saved as JSON files for later use.
@@ -52,6 +52,9 @@ python -m vr_game_sim.main --setup path/to/setup.json
 
 The simulator will load the file, run the battle once and then run additional
 silent simulations for statistics.
+
+When rich output is enabled, the progress of these extra runs is displayed using a
+rich progress bar.
 
 To utilize multiple CPU cores during these extra runs, call
 `run_additional_simulations` with the `num_workers` argument greater than 1.

@@ -38,7 +38,7 @@ class GameSimulator:
         if adv.get(def_type) == atk_type: return 0.95
         return 1.0
 
-    def __init__(self, army1: Army, army2: Army, report_builder: Optional[ReportBuilder] = None, *, use_rich: bool = False):
+    def __init__(self, army1: Army, army2: Army, report_builder: Optional[ReportBuilder] = None, *, use_rich: bool = True):
         self.army1: Army = army1
         self.army2: Army = army2
         self.army1.simulator = self

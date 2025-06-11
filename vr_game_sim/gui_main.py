@@ -429,8 +429,11 @@ def display_histograms(frame: QtWidgets.QWidget) -> None:
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()
-        # Delete the old layout object; Qt will automatically clear the
-        # association with the widget when the layout is destroyed.
+        # Explicitly disassociate the old layout from the frame before
+        # deleting it so ``setLayout`` succeeds immediately. Otherwise Qt
+        # keeps the layout assigned until the event loop processes the
+        # deferred deletion which caused every other run to have no layout.
+        frame.setLayout(None)
         existing_layout.deleteLater()
 
     image_files = [

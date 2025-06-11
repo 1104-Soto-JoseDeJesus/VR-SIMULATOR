@@ -5,8 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0ec79d29-f83e-4486-9f45-deb2b221e113" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/setups/_last_run_setup.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/setups/_last_run_setup.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/setups/test.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -118,7 +117,7 @@
       <workItem from="1749162900410" duration="15113000" />
       <workItem from="1749189835160" duration="3029000" />
       <workItem from="1749193433382" duration="28120000" />
-      <workItem from="1749511915021" duration="16154000" />
+      <workItem from="1749511915021" duration="18346000" />
     </task>
     <servers />
   </component>
@@ -126,7 +125,7 @@
     <option name="version" value="3" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/VR_SIMULATOR$gui_main.coverage" NAME="gui_main Coverage Results" MODIFIED="1749645646929" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="C:\Users\josee\PycharmProjects\VR-SIMULATOR\vr_game_sim" />
+    <SUITE FILE_PATH="coverage/VR_SIMULATOR$gui_main.coverage" NAME="gui_main Coverage Results" MODIFIED="1749648698426" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="C:\Users\josee\PycharmProjects\VR-SIMULATOR\vr_game_sim" />
     <SUITE FILE_PATH="coverage/VR_SIMULATOR$skill_definitions.coverage" NAME="skill_definitions Coverage Results" MODIFIED="1749239564272" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/vr_game_sim" />
     <SUITE FILE_PATH="coverage/VR_SIMULATOR$main.coverage" NAME="main Coverage Results" MODIFIED="1749512815667" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="C:\Users\josee\PycharmProjects\VR-SIMULATOR\vr_game_sim" />
     <SUITE FILE_PATH="coverage/VR_SIMULATOR$__main__.coverage" NAME="__main__ Coverage Results" MODIFIED="1749190308653" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="C:\Users\josee\PycharmProjects\VR-SIMULATOR" />

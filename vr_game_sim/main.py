@@ -50,6 +50,8 @@ HISTOGRAM_FIGSIZE = (2.5, 1.5)
 HISTOGRAM_DPI = 600
 # Bin count for histograms to improve bar visibility
 HISTOGRAM_BINS = 30
+# Font size for titles and labels inside histogram figures
+HISTOGRAM_FONT_SIZE = 8
 
 
 def ensure_setups_dir():
@@ -237,9 +239,9 @@ def run_additional_simulations(
                 edgecolor="black",
             )
             plt.axvline(avg_own, color="black", linestyle="dashed", linewidth=1)
-            plt.title(f"{army1_name} Remaining Troops")
-            plt.xlabel("Troops")
-            plt.ylabel("Frequency")
+            plt.title(f"{army1_name} Remaining Troops", fontsize=HISTOGRAM_FONT_SIZE)
+            plt.xlabel("Troops", fontsize=HISTOGRAM_FONT_SIZE)
+            plt.ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE)
             plt.tight_layout()
             plt.savefig(
                 os.path.join(HISTOGRAM_DIR, "own_remaining_troops.png"),
@@ -257,9 +259,9 @@ def run_additional_simulations(
                 edgecolor="black",
             )
             plt.axvline(avg_enemy, color="black", linestyle="dashed", linewidth=1)
-            plt.title(f"{army2_name} Remaining Troops")
-            plt.xlabel("Troops")
-            plt.ylabel("Frequency")
+            plt.title(f"{army2_name} Remaining Troops", fontsize=HISTOGRAM_FONT_SIZE)
+            plt.xlabel("Troops", fontsize=HISTOGRAM_FONT_SIZE)
+            plt.ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE)
             plt.tight_layout()
             plt.savefig(
                 os.path.join(HISTOGRAM_DIR, "enemy_remaining_troops.png"),
@@ -277,9 +279,9 @@ def run_additional_simulations(
                 edgecolor="black",
             )
             plt.axvline(avg_rounds, color="black", linestyle="dashed", linewidth=1)
-            plt.title("Rounds to Battle End")
-            plt.xlabel("Rounds")
-            plt.ylabel("Frequency")
+            plt.title("Rounds to Battle End", fontsize=HISTOGRAM_FONT_SIZE)
+            plt.xlabel("Rounds", fontsize=HISTOGRAM_FONT_SIZE)
+            plt.ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE)
             plt.tight_layout()
             plt.savefig(
                 os.path.join(HISTOGRAM_DIR, "rounds_to_battle_end.png"),
@@ -300,9 +302,9 @@ def run_additional_simulations(
                 autopct="%.1f%%",
                 startangle=90,
                 wedgeprops={"linewidth": 1.0, "edgecolor": "white"},
-                textprops={"fontsize": "large"},
+                textprops={"fontsize": HISTOGRAM_FONT_SIZE},
             )
-            plt.title("Victory Distribution")
+            plt.title("Victory Distribution", fontsize=HISTOGRAM_FONT_SIZE)
             plt.axis("equal")
             plt.tight_layout()
             plt.savefig(

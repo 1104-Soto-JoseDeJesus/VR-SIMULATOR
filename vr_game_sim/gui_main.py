@@ -197,13 +197,45 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         row += 1
         layout.addWidget(QtWidgets.QLabel("Preview:"), row, 0)
+
+        # --- Hero 1 preview widget ---
         self.hero1_img = QtWidgets.QLabel()
-        self.hero2_img = QtWidgets.QLabel()
-        for lbl in (self.hero1_img, self.hero2_img):
-            lbl.setFixedSize(64, 92)
+        self.hero1_img.setFixedSize(64, 92)
+        self.hero1_img.setScaledContents(True)
+        self.hero1_plugin_imgs = [QtWidgets.QLabel(), QtWidgets.QLabel()]
+        for lbl in self.hero1_plugin_imgs:
+            lbl.setFixedSize(32, 32)
             lbl.setScaledContents(True)
-        layout.addWidget(self.hero1_img, row, 1)
-        layout.addWidget(self.hero2_img, row, 2)
+        hero1_preview_layout = QtWidgets.QVBoxLayout()
+        hero1_preview_layout.setContentsMargins(0, 0, 0, 0)
+        hero1_preview_layout.addWidget(self.hero1_img, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        hero1_plugins_row = QtWidgets.QHBoxLayout()
+        for lbl in self.hero1_plugin_imgs:
+            hero1_plugins_row.addWidget(lbl)
+        hero1_preview_layout.addLayout(hero1_plugins_row)
+        hero1_preview_widget = QtWidgets.QWidget()
+        hero1_preview_widget.setLayout(hero1_preview_layout)
+
+        # --- Hero 2 preview widget ---
+        self.hero2_img = QtWidgets.QLabel()
+        self.hero2_img.setFixedSize(64, 92)
+        self.hero2_img.setScaledContents(True)
+        self.hero2_plugin_imgs = [QtWidgets.QLabel(), QtWidgets.QLabel()]
+        for lbl in self.hero2_plugin_imgs:
+            lbl.setFixedSize(32, 32)
+            lbl.setScaledContents(True)
+        hero2_preview_layout = QtWidgets.QVBoxLayout()
+        hero2_preview_layout.setContentsMargins(0, 0, 0, 0)
+        hero2_preview_layout.addWidget(self.hero2_img, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        hero2_plugins_row = QtWidgets.QHBoxLayout()
+        for lbl in self.hero2_plugin_imgs:
+            hero2_plugins_row.addWidget(lbl)
+        hero2_preview_layout.addLayout(hero2_plugins_row)
+        hero2_preview_widget = QtWidgets.QWidget()
+        hero2_preview_widget.setLayout(hero2_preview_layout)
+
+        layout.addWidget(hero1_preview_widget, row, 1)
+        layout.addWidget(hero2_preview_widget, row, 2)
 
         # Initialize info labels
         self._hero_selected(1, self.hero1_combo.currentText())
@@ -237,8 +269,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 self._add_custom_option(name)
                 if slot == 1:
                     self.hero1_combo.setCurrentText(name)
+                    self._hero_selected(1, name)
                 else:
                     self.hero2_combo.setCurrentText(name)
+                    self._hero_selected(2, name)
 
     def _hero_selected(self, slot: int, name: str) -> None:
         """Update preset info labels and reset custom config if preset changed."""
@@ -268,11 +302,31 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         img_label = self.hero1_img if slot == 1 else self.hero2_img
         img_label.clear()
+        plugin_labels = self.hero1_plugin_imgs if slot == 1 else self.hero2_plugin_imgs
+        for lbl in plugin_labels:
+            lbl.clear()
         if name not in {"None", "Custom"}:
             img_path = os.path.join(os.path.dirname(__file__), "Hero Images", f"{name.capitalize()}.png")
             if os.path.exists(img_path):
                 pix = QtGui.QPixmap(img_path)
                 img_label.setPixmap(pix.scaled(64, 92, QtCore.Qt.AspectRatioMode.KeepAspectRatio))
+
+            plugin_ids: list[str] = []
+            if cfg and cfg.get("hero_name_or_preset") == name:
+                plugin_ids = cfg.get("plugin_skill_ids", [])
+            else:
+                preset = HERO_PRESETS.get(name.lower())
+                if preset:
+                    plugin_ids = preset.get("plugin_skills", [])
+            for lbl, sid in zip(plugin_labels, plugin_ids):
+                skill_def = SKILL_REGISTRY_GLOBAL.get(sid)
+                if not skill_def:
+                    continue
+                img_name = skill_def["name"].replace("'", "").replace(" ", "-") + ".png"
+                skill_img_path = os.path.join(os.path.dirname(__file__), "Plugin Skill Images", img_name)
+                if os.path.exists(skill_img_path):
+                    pix = QtGui.QPixmap(skill_img_path)
+                    lbl.setPixmap(pix.scaled(32, 32, QtCore.Qt.AspectRatioMode.KeepAspectRatio))
 
     def populate_from_config(self, cfg: dict) -> None:
         self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))

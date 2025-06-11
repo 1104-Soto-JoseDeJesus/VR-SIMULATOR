@@ -377,7 +377,8 @@ def display_histograms(frame: QtWidgets.QWidget) -> None:
             continue
         lbl = QtWidgets.QLabel()
         lbl.setPixmap(pix)
-        layout.addWidget(lbl, row, col)
+        lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(lbl, row, col, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
         caption = QtWidgets.QLabel(img_name.replace("_", " ").replace(".png", "").title())
         caption.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(caption, row + 1, col)

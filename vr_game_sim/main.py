@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 plt.ioff()
 plt.close('all')
 # Apply a modern style for all generated figures
-plt.style.use("seaborn-v0_8-darkgrid")
+plt.style.use("fivethirtyeight")
 
 from vr_game_sim.enums import SkillType
 from vr_game_sim.unit_definition import Unit as UnitClass
@@ -47,6 +47,8 @@ HISTOGRAM_DIR = "histograms"
 HISTOGRAM_FIGSIZE = (2.5, 1.5)
 # Higher DPI improves clarity without affecting the displayed size of the figure
 HISTOGRAM_DPI = 600
+# Bin count for histograms to improve bar visibility
+HISTOGRAM_BINS = 30
 
 
 def ensure_setups_dir():
@@ -217,7 +219,7 @@ def run_additional_simulations(
         plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
         plt.hist(
             own_remaining,
-            bins="auto",
+            bins=HISTOGRAM_BINS,
             color="blue",
             alpha=0.7,
             edgecolor="black",
@@ -237,7 +239,7 @@ def run_additional_simulations(
         plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
         plt.hist(
             enemy_remaining,
-            bins="auto",
+            bins=HISTOGRAM_BINS,
             color="red",
             alpha=0.7,
             edgecolor="black",
@@ -257,7 +259,7 @@ def run_additional_simulations(
         plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
         plt.hist(
             rounds_taken,
-            bins="auto",
+            bins=HISTOGRAM_BINS,
             color="green",
             alpha=0.7,
             edgecolor="black",

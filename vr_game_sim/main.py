@@ -11,6 +11,7 @@ import io
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
 import matplotlib
+from matplotlib.ticker import MaxNLocator
 
 # Use a non-interactive backend so matplotlib doesn't block the script when
 # generating figures. This avoids hangs after the battle summary prints.
@@ -52,6 +53,10 @@ HISTOGRAM_DPI = 1000
 HISTOGRAM_BINS = 60
 # Font size for titles and labels inside histogram figures
 HISTOGRAM_FONT_SIZE = 4
+# Font size for axis tick numbers inside histogram figures
+HISTOGRAM_TICK_FONT_SIZE = 3
+# Approximate number of tick marks on each axis
+HISTOGRAM_TICK_COUNT = 8
 
 
 def ensure_setups_dir():
@@ -242,6 +247,10 @@ def run_additional_simulations(
             plt.title(f"{army1_name} Remaining Troops", fontsize=HISTOGRAM_FONT_SIZE)
             plt.xlabel("Troops", fontsize=HISTOGRAM_FONT_SIZE)
             plt.ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE)
+            ax = plt.gca()
+            ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE)
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             plt.tight_layout()
             plt.savefig(
                 os.path.join(HISTOGRAM_DIR, "own_remaining_troops.png"),
@@ -262,6 +271,10 @@ def run_additional_simulations(
             plt.title(f"{army2_name} Remaining Troops", fontsize=HISTOGRAM_FONT_SIZE)
             plt.xlabel("Troops", fontsize=HISTOGRAM_FONT_SIZE)
             plt.ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE)
+            ax = plt.gca()
+            ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE)
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             plt.tight_layout()
             plt.savefig(
                 os.path.join(HISTOGRAM_DIR, "enemy_remaining_troops.png"),
@@ -282,6 +295,10 @@ def run_additional_simulations(
             plt.title("Rounds to Battle End", fontsize=HISTOGRAM_FONT_SIZE)
             plt.xlabel("Rounds", fontsize=HISTOGRAM_FONT_SIZE)
             plt.ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE)
+            ax = plt.gca()
+            ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE)
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             plt.tight_layout()
             plt.savefig(
                 os.path.join(HISTOGRAM_DIR, "rounds_to_battle_end.png"),

@@ -39,6 +39,8 @@ from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
 SETUPS_DIR = "setups"
 LAST_SETUP_FILENAME = os.path.join(SETUPS_DIR, "_last_run_setup.json")
 HISTOGRAM_DIR = "histograms"
+# Default size for generated histogram images (width, height in inches)
+HISTOGRAM_FIGSIZE = (8, 4.5)
 
 
 def ensure_setups_dir():
@@ -202,7 +204,7 @@ def run_additional_simulations(
     if generate_histograms:
         ensure_histogram_dir()
 
-        plt.figure(figsize=(8, 6), dpi=300)
+        plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=300)
         plt.hist(own_remaining, bins='auto', color='blue', alpha=0.7)
         plt.title(f'{army1_name} Remaining Troops')
         plt.xlabel('Troops')
@@ -215,7 +217,7 @@ def run_additional_simulations(
         )
         plt.close()
 
-        plt.figure(figsize=(8, 6), dpi=300)
+        plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=300)
         plt.hist(enemy_remaining, bins='auto', color='red', alpha=0.7)
         plt.title(f'{army2_name} Remaining Troops')
         plt.xlabel('Troops')
@@ -228,7 +230,7 @@ def run_additional_simulations(
         )
         plt.close()
 
-        plt.figure(figsize=(8, 6), dpi=300)
+        plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=300)
         plt.hist(rounds_taken, bins='auto', color='green', alpha=0.7)
         plt.title('Rounds to Battle End')
         plt.xlabel('Rounds')
@@ -245,7 +247,7 @@ def run_additional_simulations(
     wins_army1 = winners.count(1)
     wins_army2 = winners.count(2)
     if generate_histograms and wins_army1 + wins_army2 > 0:
-        plt.figure(figsize=(8, 6), dpi=300)
+        plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=300)
         plt.pie(
             [wins_army1, wins_army2],
             labels=[army1_name, army2_name],

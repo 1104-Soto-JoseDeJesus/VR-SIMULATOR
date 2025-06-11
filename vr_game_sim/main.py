@@ -47,11 +47,11 @@ HISTOGRAM_DIR = "histograms"
 # 2x2 layout without exceeding a typical screen resolution.
 HISTOGRAM_FIGSIZE = (2.5, 1.5)
 # Higher DPI improves clarity without affecting the displayed size of the figure
-HISTOGRAM_DPI = 600
+HISTOGRAM_DPI = 1000
 # Bin count for histograms to improve bar visibility
-HISTOGRAM_BINS = 30
+HISTOGRAM_BINS = 60
 # Font size for titles and labels inside histogram figures
-HISTOGRAM_FONT_SIZE = 8
+HISTOGRAM_FONT_SIZE = 4
 
 
 def ensure_setups_dir():

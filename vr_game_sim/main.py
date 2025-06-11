@@ -7,7 +7,6 @@ import argparse
 import sys
 from typing import List, Optional, Dict, Any, Callable
 import contextlib
-from contextlib import nullcontext
 import io
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
@@ -39,13 +38,6 @@ from vr_game_sim.interactive_setup import (
     input_multi_choice_numbered,
 )
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
-
-try:
-    from rich.progress import Progress
-    _RICH_AVAILABLE = True
-except Exception:  # pragma: no cover - optional dependency
-    Progress = None
-    _RICH_AVAILABLE = False
 
 # --- Configuration for Save/Load ---
 SETUPS_DIR = "setups"
@@ -181,7 +173,6 @@ def run_additional_simulations(
     verbose: bool = True,
     num_workers: int = 1,
     progress_callback: Optional[Callable[[int, int], None]] = None,
-    use_rich: bool = True,
 ) -> float:
     """Runs extra simulations silently and computes summary statistics.
 
@@ -206,48 +197,34 @@ def run_additional_simulations(
     )
     battle_results: List[tuple] = []
 
-    progress_cm = nullcontext()
-    show_progress = (
-        verbose and use_rich and progress_callback is None and _RICH_AVAILABLE and Progress is not None
-    )
-    if show_progress:
-        progress_cm = Progress()
-
     worker_inputs = [setup_data] * runs
-    with progress_cm as prog:
-        task = prog.add_task("Simulating", total=runs) if show_progress else None
-
-        if num_workers > 1:
-            with ProcessPoolExecutor(
-                max_workers=num_workers, mp_context=multiprocessing.get_context("spawn")
-            ) as ex:
-                results_iter = ex.map(_run_single_battle, worker_inputs)
-                completed = 0
-                for own, enemy, r_taken, diff, winner in results_iter:
-                    own_remaining.append(own)
-                    enemy_remaining.append(enemy)
-                    rounds_taken.append(r_taken)
-                    diff_results.append(diff)
-                    winners.append(winner)
-                    battle_results.append((own, enemy))
-                    completed += 1
-                    if progress_callback:
-                        progress_callback(completed, runs)
-                    elif task is not None:
-                        prog.update(task, advance=1)
-        else:
-            for i in range(runs):
-                own, enemy, r_taken, diff, winner = _run_single_battle(setup_data)
+    if num_workers > 1:
+        with ProcessPoolExecutor(
+            max_workers=num_workers, mp_context=multiprocessing.get_context("spawn")
+        ) as ex:
+            results_iter = ex.map(_run_single_battle, worker_inputs)
+            completed = 0
+            for own, enemy, r_taken, diff, winner in results_iter:
                 own_remaining.append(own)
                 enemy_remaining.append(enemy)
                 rounds_taken.append(r_taken)
                 diff_results.append(diff)
                 winners.append(winner)
                 battle_results.append((own, enemy))
+                completed += 1
                 if progress_callback:
-                    progress_callback(i + 1, runs)
-                elif task is not None:
-                    prog.update(task, advance=1)
+                    progress_callback(completed, runs)
+    else:
+        for i in range(runs):
+            own, enemy, r_taken, diff, winner = _run_single_battle(setup_data)
+            own_remaining.append(own)
+            enemy_remaining.append(enemy)
+            rounds_taken.append(r_taken)
+            diff_results.append(diff)
+            winners.append(winner)
+            battle_results.append((own, enemy))
+            if progress_callback:
+                progress_callback(i + 1, runs)
 
     if generate_histograms:
         ensure_histogram_dir()
@@ -483,13 +460,6 @@ if __name__ == "__main__":
         "--setup",
         help="Path to JSON setup file to load and run non-interactively",
     )
-    parser.add_argument(
-        "--no-rich",
-        action="store_false",
-        dest="rich",
-        help="Disable rich formatted battle output",
-    )
-    parser.set_defaults(rich=True)
     args = parser.parse_args()
 
     print("=== Battle Simulator ===")
@@ -499,9 +469,9 @@ if __name__ == "__main__":
         if not loaded:
             sys.exit(1)
         armies = create_armies_from_data(loaded)
-        sim = GameSimulator(armies[0], armies[1], use_rich=args.rich)
+        sim = GameSimulator(armies[0], armies[1])
         sim.simulate_battle()
-        run_additional_simulations(loaded, num_workers=os.cpu_count(), use_rich=args.rich)
+        run_additional_simulations(loaded, num_workers=os.cpu_count())
         plt.close("all")
         sys.exit(0)
 
@@ -604,10 +574,10 @@ if __name__ == "__main__":
     if armies_to_simulate and len(armies_to_simulate) == 2:
         # The GameSimulator constructor will inject the simulator instance into each Army
         setup_snapshot = get_setup_data_for_saving(armies_to_simulate)
-        sim = GameSimulator(armies_to_simulate[0], armies_to_simulate[1], use_rich=args.rich)
+        sim = GameSimulator(armies_to_simulate[0], armies_to_simulate[1])
         sim.simulate_battle()
 
-        run_additional_simulations(setup_snapshot, num_workers=os.cpu_count(), use_rich=args.rich)
+        run_additional_simulations(setup_snapshot, num_workers=os.cpu_count())
         plt.close("all")
         sys.exit(0)
     elif chosen_action != "Q":  # If not quitting and setup failed

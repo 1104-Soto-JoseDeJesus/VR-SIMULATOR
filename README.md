@@ -10,7 +10,6 @@ This project contains a simplified VR battle simulator. The code lives inside th
 * [tabulate](https://pypi.org/project/tabulate/)
 * [pytest](https://pytest.org) (for running tests)
 * [colorama](https://pypi.org/project/colorama) (for colored output)
-* [rich](https://pypi.org/project/rich) (optional for prettier tables)
 
 Install dependencies with:
 
@@ -25,7 +24,6 @@ matplotlib
 tabulate
 pytest
 colorama
-rich
 ```
 
 ## Running the simulator
@@ -35,8 +33,6 @@ Execute the simulator interactively:
 ```bash
 python -m vr_game_sim.main
 ```
-
-Rich formatted tables are enabled by default. Pass `--no-rich` to disable them.
 
 You will be prompted to create a new setup or load a saved one from the
 `vr_game_sim/setups` directory. Setups can be saved as JSON files for later use.
@@ -52,9 +48,6 @@ python -m vr_game_sim.main --setup path/to/setup.json
 
 The simulator will load the file, run the battle once and then run additional
 silent simulations for statistics.
-
-When rich output is enabled, the progress of these extra runs is displayed using a
-rich progress bar.
 
 To utilize multiple CPU cores during these extra runs, call
 `run_additional_simulations` with the `num_workers` argument greater than 1.

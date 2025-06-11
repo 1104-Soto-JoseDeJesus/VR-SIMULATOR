@@ -202,39 +202,64 @@ def run_additional_simulations(
     if generate_histograms:
         ensure_histogram_dir()
 
-        plt.figure()
+        plt.figure(figsize=(8, 6), dpi=300)
         plt.hist(own_remaining, bins='auto', color='blue', alpha=0.7)
         plt.title(f'{army1_name} Remaining Troops')
         plt.xlabel('Troops')
         plt.ylabel('Frequency')
-        plt.savefig(os.path.join(HISTOGRAM_DIR, 'own_remaining_troops.png'))
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join(HISTOGRAM_DIR, 'own_remaining_troops.png'),
+            dpi=300,
+            bbox_inches='tight',
+        )
         plt.close()
 
-        plt.figure()
+        plt.figure(figsize=(8, 6), dpi=300)
         plt.hist(enemy_remaining, bins='auto', color='red', alpha=0.7)
         plt.title(f'{army2_name} Remaining Troops')
         plt.xlabel('Troops')
         plt.ylabel('Frequency')
-        plt.savefig(os.path.join(HISTOGRAM_DIR, 'enemy_remaining_troops.png'))
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join(HISTOGRAM_DIR, 'enemy_remaining_troops.png'),
+            dpi=300,
+            bbox_inches='tight',
+        )
         plt.close()
 
-        plt.figure()
+        plt.figure(figsize=(8, 6), dpi=300)
         plt.hist(rounds_taken, bins='auto', color='green', alpha=0.7)
         plt.title('Rounds to Battle End')
         plt.xlabel('Rounds')
         plt.ylabel('Frequency')
-        plt.savefig(os.path.join(HISTOGRAM_DIR, 'rounds_to_battle_end.png'))
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join(HISTOGRAM_DIR, 'rounds_to_battle_end.png'),
+            dpi=300,
+            bbox_inches='tight',
+        )
         plt.close()
 
     # Pie chart for win percentages
     wins_army1 = winners.count(1)
     wins_army2 = winners.count(2)
     if generate_histograms and wins_army1 + wins_army2 > 0:
-        plt.figure()
-        plt.pie([wins_army1, wins_army2], labels=[army1_name, army2_name], autopct='%1.1f%%', startangle=90)
+        plt.figure(figsize=(8, 6), dpi=300)
+        plt.pie(
+            [wins_army1, wins_army2],
+            labels=[army1_name, army2_name],
+            autopct='%1.1f%%',
+            startangle=90,
+        )
         plt.title('Victory Distribution')
         plt.axis('equal')
-        plt.savefig(os.path.join(HISTOGRAM_DIR, 'victory_distribution.png'))
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join(HISTOGRAM_DIR, 'victory_distribution.png'),
+            dpi=300,
+            bbox_inches='tight',
+        )
         plt.close()
 
     if generate_histograms:

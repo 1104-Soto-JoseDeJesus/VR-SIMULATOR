@@ -419,8 +419,18 @@ class SimulationWorker(QtCore.QThread):
 
 
 def display_histograms(frame: QtWidgets.QWidget) -> None:
-    for child in frame.findChildren(QtWidgets.QLabel):
-        child.deleteLater()
+    """Render histogram images into the given container widget."""
+
+    # Clear any previous content and remove the existing layout if present.
+    existing_layout = frame.layout()
+    if existing_layout is not None:
+        while existing_layout.count():
+            item = existing_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        # deleting widgets above is enough, but remove the layout object as well
+        existing_layout.deleteLater()
 
     image_files = [
         "own_remaining_troops.png",
@@ -429,7 +439,7 @@ def display_histograms(frame: QtWidgets.QWidget) -> None:
         "victory_distribution.png",
     ]
     max_width = 300
-    layout = QtWidgets.QGridLayout(frame)
+    layout = QtWidgets.QGridLayout()
     row = col = 0
     for img_name in image_files:
         path = os.path.join("histograms", img_name)
@@ -455,6 +465,8 @@ def display_histograms(frame: QtWidgets.QWidget) -> None:
         if col >= 2:
             col = 0
             row += 2
+
+    frame.setLayout(layout)
 
 
 class MainWindow(QtWidgets.QMainWindow):

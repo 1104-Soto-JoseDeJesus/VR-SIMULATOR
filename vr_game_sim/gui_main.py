@@ -217,6 +217,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             lbl.setScaledContents(True)
         hero1_preview_layout = QtWidgets.QHBoxLayout()
         hero1_preview_layout.setContentsMargins(0, 0, 0, 0)
+        hero1_preview_layout.setSpacing(25)
         hero1_preview_layout.addWidget(self.hero1_img)
         for lbl in self.hero1_plugin_imgs:
             hero1_preview_layout.addWidget(lbl)
@@ -233,6 +234,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             lbl.setScaledContents(True)
         hero2_preview_layout = QtWidgets.QHBoxLayout()
         hero2_preview_layout.setContentsMargins(0, 0, 0, 0)
+        hero2_preview_layout.setSpacing(25)
         hero2_preview_layout.addWidget(self.hero2_img)
         for lbl in self.hero2_plugin_imgs:
             hero2_preview_layout.addWidget(lbl)

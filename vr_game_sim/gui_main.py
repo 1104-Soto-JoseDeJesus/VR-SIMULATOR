@@ -194,9 +194,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         layout.addWidget(self.hero2_combo, row, 1)
         layout.addWidget(self.edit_btn2, row, 2)
         layout.addWidget(self.hero2_info, row, 3)
-
-        row += 1
-        layout.addWidget(QtWidgets.QLabel("Preview:"), row, 0)
+        # Extra row for preview content added externally
 
         # --- Hero 1 preview widget ---
         self.hero1_img = QtWidgets.QLabel()
@@ -234,8 +232,11 @@ class ArmyFrame(QtWidgets.QGroupBox):
         hero2_preview_widget = QtWidgets.QWidget()
         hero2_preview_widget.setLayout(hero2_preview_layout)
 
-        layout.addWidget(hero1_preview_widget, row, 1)
-        layout.addWidget(hero2_preview_widget, row, 2)
+        self.preview_widget = QtWidgets.QWidget()
+        preview_layout = QtWidgets.QHBoxLayout(self.preview_widget)
+        preview_layout.setContentsMargins(0, 0, 0, 0)
+        preview_layout.addWidget(hero1_preview_widget)
+        preview_layout.addWidget(hero2_preview_widget)
 
         # Initialize info labels
         self._hero_selected(1, self.hero1_combo.currentText())
@@ -469,30 +470,43 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(central)
         main_layout = QtWidgets.QVBoxLayout(central)
 
-        tabs = QtWidgets.QTabWidget()
-        main_layout.addWidget(tabs)
+        self.tabs = QtWidgets.QTabWidget()
+        main_layout.addWidget(self.tabs)
 
+        # --- Army Setup tab ---
+        setup_tab = QtWidgets.QWidget()
+        setup_layout = QtWidgets.QVBoxLayout(setup_tab)
+
+        armies_row = QtWidgets.QHBoxLayout()
         self.army1_frame = ArmyFrame(1)
         self.army2_frame = ArmyFrame(2)
-        tabs.addTab(self.army1_frame, "Army 1")
-        tabs.addTab(self.army2_frame, "Army 2")
+        armies_row.addWidget(self.army1_frame)
+        armies_row.addWidget(self.army2_frame)
+        setup_layout.addLayout(armies_row)
 
+        preview_group = QtWidgets.QGroupBox("Army Preview")
+        preview_layout = QtWidgets.QHBoxLayout(preview_group)
+        preview_layout.addWidget(self.army1_frame.preview_widget)
+        preview_layout.addWidget(self.army2_frame.preview_widget)
+        setup_layout.addWidget(preview_group)
+
+        self.tabs.addTab(setup_tab, "Army Setup")
+
+        # --- Report tab ---
         self.output = QtWidgets.QTextEdit()
         self.output.setReadOnly(True)
         fixed_font = QtGui.QFontDatabase.systemFont(
             QtGui.QFontDatabase.SystemFont.FixedFont
         )
         self.output.setFont(fixed_font)
+        self.tabs.addTab(self.output, "Report")
 
+        # --- Figures tab ---
         self.hist_container = QtWidgets.QWidget()
         self.hist_scroll = QtWidgets.QScrollArea()
         self.hist_scroll.setWidgetResizable(True)
         self.hist_scroll.setWidget(self.hist_container)
-
-        self.results_tabs = QtWidgets.QTabWidget()
-        self.results_tabs.addTab(self.output, "Report")
-        self.results_tabs.addTab(self.hist_scroll, "Figures")
-        main_layout.addWidget(self.results_tabs)
+        self.tabs.addTab(self.hist_scroll, "Figures")
 
         self.status = QtWidgets.QLabel("Ready")
         main_layout.addWidget(self.status)

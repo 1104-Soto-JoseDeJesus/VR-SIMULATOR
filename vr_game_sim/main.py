@@ -460,6 +460,11 @@ if __name__ == "__main__":
         "--setup",
         help="Path to JSON setup file to load and run non-interactively",
     )
+    parser.add_argument(
+        "--rich",
+        action="store_true",
+        help="Enable rich formatted battle output",
+    )
     args = parser.parse_args()
 
     print("=== Battle Simulator ===")
@@ -469,7 +474,7 @@ if __name__ == "__main__":
         if not loaded:
             sys.exit(1)
         armies = create_armies_from_data(loaded)
-        sim = GameSimulator(armies[0], armies[1])
+        sim = GameSimulator(armies[0], armies[1], use_rich=args.rich)
         sim.simulate_battle()
         run_additional_simulations(loaded, num_workers=os.cpu_count())
         plt.close("all")
@@ -574,7 +579,7 @@ if __name__ == "__main__":
     if armies_to_simulate and len(armies_to_simulate) == 2:
         # The GameSimulator constructor will inject the simulator instance into each Army
         setup_snapshot = get_setup_data_for_saving(armies_to_simulate)
-        sim = GameSimulator(armies_to_simulate[0], armies_to_simulate[1])
+        sim = GameSimulator(armies_to_simulate[0], armies_to_simulate[1], use_rich=args.rich)
         sim.simulate_battle()
 
         run_additional_simulations(setup_snapshot, num_workers=os.cpu_count())

@@ -418,22 +418,20 @@ class SimulationWorker(QtCore.QThread):
             self.error.emit(str(exc))
 
 
-def display_histograms(frame: QtWidgets.QWidget) -> None:
-    """Render histogram images into the given container widget."""
+def display_histograms(scroll: QtWidgets.QScrollArea) -> None:
+    """Render histogram images into the scroll area.
 
-    # Clear any previous content and remove the existing layout if present.
-    existing_layout = frame.layout()
-    if existing_layout is not None:
-        while existing_layout.count():
-            item = existing_layout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
-        # Detach the layout from the widget so a new one can be assigned.
-        # ``setParent(None)`` immediately removes the association without
-        # relying on deferred deletion, which avoids crashes on exit.
-        existing_layout.setParent(None)
-        existing_layout.deleteLater()
+    The previous implementation attempted to clear and reuse the same
+    container widget which was prone to crashes on some systems.  Instead
+    we create a fresh widget each time and replace the scroll area's widget
+    entirely.  This avoids layout re-parenting issues that were causing the
+    ``0xC0000005`` crashes reported on Windows."""
+
+    old_widget = scroll.takeWidget()
+    if old_widget is not None:
+        old_widget.deleteLater()
+
+    frame = QtWidgets.QWidget()
 
     image_files = [
         "own_remaining_troops.png",
@@ -470,6 +468,7 @@ def display_histograms(frame: QtWidgets.QWidget) -> None:
             row += 2
 
     frame.setLayout(layout)
+    scroll.setWidget(frame)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -570,11 +569,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.progress_update.connect(lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d)))
         self.worker.finished_text.connect(self._sim_finished)
         self.worker.error.connect(self._sim_error)
+        self.worker.finished.connect(self.worker.deleteLater)
         self.worker.start()
 
     def _sim_finished(self, text: str) -> None:
         self.output.setPlainText(text)
-        display_histograms(self.hist_container)
+        display_histograms(self.hist_scroll)
         self.progress.setValue(0)
         self.status.setText("Ready")
 

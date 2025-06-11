@@ -131,9 +131,20 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.count_spin.setRange(0, 100000000)
         self.count_spin.setValue(100000)
 
-        self.atk_edit = QtWidgets.QLineEdit("0")
-        self.def_edit = QtWidgets.QLineEdit("0")
-        self.hp_edit = QtWidgets.QLineEdit("0")
+        self.atk_edit = QtWidgets.QDoubleSpinBox()
+        self.atk_edit.setRange(-10.0, 10.0)
+        self.atk_edit.setSingleStep(0.1)
+        self.atk_edit.setValue(0.0)
+
+        self.def_edit = QtWidgets.QDoubleSpinBox()
+        self.def_edit.setRange(-10.0, 10.0)
+        self.def_edit.setSingleStep(0.1)
+        self.def_edit.setValue(0.0)
+
+        self.hp_edit = QtWidgets.QDoubleSpinBox()
+        self.hp_edit.setRange(-10.0, 10.0)
+        self.hp_edit.setSingleStep(0.1)
+        self.hp_edit.setValue(0.0)
 
         self.hero1_combo = QtWidgets.QComboBox()
         self.hero2_combo = QtWidgets.QComboBox()
@@ -330,9 +341,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.unit_combo.setCurrentText(cfg.get("unit_type", "pikemen"))
         self.tier_spin.setValue(int(cfg.get("tier", 5)))
         self.count_spin.setValue(int(cfg.get("count", 100000)))
-        self.atk_edit.setText(str(cfg.get("atk_mod", 0)))
-        self.def_edit.setText(str(cfg.get("def_mod", 0)))
-        self.hp_edit.setText(str(cfg.get("hp_mod", 0)))
+        self.atk_edit.setValue(float(cfg.get("atk_mod", 0)))
+        self.def_edit.setValue(float(cfg.get("def_mod", 0)))
+        self.hp_edit.setValue(float(cfg.get("hp_mod", 0)))
 
         hero_combos = [self.hero1_combo, self.hero2_combo]
         for idx, combo in enumerate(hero_combos, start=1):
@@ -379,9 +390,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
             "unit_type": self.unit_combo.currentText(),
             "tier": int(self.tier_spin.value()),
             "count": int(self.count_spin.value()),
-            "atk_mod": float(self.atk_edit.text() or 0),
-            "def_mod": float(self.def_edit.text() or 0),
-            "hp_mod": float(self.hp_edit.text() or 0),
+            "atk_mod": float(self.atk_edit.value()),
+            "def_mod": float(self.def_edit.value()),
+            "hp_mod": float(self.hp_edit.value()),
             "heroes": heroes_cfg,
         }
 
@@ -439,8 +450,11 @@ def display_histograms(scroll: QtWidgets.QScrollArea) -> None:
         "rounds_to_battle_end.png",
         "victory_distribution.png",
     ]
-    max_width = 300
     layout = QtWidgets.QGridLayout()
+    layout.setSpacing(10)
+    layout.setContentsMargins(10, 10, 10, 10)
+    scroll_width = scroll.viewport().width()
+    max_width = scroll_width - 40 if scroll_width > 40 else 300
     row = col = 0
     for img_name in image_files:
         path = os.path.join("histograms", img_name)
@@ -458,6 +472,9 @@ def display_histograms(scroll: QtWidgets.QScrollArea) -> None:
         lbl = QtWidgets.QLabel()
         lbl.setPixmap(pix)
         lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        lbl.setStyleSheet(
+            "QLabel { border: 1px solid #888888; background-color: #ffffff; }"
+        )
         layout.addWidget(lbl, row, col, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
         caption = QtWidgets.QLabel(img_name.replace("_", " ").replace(".png", "").title())
         caption.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -509,6 +526,10 @@ class MainWindow(QtWidgets.QMainWindow):
             QtGui.QFontDatabase.SystemFont.FixedFont
         )
         self.output.setFont(fixed_font)
+        self.output.setStyleSheet(
+            "QTextEdit { background-color: #1e1e1e; color: #ffffff; "
+            "border: 1px solid #444444; }"
+        )
         self.tabs.addTab(self.output, "Report")
 
         # --- Figures tab ---

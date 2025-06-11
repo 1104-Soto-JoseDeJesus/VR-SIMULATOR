@@ -360,7 +360,8 @@ def display_histograms(frame: QtWidgets.QWidget) -> None:
         "victory_distribution.png",
     ]
     max_width = 300
-    layout = QtWidgets.QHBoxLayout(frame)
+    layout = QtWidgets.QGridLayout(frame)
+    row = col = 0
     for img_name in image_files:
         path = os.path.join("histograms", img_name)
         if not os.path.exists(path):
@@ -376,7 +377,14 @@ def display_histograms(frame: QtWidgets.QWidget) -> None:
             continue
         lbl = QtWidgets.QLabel()
         lbl.setPixmap(pix)
-        layout.addWidget(lbl)
+        layout.addWidget(lbl, row, col)
+        caption = QtWidgets.QLabel(img_name.replace("_", " ").replace(".png", "").title())
+        caption.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(caption, row + 1, col)
+        col += 1
+        if col >= 2:
+            col = 0
+            row += 2
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -398,6 +406,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.output = QtWidgets.QTextEdit()
         self.output.setReadOnly(True)
+        fixed_font = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont)
+        self.output.setFont(fixed_font)
 
         self.hist_container = QtWidgets.QWidget()
         self.hist_scroll = QtWidgets.QScrollArea()

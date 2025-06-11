@@ -18,7 +18,7 @@ except Exception:  # pragma: no cover - optional dependency
 _COLORAMA_INITIALIZED = False
 
 class ReportBuilder:
-    def __init__(self, use_color: bool = True, use_rich: bool = False):
+    def __init__(self, use_color: bool = True, use_rich: bool = True):
         global _COLORAMA_INITIALIZED
         self.use_rich = use_rich and _RICH_AVAILABLE
         self.use_color = use_color and sys.stdout.isatty()

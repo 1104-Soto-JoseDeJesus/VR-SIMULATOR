@@ -1,0 +1,88 @@
+[
+    {
+        "army_name": "KroniliasMon",
+        "unit_type": "archers",
+        "tier": 5,
+        "count": 300000,
+        "atk_mod": 1.4,
+        "def_mod": 1.0,
+        "hp_mod": 0.5,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Verdandi",
+                "talent_ids": [
+                    "talent_hunting_instinct",
+                    "talent_hunting_experience",
+                    "talent_targeted_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_rapid_fire",
+                    "base_skill_raining_arrows"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_enrage",
+                    "plugin_rage_leech"
+                ]
+            },
+            {
+                "hero_name_or_preset": "Athelstan",
+                "talent_ids": [
+                    "talent_erudite",
+                    "talent_strategize",
+                    "talent_adaptable_to_changes"
+                ],
+                "base_skill_ids": [
+                    "base_skill_heart_of_tolerance",
+                    "base_skill_holy_enlightenment"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_fiery_rage",
+                    "plugin_divine_blessing"
+                ]
+            }
+        ]
+    },
+    {
+        "army_name": "Khaoz",
+        "unit_type": "archers",
+        "tier": 5,
+        "count": 300000,
+        "atk_mod": 1.4,
+        "def_mod": 1.0,
+        "hp_mod": 0.5,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Verdandi",
+                "talent_ids": [
+                    "talent_hunting_instinct",
+                    "talent_hunting_experience",
+                    "talent_targeted_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_rapid_fire",
+                    "base_skill_raining_arrows"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_fiery_detonation",
+                    "plugin_first_strike"
+                ]
+            },
+            {
+                "hero_name_or_preset": "Olena",
+                "talent_ids": [
+                    "talent_scorching_arrow",
+                    "talent_multi_shot_arrow",
+                    "talent_poised_shot"
+                ],
+                "base_skill_ids": [
+                    "base_skill_enchanted_arrow",
+                    "base_skill_concentration"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_rage_leech",
+                    "plugin_helas_curse"
+                ]
+            }
+        ]
+    }
+]

@@ -406,7 +406,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.output = QtWidgets.QTextEdit()
         self.output.setReadOnly(True)
-        fixed_font = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont)
+        fixed_font = QtGui.QFontDatabase.systemFont(
+            QtGui.QFontDatabase.SystemFont.FixedFont
+        )
         self.output.setFont(fixed_font)
 
         self.hist_container = QtWidgets.QWidget()

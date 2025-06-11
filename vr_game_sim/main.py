@@ -318,7 +318,6 @@ def run_additional_simulations(
                 labels=[army1_name, army2_name],
                 autopct="%.1f%%",
                 startangle=90,
-                wedgeprops={"linewidth": 1.0, "edgecolor": "white"},
                 textprops={"fontsize": HISTOGRAM_FONT_SIZE},
             )
             plt.title("Victory Distribution", fontsize=HISTOGRAM_FONT_SIZE)

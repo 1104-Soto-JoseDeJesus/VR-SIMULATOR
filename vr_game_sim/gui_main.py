@@ -195,6 +195,16 @@ class ArmyFrame(QtWidgets.QGroupBox):
         layout.addWidget(self.edit_btn2, row, 2)
         layout.addWidget(self.hero2_info, row, 3)
 
+        row += 1
+        layout.addWidget(QtWidgets.QLabel("Preview:"), row, 0)
+        self.hero1_img = QtWidgets.QLabel()
+        self.hero2_img = QtWidgets.QLabel()
+        for lbl in (self.hero1_img, self.hero2_img):
+            lbl.setFixedSize(64, 64)
+            lbl.setScaledContents(True)
+        layout.addWidget(self.hero1_img, row, 1)
+        layout.addWidget(self.hero2_img, row, 2)
+
         # Initialize info labels
         self._hero_selected(1, self.hero1_combo.currentText())
         self._hero_selected(2, self.hero2_combo.currentText())
@@ -255,6 +265,14 @@ class ArmyFrame(QtWidgets.QGroupBox):
         cfg = self.custom_heroes.get(slot)
         if cfg and cfg.get("hero_name_or_preset") != name and name not in {"None", "Custom"}:
             self.custom_heroes[slot] = None
+
+        img_label = self.hero1_img if slot == 1 else self.hero2_img
+        img_label.clear()
+        if name not in {"None", "Custom"}:
+            img_path = os.path.join(os.path.dirname(__file__), "Hero Images", f"{name.capitalize()}.png")
+            if os.path.exists(img_path):
+                pix = QtGui.QPixmap(img_path)
+                img_label.setPixmap(pix.scaled(64, 64, QtCore.Qt.AspectRatioMode.KeepAspectRatio))
 
     def populate_from_config(self, cfg: dict) -> None:
         self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))

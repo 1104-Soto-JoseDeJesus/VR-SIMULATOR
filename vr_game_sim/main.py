@@ -40,7 +40,9 @@ SETUPS_DIR = "setups"
 LAST_SETUP_FILENAME = os.path.join(SETUPS_DIR, "_last_run_setup.json")
 HISTOGRAM_DIR = "histograms"
 # Default size for generated histogram images (width, height in inches)
-HISTOGRAM_FIGSIZE = (8, 4.5)
+# Reduced size so the four histogram images can be displayed together in a
+# 2x2 layout without exceeding a typical screen resolution.
+HISTOGRAM_FIGSIZE = (2.5, 1.5)
 
 
 def ensure_setups_dir():

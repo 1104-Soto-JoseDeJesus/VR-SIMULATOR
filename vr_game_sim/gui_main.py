@@ -37,12 +37,12 @@ class HeroEditDialog(QtWidgets.QDialog):
 
         def _skill_options(skill_type: SkillType, include_none: bool = True):
             opts: list[tuple[str, str]] = []
-            if include_none:
-                opts.append(("None", ""))
             for sid, sdef in SKILL_REGISTRY_GLOBAL.items():
                 if sdef["type"] == skill_type:
                     opts.append((sdef["name"], sid))
             opts.sort(key=lambda x: x[0])
+            if include_none:
+                opts.insert(0, ("None", ""))
             return opts
 
         self.talent_boxes: list[QtWidgets.QComboBox] = []

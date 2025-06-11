@@ -3,3 +3,4 @@ tabulate
 pytest
 colorama
 Pillow
+PyQt6

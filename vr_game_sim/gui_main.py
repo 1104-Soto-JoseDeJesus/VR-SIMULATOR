@@ -541,8 +541,27 @@ class MainWindow(QtWidgets.QMainWindow):
 
         preview_group = QtWidgets.QGroupBox("Army Preview")
         preview_layout = QtWidgets.QHBoxLayout(preview_group)
+        preview_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+
+        vs_path = os.path.join(os.path.dirname(__file__), "Icons", "VS.png")
+        self.vs_label = QtWidgets.QLabel()
+        self.vs_label.setFixedSize(123, 110)
+        self.vs_label.setScaledContents(True)
+        if os.path.exists(vs_path):
+            vs_pix = QtGui.QPixmap(vs_path)
+            self.vs_label.setPixmap(
+                vs_pix.scaled(
+                    123,
+                    110,
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+
         preview_layout.addWidget(self.army1_frame.preview_widget)
+        preview_layout.addWidget(self.vs_label)
         preview_layout.addWidget(self.army2_frame.preview_widget)
+
         setup_layout.addWidget(preview_group)
 
         self.tabs.addTab(setup_tab, "Army Setup")

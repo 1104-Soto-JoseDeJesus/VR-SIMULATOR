@@ -774,7 +774,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         # Capture army previews and vs image
-        scale = 4
+        scale = 5
         p1 = self.army1_frame.preview_widget.grab().scaled(
             self.army1_frame.preview_widget.width() * scale,
             self.army1_frame.preview_widget.height() * scale,
@@ -805,7 +805,7 @@ class MainWindow(QtWidgets.QMainWindow):
             # Introduce a slightly larger padding between the VS icon and the
             # second army preview to make the spacing appear more balanced in
             # the exported summary image.
-            extra_after_vs = 250
+            extra_after_vs = 300
 
             # Calculate width so the VS icon sits exactly in the middle of the
             # preview image. This may introduce extra blank space on the shorter

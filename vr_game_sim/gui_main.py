@@ -799,32 +799,58 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             preview_parts = [p1, p2]
 
-        padding = vs_pix.width() // 2 if len(preview_parts) == 3 else 30
-        # Introduce a slightly larger padding between the VS icon and the second
-        # army preview to make the spacing appear more balanced in the exported
-        # summary image.
-        extra_after_vs = 250 if len(preview_parts) == 3 else 0
-        preview_width = (
-            sum(p.width() for p in preview_parts)
-            + padding * (len(preview_parts) - 1)
-            + extra_after_vs
-        )
-        preview_height = max(p.height() for p in preview_parts)
-        preview_pix = QtGui.QPixmap(preview_width, preview_height)
-        preview_pix.fill(QtCore.Qt.GlobalColor.transparent)
-        painter = QtGui.QPainter(preview_pix)
-        x = 0
-        for idx, part in enumerate(preview_parts):
-            y = (preview_height - part.height()) // 2
-            painter.drawPixmap(x, y, part)
-            x += part.width()
-            if idx != len(preview_parts) - 1:
-                if len(preview_parts) == 3 and idx == 1:
-                    # Add the additional spacing only after the VS icon
-                    x += padding + extra_after_vs
-                else:
+        if len(preview_parts) == 3:
+            # When the VS icon is present ensure it is centered horizontally.
+            padding = vs_pix.width() // 2
+            # Introduce a slightly larger padding between the VS icon and the
+            # second army preview to make the spacing appear more balanced in
+            # the exported summary image.
+            extra_after_vs = 250
+
+            # Calculate width so the VS icon sits exactly in the middle of the
+            # preview image. This may introduce extra blank space on the shorter
+            # side, but ensures the icon is horizontally centered in the final
+            # summary.
+            left_space = p1.width() + padding
+            right_space = p2.width() + padding + extra_after_vs
+            half_width = max(left_space, right_space)
+            preview_width = vs_pix.width() + 2 * half_width
+            preview_height = max(p.height() for p in preview_parts)
+            preview_pix = QtGui.QPixmap(preview_width, preview_height)
+            preview_pix.fill(QtCore.Qt.GlobalColor.transparent)
+            painter = QtGui.QPainter(preview_pix)
+
+            # Position the VS icon in the horizontal centre
+            vs_x = (preview_width - vs_pix.width()) // 2
+            vs_y = (preview_height - vs_pix.height()) // 2
+            painter.drawPixmap(vs_x, vs_y, vs_pix)
+
+            # Draw the army previews relative to the centred VS icon
+            left_x = vs_x - padding - p1.width()
+            y = (preview_height - p1.height()) // 2
+            painter.drawPixmap(left_x, y, p1)
+
+            right_x = vs_x + vs_pix.width() + padding + extra_after_vs
+            y = (preview_height - p2.height()) // 2
+            painter.drawPixmap(right_x, y, p2)
+
+            painter.end()
+        else:
+            # No VS icon, fall back to simple side-by-side arrangement.
+            padding = 30
+            preview_width = p1.width() + p2.width() + padding
+            preview_height = max(p1.height(), p2.height())
+            preview_pix = QtGui.QPixmap(preview_width, preview_height)
+            preview_pix.fill(QtCore.Qt.GlobalColor.transparent)
+            painter = QtGui.QPainter(preview_pix)
+            x = 0
+            for idx, part in enumerate(preview_parts):
+                y = (preview_height - part.height()) // 2
+                painter.drawPixmap(x, y, part)
+                x += part.width()
+                if idx != len(preview_parts) - 1:
                     x += padding
-        painter.end()
+            painter.end()
 
         final_width = max(preview_pix.width(), *(p.width() for p in hist_pixmaps))
         final_height = preview_pix.height() + sum(p.height() for p in hist_pixmaps)

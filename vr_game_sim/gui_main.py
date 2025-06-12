@@ -628,6 +628,10 @@ class MainWindow(QtWidgets.QMainWindow):
         export_btn.clicked.connect(self.export_figures)
         btn_layout.addWidget(export_btn)
 
+        summary_btn = QtWidgets.QPushButton("Export Summary Image")
+        summary_btn.clicked.connect(self.export_summary_image)
+        btn_layout.addWidget(summary_btn)
+
     # --- Setup load/save -------------------------------------------------
     def save_setup(self) -> None:
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -689,6 +693,70 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.information(
                 self, "Export Complete", f"Figures exported to {dest_dir}"
             )
+
+    def export_summary_image(self) -> None:
+        """Combine preview and histogram images into a single PNG."""
+        image_files = [
+            "own_remaining_troops.png",
+            "enemy_remaining_troops.png",
+            "rounds_to_battle_end.png",
+            "victory_distribution.png",
+        ]
+        base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+        hist_pixmaps = []
+        for fname in image_files:
+            path = os.path.join(base_hist_dir, fname)
+            if os.path.exists(path):
+                hist_pixmaps.append(QtGui.QPixmap(path))
+        if not hist_pixmaps:
+            QtWidgets.QMessageBox.warning(
+                self, "No Figures", "No histogram images found. Run a simulation first."
+            )
+            return
+
+        # Capture army previews and vs image
+        p1 = self.army1_frame.preview_widget.grab()
+        p2 = self.army2_frame.preview_widget.grab()
+        vs_pix = self.vs_label.pixmap()
+        preview_parts = [p1]
+        if vs_pix is not None and not vs_pix.isNull():
+            preview_parts.append(vs_pix)
+        preview_parts.append(p2)
+
+        preview_width = sum(p.width() for p in preview_parts)
+        preview_height = max(p.height() for p in preview_parts)
+        preview_pix = QtGui.QPixmap(preview_width, preview_height)
+        preview_pix.fill(QtCore.Qt.GlobalColor.transparent)
+        painter = QtGui.QPainter(preview_pix)
+        x = 0
+        for part in preview_parts:
+            painter.drawPixmap(x, 0, part)
+            x += part.width()
+        painter.end()
+
+        final_width = max(preview_pix.width(), *(p.width() for p in hist_pixmaps))
+        final_height = preview_pix.height() + sum(p.height() for p in hist_pixmaps)
+        final_pix = QtGui.QPixmap(final_width, final_height)
+        final_pix.fill(QtCore.Qt.GlobalColor.white)
+
+        painter = QtGui.QPainter(final_pix)
+        x = (final_width - preview_pix.width()) // 2
+        painter.drawPixmap(x, 0, preview_pix)
+        y = preview_pix.height()
+        for p in hist_pixmaps:
+            x = (final_width - p.width()) // 2
+            painter.drawPixmap(x, y, p)
+            y += p.height()
+        painter.end()
+
+        save_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Save Summary Image",
+            self.last_setup_dir,
+            "PNG Files (*.png)"
+        )
+        if save_path:
+            final_pix.save(save_path, "PNG")
 
     # --- Simulation handling --------------------------------------------
     def run_simulation(self) -> None:

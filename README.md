@@ -43,6 +43,8 @@ python -m vr_game_sim.gui_main
 Within the GUI you can configure armies, run simulations and view the generated
 histogram figures. Use the **Export Figures** button to save these images to a
 directory of your choice.
+The adjacent **Export Summary Image** button saves a single PNG containing the
+army preview along with all histograms.
 
 You will be prompted to create a new setup or load a saved one from the
 `vr_game_sim/setups` directory. Setups can be saved as JSON files for later use.

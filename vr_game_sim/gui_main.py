@@ -803,7 +803,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Introduce a slightly larger padding between the VS icon and the second
         # army preview to make the spacing appear more balanced in the exported
         # summary image.
-        extra_after_vs = 20 if len(preview_parts) == 3 else 0
+        extra_after_vs = 250 if len(preview_parts) == 3 else 0
         preview_width = (
             sum(p.width() for p in preview_parts)
             + padding * (len(preview_parts) - 1)

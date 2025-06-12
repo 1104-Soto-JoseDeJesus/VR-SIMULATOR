@@ -60,6 +60,8 @@ HISTOGRAM_TICK_COUNT = 8
 # Background color for generated figures (matches Army Preview)
 HISTOGRAM_BG_COLOR = "#353535"
 HISTOGRAM_TEXT_COLOR = "#ffffff"
+# Line width for gridlines inside histogram figures
+HISTOGRAM_GRIDLINE_WIDTH = 0.5
 
 
 def ensure_setups_dir():
@@ -257,6 +259,7 @@ def run_additional_simulations(
             ax.set_xlabel("Troops", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
             ax.set_ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
             ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
+            ax.grid(linewidth=HISTOGRAM_GRIDLINE_WIDTH)
             ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             fig.tight_layout()
@@ -287,6 +290,7 @@ def run_additional_simulations(
             ax.set_xlabel("Troops", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
             ax.set_ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
             ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
+            ax.grid(linewidth=HISTOGRAM_GRIDLINE_WIDTH)
             ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             fig.tight_layout()
@@ -317,6 +321,7 @@ def run_additional_simulations(
             ax.set_xlabel("Rounds", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
             ax.set_ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
             ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
+            ax.grid(linewidth=HISTOGRAM_GRIDLINE_WIDTH)
             ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             fig.tight_layout()

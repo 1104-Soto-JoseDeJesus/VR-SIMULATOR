@@ -124,6 +124,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.unit_combo = QtWidgets.QComboBox()
         for u in sorted(Unit.ALLOWED_TYPES):
             self.unit_combo.addItem(u)
+        self.unit_combo.currentTextChanged.connect(self._unit_changed)
         self.tier_spin = QtWidgets.QSpinBox()
         self.tier_spin.setRange(min(Unit.ALLOWED_TIERS), max(Unit.ALLOWED_TIERS))
         self.tier_spin.setValue(5)
@@ -208,6 +209,11 @@ class ArmyFrame(QtWidgets.QGroupBox):
         layout.addWidget(self.hero2_info, row, 3)
         # Extra row for preview content added externally
 
+        # --- Troop type icon ---
+        self.unit_icon = QtWidgets.QLabel()
+        self.unit_icon.setFixedSize(92, 92)
+        self.unit_icon.setScaledContents(True)
+
         # --- Hero 1 preview widget ---
         self.hero1_img = QtWidgets.QLabel()
         self.hero1_img.setFixedSize(64, 92)
@@ -245,12 +251,14 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.preview_widget = QtWidgets.QWidget()
         preview_layout = QtWidgets.QVBoxLayout(self.preview_widget)
         preview_layout.setContentsMargins(0, 0, 0, 0)
+        preview_layout.addWidget(self.unit_icon, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
         preview_layout.addWidget(hero1_preview_widget)
         preview_layout.addWidget(hero2_preview_widget)
 
         # Initialize info labels
         self._hero_selected(1, self.hero1_combo.currentText())
         self._hero_selected(2, self.hero2_combo.currentText())
+        self._unit_changed(self.unit_combo.currentText())
 
     def _add_custom_option(self, name: str) -> None:
         if name not in self.hero_options:
@@ -354,9 +362,29 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     lbl.setText(skill_def.get("name", sid))
                     lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
+    def _unit_changed(self, unit: str) -> None:
+        """Update the troop type icon when unit selection changes."""
+        icon_path = os.path.join(os.path.dirname(__file__), "Icons", f"{unit}.png")
+        if os.path.exists(icon_path):
+            pix = QtGui.QPixmap(icon_path)
+            self.unit_icon.setPixmap(
+                pix.scaled(
+                    92,
+                    92,
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+            self.unit_icon.setText("")
+        else:
+            self.unit_icon.clear()
+            self.unit_icon.setText(unit)
+            self.unit_icon.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+
     def populate_from_config(self, cfg: dict) -> None:
         self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))
         self.unit_combo.setCurrentText(cfg.get("unit_type", "pikemen"))
+        self._unit_changed(self.unit_combo.currentText())
         self.tier_spin.setValue(int(cfg.get("tier", 5)))
         self.count_spin.setValue(int(cfg.get("count", 100000)))
         self.atk_edit.setValue(float(cfg.get("atk_mod", 0)))

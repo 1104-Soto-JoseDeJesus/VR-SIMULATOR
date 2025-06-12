@@ -224,10 +224,15 @@ class ArmyFrame(QtWidgets.QGroupBox):
             lbl.setScaledContents(True)
         hero1_preview_layout = QtWidgets.QHBoxLayout()
         hero1_preview_layout.setContentsMargins(0, 0, 0, 0)
-        hero1_preview_layout.setSpacing(25)
-        hero1_preview_layout.addWidget(self.hero1_img)
-        for lbl in self.hero1_plugin_imgs:
-            hero1_preview_layout.addWidget(lbl)
+        hero1_preview_layout.setSpacing(30)
+        if self.index == 1:
+            hero1_preview_layout.addWidget(self.hero1_img)
+            for lbl in self.hero1_plugin_imgs:
+                hero1_preview_layout.addWidget(lbl)
+        else:
+            for lbl in reversed(self.hero1_plugin_imgs):
+                hero1_preview_layout.addWidget(lbl)
+            hero1_preview_layout.addWidget(self.hero1_img)
         hero1_preview_widget = QtWidgets.QWidget()
         hero1_preview_widget.setLayout(hero1_preview_layout)
 
@@ -241,16 +246,22 @@ class ArmyFrame(QtWidgets.QGroupBox):
             lbl.setScaledContents(True)
         hero2_preview_layout = QtWidgets.QHBoxLayout()
         hero2_preview_layout.setContentsMargins(0, 0, 0, 0)
-        hero2_preview_layout.setSpacing(25)
-        hero2_preview_layout.addWidget(self.hero2_img)
-        for lbl in self.hero2_plugin_imgs:
-            hero2_preview_layout.addWidget(lbl)
+        hero2_preview_layout.setSpacing(30)
+        if self.index == 1:
+            hero2_preview_layout.addWidget(self.hero2_img)
+            for lbl in self.hero2_plugin_imgs:
+                hero2_preview_layout.addWidget(lbl)
+        else:
+            for lbl in reversed(self.hero2_plugin_imgs):
+                hero2_preview_layout.addWidget(lbl)
+            hero2_preview_layout.addWidget(self.hero2_img)
         hero2_preview_widget = QtWidgets.QWidget()
         hero2_preview_widget.setLayout(hero2_preview_layout)
 
         self.preview_widget = QtWidgets.QWidget()
         preview_layout = QtWidgets.QVBoxLayout(self.preview_widget)
         preview_layout.setContentsMargins(0, 0, 0, 0)
+        preview_layout.setSpacing(30)
         preview_layout.addWidget(self.unit_icon, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
         preview_layout.addWidget(hero1_preview_widget)
         preview_layout.addWidget(hero2_preview_widget)
@@ -584,6 +595,7 @@ class MainWindow(QtWidgets.QMainWindow):
         preview_group = QtWidgets.QGroupBox("Army Preview")
         preview_layout = QtWidgets.QHBoxLayout(preview_group)
         preview_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        preview_layout.setSpacing(30)
 
         vs_path = os.path.join(os.path.dirname(__file__), "Icons", "VS.png")
         self.vs_label = QtWidgets.QLabel()

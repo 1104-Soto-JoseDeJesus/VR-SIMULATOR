@@ -800,7 +800,15 @@ class MainWindow(QtWidgets.QMainWindow):
             preview_parts = [p1, p2]
 
         padding = vs_pix.width() // 2 if len(preview_parts) == 3 else 30
-        preview_width = sum(p.width() for p in preview_parts) + padding * (len(preview_parts) - 1)
+        # Introduce a slightly larger padding between the VS icon and the second
+        # army preview to make the spacing appear more balanced in the exported
+        # summary image.
+        extra_after_vs = 20 if len(preview_parts) == 3 else 0
+        preview_width = (
+            sum(p.width() for p in preview_parts)
+            + padding * (len(preview_parts) - 1)
+            + extra_after_vs
+        )
         preview_height = max(p.height() for p in preview_parts)
         preview_pix = QtGui.QPixmap(preview_width, preview_height)
         preview_pix.fill(QtCore.Qt.GlobalColor.transparent)
@@ -811,7 +819,11 @@ class MainWindow(QtWidgets.QMainWindow):
             painter.drawPixmap(x, y, part)
             x += part.width()
             if idx != len(preview_parts) - 1:
-                x += padding
+                if len(preview_parts) == 3 and idx == 1:
+                    # Add the additional spacing only after the VS icon
+                    x += padding + extra_after_vs
+                else:
+                    x += padding
         painter.end()
 
         final_width = max(preview_pix.width(), *(p.width() for p in hist_pixmaps))

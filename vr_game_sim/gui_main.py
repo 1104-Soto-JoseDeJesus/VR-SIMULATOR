@@ -799,7 +799,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             preview_parts = [p1, p2]
 
-        padding = 30
+        padding = vs_pix.width() // 2 if len(preview_parts) == 3 else 30
         preview_width = sum(p.width() for p in preview_parts) + padding * (len(preview_parts) - 1)
         preview_height = max(p.height() for p in preview_parts)
         preview_pix = QtGui.QPixmap(preview_width, preview_height)

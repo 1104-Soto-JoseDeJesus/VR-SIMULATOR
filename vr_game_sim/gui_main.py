@@ -715,13 +715,30 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         # Capture army previews and vs image
-        p1 = self.army1_frame.preview_widget.grab()
-        p2 = self.army2_frame.preview_widget.grab()
+        scale = 2
+        p1 = self.army1_frame.preview_widget.grab().scaled(
+            self.army1_frame.preview_widget.width() * scale,
+            self.army1_frame.preview_widget.height() * scale,
+            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+            QtCore.Qt.TransformationMode.SmoothTransformation,
+        )
+        p2 = self.army2_frame.preview_widget.grab().scaled(
+            self.army2_frame.preview_widget.width() * scale,
+            self.army2_frame.preview_widget.height() * scale,
+            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+            QtCore.Qt.TransformationMode.SmoothTransformation,
+        )
         vs_pix = self.vs_label.pixmap()
-        preview_parts = [p1]
         if vs_pix is not None and not vs_pix.isNull():
-            preview_parts.append(vs_pix)
-        preview_parts.append(p2)
+            vs_pix = vs_pix.scaled(
+                vs_pix.width() * scale,
+                vs_pix.height() * scale,
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+            preview_parts = [p1, vs_pix, p2]
+        else:
+            preview_parts = [p1, p2]
 
         preview_width = sum(p.width() for p in preview_parts)
         preview_height = max(p.height() for p in preview_parts)
@@ -737,7 +754,8 @@ class MainWindow(QtWidgets.QMainWindow):
         final_width = max(preview_pix.width(), *(p.width() for p in hist_pixmaps))
         final_height = preview_pix.height() + sum(p.height() for p in hist_pixmaps)
         final_pix = QtGui.QPixmap(final_width, final_height)
-        final_pix.fill(QtCore.Qt.GlobalColor.white)
+        bg_color = self.palette().color(QtGui.QPalette.ColorRole.Window)
+        final_pix.fill(bg_color)
 
         painter = QtGui.QPainter(final_pix)
         x = (final_width - preview_pix.width()) // 2

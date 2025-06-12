@@ -774,7 +774,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         # Capture army previews and vs image
-        scale = 2
+        scale = 3
         p1 = self.army1_frame.preview_widget.grab().scaled(
             self.army1_frame.preview_widget.width() * scale,
             self.army1_frame.preview_widget.height() * scale,
@@ -799,15 +799,18 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             preview_parts = [p1, p2]
 
-        preview_width = sum(p.width() for p in preview_parts)
+        padding = 30
+        preview_width = sum(p.width() for p in preview_parts) + padding * (len(preview_parts) - 1)
         preview_height = max(p.height() for p in preview_parts)
         preview_pix = QtGui.QPixmap(preview_width, preview_height)
         preview_pix.fill(QtCore.Qt.GlobalColor.transparent)
         painter = QtGui.QPainter(preview_pix)
         x = 0
-        for part in preview_parts:
+        for idx, part in enumerate(preview_parts):
             painter.drawPixmap(x, 0, part)
             x += part.width()
+            if idx != len(preview_parts) - 1:
+                x += padding
         painter.end()
 
         final_width = max(preview_pix.width(), *(p.width() for p in hist_pixmaps))

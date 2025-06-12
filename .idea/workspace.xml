@@ -6,6 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="0ec79d29-f83e-4486-9f45-deb2b221e113" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Icons/archers.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Icons/archers.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Icons/infantry.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Icons/infantry.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Icons/pikemen.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Icons/pikemen.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/enemy_remaining_troops.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/enemy_remaining_troops.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/own_remaining_troops.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/own_remaining_troops.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/rounds_to_battle_end.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/rounds_to_battle_end.png" afterDir="false" />
@@ -122,7 +125,7 @@
       <workItem from="1749189835160" duration="3029000" />
       <workItem from="1749193433382" duration="28120000" />
       <workItem from="1749511915021" duration="31796000" />
-      <workItem from="1749677722481" duration="4818000" />
+      <workItem from="1749677722481" duration="6137000" />
     </task>
     <servers />
   </component>
@@ -130,7 +133,7 @@
     <option name="version" value="3" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/VR_SIMULATOR$gui_main.coverage" NAME="gui_main Coverage Results" MODIFIED="1749708260642" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="C:\Users\josee\PycharmProjects\VR-SIMULATOR\vr_game_sim" />
+    <SUITE FILE_PATH="coverage/VR_SIMULATOR$gui_main.coverage" NAME="gui_main Coverage Results" MODIFIED="1749710435258" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="C:\Users\josee\PycharmProjects\VR-SIMULATOR\vr_game_sim" />
     <SUITE FILE_PATH="coverage/VR_SIMULATOR$skill_definitions.coverage" NAME="skill_definitions Coverage Results" MODIFIED="1749239564272" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/vr_game_sim" />
     <SUITE FILE_PATH="coverage/VR_SIMULATOR$main.coverage" NAME="main Coverage Results" MODIFIED="1749512815667" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="C:\Users\josee\PycharmProjects\VR-SIMULATOR\vr_game_sim" />
     <SUITE FILE_PATH="coverage/VR_SIMULATOR$__main__.coverage" NAME="__main__ Coverage Results" MODIFIED="1749190308653" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="C:\Users\josee\PycharmProjects\VR-SIMULATOR" />

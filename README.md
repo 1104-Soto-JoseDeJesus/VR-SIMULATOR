@@ -59,10 +59,10 @@ python -m vr_game_sim.main --setup path/to/setup.json
 ```
 
 The simulator will load the file, run the battle once and then run additional
-silent simulations for statistics.
-
-To utilize multiple CPU cores during these extra runs, call
-`run_additional_simulations` with the `num_workers` argument greater than 1.
+silent simulations for statistics. Both the command line interface and the GUI
+now default to using all available CPU cores for these extra runs. If you call
+`run_additional_simulations` directly, pass the `num_workers` argument to
+control how many worker processes are spawned.
 
 ## Running tests
 

@@ -492,7 +492,10 @@ class SimulationWorker(QtCore.QThread):
                 self.progress_update.emit(done, total)
 
             win_rate = run_additional_simulations(
-                self.setup_data, verbose=False, progress_callback=progress_cb
+                self.setup_data,
+                verbose=False,
+                progress_callback=progress_cb,
+                num_workers=os.cpu_count(),
             )
 
             result_text = (

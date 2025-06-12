@@ -500,7 +500,7 @@ def display_histograms(
         lbl.setPixmap(pix)
         lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         lbl.setStyleSheet(
-            "QLabel { border: 1px solid #888888; background-color: #ffffff; }"
+            "QLabel { border: 1px solid #888888; background-color: #353535; color: #ffffff; }"
         )
         layout.addWidget(lbl, row, col, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
         if img_name == "own_remaining_troops.png":
@@ -511,6 +511,7 @@ def display_histograms(
             caption_text = img_name.replace("_", " ").replace(".png", "").title()
         caption = QtWidgets.QLabel(caption_text)
         caption.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        caption.setStyleSheet("QLabel { color: #ffffff; }")
         layout.addWidget(caption, row + 1, col)
         col += 1
         if col >= 2:

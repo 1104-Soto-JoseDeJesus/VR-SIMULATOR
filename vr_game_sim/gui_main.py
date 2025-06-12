@@ -258,13 +258,31 @@ class ArmyFrame(QtWidgets.QGroupBox):
         hero2_preview_widget = QtWidgets.QWidget()
         hero2_preview_widget.setLayout(hero2_preview_layout)
 
+        # --- Combine troop icon with hero previews ---
         self.preview_widget = QtWidgets.QWidget()
-        preview_layout = QtWidgets.QVBoxLayout(self.preview_widget)
+        if self.index == 1:
+            preview_layout = QtWidgets.QHBoxLayout(self.preview_widget)
+        else:
+            preview_layout = QtWidgets.QHBoxLayout(self.preview_widget)
         preview_layout.setContentsMargins(0, 0, 0, 0)
         preview_layout.setSpacing(30)
-        preview_layout.addWidget(self.unit_icon, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-        preview_layout.addWidget(hero1_preview_widget)
-        preview_layout.addWidget(hero2_preview_widget)
+
+        heroes_layout = QtWidgets.QVBoxLayout()
+        heroes_layout.setContentsMargins(0, 0, 0, 0)
+        heroes_layout.setSpacing(30)
+        heroes_layout.addWidget(hero1_preview_widget)
+        heroes_layout.addWidget(hero2_preview_widget)
+        heroes_widget = QtWidgets.QWidget()
+        heroes_widget.setLayout(heroes_layout)
+
+        if self.index == 1:
+            preview_layout.addWidget(self.unit_icon)
+            preview_layout.addWidget(heroes_widget)
+        else:
+            preview_layout.addWidget(heroes_widget)
+            preview_layout.addWidget(self.unit_icon)
+
+        self.unit_icon.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # Initialize info labels
         self._hero_selected(1, self.hero1_combo.currentText())

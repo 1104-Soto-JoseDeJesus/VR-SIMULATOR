@@ -57,6 +57,9 @@ HISTOGRAM_FONT_SIZE = 4
 HISTOGRAM_TICK_FONT_SIZE = 3
 # Approximate number of tick marks on each axis
 HISTOGRAM_TICK_COUNT = 8
+# Background color for generated figures (matches Army Preview)
+HISTOGRAM_BG_COLOR = "#353535"
+HISTOGRAM_TEXT_COLOR = "#ffffff"
 
 
 def ensure_setups_dir():
@@ -236,100 +239,127 @@ def run_additional_simulations(
         avg_rounds = sum(rounds_taken) / len(rounds_taken) if rounds_taken else 0
 
         with plt.style.context("ggplot"):
-            plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
-            plt.hist(
+            fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
+            fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.hist(
                 own_remaining,
                 bins=HISTOGRAM_BINS,
                 color="green",
                 edgecolor="black",
             )
-            plt.axvline(avg_own, color="black", linestyle="dashed", linewidth=1)
-            plt.title(f"{army1_name} Remaining Troops", fontsize=HISTOGRAM_FONT_SIZE)
-            plt.xlabel("Troops", fontsize=HISTOGRAM_FONT_SIZE)
-            plt.ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE)
-            ax = plt.gca()
-            ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE)
+            ax.axvline(avg_own, color="white", linestyle="dashed", linewidth=1)
+            ax.set_title(
+                f"{army1_name} Remaining Troops",
+                fontsize=HISTOGRAM_FONT_SIZE,
+                color=HISTOGRAM_TEXT_COLOR,
+            )
+            ax.set_xlabel("Troops", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.set_ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
             ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
-            plt.tight_layout()
-            plt.savefig(
+            fig.tight_layout()
+            fig.savefig(
                 os.path.join(HISTOGRAM_DIR, "own_remaining_troops.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
+                facecolor=fig.get_facecolor(),
             )
-            plt.close()
+            plt.close(fig)
 
         with plt.style.context("ggplot"):
-            plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
-            plt.hist(
+            fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
+            fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.hist(
                 enemy_remaining,
                 bins=HISTOGRAM_BINS,
                 color="red",
                 edgecolor="black",
             )
-            plt.axvline(avg_enemy, color="black", linestyle="dashed", linewidth=1)
-            plt.title(f"{army2_name} Remaining Troops", fontsize=HISTOGRAM_FONT_SIZE)
-            plt.xlabel("Troops", fontsize=HISTOGRAM_FONT_SIZE)
-            plt.ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE)
-            ax = plt.gca()
-            ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE)
+            ax.axvline(avg_enemy, color="white", linestyle="dashed", linewidth=1)
+            ax.set_title(
+                f"{army2_name} Remaining Troops",
+                fontsize=HISTOGRAM_FONT_SIZE,
+                color=HISTOGRAM_TEXT_COLOR,
+            )
+            ax.set_xlabel("Troops", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.set_ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
             ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
-            plt.tight_layout()
-            plt.savefig(
+            fig.tight_layout()
+            fig.savefig(
                 os.path.join(HISTOGRAM_DIR, "enemy_remaining_troops.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
+                facecolor=fig.get_facecolor(),
             )
-            plt.close()
+            plt.close(fig)
 
         with plt.style.context("ggplot"):
-            plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
-            plt.hist(
+            fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
+            fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.hist(
                 rounds_taken,
                 bins=HISTOGRAM_BINS,
                 color="lightgreen",
                 edgecolor="black",
             )
-            plt.axvline(avg_rounds, color="black", linestyle="dashed", linewidth=1)
-            plt.title("Rounds to Battle End", fontsize=HISTOGRAM_FONT_SIZE)
-            plt.xlabel("Rounds", fontsize=HISTOGRAM_FONT_SIZE)
-            plt.ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE)
-            ax = plt.gca()
-            ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE)
+            ax.axvline(avg_rounds, color="white", linestyle="dashed", linewidth=1)
+            ax.set_title(
+                "Rounds to Battle End",
+                fontsize=HISTOGRAM_FONT_SIZE,
+                color=HISTOGRAM_TEXT_COLOR,
+            )
+            ax.set_xlabel("Rounds", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.set_ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
             ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
-            plt.tight_layout()
-            plt.savefig(
+            fig.tight_layout()
+            fig.savefig(
                 os.path.join(HISTOGRAM_DIR, "rounds_to_battle_end.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
+                facecolor=fig.get_facecolor(),
             )
-            plt.close()
+            plt.close(fig)
 
     # Pie chart for win percentages
     wins_army1 = winners.count(1)
     wins_army2 = winners.count(2)
     if generate_histograms and wins_army1 + wins_army2 > 0:
         with plt.style.context("default"):
-            plt.figure(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
-            plt.pie(
+            fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
+            fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.set_facecolor(HISTOGRAM_BG_COLOR)
+            wedges, texts, autotexts = ax.pie(
                 [wins_army1, wins_army2],
                 labels=[army1_name, army2_name],
                 autopct="%.1f%%",
                 colors=["green", "red"],
                 startangle=90,
-                textprops={"fontsize": HISTOGRAM_FONT_SIZE},
+                textprops={"fontsize": HISTOGRAM_FONT_SIZE, "color": HISTOGRAM_TEXT_COLOR},
             )
-            plt.title("Victory Distribution", fontsize=HISTOGRAM_FONT_SIZE)
-            plt.axis("equal")
-            plt.tight_layout()
-            plt.savefig(
+            for text in texts + autotexts:
+                text.set_color(HISTOGRAM_TEXT_COLOR)
+            ax.set_title(
+                "Victory Distribution",
+                fontsize=HISTOGRAM_FONT_SIZE,
+                color=HISTOGRAM_TEXT_COLOR,
+            )
+            ax.axis("equal")
+            fig.tight_layout()
+            fig.savefig(
                 os.path.join(HISTOGRAM_DIR, "victory_distribution.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
+                facecolor=fig.get_facecolor(),
             )
-            plt.close()
+            plt.close(fig)
 
     if generate_histograms:
         # Ensure no figures remain open in case others were created

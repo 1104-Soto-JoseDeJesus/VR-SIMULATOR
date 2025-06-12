@@ -7,6 +7,7 @@ from typing import Any
 import threading
 
 from PyQt6 import QtCore, QtGui, QtWidgets
+import shutil
 from PIL import Image, ImageQt
 
 from vr_game_sim.hero_definition import HERO_PRESETS
@@ -613,6 +614,10 @@ class MainWindow(QtWidgets.QMainWindow):
         clear_btn.clicked.connect(lambda: self.output.clear())
         btn_layout.addWidget(clear_btn)
 
+        export_btn = QtWidgets.QPushButton("Export Figures")
+        export_btn.clicked.connect(self.export_figures)
+        btn_layout.addWidget(export_btn)
+
     # --- Setup load/save -------------------------------------------------
     def save_setup(self) -> None:
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -643,6 +648,37 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.army1_frame.populate_from_config(data[0])
                 self.army2_frame.populate_from_config(data[1])
                 self.status.setText(f"Loaded {os.path.basename(file_path)}")
+
+    def export_figures(self) -> None:
+        image_files = [
+            "own_remaining_troops.png",
+            "enemy_remaining_troops.png",
+            "rounds_to_battle_end.png",
+            "victory_distribution.png",
+        ]
+        base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+        if not any(os.path.exists(os.path.join(base_hist_dir, f)) for f in image_files):
+            QtWidgets.QMessageBox.warning(
+                self, "No Figures", "No histogram images found. Run a simulation first."
+            )
+            return
+        dest_dir = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Export Figures", self.last_setup_dir
+        )
+        if dest_dir:
+            for fname in image_files:
+                src = os.path.join(base_hist_dir, fname)
+                if os.path.exists(src):
+                    try:
+                        shutil.copy(src, os.path.join(dest_dir, fname))
+                    except OSError as exc:
+                        QtWidgets.QMessageBox.critical(
+                            self, "Error", f"Failed to export {fname}: {exc}"
+                        )
+                        return
+            QtWidgets.QMessageBox.information(
+                self, "Export Complete", f"Figures exported to {dest_dir}"
+            )
 
     # --- Simulation handling --------------------------------------------
     def run_simulation(self) -> None:

@@ -240,7 +240,7 @@ def run_additional_simulations(
             plt.hist(
                 own_remaining,
                 bins=HISTOGRAM_BINS,
-                color="skyblue",
+                color="green",
                 edgecolor="black",
             )
             plt.axvline(avg_own, color="black", linestyle="dashed", linewidth=1)
@@ -264,7 +264,7 @@ def run_additional_simulations(
             plt.hist(
                 enemy_remaining,
                 bins=HISTOGRAM_BINS,
-                color="salmon",
+                color="red",
                 edgecolor="black",
             )
             plt.axvline(avg_enemy, color="black", linestyle="dashed", linewidth=1)
@@ -317,6 +317,7 @@ def run_additional_simulations(
                 [wins_army1, wins_army2],
                 labels=[army1_name, army2_name],
                 autopct="%.1f%%",
+                colors=["green", "red"],
                 startangle=90,
                 textprops={"fontsize": HISTOGRAM_FONT_SIZE},
             )

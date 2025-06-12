@@ -447,7 +447,11 @@ class SimulationWorker(QtCore.QThread):
             self.error.emit(str(exc))
 
 
-def display_histograms(scroll: QtWidgets.QScrollArea) -> None:
+def display_histograms(
+    scroll: QtWidgets.QScrollArea,
+    army1_name: str = "Army 1",
+    army2_name: str = "Army 2",
+) -> None:
     """Render histogram images into the scroll area.
 
     A new widget is created each time to avoid layout re-parenting issues that
@@ -499,7 +503,13 @@ def display_histograms(scroll: QtWidgets.QScrollArea) -> None:
             "QLabel { border: 1px solid #888888; background-color: #ffffff; }"
         )
         layout.addWidget(lbl, row, col, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-        caption = QtWidgets.QLabel(img_name.replace("_", " ").replace(".png", "").title())
+        if img_name == "own_remaining_troops.png":
+            caption_text = f"{army1_name} troops remaining"
+        elif img_name == "enemy_remaining_troops.png":
+            caption_text = f"{army2_name} troops remaining"
+        else:
+            caption_text = img_name.replace("_", " ").replace(".png", "").title()
+        caption = QtWidgets.QLabel(caption_text)
         caption.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(caption, row + 1, col)
         col += 1
@@ -696,7 +706,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _sim_finished(self, text: str) -> None:
         self.output.setPlainText(text)
-        display_histograms(self.hist_scroll)
+        display_histograms(
+            self.hist_scroll,
+            self.army1_frame.name_edit.text() or f"Army 1",
+            self.army2_frame.name_edit.text() or f"Army 2",
+        )
         self.progress.setValue(0)
         self.status.setText("Ready")
         self.run_btn.setEnabled(True)

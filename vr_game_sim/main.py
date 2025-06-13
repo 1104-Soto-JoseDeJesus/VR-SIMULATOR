@@ -184,7 +184,7 @@ def _run_single_battle(setup_data: List[Dict[str, Any]]) -> tuple:
 
 def run_additional_simulations(
     setup_data: List[Dict[str, Any]],
-    runs: int = 200,
+    runs: int = 300,
     *,
     generate_histograms: bool = True,
     verbose: bool = True,

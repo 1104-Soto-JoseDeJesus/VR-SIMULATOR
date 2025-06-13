@@ -500,7 +500,7 @@ class SimulationWorker(QtCore.QThread):
 
             result_text = (
                 report_text
-                + f"\nWin rate for {armies[0].name}: {win_rate*100:.1f}% over 200 runs.\n"
+                + f"\nWin rate for {armies[0].name}: {win_rate*100:.1f}% over 300 runs.\n"
             )
             self.finished_text.emit(result_text)
         except Exception as exc:  # pragma: no cover - GUI feedback
@@ -892,7 +892,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def run_simulation(self) -> None:
         setup_data = [self.army1_frame.build_config(), self.army2_frame.build_config()]
         self.status.setText("Running simulation...")
-        self.progress.setRange(0, 200)
+        self.progress.setRange(0, 300)
         self.progress.setValue(0)
         self.run_btn.setEnabled(False)
         self.worker = SimulationWorker(setup_data)

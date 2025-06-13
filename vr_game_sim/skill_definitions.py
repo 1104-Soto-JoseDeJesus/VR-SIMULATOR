@@ -643,7 +643,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "config": {
             "damage_factor": 1250.0,
             "base_rage_gain": 100,      # Rage gained in N+1 and N+2
-            "bonus_rage_if_burning": 300, # Additional rage in N+1 if enemy burning at cast
+            "bonus_rage_if_burning": 200, # Additional rage in N+1 if enemy burning at cast
             "rage_gain_duration": 1      # Custom effect lasts for 2 processing ticks (N+1, N+2)
         }
     },

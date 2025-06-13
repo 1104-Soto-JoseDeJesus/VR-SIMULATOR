@@ -532,6 +532,10 @@ def display_histograms(
         "enemy_remaining_troops.png",
         "rounds_to_battle_end.png",
         "victory_distribution.png",
+        "troop_difference.png",
+        "diff_vs_rounds.png",
+        "rounds_cdf.png",
+        "rolling_stats.png",
     ]
     layout = QtWidgets.QGridLayout()
     layout.setSpacing(10)
@@ -731,6 +735,10 @@ class MainWindow(QtWidgets.QMainWindow):
             "enemy_remaining_troops.png",
             "rounds_to_battle_end.png",
             "victory_distribution.png",
+            "troop_difference.png",
+            "diff_vs_rounds.png",
+            "rounds_cdf.png",
+            "rolling_stats.png",
         ]
         base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
         if not any(os.path.exists(os.path.join(base_hist_dir, f)) for f in image_files):

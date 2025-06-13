@@ -12,6 +12,7 @@ from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
 import matplotlib
 from matplotlib.ticker import MaxNLocator
+import numpy as np
 
 # Use a non-interactive backend so matplotlib doesn't block the script when
 # generating figures. This avoids hangs after the battle summary prints.
@@ -74,6 +75,17 @@ def ensure_histogram_dir():
     """Ensures the histogram output directory exists."""
     if not os.path.exists(HISTOGRAM_DIR):
         os.makedirs(HISTOGRAM_DIR)
+
+
+def _smooth_counts(counts: np.ndarray, sigma: float = 1.0) -> np.ndarray:
+    """Return counts smoothed by a Gaussian kernel."""
+    if counts.size == 0:
+        return counts
+    kernel_size = int(6 * sigma + 1)
+    x = np.linspace(-3 * sigma, 3 * sigma, kernel_size)
+    kernel = np.exp(-0.5 * (x / sigma) ** 2)
+    kernel /= kernel.sum()
+    return np.convolve(counts, kernel, mode="same")
 
 
 def save_setup_to_file(setup_data: List[Dict[str, Any]], filename: str):
@@ -250,6 +262,10 @@ def run_additional_simulations(
                 color="green",
                 edgecolor="black",
             )
+            counts, bins_ = np.histogram(own_remaining, bins=HISTOGRAM_BINS)
+            centers = (bins_[:-1] + bins_[1:]) / 2
+            smooth = _smooth_counts(counts)
+            ax.plot(centers, smooth, color="yellow", linewidth=0.5)
             ax.axvline(avg_own, color="white", linestyle="dashed", linewidth=1)
             ax.set_title(
                 f"{army1_name} Remaining Troops",
@@ -281,6 +297,10 @@ def run_additional_simulations(
                 color="red",
                 edgecolor="black",
             )
+            counts, bins_ = np.histogram(enemy_remaining, bins=HISTOGRAM_BINS)
+            centers = (bins_[:-1] + bins_[1:]) / 2
+            smooth = _smooth_counts(counts)
+            ax.plot(centers, smooth, color="yellow", linewidth=0.5)
             ax.axvline(avg_enemy, color="white", linestyle="dashed", linewidth=1)
             ax.set_title(
                 f"{army2_name} Remaining Troops",
@@ -312,6 +332,10 @@ def run_additional_simulations(
                 color="lightgreen",
                 edgecolor="black",
             )
+            counts, bins_ = np.histogram(rounds_taken, bins=HISTOGRAM_BINS)
+            centers = (bins_[:-1] + bins_[1:]) / 2
+            smooth = _smooth_counts(counts)
+            ax.plot(centers, smooth, color="yellow", linewidth=0.5)
             ax.axvline(avg_rounds, color="white", linestyle="dashed", linewidth=1)
             ax.set_title(
                 "Rounds to Battle End",
@@ -327,6 +351,131 @@ def run_additional_simulations(
             fig.tight_layout()
             fig.savefig(
                 os.path.join(HISTOGRAM_DIR, "rounds_to_battle_end.png"),
+                dpi=HISTOGRAM_DPI,
+                bbox_inches="tight",
+                facecolor=fig.get_facecolor(),
+            )
+            plt.close(fig)
+
+        # Histogram of troop count difference
+        with plt.style.context("ggplot"):
+            fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
+            fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.hist(
+                diff_results,
+                bins=HISTOGRAM_BINS,
+                color="orange",
+                edgecolor="black",
+            )
+            counts, bins_ = np.histogram(diff_results, bins=HISTOGRAM_BINS)
+            centers = (bins_[:-1] + bins_[1:]) / 2
+            smooth = _smooth_counts(counts)
+            ax.plot(centers, smooth, color="yellow", linewidth=0.5)
+            ax.axvline(0, color="white", linestyle="dashed", linewidth=1)
+            ax.set_title(
+                "Difference in Surviving Troops",
+                fontsize=HISTOGRAM_FONT_SIZE,
+                color=HISTOGRAM_TEXT_COLOR,
+            )
+            ax.set_xlabel("Own - Enemy", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.set_ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
+            ax.grid(linewidth=HISTOGRAM_GRIDLINE_WIDTH)
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
+            fig.tight_layout()
+            fig.savefig(
+                os.path.join(HISTOGRAM_DIR, "troop_difference.png"),
+                dpi=HISTOGRAM_DPI,
+                bbox_inches="tight",
+                facecolor=fig.get_facecolor(),
+            )
+            plt.close(fig)
+
+        # Scatter plot of difference vs rounds
+        with plt.style.context("ggplot"):
+            fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
+            fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.set_facecolor(HISTOGRAM_BG_COLOR)
+            colors = ["green" if d >= 0 else "red" for d in diff_results]
+            ax.scatter(rounds_taken, diff_results, c=colors, s=2, edgecolors="none")
+            ax.set_title(
+                "Diff vs Rounds",
+                fontsize=HISTOGRAM_FONT_SIZE,
+                color=HISTOGRAM_TEXT_COLOR,
+            )
+            ax.set_xlabel("Rounds", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.set_ylabel("Own - Enemy", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
+            ax.grid(linewidth=HISTOGRAM_GRIDLINE_WIDTH)
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
+            ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
+            fig.tight_layout()
+            fig.savefig(
+                os.path.join(HISTOGRAM_DIR, "diff_vs_rounds.png"),
+                dpi=HISTOGRAM_DPI,
+                bbox_inches="tight",
+                facecolor=fig.get_facecolor(),
+            )
+            plt.close(fig)
+
+        # Cumulative distribution of rounds
+        with plt.style.context("ggplot"):
+            fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
+            fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.set_facecolor(HISTOGRAM_BG_COLOR)
+            sorted_rounds = np.sort(rounds_taken)
+            cdf = np.arange(1, len(sorted_rounds) + 1) / len(sorted_rounds)
+            ax.plot(sorted_rounds, cdf, color="cyan", linewidth=1)
+            ax.set_title(
+                "CDF of Rounds",
+                fontsize=HISTOGRAM_FONT_SIZE,
+                color=HISTOGRAM_TEXT_COLOR,
+            )
+            ax.set_xlabel("Rounds", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.set_ylabel("Probability", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
+            ax.grid(linewidth=HISTOGRAM_GRIDLINE_WIDTH)
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
+            fig.tight_layout()
+            fig.savefig(
+                os.path.join(HISTOGRAM_DIR, "rounds_cdf.png"),
+                dpi=HISTOGRAM_DPI,
+                bbox_inches="tight",
+                facecolor=fig.get_facecolor(),
+            )
+            plt.close(fig)
+
+        # Rolling statistics line plot
+        with plt.style.context("ggplot"):
+            fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
+            fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.set_facecolor(HISTOGRAM_BG_COLOR)
+            x = np.arange(1, len(own_remaining) + 1)
+            own_avg = np.cumsum(own_remaining) / x
+            enemy_avg = np.cumsum(enemy_remaining) / x
+            win_avg = np.cumsum([1 if w == 1 else 0 for w in winners]) / x
+            ax.plot(x, own_avg, label="Own", linewidth=0.5, color="green")
+            ax.plot(x, enemy_avg, label="Enemy", linewidth=0.5, color="red")
+            ax2 = ax.twinx()
+            ax2.plot(x, win_avg, label="Win rate", linewidth=0.5, color="white")
+            ax.set_title(
+                "Rolling Averages",
+                fontsize=HISTOGRAM_FONT_SIZE,
+                color=HISTOGRAM_TEXT_COLOR,
+            )
+            ax.set_xlabel("Runs", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax.set_ylabel("Avg Troops", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            ax2.set_ylabel("Win Rate", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+            for axis in (ax, ax2):
+                axis.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
+                axis.grid(linewidth=HISTOGRAM_GRIDLINE_WIDTH)
+                axis.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
+                axis.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
+            fig.tight_layout()
+            fig.savefig(
+                os.path.join(HISTOGRAM_DIR, "rolling_stats.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
                 facecolor=fig.get_facecolor(),

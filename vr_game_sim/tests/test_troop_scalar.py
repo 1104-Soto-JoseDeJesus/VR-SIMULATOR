@@ -9,3 +9,8 @@ def test_troop_scalar_cache_behavior():
     hits_after = GameSimulator.troop_scalar.cache_info().hits
     assert first == second
     assert hits_after == hits_before + 1
+
+
+def test_troop_scalar_extended_range():
+    scalar = GameSimulator.troop_scalar(500000)
+    assert scalar == (0.20528 * 500000) + 68452

@@ -42,6 +42,7 @@ class Army:
     name: str
     unit: Unit
     heroes: List[Hero] = field(default_factory=list)
+    unrevivable_ratio: float = 0.5
     simulator: Optional[GameSimulatorRef] = None
 
     current_troop_count: float = field(init=False, default=0.0)
@@ -185,7 +186,7 @@ class Army:
             lost_float = self.pending_hp_damage_this_round / hp_per_troop
             lost_round = round(lost_float)
 
-            unrevivable_increase = round(lost_round * 0.50)
+            unrevivable_increase = round(lost_round * self.unrevivable_ratio)
             self.unrevivable_troops += unrevivable_increase
 
             if self.simulator: self.simulator._log_skill_trigger(self, "Damage Commitment",

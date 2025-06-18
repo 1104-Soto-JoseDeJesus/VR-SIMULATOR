@@ -1181,3 +1181,77 @@ def handle_talent_fearless_pursuit(triggering_army: ArmyRef, opponent_army: Army
         logs.append((f"Deals damage to {opponent_army.name}.",
                      {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
     return happened, logs
+
+
+# --- Helgar Talent Handlers ---
+def handle_talent_saintly_guardian(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    # Passive effect applied via skill definition
+    return False, []
+
+
+def handle_talent_war_blessing(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    shield_factor = cfg.get("shield_factor", 0.0)
+    shield_duration = cfg.get("shield_duration", 2)
+    if shield_factor > 0:
+        shield_data = {
+            "effect_type": EffectType.SHIELD,
+            "name": EFFECT_NAME_WAR_BLESSING_SHIELD,
+            "duration": shield_duration,
+            "magnitude_calc_type": "dynamic_shield_resistance_v1",
+            "shield_factor": shield_factor,
+            "activate_next_round": True,
+        }
+        created = triggering_army._create_and_add_single_effect(
+            shield_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created:
+            happened = True
+            logs.append((f"Gains shield for {shield_duration + 1} rounds (starting next round).", None))
+    pending_marker = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
+        "duration": 0,
+        "config": {"marker_count": 1},
+    }
+    triggering_army._create_and_add_single_effect(pending_marker, skill_def["id"], triggering_army, triggering_army, opponent_army)
+    return happened, logs
+
+
+def handle_talent_judgement_mark(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    dmg_factor = cfg.get("damage_factor", 0.0)
+    if dmg_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, dmg_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
+                     {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+    pending_marker = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
+        "duration": 0,
+        "config": {"marker_count": 3},
+    }
+    triggering_army._create_and_add_single_effect(pending_marker, skill_def["id"], triggering_army, triggering_army, opponent_army)
+    return happened, logs

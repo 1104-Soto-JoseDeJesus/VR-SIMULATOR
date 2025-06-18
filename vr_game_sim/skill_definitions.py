@@ -23,6 +23,7 @@ from .skill_logic.talent_handlers import (
     handle_talent_coordinated_strike, handle_talent_slow_strike,
     handle_talent_trained_up, handle_talent_fatal_bleeding,
     handle_talent_steadfast_armor, handle_talent_fearless_pursuit,
+    handle_talent_saintly_guardian, handle_talent_war_blessing, handle_talent_judgement_mark,
     # OLENA TALENT HANDLERS
     handle_talent_multi_shot_arrow, handle_talent_poised_shot,
     # ARTUR TALENT HANDLER
@@ -54,7 +55,8 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_tough_choice, handle_rage_bloody_pillage,
     handle_base_skill_fleet_raider, handle_rage_raging_smash,
     handle_base_skill_crippling_pursuit, handle_rage_lethal_fracture,
-    handle_base_skill_berserk_fury, handle_rage_brutal_blow
+    handle_base_skill_berserk_fury, handle_rage_brutal_blow,
+    handle_base_skill_judgements_fury
 )
 from .skill_logic.plugin_skill_handlers import (
     handle_plugin_divine_blessing, handle_plugin_shield_support, handle_plugin_freyas_blessing,
@@ -89,7 +91,8 @@ from .skill_logic.rage_skill_handlers import (
     # JENS RAGE SKILL HANDLER
     handle_rage_skill_heavenly_descent,
     # FREYDIS RAGE SKILL HANDLER
-    handle_rage_desperate_strike
+    handle_rage_desperate_strike,
+    handle_rage_ruling_trial
 )
 from .skill_logic.utility_skill_handlers import (
     handle_generic_single_damage_skill,
@@ -862,6 +865,41 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_rage_brutal_blow,
         "config": {"damage_factor": 1200.0, "shield_factor": 400.0, "shield_duration": 1,
                    "buff_removal_count": 2, "self_cleanse_count": 1}
+    },
+
+    # --- Helgar Skills ---
+    "talent_saintly_guardian": {
+        "id": "talent_saintly_guardian", "name": "Saintly Guardian", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": handle_talent_saintly_guardian,
+        "effects_to_apply": [{"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_SAINTLY_GUARDIAN_SHIELD_BOOST,
+                              "stat_to_mod": StatType.SHIELD_STRENGTH_MODIFIER, "magnitude": 0.35, "duration": -1}]
+    },
+    "talent_war_blessing": {
+        "id": "talent_war_blessing", "name": "War Blessing", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_RECEIVING_HEALING, "trigger_chance": 0.50, "target": "SELF",
+        "logic_handler": handle_talent_war_blessing,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"shield_factor": 500.0, "shield_duration": 2}
+    },
+    "talent_judgement_mark": {
+        "id": "talent_judgement_mark", "name": "Judgement Mark", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.50, "target": "ENEMY",
+        "logic_handler": handle_talent_judgement_mark,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 350.0}
+    },
+    "base_skill_judgements_fury": {
+        "id": "base_skill_judgements_fury", "name": "Judgement's Fury", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_base_skill_judgements_fury,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 1150.0, "marker_threshold": 20, "counter_buff": 0.45, "buff_duration": 2}
+    },
+    "rage_skill_ruling_trial": {
+        "id": "rage_skill_ruling_trial", "name": "Ruling Trial", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_ruling_trial,
+        "config": {"damage_factor": 1000.0, "low_hp_damage_factor": 1500.0, "extra_damage_factor": 800.0, "hp_threshold": 0.20}
     },
 
 

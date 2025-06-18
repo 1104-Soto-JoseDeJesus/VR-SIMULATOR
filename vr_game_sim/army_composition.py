@@ -687,23 +687,32 @@ class Army:
     def activate_queued_effects(self):
         effects_to_add_to_active = []
         for new_effect in self.upcoming_effects:
-            replaced_in_active = False
-            for i in range(len(self.active_effects) - 1, -1, -1):
-                existing_active_effect = self.active_effects[i]
-                if (existing_active_effect.name == new_effect.name and
-                        existing_active_effect.source_skill_id == new_effect.source_skill_id):
-                    self.active_effects.pop(i)
-                    replaced_in_active = True
-                    break
+            allow_duplicates = new_effect.name in {
+                EFFECT_NAME_JUDGEMENT_MARKER,
+                EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
+            }
+            if not allow_duplicates:
+                replaced_in_active = False
+                for i in range(len(self.active_effects) - 1, -1, -1):
+                    existing_active_effect = self.active_effects[i]
+                    if (
+                        existing_active_effect.name == new_effect.name
+                        and existing_active_effect.source_skill_id == new_effect.source_skill_id
+                    ):
+                        self.active_effects.pop(i)
+                        replaced_in_active = True
+                        break
 
-            replaced_in_staged = False
-            for i in range(len(effects_to_add_to_active) - 1, -1, -1):
-                already_staged_effect = effects_to_add_to_active[i]
-                if (already_staged_effect.name == new_effect.name and
-                        already_staged_effect.source_skill_id == new_effect.source_skill_id):
-                    effects_to_add_to_active.pop(i)
-                    replaced_in_staged = True
-                    break
+                replaced_in_staged = False
+                for i in range(len(effects_to_add_to_active) - 1, -1, -1):
+                    already_staged_effect = effects_to_add_to_active[i]
+                    if (
+                        already_staged_effect.name == new_effect.name
+                        and already_staged_effect.source_skill_id == new_effect.source_skill_id
+                    ):
+                        effects_to_add_to_active.pop(i)
+                        replaced_in_staged = True
+                        break
 
             new_effect.applied_this_round = True
             effects_to_add_to_active.append(new_effect)

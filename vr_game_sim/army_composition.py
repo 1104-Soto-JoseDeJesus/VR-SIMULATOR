@@ -185,7 +185,7 @@ class Army:
             lost_float = self.pending_hp_damage_this_round / hp_per_troop
             lost_round = round(lost_float)
 
-            unrevivable_increase = round(lost_round * 0.30)
+            unrevivable_increase = round(lost_round * 0.50)
             self.unrevivable_troops += unrevivable_increase
 
             if self.simulator: self.simulator._log_skill_trigger(self, "Damage Commitment",

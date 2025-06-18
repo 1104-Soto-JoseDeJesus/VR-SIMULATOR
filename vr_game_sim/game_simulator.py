@@ -9,7 +9,12 @@ from .unit_definition import Unit
 from .army_composition import Army
 from .skill_system import SkillDefinition, SkillLogicHandler, RageSkillLogicHandler
 from .skill_definitions import SKILL_REGISTRY_GLOBAL
-from .constants import EFFECT_NAME_BROKEN_BLADE_DEBUFF, EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_SILENCE_DEBUFF
+from .constants import (
+    EFFECT_NAME_BROKEN_BLADE_DEBUFF,
+    EFFECT_NAME_DISARM_DEBUFF,
+    EFFECT_NAME_SILENCE_DEBUFF,
+    EFFECT_NAME_JUDGEMENT_MARKER,
+)
 from .report_builder import ReportBuilder
 from colorama import Fore
 
@@ -59,7 +64,14 @@ class GameSimulator:
             if not army.active_effects:
                 lines.append("  None")
                 continue
-            sorted_effects = sorted(army.active_effects, key=lambda e: (e.source_skill_id, e.name or ""))
+
+            marker_count = sum(1 for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER)
+            other_effects = [e for e in army.active_effects if e.name != EFFECT_NAME_JUDGEMENT_MARKER]
+
+            if marker_count > 0:
+                lines.append(f"  - Judgement Markers: {marker_count}")
+
+            sorted_effects = sorted(other_effects, key=lambda e: (e.source_skill_id, e.name or ""))
             for eff in sorted_effects:
                 source_skill_name = self.SKILL_REGISTRY_GLOBAL.get(eff.source_skill_id, {}).get("name", eff.source_skill_id)
                 duration_str = f"{eff.duration + 1} rounds" if eff.duration != -1 else "Permanent"

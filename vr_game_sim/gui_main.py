@@ -148,6 +148,11 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.hp_edit.setSingleStep(0.1)
         self.hp_edit.setValue(0.0)
 
+        self.unrevivable_spin = QtWidgets.QDoubleSpinBox()
+        self.unrevivable_spin.setRange(0.0, 1.0)
+        self.unrevivable_spin.setSingleStep(0.05)
+        self.unrevivable_spin.setValue(0.5)
+
         self.hero1_combo = QtWidgets.QComboBox()
         self.hero2_combo = QtWidgets.QComboBox()
         for combo in [self.hero1_combo, self.hero2_combo]:
@@ -191,6 +196,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         layout.addWidget(QtWidgets.QLabel("HP mod:"), row, 0)
         layout.addWidget(self.hp_edit, row, 1)
+        row += 1
+
+        layout.addWidget(QtWidgets.QLabel("Unrevivable ratio:"), row, 0)
+        layout.addWidget(self.unrevivable_spin, row, 1)
         row += 1
 
         layout.addWidget(QtWidgets.QLabel("Hero 1:"), row, 0)
@@ -420,6 +429,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.def_edit.setValue(float(cfg.get("def_mod", 0)))
         self.hp_edit.setValue(float(cfg.get("hp_mod", 0)))
 
+        self.unrevivable_spin.setValue(float(cfg.get("unrevivable_ratio", 0.5)))
+
         hero_combos = [self.hero1_combo, self.hero2_combo]
         for idx, combo in enumerate(hero_combos, start=1):
             combo.setCurrentText("None")
@@ -468,6 +479,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             "atk_mod": float(self.atk_edit.value()),
             "def_mod": float(self.def_edit.value()),
             "hp_mod": float(self.hp_edit.value()),
+            "unrevivable_ratio": float(self.unrevivable_spin.value()),
             "heroes": heroes_cfg,
         }
 

@@ -160,7 +160,12 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
             heroes_list.append(hero)
 
         # Create Army instance. The simulator instance will be injected later by GameSimulator.
-        army_obj = Army(army_config["army_name"], unit, heroes_list)
+        army_obj = Army(
+            army_config["army_name"],
+            unit,
+            heroes_list,
+            army_config.get("unrevivable_ratio", 0.5),
+        )
         armies.append(army_obj)
     return armies
 

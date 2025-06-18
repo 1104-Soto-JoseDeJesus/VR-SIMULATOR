@@ -1,9 +1,52 @@
 [
     {
-        "army_name": "Kronilisa",
+        "army_name": "Army 1",
         "unit_type": "pikemen",
         "tier": 5,
-        "count": 10000,
+        "count": 100000,
+        "atk_mod": 0.0,
+        "def_mod": 0.0,
+        "hp_mod": 0.0,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Laird",
+                "talent_ids": [
+                    "talent_holy_shield",
+                    "talent_sacred_counter",
+                    "talent_divine_resistance"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flame_guardian",
+                    "base_skill_sacred_blade"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_blessing",
+                    "plugin_lokis_trick"
+                ]
+            },
+            {
+                "hero_name_or_preset": "Leif",
+                "talent_ids": [
+                    "talent_blade_counter",
+                    "talent_shield_of_resistance",
+                    "talent_revenge_echo"
+                ],
+                "base_skill_ids": [
+                    "base_skill_planned_attack",
+                    "base_skill_sharp_pursuit"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_disarmament",
+                    "plugin_thors_determination"
+                ]
+            }
+        ]
+    },
+    {
+        "army_name": "Army 2",
+        "unit_type": "pikemen",
+        "tier": 5,
+        "count": 100000,
         "atk_mod": 0.0,
         "def_mod": 0.0,
         "hp_mod": 0.0,
@@ -20,51 +63,8 @@
                     "base_skill_vital_blessing"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_baldr_blessing",
-                    "plugin_on_alert"
-                ]
-            },
-            {
-                "hero_name_or_preset": "Laird",
-                "talent_ids": [
-                    "talent_holy_shield",
-                    "talent_sacred_counter",
-                    "talent_divine_resistance"
-                ],
-                "base_skill_ids": [
-                    "base_skill_flame_guardian",
-                    "base_skill_sacred_blade"
-                ],
-                "plugin_skill_ids": [
-                    "plugin_freyas_blessing",
-                    "plugin_blessed_healing"
-                ]
-            }
-        ]
-    },
-    {
-        "army_name": "cobuluscore",
-        "unit_type": "pikemen",
-        "tier": 5,
-        "count": 10000,
-        "atk_mod": 0.0,
-        "def_mod": 0.0,
-        "hp_mod": 0.0,
-        "heroes": [
-            {
-                "hero_name_or_preset": "Leif",
-                "talent_ids": [
-                    "talent_blade_counter",
-                    "talent_shield_of_resistance",
-                    "talent_revenge_echo"
-                ],
-                "base_skill_ids": [
-                    "base_skill_planned_attack",
-                    "base_skill_sharp_pursuit"
-                ],
-                "plugin_skill_ids": [
-                    "plugin_shield_attacker",
-                    "plugin_shield_reflector"
+                    "plugin_hymn_of_life",
+                    "plugin_freyas_blessing"
                 ]
             },
             {
@@ -79,8 +79,8 @@
                     "base_skill_vanquishing_blade"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_shield_support",
-                    "plugin_tenacity"
+                    "plugin_rapid_attack",
+                    "plugin_awakening"
                 ]
             }
         ]

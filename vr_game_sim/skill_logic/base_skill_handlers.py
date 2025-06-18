@@ -910,3 +910,62 @@ def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
     return happened, logs, dmg_flag
 
 
+# --- Helgar Base Skill Handlers ---
+def handle_base_skill_judgements_fury(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+
+    pending_marker = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
+        "duration": 0,
+        "config": {"marker_count": 1},
+    }
+    triggering_army._create_and_add_single_effect(pending_marker, skill_def["id"], triggering_army, triggering_army, opponent_army)
+
+    threshold = cfg.get("marker_threshold", 20)
+    current_markers = sum(1 for eff in triggering_army.active_effects if eff.name == EFFECT_NAME_JUDGEMENT_MARKER)
+    if current_markers >= threshold:
+        dmg_factor = cfg.get("damage_factor", 0.0)
+        if dmg_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, dmg_factor, source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append((f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
+                         {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+
+        removed = 0
+        for i in range(len(triggering_army.active_effects) - 1, -1, -1):
+            eff = triggering_army.active_effects[i]
+            if eff.name == EFFECT_NAME_JUDGEMENT_MARKER and removed < threshold:
+                triggering_army.active_effects.pop(i)
+                removed += 1
+        if removed > 0 and simulator:
+            simulator._log_skill_trigger(triggering_army, skill_def["name"], f"Consumes {removed} Judgement Markers")
+
+        buff_mag = cfg.get("counter_buff", 0.45)
+        buff_dur = cfg.get("buff_duration", 2)
+        buff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF,
+            "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+            "magnitude": buff_mag,
+            "duration": buff_dur,
+            "activate_next_round": True,
+        }
+        if triggering_army._create_and_add_single_effect(buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army):
+            happened = True
+            logs.append((f"Gains counterattack damage buff for {buff_dur + 1} rounds (starting next round).", None))
+
+    return happened, logs
+
+

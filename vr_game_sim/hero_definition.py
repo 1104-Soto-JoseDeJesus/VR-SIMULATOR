@@ -142,4 +142,9 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_berserk_fury", "base_skill_brutal_blow"],
         'plugin_skills': [],
     },
+    'helgar': {
+        'talents': ["talent_saintly_guardian", "talent_war_blessing", "talent_judgement_mark"],
+        'base_skills': ["base_skill_judgements_fury", "rage_skill_ruling_trial"],
+        'plugin_skills': [],
+    },
 }

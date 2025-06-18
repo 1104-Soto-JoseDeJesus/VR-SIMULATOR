@@ -16,7 +16,12 @@ from .constants import (
     EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
     EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
     EFFECT_NAME_DELAYED_RAGE_GAIN,
-    EFFECT_NAME_DELAYED_RAGE_REDUCTION
+    EFFECT_NAME_DELAYED_RAGE_REDUCTION,
+    EFFECT_NAME_SAINTLY_GUARDIAN_SHIELD_BOOST,
+    EFFECT_NAME_WAR_BLESSING_SHIELD,
+    EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF,
+    EFFECT_NAME_JUDGEMENT_MARKER,
+    EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
 )
 
 @dataclass(slots=True)
@@ -150,6 +155,11 @@ class EffectInstance:
             elif self.name == EFFECT_NAME_DELAYED_RAGE_REDUCTION:
                 amt = self.config.get('rage_reduction', 0)
                 desc_parts.append(f"Reduce rage by {amt} next round")
+            elif self.name == EFFECT_NAME_JUDGEMENT_MARKER:
+                desc_parts.append("Judgement Marker")
+            elif self.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS:
+                cnt = self.config.get('marker_count', 1)
+                desc_parts.append(f"Pending {cnt} Judgement Marker(s)")
             else:
                 desc_parts.append(f"Custom Effect: {self.name}")
         else:

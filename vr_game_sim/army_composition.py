@@ -26,7 +26,12 @@ from .constants import (
     EFFECT_NAME_HEROIC_BLESSING_BURN_BOOST,
     EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
     EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
-    EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE
+    EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
+    EFFECT_NAME_SAINTLY_GUARDIAN_SHIELD_BOOST,
+    EFFECT_NAME_WAR_BLESSING_SHIELD,
+    EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF,
+    EFFECT_NAME_JUDGEMENT_MARKER,
+    EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
 )
 
 GameSimulatorRef = "GameSimulator"  # Forward reference
@@ -563,6 +568,21 @@ class Army:
                             self.simulator._log_skill_trigger(
                                 self, effect.name,
                                 f"loses {actual:.0f} rage (delayed). New rage: {self.current_rage:.0f}")
+                    if effect in self.active_effects:
+                        self.active_effects.remove(effect)
+
+            elif effect.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'end_of_round':
+                    cnt = int(effect.config.get("marker_count", 1))
+                    for _ in range(cnt):
+                        marker_data = {
+                            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                            "name": EFFECT_NAME_JUDGEMENT_MARKER,
+                            "duration": -1,
+                        }
+                        self._create_and_add_single_effect(marker_data, effect.source_skill_id, self, self, opponent)
+                    if self.simulator:
+                        self.simulator._log_skill_trigger(self, effect.name, f"gains {cnt} Judgement Marker(s).")
                     if effect in self.active_effects:
                         self.active_effects.remove(effect)
 

@@ -810,3 +810,57 @@ def handle_rage_skill_heavenly_descent(
             )
 
     return an_effect_happened, log_details, damage_dealt_flag
+
+
+# --- Helgar Rage Skill Handler ---
+def handle_rage_ruling_trial(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    damage_dealt_flag = False
+
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    is_hero2_delayed_rage = event_data.get("is_hero2_delayed_rage", False)
+
+    base_factor = cfg.get("damage_factor", 0.0)
+    high_factor = cfg.get("low_hp_damage_factor", base_factor)
+    extra_factor = cfg.get("extra_damage_factor", 0.0)
+    threshold = cfg.get("hp_threshold", 0.2)
+
+    enemy_ratio = opponent_army.current_troop_count / max(1.0, opponent_army.unit.initial_count)
+    dmg_factor = high_factor if enemy_ratio < threshold else base_factor
+
+    if dmg_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, dmg_factor,
+            is_hero2_rage_skill=is_hero2_delayed_rage,
+            source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_dealt_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append((f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
+                           {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+
+    marker_count = sum(1 for eff in opponent_army.active_effects if eff.name == EFFECT_NAME_JUDGEMENT_MARKER)
+    if marker_count > 5 and extra_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, extra_factor,
+            is_hero2_rage_skill=is_hero2_delayed_rage,
+            source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_dealt_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append((f"Deals extra damage (Factor: {extra_factor}) to {opponent_army.name}.",
+                           {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+
+    return an_effect_happened, log_details, damage_dealt_flag

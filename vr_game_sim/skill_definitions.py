@@ -73,7 +73,9 @@ from .skill_logic.plugin_skill_handlers import (
     handle_plugin_tidal_attack, handle_plugin_splinter, handle_plugin_hale_of_thorns,
     handle_plugin_halo_of_sacrifice, handle_plugin_heightened_chance, handle_plugin_tenacity,
     handle_plugin_blessed_healing, handle_plugin_dampened_spirits, handle_plugin_rapid_defense,
-    handle_plugin_rare_viking_hymn, handle_plugin_rare_defense_up
+    handle_plugin_rare_viking_hymn, handle_plugin_rare_defense_up,
+    handle_plugin_rest_and_counterattack, handle_plugin_bloodstained_icefield,
+    handle_plugin_this_too_shall_pass
 )
 from .skill_logic.rage_skill_handlers import (
     handle_rage_sharp_pursuit, handle_rage_sacred_blade, handle_rage_vital_blessing,
@@ -1255,6 +1257,28 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_plugin_rare_defense_up,
         "labels": [PluginSkillLabel.REACTIVE],
         "config": {"buff_magnitude": 0.20, "buff_duration": 1}
+    },
+    "plugin_rest_and_counterattack": {
+        "id": "plugin_rest_and_counterattack", "name": "Rest and Counterattack", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.15, "target": "SELF",
+        "logic_handler": handle_plugin_rest_and_counterattack,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"shield_factor": 400.0, "shield_duration": 2, "heal_factor": 400.0,
+                   "cooldown_rounds": 4, "shield_effect_name": EFFECT_NAME_REST_AND_COUNTERATTACK_SHIELD}
+    },
+    "plugin_bloodstained_icefield": {
+        "id": "plugin_bloodstained_icefield", "name": "Bloodstained Icefield", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "SELF",
+        "logic_handler": handle_plugin_bloodstained_icefield,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"heal_factor": 700.0, "cooldown_rounds": 3}
+    },
+    "plugin_this_too_shall_pass": {
+        "id": "plugin_this_too_shall_pass", "name": "This Too Shall Pass", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_this_too_shall_pass,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"damage_factor": 1000.0, "heal_factor": 1000.0, "trigger_interval": 9}
     },
 
     # --- Dummy Talent ---

@@ -156,6 +156,7 @@ EFFECT_NAME_HEIGHTENED_CHANCE_COUNTER_BUFF = "Heightened Chance Counterattack Bu
 EFFECT_NAME_RAPID_DEFENSE_BUFF = "Rapid Defense Buff"
 EFFECT_NAME_RARE_VIKING_HYMN_ATTACK_BUFF = "Rare Viking Hymn Attack Buff"
 EFFECT_NAME_RARE_DEFENSE_UP_BUFF = "Rare Defense Up Buff"
+EFFECT_NAME_REST_AND_COUNTERATTACK_SHIELD = "Rest and Counterattack Shield"
 
 # --- Helgar Skill Effect Names ---
 EFFECT_NAME_SAINTLY_GUARDIAN_SHIELD_BOOST = "Saintly Guardian Shield Boost"

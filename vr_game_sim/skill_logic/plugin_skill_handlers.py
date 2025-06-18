@@ -2006,3 +2006,127 @@ def handle_plugin_rare_defense_up(
         log_details.append((f"Gains defense buff {buff_mag * 100:.0f}% for {buff_dur + 1} rounds (starting next round).", None))
 
     return an_effect_happened, log_details
+
+
+def handle_plugin_rest_and_counterattack(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    heal_factor = skill_config.get("heal_factor", 400.0)
+    if heal_factor > 0:
+        healed_amount = triggering_army.calculate_and_add_pending_healing(
+            heal_factor, triggering_army, opponent_army
+        )
+        if healed_amount > 0:
+            an_effect_happened = True
+            log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    shield_factor = skill_config.get("shield_factor", 400.0)
+    shield_duration = skill_config.get("shield_duration", 2)
+    shield_name = skill_config.get("shield_effect_name", EFFECT_NAME_REST_AND_COUNTERATTACK_SHIELD)
+    shield_data = {
+        "effect_type": EffectType.SHIELD,
+        "name": shield_name,
+        "duration": shield_duration,
+        "magnitude_calc_type": "dynamic_shield_resistance_v1",
+        "shield_factor": shield_factor,
+        "activate_next_round": True,
+    }
+    created_shield = triggering_army._create_and_add_single_effect(
+        shield_data, skill_id, triggering_army, triggering_army, opponent_army
+    )
+    if created_shield:
+        an_effect_happened = True
+        est_mag = simulator._calculate_shield_magnitude_for_logging(
+            triggering_army, opponent_army, float(shield_factor)
+        ) if simulator else created_shield.magnitude
+        log_details.append((f"Grants shield ({created_shield.get_functionality_description()}) active for next {shield_duration + 1} rounds. Est. Mag: {est_mag:.0f}", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_bloodstained_icefield(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
+    enemy_has_bleed = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in opponent_army.active_effects
+    )
+    if not (enemy_has_slow or enemy_has_bleed):
+        return False, []
+
+    heal_factor = skill_config.get("heal_factor", 700.0)
+    if heal_factor > 0:
+        healed_amount = triggering_army.calculate_and_add_pending_healing(
+            heal_factor, triggering_army, opponent_army
+        )
+        if healed_amount > 0:
+            an_effect_happened = True
+            log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_this_too_shall_pass(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    trigger_interval = skill_config.get("trigger_interval", 9)
+
+    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+        return False, []
+
+    enemy_has_poison = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.POISON
+        for eff in opponent_army.active_effects
+    )
+    enemy_has_burn = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BURN
+        for eff in opponent_army.active_effects
+    )
+
+    if enemy_has_poison:
+        damage_factor = skill_config.get("damage_factor", 1000.0)
+        if damage_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                an_effect_happened = True
+            log_details.append((
+                f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            ))
+
+    if enemy_has_burn:
+        heal_factor = skill_config.get("heal_factor", 1000.0)
+        if heal_factor > 0:
+            healed_amount = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army
+            )
+            if healed_amount > 0:
+                an_effect_happened = True
+                log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    return an_effect_happened, log_details

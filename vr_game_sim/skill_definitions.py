@@ -881,7 +881,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.ON_RECEIVING_HEALING, "trigger_chance": 0.50, "target": "SELF",
         "logic_handler": handle_talent_war_blessing,
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"shield_factor": 500.0, "shield_duration": 2}
+        "config": {"shield_factor": 500.0, "shield_duration": 1}
     },
     "talent_judgement_mark": {
         "id": "talent_judgement_mark", "name": "Judgement Mark", "type": SkillType.TALENT,
@@ -895,7 +895,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_base_skill_judgements_fury,
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"damage_factor": 1150.0, "marker_threshold": 20, "counter_buff": 0.45, "buff_duration": 2}
+        "config": {"damage_factor": 1150.0, "marker_threshold": 20, "counter_buff": 0.45, "buff_duration": 1}
     },
     "rage_skill_ruling_trial": {
         "id": "rage_skill_ruling_trial", "name": "Ruling Trial", "type": SkillType.BASE_SKILL,
@@ -1263,7 +1263,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.15, "target": "SELF",
         "logic_handler": handle_plugin_rest_and_counterattack,
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"shield_factor": 400.0, "shield_duration": 2, "heal_factor": 400.0,
+        "config": {"shield_factor": 400.0, "shield_duration": 1, "heal_factor": 400.0,
                    "cooldown_rounds": 4, "shield_effect_name": EFFECT_NAME_REST_AND_COUNTERATTACK_SHIELD}
     },
     "plugin_bloodstained_icefield": {

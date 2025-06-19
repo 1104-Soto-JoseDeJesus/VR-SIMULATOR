@@ -225,7 +225,7 @@ def handle_plugin_shield_reflector(
     an_effect_happened = False
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_id = skill_def["id"]
-    if triggering_army.started_round_with_active_shield:
+    if triggering_army.started_last_round_with_active_shield:
         effect_data = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_SHIELD_REFLECTOR_BUFF,
                        "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST, "magnitude": 1.30,
                        "duration": 0, "activate_next_round": False}  # Activates this round, lasts this round

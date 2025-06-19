@@ -69,6 +69,7 @@ class Army:
     base_rage_awarded_this_round: bool = field(init=False, default=False)
     healing_hymn_triggered_this_round: bool = field(init=False, default=False)
     started_round_with_active_shield: bool = field(init=False, default=False)
+    started_last_round_with_active_shield: bool = field(init=False, default=False)
     hero1_rage_skill_cast_blocked_by_silence_this_round: bool = field(init=False, default=False)
 
     def __post_init__(self):
@@ -788,6 +789,7 @@ class Army:
         self.army_used_rage_skill_this_round_for_rage_gain_block = False
         self.base_rage_awarded_this_round = False
         self.started_round_with_active_shield = False
+        self.started_last_round_with_active_shield = False
         self.healing_hymn_triggered_this_round = False
         self.hero1_rage_skill_cast_blocked_by_silence_this_round = False
 

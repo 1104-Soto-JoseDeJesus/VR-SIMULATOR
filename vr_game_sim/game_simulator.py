@@ -504,6 +504,8 @@ class GameSimulator:
                 army.activate_queued_effects()
                 army.decrement_effect_durations()
 
+            self.army1.started_last_round_with_active_shield = self.army1.started_round_with_active_shield
+            self.army2.started_last_round_with_active_shield = self.army2.started_round_with_active_shield
             self.army1.started_round_with_active_shield = self.army1.get_current_shield_hp() > 0
             self.army2.started_round_with_active_shield = self.army2.get_current_shield_hp() > 0
 

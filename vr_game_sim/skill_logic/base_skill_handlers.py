@@ -675,6 +675,49 @@ def handle_base_skill_tough_choice(triggering_army: ArmyRef, opponent_army: Army
     return happened, logs
 
 
+
+# --- Lagertha Base Skill Handler ---
+def handle_base_skill_shield_breaker(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    dmg = cfg.get("damage_factor", 0.0)
+    if dmg > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, dmg, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((f"Deals damage (Factor: {dmg}) to {opponent_army.name}.",
+                     {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+
+    enemy_bleeding = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in opponent_army.active_effects
+    )
+    if enemy_bleeding:
+        buff_mag = cfg.get("buff_magnitude", 0.0)
+        buff_dur = cfg.get("buff_duration", 1)
+        if buff_mag != 0:
+            buff_data = {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_SHIELD_BREAKER_BASIC_BUFF,
+                "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
+                "magnitude": buff_mag,
+                "duration": buff_dur,
+                "activate_next_round": True,
+            }
+            if triggering_army._create_and_add_single_effect(buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army):
+                happened = True
+                logs.append((f"Gains '{EFFECT_NAME_SHIELD_BREAKER_BASIC_BUFF}' for {buff_dur + 1} rounds (starting next round).", None))
+    return happened, logs
+
 def handle_rage_bloody_pillage(triggering_army: ArmyRef, opponent_army: ArmyRef,
                                skill_def: SkillDefinition, event_data: Dict[str, Any],
                                simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
@@ -962,10 +1005,53 @@ def handle_base_skill_judgements_fury(
             "duration": buff_dur,
             "activate_next_round": True,
         }
-        if triggering_army._create_and_add_single_effect(buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army):
-            happened = True
-            logs.append((f"Gains counterattack damage buff for {buff_dur + 1} rounds (starting next round).", None))
+    if triggering_army._create_and_add_single_effect(buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army):
+        happened = True
+        logs.append((f"Gains counterattack damage buff for {buff_dur + 1} rounds (starting next round).", None))
 
+    return happened, logs
+
+
+# --- Lagertha Base Skill Handler ---
+def handle_base_skill_shield_breaker(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    dmg = cfg.get("damage_factor", 0.0)
+    if dmg > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, dmg, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((f"Deals damage (Factor: {dmg}) to {opponent_army.name}.",
+                     {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+
+    enemy_bleeding = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in opponent_army.active_effects
+    )
+    if enemy_bleeding:
+        buff_mag = cfg.get("buff_magnitude", 0.0)
+        buff_dur = cfg.get("buff_duration", 1)
+        if buff_mag != 0:
+            buff_data = {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_SHIELD_BREAKER_BASIC_BUFF,
+                "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
+                "magnitude": buff_mag,
+                "duration": buff_dur,
+                "activate_next_round": True,
+            }
+            if triggering_army._create_and_add_single_effect(buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army):
+                happened = True
+                logs.append((f"Gains '{EFFECT_NAME_SHIELD_BREAKER_BASIC_BUFF}' for {buff_dur + 1} rounds (starting next round).", None))
     return happened, logs
 
 

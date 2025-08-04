@@ -1255,3 +1255,70 @@ def handle_talent_judgement_mark(
     }
     triggering_army._create_and_add_single_effect(pending_marker, skill_def["id"], triggering_army, triggering_army, opponent_army)
     return happened, logs
+
+
+# --- Lagertha Talent Handlers ---
+def handle_talent_chiefs_might(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    bleed_factor = skill_config.get("bleed_factor", 0.0)
+    bleed_duration = skill_config.get("bleed_duration", 1)
+    if bleed_factor > 0:
+        bleed_effect_data = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_CHIEFS_MIGHT_BLEED,
+            "dot_type": DoTType.BLEED,
+            "status_effect_factor": bleed_factor,
+            "duration": bleed_duration,
+            "activate_next_round": True,
+        }
+        created_bleed = opponent_army._create_and_add_single_effect(
+            bleed_effect_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created_bleed:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_CHIEFS_MIGHT_BLEED}' on {opponent_army.name} (Factor: {bleed_factor}) for {bleed_duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    return an_effect_happened, log_details
+
+
+def handle_talent_fatal_strike(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+
+    enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
+    if enemy_has_slow and random.random() < cfg.get("damage_chance", 0.0):
+        dmg = cfg.get("damage_factor", 0.0)
+        if dmg > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, dmg, source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append(
+                (
+                    f"Deals damage (Factor: {dmg}) to {opponent_army.name}.",
+                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                )
+            )
+
+    return happened, logs

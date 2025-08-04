@@ -147,4 +147,9 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_judgements_fury", "rage_skill_ruling_trial"],
         'plugin_skills': [],
     },
+    'lagertha': {
+        'talents': ["talent_shieldaxe_attack", "talent_chiefs_might", "talent_fatal_strike"],
+        'base_skills': ["base_skill_shield_breaker", "rage_skill_showdown"],
+        'plugin_skills': [],
+    },
 }

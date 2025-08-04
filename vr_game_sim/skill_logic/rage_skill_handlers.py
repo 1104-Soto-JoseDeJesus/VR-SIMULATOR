@@ -864,3 +864,88 @@ def handle_rage_ruling_trial(
                            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
 
     return an_effect_happened, log_details, damage_dealt_flag
+
+
+# --- Lagertha Rage Skill Handler ---
+def handle_rage_showdown(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    damage_dealt_flag = False
+
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    is_hero2_delayed_rage = event_data.get("is_hero2_delayed_rage", False)
+
+    damage_factor = skill_config.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor,
+            is_hero2_rage_skill=is_hero2_delayed_rage,
+            source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_dealt_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    bleed_factor = skill_config.get("bleed_factor", 0.0)
+    bleed_duration = skill_config.get("bleed_duration", 2)
+    if bleed_factor > 0:
+        bleed_effect_data = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_SHOWDOWN_BLEED,
+            "dot_type": DoTType.BLEED,
+            "status_effect_factor": bleed_factor,
+            "duration": bleed_duration,
+            "activate_next_round": True,
+        }
+        created_bleed = opponent_army._create_and_add_single_effect(
+            bleed_effect_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created_bleed:
+            an_effect_happened = True
+            damage_dealt_flag = True
+            log_details.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_SHOWDOWN_BLEED}' on {opponent_army.name} (Factor: {bleed_factor}) for {bleed_duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    shield_factor = skill_config.get("shield_factor", 0.0)
+    shield_duration = skill_config.get("shield_duration", 2)
+    if shield_factor > 0:
+        shield_effect_data = {
+            "effect_type": EffectType.SHIELD,
+            "name": EFFECT_NAME_SHOWDOWN_SHIELD,
+            "duration": shield_duration,
+            "magnitude_calc_type": "dynamic_shield_resistance_v1",
+            "shield_factor": shield_factor,
+            "activate_next_round": True,
+        }
+        created_shield = triggering_army._create_and_add_single_effect(
+            shield_effect_data, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created_shield:
+            an_effect_happened = True
+            est_mag = simulator._calculate_shield_magnitude_for_logging(triggering_army, opponent_army, float(shield_factor)) if simulator else created_shield.magnitude
+            log_details.append(
+                (
+                    f"Gains '{EFFECT_NAME_SHOWDOWN_SHIELD}' ({created_shield.get_functionality_description()}), active for {created_shield.duration + 1} rounds. Est. Mag: {est_mag:.0f}",
+                    {"shield_hp_gained": round(est_mag)},
+                )
+            )
+
+    return an_effect_happened, log_details, damage_dealt_flag
+

@@ -24,6 +24,8 @@ from .skill_logic.talent_handlers import (
     handle_talent_trained_up, handle_talent_fatal_bleeding,
     handle_talent_steadfast_armor, handle_talent_fearless_pursuit,
     handle_talent_saintly_guardian, handle_talent_war_blessing, handle_talent_judgement_mark,
+    # LAGERTHA TALENT HANDLERS
+    handle_talent_chiefs_might, handle_talent_fatal_strike,
     # OLENA TALENT HANDLERS
     handle_talent_multi_shot_arrow, handle_talent_poised_shot,
     # ARTUR TALENT HANDLER
@@ -56,7 +58,8 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_fleet_raider, handle_rage_raging_smash,
     handle_base_skill_crippling_pursuit, handle_rage_lethal_fracture,
     handle_base_skill_berserk_fury, handle_rage_brutal_blow,
-    handle_base_skill_judgements_fury
+    handle_base_skill_judgements_fury,
+    handle_base_skill_shield_breaker
 )
 from .skill_logic.plugin_skill_handlers import (
     handle_plugin_divine_blessing, handle_plugin_shield_support, handle_plugin_freyas_blessing,
@@ -94,7 +97,8 @@ from .skill_logic.rage_skill_handlers import (
     handle_rage_skill_heavenly_descent,
     # FREYDIS RAGE SKILL HANDLER
     handle_rage_desperate_strike,
-    handle_rage_ruling_trial
+    handle_rage_ruling_trial,
+    handle_rage_showdown
 )
 from .skill_logic.utility_skill_handlers import (
     handle_generic_single_damage_skill,
@@ -902,6 +906,39 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_ruling_trial,
         "config": {"damage_factor": 1000.0, "low_hp_damage_factor": 1500.0, "extra_damage_factor": 800.0, "hp_threshold": 0.20}
+    },
+
+    # --- Lagertha Skills ---
+    "talent_shieldaxe_attack": {
+        "id": "talent_shieldaxe_attack", "name": "Shieldaxe Attack", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
+        "effects_to_apply": [{"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_SHIELDAXE_ATTACK_BLEED_BOOST,
+                               "stat_to_mod": StatType.BLEED_DAMAGE_BOOST, "magnitude": 0.25, "duration": -1}]
+    },
+    "talent_chiefs_might": {
+        "id": "talent_chiefs_might", "name": "Chief's Might", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_talent_chiefs_might,
+        "config": {"bleed_factor": 400.0, "bleed_duration": 1}
+    },
+    "talent_fatal_strike": {
+        "id": "talent_fatal_strike", "name": "Fatal Strike", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_fatal_strike,
+        "config": {"damage_chance": 0.50, "damage_factor": 1000.0}
+    },
+    "base_skill_shield_breaker": {
+        "id": "base_skill_shield_breaker", "name": "Shield Breaker", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_base_skill_shield_breaker,
+        "config": {"damage_factor": 550.0, "buff_magnitude": 0.50, "buff_duration": 1}
+    },
+    "rage_skill_showdown": {
+        "id": "rage_skill_showdown", "name": "Showdown", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_showdown,
+        "config": {"damage_factor": 1500.0, "bleed_factor": 150.0, "bleed_duration": 2,
+                   "shield_factor": 800.0, "shield_duration": 2}
     },
 
 

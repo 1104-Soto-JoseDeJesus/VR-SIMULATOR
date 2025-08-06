@@ -52,3 +52,16 @@ def test_judgements_fury_triggers_at_threshold():
 
     assert happened
     assert len(remaining_markers) == 0
+
+
+def test_judgements_fury_below_threshold_no_buff():
+    hero = Hero('Helgar', [], ['base_skill_judgements_fury'], [], SKILL_REGISTRY_GLOBAL)
+    army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
+    enemy = Army('E', Unit('archers', 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy)
+    skill_def = SKILL_REGISTRY_GLOBAL['base_skill_judgements_fury']
+
+    happened, logs = skill_def['logic_handler'](army, enemy, skill_def, None, sim)
+
+    assert not happened
+    assert logs == []

@@ -1005,9 +1005,16 @@ def handle_base_skill_judgements_fury(
             "duration": buff_dur,
             "activate_next_round": True,
         }
-    if triggering_army._create_and_add_single_effect(buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army):
-        happened = True
-        logs.append((f"Gains counterattack damage buff for {buff_dur + 1} rounds (starting next round).", None))
+        if triggering_army._create_and_add_single_effect(
+            buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        ):
+            happened = True
+            logs.append(
+                (
+                    f"Gains counterattack damage buff for {buff_dur + 1} rounds (starting next round).",
+                    None,
+                )
+            )
 
     return happened, logs
 

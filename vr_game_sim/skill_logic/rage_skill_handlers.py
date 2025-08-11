@@ -718,6 +718,56 @@ def handle_rage_desperate_strike(
     return an_effect_happened, log_details, damage_dealt_flag
 
 
+# --- Yulmi Rage Skill Handler ---
+def handle_rage_undead_harvest(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any], simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    an_effect_happened = False
+    damage_dealt_flag = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    damage_factor = cfg.get("damage_factor", 0.0)
+    debuff_magnitude = cfg.get("debuff_magnitude", 0.0)
+    debuff_duration = cfg.get("debuff_duration", 1)
+
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor,
+            is_hero2_rage_skill=event_data.get("is_hero2_delayed_rage", False),
+            source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_dealt_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
+        )
+
+    if debuff_magnitude != 0:
+        debuff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_UNDEAD_HARVEST_HP_REDUCTION,
+            "stat_to_mod": StatType.BASE_HP_MULTIPLIER,
+            "magnitude": debuff_magnitude,
+            "duration": debuff_duration,
+            "activate_next_round": True,
+        }
+        created_debuff = opponent_army._create_and_add_single_effect(
+            debuff_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_debuff:
+            an_effect_happened = True
+            log_details.append(
+                (f"Reduces {opponent_army.name}'s HP by {abs(debuff_magnitude) * 100:.0f}% for {debuff_duration + 1} rounds.", None)
+            )
+
+    return an_effect_happened, log_details, damage_dealt_flag
+
+
 # --- Gregory Rage Skill Handler ---
 def handle_rage_inspiring_dance(
         triggering_army: ArmyRef, opponent_army: ArmyRef,

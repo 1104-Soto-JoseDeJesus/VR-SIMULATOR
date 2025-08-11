@@ -152,4 +152,9 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_shield_breaker", "rage_skill_showdown"],
         'plugin_skills': [],
     },
+    'yulmi': {
+        'talents': ["talent_dreadful_curse", "talent_high_fighting_spirit", "talent_low_whispers"],
+        'base_skills': ["base_skill_plague", "rage_skill_undead_harvest"],
+        'plugin_skills': [],
+    },
 }

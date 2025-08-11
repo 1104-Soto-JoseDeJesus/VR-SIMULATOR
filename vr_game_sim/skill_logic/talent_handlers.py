@@ -1322,3 +1322,104 @@ def handle_talent_fatal_strike(
             )
 
     return happened, logs
+
+
+# --- Yulmi Talent Handlers ---
+def handle_talent_high_fighting_spirit(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    damage_factor = cfg.get("damage_factor", 0.0)
+    trigger_interval = cfg.get("trigger_interval", 9)
+    buff_magnitude = cfg.get("buff_magnitude", 0.0)
+    buff_duration = cfg.get("buff_duration", 0)
+
+    if simulator.round > 0 and simulator.round % trigger_interval == 0:
+        if damage_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, damage_factor,
+                source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                an_effect_happened = True
+            log_details.append(
+                (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                 {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
+            )
+        if buff_magnitude != 0:
+            for stat_type in [StatType.HERO1_RAGE_SKILL_DAMAGE_MODIFIER, StatType.HERO2_RAGE_SKILL_DAMAGE_MODIFIER]:
+                buff_data = {
+                    "effect_type": EffectType.STAT_MOD,
+                    "name": EFFECT_NAME_HIGH_FIGHTING_SPIRIT_RAGE_BUFF,
+                    "stat_to_mod": stat_type,
+                    "magnitude": buff_magnitude,
+                    "duration": buff_duration,
+                    "activate_next_round": True,
+                }
+                created_buff = triggering_army._create_and_add_single_effect(
+                    buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+                )
+                if created_buff:
+                    an_effect_happened = True
+            log_details.append(
+                (f"Boosts rage skill damage by {buff_magnitude * 100:.0f}% for {buff_duration + 1} rounds.", None)
+            )
+    return an_effect_happened, log_details
+
+
+def handle_talent_low_whispers(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    trigger_interval = cfg.get("trigger_interval", 6)
+    reduction = cfg.get("reduction", -0.30)
+    duration = cfg.get("duration", 1)
+    rage_gain = cfg.get("rage_gain", 0)
+
+    if simulator.round > 0 and simulator.round % trigger_interval == 0:
+        buff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_LOW_WHISPERS_REDUCTION,
+            "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+            "magnitude": reduction,
+            "duration": duration,
+            "activate_next_round": True,
+        }
+        created_buff = triggering_army._create_and_add_single_effect(
+            buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_buff:
+            an_effect_happened = True
+            log_details.append(
+                (f"Reduces damage taken by {abs(reduction) * 100:.0f}% for {duration + 1} rounds.", None)
+            )
+
+        enemy_burning = any(
+            eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BURN
+            for eff in opponent_army.active_effects
+        )
+        if enemy_burning and rage_gain > 0:
+            rage_effect = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+                "duration": 0,
+                "config": {"rage_amount": rage_gain},
+                "activate_next_round": True,
+            }
+            created_rage = triggering_army._create_and_add_single_effect(
+                rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+            )
+            if created_rage:
+                an_effect_happened = True
+                log_details.append((f"Gains {rage_gain:.0f} rage next round.", None))
+    return an_effect_happened, log_details

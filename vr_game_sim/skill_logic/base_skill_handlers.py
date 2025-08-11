@@ -778,6 +778,67 @@ def handle_base_skill_fleet_raider(triggering_army: ArmyRef, opponent_army: Army
     return happened, logs
 
 
+# --- Yulmi Base Skill Handlers ---
+def handle_base_skill_plague(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    trigger_interval = cfg.get("trigger_interval", 9)
+    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+        return False, []
+
+    poison_factor = cfg.get("poison_factor", 0.0)
+    poison_duration = cfg.get("poison_duration", 1)
+    damage_taken_debuff = cfg.get("damage_taken_debuff", 0.0)
+    debuff_duration = cfg.get("debuff_duration", 1)
+
+    if poison_factor > 0:
+        poison_effect = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_PLAGUE_POISON,
+            "dot_type": DoTType.POISON,
+            "status_effect_factor": poison_factor,
+            "duration": poison_duration,
+            "activate_next_round": True,
+        }
+        created_poison = opponent_army._create_and_add_single_effect(
+            poison_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_poison:
+            an_effect_happened = True
+            log_details.append(
+                (f"Inflicts '{EFFECT_NAME_PLAGUE_POISON}' on {opponent_army.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                 None)
+            )
+
+    enemy_poisoned = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.POISON
+        for eff in opponent_army.active_effects
+    )
+    if enemy_poisoned and damage_taken_debuff != 0:
+        debuff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_PLAGUE_DAMAGE_TAKEN_DEBUFF,
+            "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+            "magnitude": damage_taken_debuff,
+            "duration": debuff_duration,
+            "activate_next_round": True,
+        }
+        created_debuff = opponent_army._create_and_add_single_effect(
+            debuff_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_debuff:
+            an_effect_happened = True
+            log_details.append(
+                (f"{opponent_army.name} takes {damage_taken_debuff * 100:.0f}% more damage for {debuff_duration + 1} rounds.", None)
+            )
+
+    return an_effect_happened, log_details
+
 def handle_rage_raging_smash(triggering_army: ArmyRef, opponent_army: ArmyRef,
                               skill_def: SkillDefinition, event_data: Dict[str, Any], simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
     happened = False

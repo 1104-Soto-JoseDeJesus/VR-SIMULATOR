@@ -26,6 +26,7 @@ from .skill_logic.talent_handlers import (
     handle_talent_saintly_guardian, handle_talent_war_blessing, handle_talent_judgement_mark,
     # LAGERTHA TALENT HANDLERS
     handle_talent_chiefs_might, handle_talent_fatal_strike,
+    handle_talent_high_fighting_spirit, handle_talent_low_whispers,
     # OLENA TALENT HANDLERS
     handle_talent_multi_shot_arrow, handle_talent_poised_shot,
     # ARTUR TALENT HANDLER
@@ -59,7 +60,8 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_crippling_pursuit, handle_rage_lethal_fracture,
     handle_base_skill_berserk_fury, handle_rage_brutal_blow,
     handle_base_skill_judgements_fury,
-    handle_base_skill_shield_breaker
+    handle_base_skill_shield_breaker,
+    handle_base_skill_plague
 )
 from .skill_logic.plugin_skill_handlers import (
     handle_plugin_divine_blessing, handle_plugin_shield_support, handle_plugin_freyas_blessing,
@@ -98,7 +100,8 @@ from .skill_logic.rage_skill_handlers import (
     # FREYDIS RAGE SKILL HANDLER
     handle_rage_desperate_strike,
     handle_rage_ruling_trial,
-    handle_rage_showdown
+    handle_rage_showdown,
+    handle_rage_undead_harvest
 )
 from .skill_logic.utility_skill_handlers import (
     handle_generic_single_damage_skill,
@@ -919,18 +922,21 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_chiefs_might", "name": "Chief's Might", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_talent_chiefs_might,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"bleed_factor": 400.0, "bleed_duration": 1}
     },
     "talent_fatal_strike": {
         "id": "talent_fatal_strike", "name": "Fatal Strike", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_talent_fatal_strike,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_chance": 0.50, "damage_factor": 1000.0}
     },
     "base_skill_shield_breaker": {
         "id": "base_skill_shield_breaker", "name": "Shield Breaker", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_base_skill_shield_breaker,
+        "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_factor": 550.0, "buff_magnitude": 0.50, "buff_duration": 1}
     },
     "rage_skill_showdown": {
@@ -939,6 +945,43 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_rage_showdown,
         "config": {"damage_factor": 1500.0, "bleed_factor": 150.0, "bleed_duration": 2,
                    "shield_factor": 800.0, "shield_duration": 2}
+    },
+
+    # --- Yulmi Skills ---
+    "talent_dreadful_curse": {
+        "id": "talent_dreadful_curse", "name": "Dreadful Curse", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
+        "effects_to_apply": [{"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_DREADFUL_CURSE_POISON_BOOST,
+                               "stat_to_mod": StatType.POISON_DAMAGE_BOOST, "magnitude": 0.25, "duration": -1}]
+    },
+    "talent_high_fighting_spirit": {
+        "id": "talent_high_fighting_spirit", "name": "High Fighting Spirit", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_high_fighting_spirit,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"damage_factor": 1300.0, "trigger_interval": 9,
+                   "buff_magnitude": 0.20, "buff_duration": 4}
+    },
+    "talent_low_whispers": {
+        "id": "talent_low_whispers", "name": "Low Whispers", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_talent_low_whispers,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 6, "reduction": -0.30, "duration": 1, "rage_gain": 180}
+    },
+    "base_skill_plague": {
+        "id": "base_skill_plague", "name": "Plague", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_base_skill_plague,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 9, "poison_factor": 500.0, "poison_duration": 2,
+                   "damage_taken_debuff": 0.20, "debuff_duration": 2}
+    },
+    "rage_skill_undead_harvest": {
+        "id": "rage_skill_undead_harvest", "name": "Undead Harvest", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_undead_harvest,
+        "config": {"damage_factor": 1800.0, "debuff_magnitude": -0.10, "debuff_duration": 1}
     },
 
 

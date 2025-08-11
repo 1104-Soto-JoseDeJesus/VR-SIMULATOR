@@ -3,25 +3,26 @@
         "army_name": "Army 1",
         "unit_type": "pikemen",
         "tier": 7,
-        "count": 200000,
-        "atk_mod": 1.0,
-        "def_mod": 1.0,
-        "hp_mod": 0.5,
+        "count": 300000,
+        "atk_mod": 2.5,
+        "def_mod": 2.0,
+        "hp_mod": 0.8,
+        "unrevivable_ratio": 0.5,
         "heroes": [
             {
-                "hero_name_or_preset": "Yvette",
+                "hero_name_or_preset": "Helgar",
                 "talent_ids": [
-                    "talent_healing_chords",
-                    "talent_healing_hymn",
-                    "talent_horn_of_countering"
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
                 ],
                 "base_skill_ids": [
-                    "base_skill_sanctity_of_life",
-                    "base_skill_vital_blessing"
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_divine_blessing",
-                    "plugin_shield_support"
+                    "plugin_hymn_of_life",
+                    "plugin_divine_blessing"
                 ]
             },
             {
@@ -36,8 +37,8 @@
                     "base_skill_sacred_blade"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_freyas_blessing",
-                    "plugin_hymn_of_life"
+                    "plugin_rest_and_counterattack",
+                    "plugin_shield_reflector"
                 ]
             }
         ]
@@ -46,11 +47,28 @@
         "army_name": "Army 2",
         "unit_type": "pikemen",
         "tier": 7,
-        "count": 200000,
-        "atk_mod": 1.0,
-        "def_mod": 1.0,
-        "hp_mod": 0.5,
+        "count": 300000,
+        "atk_mod": 2.5,
+        "def_mod": 2.0,
+        "hp_mod": 0.8,
+        "unrevivable_ratio": 0.5,
         "heroes": [
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_rest_and_counterattack",
+                    "plugin_divine_blessing"
+                ]
+            },
             {
                 "hero_name_or_preset": "Laird",
                 "talent_ids": [
@@ -63,24 +81,8 @@
                     "base_skill_sacred_blade"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_divine_blessing",
-                    "plugin_shield_support"
-                ]
-            },
-            {
-                "hero_name_or_preset": "Leif",
-                "talent_ids": [
-                    "talent_blade_counter",
-                    "talent_shield_of_resistance",
-                    "talent_revenge_echo"
-                ],
-                "base_skill_ids": [
-                    "base_skill_planned_attack",
-                    "base_skill_sharp_pursuit"
-                ],
-                "plugin_skill_ids": [
-                    "plugin_freyas_blessing",
-                    "plugin_hymn_of_life"
+                    "plugin_hymn_of_life",
+                    "plugin_shield_reflector"
                 ]
             }
         ]

@@ -179,14 +179,14 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_healing_hymn", "name": "Healing Hymn", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.ON_RECEIVING_HEALING, "trigger_chance": 0.25, "target": "ENEMY",
         "logic_handler": handle_talent_healing_hymn,
-        "config": {"damage_factor": 800.0}
+        "config": {"damage_factor": 900.0}
     },
     "talent_horn_of_countering": {
         "id": "talent_horn_of_countering", "name": "Horn of Countering", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_generic_single_damage_skill,
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"damage_factor": 900.0}
+        "config": {"damage_factor": 1000.0}
     },
     "talent_hold_fast": {
         "id": "talent_hold_fast", "name": "Hold Fast", "type": SkillType.TALENT,
@@ -553,7 +553,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "base_skill_sanctity_of_life", "name": "Sanctity of Life", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_base_skill_sanctity_of_life,
-        "config": {"heal_chance": 0.20, "heal_factor": 500.0, "buff_hero2_chance": 0.20,
+        "config": {"heal_chance": 0.20, "heal_factor": 600.0, "buff_hero2_chance": 0.20,
                    "buff_details": {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_SANCTITY_H2_RAGE_BOOST,
                                     "stat_to_mod": StatType.HERO2_RAGE_SKILL_DAMAGE_MODIFIER,
                                     "magnitude": 0.20, "duration": 2, "activate_next_round": True}}
@@ -562,7 +562,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "base_skill_vital_blessing", "name": "Vital Blessing", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "SELF",
         "logic_handler": handle_rage_vital_blessing,
-        "config": {"heal_factor": 1250.0, "buff_details": {
+        "config": {"heal_factor": 1400.0, "buff_details": {
             "effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_VITAL_BLESSING_COUNTER_BOOST,
             "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST, "magnitude": 0.30, "duration": 4,
             "activate_next_round": True}}

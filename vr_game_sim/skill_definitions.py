@@ -74,7 +74,7 @@ from .skill_logic.plugin_skill_handlers import (
     handle_plugin_fearless, handle_plugin_joint_offense, handle_plugin_bloody_rage,
     handle_plugin_silencer, handle_plugin_enrage, handle_plugin_blessed_negation,
     handle_plugin_wild_indulgence, handle_plugin_breaking_free, handle_plugin_battle_hymn,
-    handle_plugin_rapid_attack, handle_plugin_blessed_by_fate,
+    handle_plugin_rapid_attack, handle_plugin_rage_purge, handle_plugin_blessed_by_fate,
     handle_plugin_tidal_attack, handle_plugin_splinter, handle_plugin_hale_of_thorns,
     handle_plugin_halo_of_sacrifice, handle_plugin_heightened_chance, handle_plugin_tenacity,
     handle_plugin_blessed_healing, handle_plugin_dampened_spirits, handle_plugin_rapid_defense,
@@ -1051,6 +1051,13 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_plugin_rapid_attack,
         "labels": [PluginSkillLabel.REACTIVE],
         "config": {"damage_factor": 650.0, "broken_blade_duration": 1, "cooldown_rounds": 5}
+    },
+    "plugin_rage_purge": {
+        "id": "plugin_rage_purge", "name": "Rage Purge", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_plugin_rage_purge,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 600.0, "rage_cost": 100}
     },
     "plugin_blessed_by_fate": {
         "id": "plugin_blessed_by_fate", "name": "Blessed by Fate", "type": SkillType.PLUGIN_SKILL,

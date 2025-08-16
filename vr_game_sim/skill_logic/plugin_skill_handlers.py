@@ -1053,6 +1053,42 @@ def handle_plugin_rapid_attack(
     return an_effect_happened, log_details
 
 
+def handle_plugin_rage_purge(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+
+    damage_factor = skill_config.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor,
+            source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            )
+        )
+
+    rage_cost = skill_config.get("rage_cost", 0.0)
+    if rage_cost > 0 and triggering_army.current_rage > 0:
+        actual_cost = min(triggering_army.current_rage, float(rage_cost))
+        triggering_army.current_rage -= actual_cost
+        an_effect_happened = True
+        log_details.append((f"Consumes {actual_cost:.0f} rage.", None))
+
+    return an_effect_happened, log_details
+
+
 def handle_plugin_blessed_by_fate(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],

@@ -1,8 +1,11 @@
 # === File: game_simulator.py ===
 import math
 import random
+import os
 from functools import lru_cache
 from typing import List, Optional, Dict, Any, Tuple
+
+import matplotlib.pyplot as plt
 
 from .enums import SkillTriggerType, StatType, EffectType, SkillType, DoTType, PluginSkillLabel
 from .unit_definition import Unit
@@ -44,7 +47,7 @@ class GameSimulator:
         if adv.get(def_type) == atk_type: return 0.95
         return 1.0
 
-    def __init__(self, army1: Army, army2: Army, report_builder: Optional[ReportBuilder] = None):
+    def __init__(self, army1: Army, army2: Army, report_builder: Optional[ReportBuilder] = None, track_stats: bool = True):
         self.army1: Army = army1
         self.army2: Army = army2
         self.army1.simulator = self
@@ -55,6 +58,7 @@ class GameSimulator:
             self.army1.name: [], self.army2.name: []
         }
         self.report_builder = report_builder or ReportBuilder()
+        self.track_stats = track_stats
 
     def _log_active_effects_for_report(self) -> List[str]:
         lines: List[str] = []
@@ -414,6 +418,35 @@ class GameSimulator:
                 army.current_rage += 100
                 army.base_rage_awarded_this_round = True
 
+    def _generate_round_figures(self) -> None:
+        base_dir = os.path.join(os.path.dirname(__file__), "histograms")
+        os.makedirs(base_dir, exist_ok=True)
+        rounds = list(range(1, len(self.army1.damage_dealt_history) + 1))
+
+        def save_plot(data: List[float], fname: str, title: str, ylabel: str, color: str) -> None:
+            with plt.style.context("ggplot"):
+                fig, ax = plt.subplots(figsize=(4, 3), dpi=100)
+                fig.patch.set_facecolor("#2e2e2e")
+                ax.set_facecolor("#2e2e2e")
+                ax.plot(rounds, data, color=color, linewidth=1)
+                ax.set_title(title, fontsize=6, color="white")
+                ax.set_xlabel("Round", fontsize=6, color="white")
+                ax.set_ylabel(ylabel, fontsize=6, color="white")
+                ax.tick_params(axis="both", labelsize=6, colors="white")
+                ax.grid(linewidth=0.2)
+                fig.tight_layout()
+                fig.savefig(os.path.join(base_dir, fname), dpi=100, bbox_inches="tight", facecolor=fig.get_facecolor())
+                plt.close(fig)
+
+        save_plot(self.army1.damage_dealt_history, "damage_accumulated_army1.png", f"{self.army1.name} Damage Dealt", "Damage", "green")
+        save_plot(self.army2.damage_dealt_history, "damage_accumulated_army2.png", f"{self.army2.name} Damage Dealt", "Damage", "red")
+        save_plot(self.army1.heal_received_history, "heal_accumulated_army1.png", f"{self.army1.name} Healing Received", "Healing", "green")
+        save_plot(self.army2.heal_received_history, "heal_accumulated_army2.png", f"{self.army2.name} Healing Received", "Healing", "red")
+        save_plot(self.army1.shield_received_history, "shield_accumulated_army1.png", f"{self.army1.name} Shield Received", "Shield", "green")
+        save_plot(self.army2.shield_received_history, "shield_accumulated_army2.png", f"{self.army2.name} Shield Received", "Shield", "red")
+        save_plot(self.army1.rage_gained_history, "rage_per_round_army1.png", f"{self.army1.name} Rage Per Round", "Rage", "green")
+        save_plot(self.army2.rage_gained_history, "rage_per_round_army2.png", f"{self.army2.name} Rage Per Round", "Rage", "red")
+
     def _calculate_and_log_attack(self, att: Army, dfd: Army, is_counter: bool) -> Tuple[float, float, float, int]:
         if att.current_troop_count <= 0: return 0.0, 0.0, 0.0, 0
 
@@ -481,6 +514,11 @@ class GameSimulator:
 
         while self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
             self.round += 1
+
+            start_rage_army1 = self.army1.current_rage
+            start_rage_army2 = self.army2.current_rage
+            self.army1.shield_hp_gained_this_round = 0.0
+            self.army2.shield_hp_gained_this_round = 0.0
 
             # CORRECTED: Reset pending damage/healing at the start of each round
             self.army1.pending_hp_damage_this_round = 0.0
@@ -602,6 +640,24 @@ class GameSimulator:
                 army.army_used_rage_skill_this_round_for_rage_gain_block = False
                 army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
 
+            if self.track_stats:
+                dmg1 = self.army2.pending_hp_damage_this_round
+                dmg2 = self.army1.pending_hp_damage_this_round
+                prev = self.army1.damage_dealt_history[-1] if self.army1.damage_dealt_history else 0
+                self.army1.damage_dealt_history.append(prev + dmg1)
+                prev = self.army2.damage_dealt_history[-1] if self.army2.damage_dealt_history else 0
+                self.army2.damage_dealt_history.append(prev + dmg2)
+                prev = self.army1.heal_received_history[-1] if self.army1.heal_received_history else 0
+                self.army1.heal_received_history.append(prev + self.army1.pending_hp_healing_this_round)
+                prev = self.army2.heal_received_history[-1] if self.army2.heal_received_history else 0
+                self.army2.heal_received_history.append(prev + self.army2.pending_hp_healing_this_round)
+                prev = self.army1.shield_received_history[-1] if self.army1.shield_received_history else 0
+                self.army1.shield_received_history.append(prev + self.army1.shield_hp_gained_this_round)
+                prev = self.army2.shield_received_history[-1] if self.army2.shield_received_history else 0
+                self.army2.shield_received_history.append(prev + self.army2.shield_hp_gained_this_round)
+                self.army1.rage_gained_history.append(self.army1.current_rage - start_rage_army1)
+                self.army2.rage_gained_history.append(self.army2.current_rage - start_rage_army2)
+
             for army in [self.army1, self.army2]:
                 if army.current_troop_count <= 0: continue
                 if army.hero1_rage_skill_id and \
@@ -677,6 +733,8 @@ class GameSimulator:
             self.round,
             f"Final State: {self.army1.name}: {self.army1.current_troop_count:.0f} troops",
             f"{self.army2.name}: {self.army2.current_troop_count:.0f} troops")
+        if self.track_stats:
+            self._generate_round_figures()
         report_text = self.report_builder.get_report_text()
         self.report_builder.print_report()
         return report_text

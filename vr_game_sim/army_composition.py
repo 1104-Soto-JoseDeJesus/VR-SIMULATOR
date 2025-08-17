@@ -72,6 +72,12 @@ class Army:
     started_last_round_with_active_shield: bool = field(init=False, default=False)
     hero1_rage_skill_cast_blocked_by_silence_this_round: bool = field(init=False, default=False)
 
+    damage_dealt_history: List[float] = field(init=False, default_factory=list)
+    heal_received_history: List[float] = field(init=False, default_factory=list)
+    shield_received_history: List[float] = field(init=False, default_factory=list)
+    rage_gained_history: List[float] = field(init=False, default_factory=list)
+    shield_hp_gained_this_round: float = field(init=False, default=0.0)
+
     def __post_init__(self):
         self.reset_for_new_battle()
 
@@ -329,6 +335,8 @@ class Army:
             sum_shield_strength_mods_recipient = target_army.get_sum_stat_magnitudes(StatType.SHIELD_STRENGTH_MODIFIER)
             shield_strength_multiplier = 1.0 + sum_shield_strength_mods_recipient
             magnitude = round(base_shield_magnitude * shield_strength_multiplier)
+            if self.simulator:
+                target_army.shield_hp_gained_this_round += magnitude
 
             if effect_data.get("shield_factor") and "shield_factor" not in final_config:
                 final_config["shield_factor"] = effect_data["shield_factor"]
@@ -792,6 +800,12 @@ class Army:
         self.started_last_round_with_active_shield = False
         self.healing_hymn_triggered_this_round = False
         self.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+
+        self.damage_dealt_history = []
+        self.heal_received_history = []
+        self.shield_received_history = []
+        self.rage_gained_history = []
+        self.shield_hp_gained_this_round = 0.0
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

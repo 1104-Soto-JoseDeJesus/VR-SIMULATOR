@@ -173,7 +173,7 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
 def _run_single_battle(setup_data: List[Dict[str, Any]]) -> tuple:
     """Helper to run a single battle. Returns (own, enemy, rounds, diff, winner)."""
     armies = create_armies_from_data(setup_data)
-    sim = GameSimulator(armies[0], armies[1])
+    sim = GameSimulator(armies[0], armies[1], track_stats=False)
     with contextlib.redirect_stdout(io.StringIO()):
         sim.simulate_battle()
     winner = 0

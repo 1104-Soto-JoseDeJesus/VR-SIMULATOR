@@ -497,7 +497,7 @@ class SimulationWorker(QtCore.QThread):
         try:
             armies = create_armies_from_data(self.setup_data)
             report_builder = ReportBuilder(use_color=False)
-            sim = GameSimulator(armies[0], armies[1], report_builder)
+            sim = GameSimulator(armies[0], armies[1], report_builder, track_stats=True)
             report_text = sim.simulate_battle()
 
             def progress_cb(done: int, total: int) -> None:
@@ -548,6 +548,14 @@ def display_histograms(
         "diff_vs_rounds.png",
         "rounds_cdf.png",
         "rolling_stats.png",
+        "damage_accumulated_army1.png",
+        "damage_accumulated_army2.png",
+        "heal_accumulated_army1.png",
+        "heal_accumulated_army2.png",
+        "shield_accumulated_army1.png",
+        "shield_accumulated_army2.png",
+        "rage_per_round_army1.png",
+        "rage_per_round_army2.png",
     ]
     layout = QtWidgets.QGridLayout()
     layout.setSpacing(10)
@@ -583,6 +591,22 @@ def display_histograms(
             caption_text = f"{army1_name} troops remaining"
         elif img_name == "enemy_remaining_troops.png":
             caption_text = f"{army2_name} troops remaining"
+        elif img_name == "damage_accumulated_army1.png":
+            caption_text = f"{army1_name} damage dealt (cumulative)"
+        elif img_name == "damage_accumulated_army2.png":
+            caption_text = f"{army2_name} damage dealt (cumulative)"
+        elif img_name == "heal_accumulated_army1.png":
+            caption_text = f"{army1_name} healing received (cumulative)"
+        elif img_name == "heal_accumulated_army2.png":
+            caption_text = f"{army2_name} healing received (cumulative)"
+        elif img_name == "shield_accumulated_army1.png":
+            caption_text = f"{army1_name} shields gained (cumulative)"
+        elif img_name == "shield_accumulated_army2.png":
+            caption_text = f"{army2_name} shields gained (cumulative)"
+        elif img_name == "rage_per_round_army1.png":
+            caption_text = f"{army1_name} rage per round"
+        elif img_name == "rage_per_round_army2.png":
+            caption_text = f"{army2_name} rage per round"
         else:
             caption_text = img_name.replace("_", " ").replace(".png", "").title()
         caption = QtWidgets.QLabel(caption_text)
@@ -751,6 +775,14 @@ class MainWindow(QtWidgets.QMainWindow):
             "diff_vs_rounds.png",
             "rounds_cdf.png",
             "rolling_stats.png",
+            "damage_accumulated_army1.png",
+            "damage_accumulated_army2.png",
+            "heal_accumulated_army1.png",
+            "heal_accumulated_army2.png",
+            "shield_accumulated_army1.png",
+            "shield_accumulated_army2.png",
+            "rage_per_round_army1.png",
+            "rage_per_round_army2.png",
         ]
         base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
         if not any(os.path.exists(os.path.join(base_hist_dir, f)) for f in image_files):

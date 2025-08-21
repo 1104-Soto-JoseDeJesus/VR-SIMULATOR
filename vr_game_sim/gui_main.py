@@ -830,7 +830,14 @@ class MainWindow(QtWidgets.QMainWindow):
             tolerance).  Existing transparency in the source pixmap is preserved.
             """
 
-            image = pix.toImage().convertToFormat(QtGui.QImage.Format_ARGB32)
+            # ``QImage.Format_ARGB32`` was renamed in PyQt6 to live under the
+            # ``QImage.Format`` enum.  Using the old attribute causes an
+            # ``AttributeError`` and crashes the application when exporting the
+            # summary image.  Resolve this by referencing the PyQt6 enum member
+            # correctly.
+            image = pix.toImage().convertToFormat(
+                QtGui.QImage.Format.Format_ARGB32
+            )
             target = QtGui.QColor(bg_color)
             tr, tg, tb = target.red(), target.green(), target.blue()
             for y in range(image.height()):

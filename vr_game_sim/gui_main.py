@@ -841,9 +841,12 @@ class MainWindow(QtWidgets.QMainWindow):
             # ``AttributeError`` and crashes the application when exporting the
             # summary image.  Resolve this by referencing the PyQt6 enum member
             # correctly.
-            image = pix.toImage().convertToFormat(
-                QtGui.QImage.Format.Format_ARGB32
-            )
+            fmt_obj = getattr(QtGui.QImage, "Format", None)
+            if fmt_obj is not None and hasattr(fmt_obj, "Format_ARGB32"):
+                fmt = fmt_obj.Format_ARGB32
+            else:
+                fmt = QtGui.QImage.Format_ARGB32
+            image = pix.toImage().convertToFormat(fmt)
             ptr = image.bits()
             ptr.setsize(image.width() * image.height() * 4)
             arr = np.frombuffer(ptr, dtype=np.uint8).reshape(

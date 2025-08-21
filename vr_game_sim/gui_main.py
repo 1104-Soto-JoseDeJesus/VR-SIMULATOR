@@ -981,6 +981,24 @@ class MainWindow(QtWidgets.QMainWindow):
             x = (final_width - p.width()) // 2
             painter.drawPixmap(x, y, p)
             y += p.height()
+
+        painter.setPen(QtGui.QColor("white"))
+        font = painter.font()
+        font.setPointSize(40)
+        painter.setFont(font)
+
+        margin = 40
+        painter.save()
+        painter.translate(margin, final_height // 2)
+        painter.rotate(-90)
+        painter.drawText(0, 0, "Matchup Statistics")
+        painter.restore()
+
+        fm = painter.fontMetrics()
+        label = "OMNI"
+        x = final_width - fm.horizontalAdvance(label) - margin
+        y = final_height - fm.descent() - margin
+        painter.drawText(x, y, label)
         painter.end()
 
         save_path, _ = QtWidgets.QFileDialog.getSaveFileName(

@@ -77,6 +77,7 @@ class Army:
     shield_received_history: List[float] = field(init=False, default_factory=list)
     rage_gained_history: List[float] = field(init=False, default_factory=list)
     shield_hp_gained_this_round: float = field(init=False, default=0.0)
+    rage_added_this_round: float = field(init=False, default=0.0)
 
     def __post_init__(self):
         self.reset_for_new_battle()
@@ -508,7 +509,9 @@ class Army:
                     current_round = self.simulator.round
                     if start_gain_round <= current_round <= end_gain_round:
                         rage_to_gain = effect.config.get("rage_per_round", 0)
-                        if rage_to_gain > 0: self.current_rage += rage_to_gain
+                        if rage_to_gain > 0:
+                            self.current_rage += rage_to_gain
+                            self.rage_added_this_round += rage_to_gain
 
             # Handle Olena's Concentration Rage Gain
             elif effect.name == EFFECT_NAME_CONCENTRATION_RAGE_GAIN and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
@@ -527,10 +530,12 @@ class Army:
                     if current_sim_round == effect_applied_in_round + 1:
                         if base_rage > 0:
                             self.current_rage += base_rage
+                            self.rage_added_this_round += base_rage
                             gained_this_tick += base_rage
                             log_parts.append(f"{base_rage} base rage")
                         if bonus_rage > 0 and bonus_applied_round == -1:  # Apply bonus only on the first tick if applicable
                             self.current_rage += bonus_rage
+                            self.rage_added_this_round += bonus_rage
                             gained_this_tick += bonus_rage
                             effect.config["bonus_applied_round"] = current_sim_round  # Mark bonus as applied
                             log_parts.append(f"{bonus_rage} bonus rage")
@@ -539,6 +544,7 @@ class Army:
                     elif current_sim_round == effect_applied_in_round + 2:
                         if base_rage > 0:
                             self.current_rage += base_rage
+                            self.rage_added_this_round += base_rage
                             gained_this_tick += base_rage
                             log_parts.append(f"{base_rage} base rage")
 
@@ -551,6 +557,7 @@ class Army:
                     gain_amt = effect.config.get("rage_per_round", 0)
                     if gain_amt > 0:
                         self.current_rage += gain_amt
+                        self.rage_added_this_round += gain_amt
                         if self.simulator:
                             self.simulator._log_skill_trigger(
                                 self, effect.name,
@@ -561,6 +568,7 @@ class Army:
                     rage_amt = effect.config.get("rage_amount", 0)
                     if rage_amt > 0:
                         self.current_rage += rage_amt
+                        self.rage_added_this_round += rage_amt
                         if self.simulator:
                             self.simulator._log_skill_trigger(
                                 self, effect.name,
@@ -806,6 +814,7 @@ class Army:
         self.shield_received_history = []
         self.rage_gained_history = []
         self.shield_hp_gained_this_round = 0.0
+        self.rage_added_this_round = 0.0
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

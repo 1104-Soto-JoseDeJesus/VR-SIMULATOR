@@ -416,6 +416,7 @@ class GameSimulator:
                 army.base_rage_awarded_this_round = False
             else:
                 army.current_rage += 100
+                army.rage_added_this_round += 100
                 army.base_rage_awarded_this_round = True
 
     def _generate_round_figures(self) -> None:
@@ -515,8 +516,8 @@ class GameSimulator:
         while self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
             self.round += 1
 
-            start_rage_army1 = self.army1.current_rage
-            start_rage_army2 = self.army2.current_rage
+            self.army1.rage_added_this_round = 0.0
+            self.army2.rage_added_this_round = 0.0
             self.army1.shield_hp_gained_this_round = 0.0
             self.army2.shield_hp_gained_this_round = 0.0
 
@@ -655,8 +656,8 @@ class GameSimulator:
                 self.army1.shield_received_history.append(prev + self.army1.shield_hp_gained_this_round)
                 prev = self.army2.shield_received_history[-1] if self.army2.shield_received_history else 0
                 self.army2.shield_received_history.append(prev + self.army2.shield_hp_gained_this_round)
-                self.army1.rage_gained_history.append(self.army1.current_rage - start_rage_army1)
-                self.army2.rage_gained_history.append(self.army2.current_rage - start_rage_army2)
+                self.army1.rage_gained_history.append(self.army1.rage_added_this_round)
+                self.army2.rage_gained_history.append(self.army2.rage_added_this_round)
 
             for army in [self.army1, self.army2]:
                 if army.current_troop_count <= 0: continue

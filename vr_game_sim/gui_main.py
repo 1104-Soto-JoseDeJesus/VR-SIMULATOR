@@ -983,9 +983,11 @@ class MainWindow(QtWidgets.QMainWindow):
             y += p.height()
 
         painter.setPen(QtGui.QColor("white"))
-        font = painter.font()
-        font.setPointSize(40)
-        painter.setFont(font)
+
+        # Use a serif font to match the game's styling. The "Matchup Statistics"
+        # title is larger than the label in the bottom corner.
+        title_font = QtGui.QFont("Times New Roman", 60, QtGui.QFont.Bold)
+        painter.setFont(title_font)
 
         margin = 40
         painter.save()
@@ -994,6 +996,8 @@ class MainWindow(QtWidgets.QMainWindow):
         painter.drawText(0, 0, "Matchup Statistics")
         painter.restore()
 
+        label_font = QtGui.QFont("Times New Roman", 40, QtGui.QFont.Bold)
+        painter.setFont(label_font)
         fm = painter.fontMetrics()
         label = "OMNI"
         x = final_width - fm.horizontalAdvance(label) - margin

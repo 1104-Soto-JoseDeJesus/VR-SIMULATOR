@@ -9,6 +9,7 @@ import threading
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
 from PIL import Image, ImageQt
+import numpy as np
 
 from vr_game_sim.hero_definition import HERO_PRESETS
 from vr_game_sim.unit_definition import Unit
@@ -843,19 +844,22 @@ class MainWindow(QtWidgets.QMainWindow):
             image = pix.toImage().convertToFormat(
                 QtGui.QImage.Format.Format_ARGB32
             )
+            ptr = image.bits()
+            ptr.setsize(image.width() * image.height() * 4)
+            arr = np.frombuffer(ptr, dtype=np.uint8).reshape(
+                image.height(), image.width(), 4
+            )
             if bg_color is None:
-                bg_color = QtGui.QColor(image.pixel(0, 0))
-            tr, tg, tb = bg_color.red(), bg_color.green(), bg_color.blue()
-            for y in range(image.height()):
-                for x in range(image.width()):
-                    c = QtGui.QColor(image.pixel(x, y))
-                    if (
-                        abs(c.red() - tr) <= 2
-                        and abs(c.green() - tg) <= 2
-                        and abs(c.blue() - tb) <= 2
-                    ):
-                        c.setAlpha(0)
-                        image.setPixelColor(x, y, c)
+                bg_color = arr[0, 0, :3].copy()
+            else:
+                bg_color = np.array(
+                    [bg_color.red(), bg_color.green(), bg_color.blue()],
+                    dtype=np.uint8,
+                )
+            rgb = arr[:, :, :3].astype(np.int16)
+            diff = np.abs(rgb - bg_color.astype(np.int16))
+            mask = (diff <= 2).all(axis=-1)
+            arr[mask, 3] = 0
             return QtGui.QPixmap.fromImage(image)
 
         image_files = [

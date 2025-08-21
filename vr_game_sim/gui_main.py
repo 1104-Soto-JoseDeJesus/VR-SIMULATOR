@@ -910,10 +910,27 @@ class MainWindow(QtWidgets.QMainWindow):
         final_width = max(preview_pix.width(), *(p.width() for p in hist_pixmaps))
         final_height = preview_pix.height() + sum(p.height() for p in hist_pixmaps)
         final_pix = QtGui.QPixmap(final_width, final_height)
-        bg_color = self.palette().color(QtGui.QPalette.ColorRole.Window)
-        final_pix.fill(bg_color)
-
+        final_pix.fill(QtCore.Qt.GlobalColor.transparent)
         painter = QtGui.QPainter(final_pix)
+
+        bg_path = os.path.join(
+            os.path.dirname(__file__),
+            "Reference Images",
+            "SummaryImageBackground_OMNI.png",
+        )
+        bg_pix = QtGui.QPixmap(bg_path)
+        if not bg_pix.isNull():
+            bg_scaled = bg_pix.scaled(
+                final_width,
+                final_height,
+                QtCore.Qt.AspectRatioMode.IgnoreAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+            painter.drawPixmap(0, 0, bg_scaled)
+        else:
+            bg_color = self.palette().color(QtGui.QPalette.ColorRole.Window)
+            painter.fillRect(final_pix.rect(), bg_color)
+
         x = (final_width - preview_pix.width()) // 2
         painter.drawPixmap(x, 0, preview_pix)
         y = preview_pix.height()

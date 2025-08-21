@@ -982,10 +982,6 @@ def main() -> None:
         """
     )
     window = MainWindow()
-    window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
-    blur = QtWidgets.QGraphicsBlurEffect()
-    blur.setBlurRadius(10)
-    window.setGraphicsEffect(blur)
     window.resize(800, 600)
     window.show()
     app.exec()

@@ -1001,7 +1001,7 @@ class MainWindow(QtWidgets.QMainWindow):
         fm = painter.fontMetrics()
         title_width = fm.horizontalAdvance(title_text)
         painter.save()
-        painter.translate(margin + fm.ascent(), (final_height - title_width) // 2)
+        painter.translate(margin + fm.ascent(), (final_height + title_width) // 2)
         painter.rotate(-90)
         painter.drawText(0, 0, title_text)
         painter.restore()

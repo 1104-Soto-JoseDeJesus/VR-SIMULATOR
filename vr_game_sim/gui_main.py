@@ -993,14 +993,17 @@ class MainWindow(QtWidgets.QMainWindow):
         bold_weight = getattr(weight_obj, "Bold", None) if weight_obj is not None else None
         if bold_weight is None:
             bold_weight = getattr(QtGui.QFont, "Bold")
-        title_font = QtGui.QFont("Times New Roman", 200, bold_weight)
+        title_font = QtGui.QFont("Times New Roman", 240, bold_weight)
         painter.setFont(title_font)
 
         margin = 40
+        title_text = "Matchup Statistics"
+        fm = painter.fontMetrics()
+        title_width = fm.horizontalAdvance(title_text)
         painter.save()
-        painter.translate(margin, final_height // 2)
+        painter.translate(margin + fm.ascent(), (final_height - title_width) // 2)
         painter.rotate(-90)
-        painter.drawText(0, 0, "Matchup Statistics")
+        painter.drawText(0, 0, title_text)
         painter.restore()
 
         label_font = QtGui.QFont("Times New Roman", 80, bold_weight)

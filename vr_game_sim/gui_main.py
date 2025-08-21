@@ -916,10 +916,13 @@ class MainWindow(QtWidgets.QMainWindow):
         final_width = max(preview_pix.width(), *(p.width() for p in hist_pixmaps))
         final_height = preview_pix.height() + sum(p.height() for p in hist_pixmaps)
         final_pix = QtGui.QPixmap(final_width, final_height)
-        bg_color = self.palette().color(QtGui.QPalette.ColorRole.Window)
-        final_pix.fill(bg_color)
 
         painter = QtGui.QPainter(final_pix)
+        gradient = QtGui.QLinearGradient(0, 0, 0, final_height)
+        gradient.setColorAt(0, QtGui.QColor("#4a4a4a"))
+        gradient.setColorAt(1, QtGui.QColor("#1e1e1e"))
+        painter.fillRect(final_pix.rect(), gradient)
+
         x = (final_width - preview_pix.width()) // 2
         painter.drawPixmap(x, 0, preview_pix)
         y = preview_pix.height()

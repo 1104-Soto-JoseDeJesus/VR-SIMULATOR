@@ -584,7 +584,11 @@ def display_histograms(
         lbl.setPixmap(pix)
         lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         lbl.setStyleSheet(
-            "QLabel { border: 1px solid #888888; background-color: #353535; color: #ffffff; }"
+            "QLabel {"
+            "border: 1px solid rgba(255, 255, 255, 40);"
+            "background-color: rgba(0, 0, 0, 80);"
+            "color: #ffffff;"
+            "}"
         )
         layout.addWidget(lbl, row, col, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
         if img_name == "own_remaining_troops.png":
@@ -611,7 +615,9 @@ def display_histograms(
             caption_text = img_name.replace("_", " ").replace(".png", "").title()
         caption = QtWidgets.QLabel(caption_text)
         caption.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        caption.setStyleSheet("QLabel { color: #ffffff; }")
+        caption.setStyleSheet(
+            "QLabel { color: #dddddd; background-color: transparent; }"
+        )
         layout.addWidget(caption, row + 1, col)
         col += 1
         if col >= 2:
@@ -967,22 +973,19 @@ class MainWindow(QtWidgets.QMainWindow):
 def main() -> None:
     app = QtWidgets.QApplication([])
     app.setStyle("Fusion")
-    dark_palette = QtGui.QPalette()
-    dark_palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(53, 53, 53))
-    dark_palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtCore.Qt.GlobalColor.white)
-    dark_palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(35, 35, 35))
-    dark_palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor(53, 53, 53))
-    dark_palette.setColor(QtGui.QPalette.ColorRole.ToolTipBase, QtCore.Qt.GlobalColor.white)
-    dark_palette.setColor(QtGui.QPalette.ColorRole.ToolTipText, QtCore.Qt.GlobalColor.white)
-    dark_palette.setColor(QtGui.QPalette.ColorRole.Text, QtCore.Qt.GlobalColor.white)
-    dark_palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor(53, 53, 53))
-    dark_palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtCore.Qt.GlobalColor.white)
-    dark_palette.setColor(QtGui.QPalette.ColorRole.BrightText, QtCore.Qt.GlobalColor.red)
-    dark_palette.setColor(QtGui.QPalette.ColorRole.Link, QtGui.QColor(42, 130, 218))
-    dark_palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor(42, 130, 218))
-    dark_palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtCore.Qt.GlobalColor.black)
-    app.setPalette(dark_palette)
+    app.setStyleSheet(
+        """
+        QMainWindow {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 #4a4a4a, stop:1 #1e1e1e);
+        }
+        """
+    )
     window = MainWindow()
+    window.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+    blur = QtWidgets.QGraphicsBlurEffect()
+    blur.setBlurRadius(10)
+    window.setGraphicsEffect(blur)
     window.resize(800, 600)
     window.show()
     app.exec()

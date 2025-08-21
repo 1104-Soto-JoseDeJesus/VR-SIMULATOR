@@ -1,12 +1,12 @@
 [
     {
-        "army_name": "Army 1",
+        "army_name": "Helgar/Heahmund",
         "unit_type": "pikemen",
         "tier": 7,
         "count": 300000,
-        "atk_mod": 2.5,
-        "def_mod": 2.0,
-        "hp_mod": 0.8,
+        "atk_mod": 3.0,
+        "def_mod": 2.5,
+        "hp_mod": 1.0,
         "unrevivable_ratio": 0.5,
         "heroes": [
             {
@@ -21,68 +21,68 @@
                     "rage_skill_ruling_trial"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_hymn_of_life",
-                    "plugin_divine_blessing"
+                    "plugin_divine_blessing",
+                    "plugin_freyas_blessing"
                 ]
             },
             {
-                "hero_name_or_preset": "Laird",
+                "hero_name_or_preset": "Leif",
                 "talent_ids": [
-                    "talent_holy_shield",
-                    "talent_sacred_counter",
-                    "talent_divine_resistance"
+                    "talent_blade_counter",
+                    "talent_shield_of_resistance",
+                    "talent_revenge_echo"
                 ],
                 "base_skill_ids": [
-                    "base_skill_flame_guardian",
-                    "base_skill_sacred_blade"
+                    "base_skill_planned_attack",
+                    "base_skill_sharp_pursuit"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_rest_and_counterattack",
-                    "plugin_shield_reflector"
+                    "plugin_hymn_of_life",
+                    "plugin_rest_and_counterattack"
                 ]
             }
         ]
     },
     {
-        "army_name": "Army 2",
-        "unit_type": "pikemen",
+        "army_name": "Test Army",
+        "unit_type": "infantry",
         "tier": 7,
         "count": 300000,
-        "atk_mod": 2.5,
-        "def_mod": 2.0,
-        "hp_mod": 0.8,
+        "atk_mod": 3.0,
+        "def_mod": 2.5,
+        "hp_mod": 1.0,
         "unrevivable_ratio": 0.5,
         "heroes": [
             {
-                "hero_name_or_preset": "Helgar",
+                "hero_name_or_preset": "Lagertha",
                 "talent_ids": [
-                    "talent_saintly_guardian",
-                    "talent_war_blessing",
-                    "talent_judgement_mark"
+                    "talent_shieldaxe_attack",
+                    "talent_chiefs_might",
+                    "talent_fatal_strike"
                 ],
                 "base_skill_ids": [
-                    "base_skill_judgements_fury",
-                    "rage_skill_ruling_trial"
+                    "base_skill_shield_breaker",
+                    "rage_skill_showdown"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_rest_and_counterattack",
-                    "plugin_divine_blessing"
+                    "plugin_first_strike",
+                    "plugin_rage_leech"
                 ]
             },
             {
-                "hero_name_or_preset": "Laird",
+                "hero_name_or_preset": "Bjorn",
                 "talent_ids": [
-                    "talent_holy_shield",
-                    "talent_sacred_counter",
-                    "talent_divine_resistance"
+                    "talent_trained_up",
+                    "talent_undefeated",
+                    "talent_fatal_bleeding"
                 ],
                 "base_skill_ids": [
-                    "base_skill_flame_guardian",
-                    "base_skill_sacred_blade"
+                    "base_skill_crippling_pursuit",
+                    "base_skill_lethal_fracture"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_hymn_of_life",
-                    "plugin_shield_reflector"
+                    "plugin_enrage",
+                    "plugin_odins_asylum"
                 ]
             }
         ]

@@ -819,9 +819,31 @@ class MainWindow(QtWidgets.QMainWindow):
         bg_color = QtGui.QColor("#353535")
 
         def make_transparent(pix: QtGui.QPixmap) -> QtGui.QPixmap:
-            mask = pix.createMaskFromColor(bg_color, QtCore.Qt.MaskMode.MaskOutColor)
-            pix.setMask(mask)
-            return pix
+            """Return a pixmap with all near-bg_color pixels made fully transparent.
+
+            ``QPixmap.createMaskFromColor`` was previously used to strip the
+            ``#353535`` background from histogram images and army previews. That
+            approach converts the mask to 1-bit alpha and ended up stripping away
+            most of the figure detail, leaving the exported summary image almost
+            invisible.  Instead we now manually inspect each pixel and clear the
+            alpha channel when its colour matches the background (within a small
+            tolerance).  Existing transparency in the source pixmap is preserved.
+            """
+
+            image = pix.toImage().convertToFormat(QtGui.QImage.Format_ARGB32)
+            target = QtGui.QColor(bg_color)
+            tr, tg, tb = target.red(), target.green(), target.blue()
+            for y in range(image.height()):
+                for x in range(image.width()):
+                    c = QtGui.QColor(image.pixel(x, y))
+                    if (
+                        abs(c.red() - tr) <= 2
+                        and abs(c.green() - tg) <= 2
+                        and abs(c.blue() - tb) <= 2
+                    ):
+                        c.setAlpha(0)
+                        image.setPixelColor(x, y, c)
+            return QtGui.QPixmap.fromImage(image)
 
         image_files = [
             "own_remaining_troops.png",
@@ -835,7 +857,7 @@ class MainWindow(QtWidgets.QMainWindow):
             path = os.path.join(base_hist_dir, fname)
             if os.path.exists(path):
                 pm = QtGui.QPixmap(path)
-                make_transparent(pm)
+                pm = make_transparent(pm)
                 hist_pixmaps.append(pm)
         if not hist_pixmaps:
             QtWidgets.QMessageBox.warning(
@@ -851,14 +873,14 @@ class MainWindow(QtWidgets.QMainWindow):
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
-        make_transparent(p1)
+        p1 = make_transparent(p1)
         p2 = self.army2_frame.preview_widget.grab().scaled(
             self.army2_frame.preview_widget.width() * scale,
             self.army2_frame.preview_widget.height() * scale,
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
-        make_transparent(p2)
+        p2 = make_transparent(p2)
         vs_pix = self.vs_label.pixmap()
         if vs_pix is not None and not vs_pix.isNull():
             vs_pix = vs_pix.scaled(
@@ -867,7 +889,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 QtCore.Qt.AspectRatioMode.KeepAspectRatio,
                 QtCore.Qt.TransformationMode.SmoothTransformation,
             )
-            make_transparent(vs_pix)
+            vs_pix = make_transparent(vs_pix)
             preview_parts = [p1, vs_pix, p2]
         else:
             preview_parts = [p1, p2]

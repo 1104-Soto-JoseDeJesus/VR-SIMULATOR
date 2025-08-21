@@ -816,6 +816,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def export_summary_image(self) -> None:
         """Combine preview and histogram images into a single PNG."""
+        bg_color = QtGui.QColor("#353535")
+
+        def make_transparent(pix: QtGui.QPixmap) -> QtGui.QPixmap:
+            mask = pix.createMaskFromColor(bg_color, QtCore.Qt.MaskMode.MaskOutColor)
+            pix.setMask(mask)
+            return pix
+
         image_files = [
             "own_remaining_troops.png",
             "enemy_remaining_troops.png",
@@ -827,7 +834,9 @@ class MainWindow(QtWidgets.QMainWindow):
         for fname in image_files:
             path = os.path.join(base_hist_dir, fname)
             if os.path.exists(path):
-                hist_pixmaps.append(QtGui.QPixmap(path))
+                pm = QtGui.QPixmap(path)
+                make_transparent(pm)
+                hist_pixmaps.append(pm)
         if not hist_pixmaps:
             QtWidgets.QMessageBox.warning(
                 self, "No Figures", "No histogram images found. Run a simulation first."
@@ -842,12 +851,14 @@ class MainWindow(QtWidgets.QMainWindow):
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
+        make_transparent(p1)
         p2 = self.army2_frame.preview_widget.grab().scaled(
             self.army2_frame.preview_widget.width() * scale,
             self.army2_frame.preview_widget.height() * scale,
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
+        make_transparent(p2)
         vs_pix = self.vs_label.pixmap()
         if vs_pix is not None and not vs_pix.isNull():
             vs_pix = vs_pix.scaled(
@@ -856,6 +867,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 QtCore.Qt.AspectRatioMode.KeepAspectRatio,
                 QtCore.Qt.TransformationMode.SmoothTransformation,
             )
+            make_transparent(vs_pix)
             preview_parts = [p1, vs_pix, p2]
         else:
             preview_parts = [p1, p2]

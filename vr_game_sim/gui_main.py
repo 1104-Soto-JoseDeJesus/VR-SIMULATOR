@@ -989,7 +989,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Use a serif font to match the game's styling. The "Matchup Statistics"
         # title is larger than the label in the bottom corner.
-        title_font = QtGui.QFont("Times New Roman", 60, QtGui.QFont.Bold)
+        weight_obj = getattr(QtGui.QFont, "Weight", None)
+        bold_weight = getattr(weight_obj, "Bold", None) if weight_obj is not None else None
+        if bold_weight is None:
+            bold_weight = getattr(QtGui.QFont, "Bold")
+        title_font = QtGui.QFont("Times New Roman", 60, bold_weight)
         painter.setFont(title_font)
 
         margin = 40
@@ -999,7 +1003,7 @@ class MainWindow(QtWidgets.QMainWindow):
         painter.drawText(0, 0, "Matchup Statistics")
         painter.restore()
 
-        label_font = QtGui.QFont("Times New Roman", 40, QtGui.QFont.Bold)
+        label_font = QtGui.QFont("Times New Roman", 40, bold_weight)
         painter.setFont(label_font)
         fm = painter.fontMetrics()
         label = "OMNI"

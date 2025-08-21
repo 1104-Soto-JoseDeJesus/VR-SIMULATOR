@@ -817,20 +817,30 @@ class MainWindow(QtWidgets.QMainWindow):
             "victory_distribution.png",
         ]
         base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
-        hist_pixmaps = []
+        hist_pixmaps: list[QtGui.QPixmap] = []
         for fname in image_files:
             path = os.path.join(base_hist_dir, fname)
-            if os.path.exists(path):
-                hist_pixmaps.append(QtGui.QPixmap(path))
+            if not os.path.exists(path):
+                continue
+            pix = QtGui.QPixmap(path)
+            # If loading fails the pixmap is null; skip these to avoid
+            # downstream crashes when calculating dimensions.
+            if not pix.isNull():
+                hist_pixmaps.append(pix)
         if not hist_pixmaps:
             QtWidgets.QMessageBox.warning(
-                self, "No Figures", "No histogram images found. Run a simulation first."
+                self,
+                "No Figures",
+                "No histogram images found. Run a simulation first.",
             )
             return
 
         def remove_bg(pix: QtGui.QPixmap) -> QtGui.QPixmap:
             bg = QtGui.QColor(53, 53, 53)
-            img = pix.toImage().convertToFormat(QtGui.QImage.Format_ARGB32)
+            # Use the PyQt6 enum location for the ARGB32 image format.
+            img = pix.toImage().convertToFormat(
+                QtGui.QImage.Format.Format_ARGB32
+            )
             for y in range(img.height()):
                 for x in range(img.width()):
                     c = img.pixelColor(x, y)

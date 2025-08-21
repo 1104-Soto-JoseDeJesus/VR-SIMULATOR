@@ -816,10 +816,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def export_summary_image(self) -> None:
         """Combine preview and histogram images into a single PNG."""
-        bg_color = QtGui.QColor("#353535")
-
-        def make_transparent(pix: QtGui.QPixmap) -> QtGui.QPixmap:
-            """Return a pixmap with all near-bg_color pixels made fully transparent.
+        def make_transparent(
+            pix: QtGui.QPixmap, bg_color: QtGui.QColor | None = None
+        ) -> QtGui.QPixmap:
+            """Return ``pix`` with background pixels made fully transparent.
 
             ``QPixmap.createMaskFromColor`` was previously used to strip the
             ``#353535`` background from histogram images and army previews. That
@@ -828,6 +828,11 @@ class MainWindow(QtWidgets.QMainWindow):
             invisible.  Instead we now manually inspect each pixel and clear the
             alpha channel when its colour matches the background (within a small
             tolerance).  Existing transparency in the source pixmap is preserved.
+
+            If ``bg_color`` is ``None`` the colour of the top-left pixel is used
+            as the background.  This allows previews and histograms with different
+            solid backgrounds to be made transparent without hard-coding the
+            expected colour.
             """
 
             # ``QImage.Format_ARGB32`` was renamed in PyQt6 to live under the
@@ -838,8 +843,9 @@ class MainWindow(QtWidgets.QMainWindow):
             image = pix.toImage().convertToFormat(
                 QtGui.QImage.Format.Format_ARGB32
             )
-            target = QtGui.QColor(bg_color)
-            tr, tg, tb = target.red(), target.green(), target.blue()
+            if bg_color is None:
+                bg_color = QtGui.QColor(image.pixel(0, 0))
+            tr, tg, tb = bg_color.red(), bg_color.green(), bg_color.blue()
             for y in range(image.height()):
                 for x in range(image.width()):
                     c = QtGui.QColor(image.pixel(x, y))

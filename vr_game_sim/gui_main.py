@@ -993,7 +993,7 @@ class MainWindow(QtWidgets.QMainWindow):
         bold_weight = getattr(weight_obj, "Bold", None) if weight_obj is not None else None
         if bold_weight is None:
             bold_weight = getattr(QtGui.QFont, "Bold")
-        title_font = QtGui.QFont("Times New Roman", 60, bold_weight)
+        title_font = QtGui.QFont("Times New Roman", 200, bold_weight)
         painter.setFont(title_font)
 
         margin = 40
@@ -1003,7 +1003,7 @@ class MainWindow(QtWidgets.QMainWindow):
         painter.drawText(0, 0, "Matchup Statistics")
         painter.restore()
 
-        label_font = QtGui.QFont("Times New Roman", 40, bold_weight)
+        label_font = QtGui.QFont("Times New Roman", 80, bold_weight)
         painter.setFont(label_font)
         fm = painter.fontMetrics()
         label = "OMNI"

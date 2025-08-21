@@ -828,19 +828,36 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             return
 
-        # Capture army previews and vs image
+        def remove_bg(pix: QtGui.QPixmap) -> QtGui.QPixmap:
+            bg = QtGui.QColor(53, 53, 53)
+            img = pix.toImage().convertToFormat(QtGui.QImage.Format_ARGB32)
+            for y in range(img.height()):
+                for x in range(img.width()):
+                    c = img.pixelColor(x, y)
+                    if (abs(c.red() - bg.red()) < 5 and
+                            abs(c.green() - bg.green()) < 5 and
+                            abs(c.blue() - bg.blue()) < 5):
+                        c.setAlpha(0)
+                        img.setPixelColor(x, y, c)
+            return QtGui.QPixmap.fromImage(img)
+
+        # Capture army previews and remove default background
         scale = 5
-        p1 = self.army1_frame.preview_widget.grab().scaled(
-            self.army1_frame.preview_widget.width() * scale,
-            self.army1_frame.preview_widget.height() * scale,
-            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-            QtCore.Qt.TransformationMode.SmoothTransformation,
+        p1 = remove_bg(
+            self.army1_frame.preview_widget.grab().scaled(
+                self.army1_frame.preview_widget.width() * scale,
+                self.army1_frame.preview_widget.height() * scale,
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
         )
-        p2 = self.army2_frame.preview_widget.grab().scaled(
-            self.army2_frame.preview_widget.width() * scale,
-            self.army2_frame.preview_widget.height() * scale,
-            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-            QtCore.Qt.TransformationMode.SmoothTransformation,
+        p2 = remove_bg(
+            self.army2_frame.preview_widget.grab().scaled(
+                self.army2_frame.preview_widget.width() * scale,
+                self.army2_frame.preview_widget.height() * scale,
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
         )
         vs_pix = self.vs_label.pixmap()
         if vs_pix is not None and not vs_pix.isNull():
@@ -908,6 +925,15 @@ class MainWindow(QtWidgets.QMainWindow):
             painter.end()
 
         final_width = max(preview_pix.width(), *(p.width() for p in hist_pixmaps))
+        hist_pixmaps = [
+            p.scaled(
+                final_width,
+                int(p.height() * final_width / p.width()),
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+            for p in hist_pixmaps
+        ]
         final_height = preview_pix.height() + sum(p.height() for p in hist_pixmaps)
         final_pix = QtGui.QPixmap(final_width, final_height)
         final_pix.fill(QtCore.Qt.GlobalColor.transparent)

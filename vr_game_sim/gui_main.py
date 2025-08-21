@@ -199,7 +199,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         layout.addWidget(self.hp_edit, row, 1)
         row += 1
 
-        layout.addWidget(QtWidgets.QLabel("Unrevivable ratio:"), row, 0)
+        layout.addWidget(QtWidgets.QLabel("Heavily Wounded Ratio:"), row, 0)
         layout.addWidget(self.unrevivable_spin, row, 1)
         row += 1
 

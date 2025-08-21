@@ -426,8 +426,8 @@ class GameSimulator:
         def save_plot(data: List[float], fname: str, title: str, ylabel: str, color: str) -> None:
             with plt.style.context("ggplot"):
                 fig, ax = plt.subplots(figsize=(4, 3), dpi=100)
-                fig.patch.set_facecolor("#2e2e2e")
-                ax.set_facecolor("#2e2e2e")
+                fig.patch.set_alpha(0.0)
+                ax.set_facecolor("none")
                 ax.plot(rounds, data, color=color, linewidth=1)
                 ax.set_title(title, fontsize=6, color="white")
                 ax.set_xlabel("Round", fontsize=6, color="white")
@@ -435,7 +435,7 @@ class GameSimulator:
                 ax.tick_params(axis="both", labelsize=6, colors="white")
                 ax.grid(linewidth=0.2)
                 fig.tight_layout()
-                fig.savefig(os.path.join(base_dir, fname), dpi=100, bbox_inches="tight", facecolor=fig.get_facecolor())
+                fig.savefig(os.path.join(base_dir, fname), dpi=100, bbox_inches="tight", transparent=True)
                 plt.close(fig)
 
         save_plot(self.army1.damage_dealt_history, "damage_accumulated_army1.png", f"{self.army1.name} Damage Dealt", "Damage", "green")
@@ -655,8 +655,10 @@ class GameSimulator:
                 self.army1.shield_received_history.append(prev + self.army1.shield_hp_gained_this_round)
                 prev = self.army2.shield_received_history[-1] if self.army2.shield_received_history else 0
                 self.army2.shield_received_history.append(prev + self.army2.shield_hp_gained_this_round)
-                self.army1.rage_gained_history.append(self.army1.current_rage - start_rage_army1)
-                self.army2.rage_gained_history.append(self.army2.current_rage - start_rage_army2)
+                gain1 = self.army1.current_rage - start_rage_army1
+                self.army1.rage_gained_history.append(gain1 if gain1 > 0 else 0)
+                gain2 = self.army2.current_rage - start_rage_army2
+                self.army2.rage_gained_history.append(gain2 if gain2 > 0 else 0)
 
             for army in [self.army1, self.army2]:
                 if army.current_troop_count <= 0: continue

@@ -748,6 +748,10 @@ class MainWindow(QtWidgets.QMainWindow):
         load_btn.clicked.connect(self.load_setup)
         btn_layout.addWidget(load_btn)
 
+        swap_btn = QtWidgets.QPushButton("Swap Armies")
+        swap_btn.clicked.connect(self.swap_armies)
+        btn_layout.addWidget(swap_btn)
+
         clear_btn = QtWidgets.QPushButton("Clear Output")
         clear_btn.clicked.connect(lambda: self.output.clear())
         btn_layout.addWidget(clear_btn)
@@ -790,6 +794,18 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.army1_frame.populate_from_config(data[0])
                 self.army2_frame.populate_from_config(data[1])
                 self.status.setText(f"Loaded {os.path.basename(file_path)}")
+
+    def swap_armies(self) -> None:
+        cfg1 = self.army1_frame.build_config()
+        cfg2 = self.army2_frame.build_config()
+        self.army1_frame.populate_from_config(cfg2)
+        self.army2_frame.populate_from_config(cfg1)
+        old_widget = self.hist_scroll.takeWidget()
+        if old_widget is not None:
+            old_widget.deleteLater()
+        self.hist_container = QtWidgets.QWidget()
+        self.hist_scroll.setWidget(self.hist_container)
+        self.status.setText("Armies swapped")
 
     def export_figures(self) -> None:
         image_files = [

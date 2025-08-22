@@ -490,9 +490,11 @@ class SimulationWorker(QtCore.QThread):
     finished_text = QtCore.pyqtSignal(str)
     error = QtCore.pyqtSignal(str)
 
-    def __init__(self, setup_data: list[dict]) -> None:
+    def __init__(self, setup_data: list[dict], runs: int, num_workers: int) -> None:
         super().__init__()
         self.setup_data = setup_data
+        self.runs = runs
+        self.num_workers = num_workers
 
     def run(self) -> None:
         try:
@@ -506,14 +508,15 @@ class SimulationWorker(QtCore.QThread):
 
             win_rate = run_additional_simulations(
                 self.setup_data,
+                runs=self.runs,
                 verbose=False,
                 progress_callback=progress_cb,
-                num_workers=os.cpu_count(),
+                num_workers=self.num_workers,
             )
 
             result_text = (
                 report_text
-                + f"\nWin rate for {armies[0].name}: {win_rate*100:.1f}% over 300 runs.\n"
+                + f"\nWin rate for {armies[0].name}: {win_rate*100:.1f}% over {self.runs} runs.\n"
             )
             self.finished_text.emit(result_text)
         except Exception as exc:  # pragma: no cover - GUI feedback
@@ -714,6 +717,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress = QtWidgets.QProgressBar()
         self.progress.setRange(0, 0)
         main_layout.addWidget(self.progress)
+
+        opts_layout = QtWidgets.QHBoxLayout()
+        main_layout.addLayout(opts_layout)
+
+        opts_layout.addWidget(QtWidgets.QLabel("Additional Runs:"))
+        self.runs_spin = QtWidgets.QSpinBox()
+        self.runs_spin.setRange(1, 10000)
+        self.runs_spin.setValue(300)
+        opts_layout.addWidget(self.runs_spin)
+
+        opts_layout.addWidget(QtWidgets.QLabel("Worker Processes:"))
+        self.workers_spin = QtWidgets.QSpinBox()
+        cpu_count = os.cpu_count() or 1
+        self.workers_spin.setRange(1, cpu_count)
+        self.workers_spin.setValue(cpu_count)
+        opts_layout.addWidget(self.workers_spin)
 
         btn_layout = QtWidgets.QHBoxLayout()
         main_layout.addLayout(btn_layout)
@@ -1027,12 +1046,16 @@ class MainWindow(QtWidgets.QMainWindow):
     # --- Simulation handling --------------------------------------------
     def run_simulation(self) -> None:
         setup_data = [self.army1_frame.build_config(), self.army2_frame.build_config()]
+        runs = self.runs_spin.value()
+        workers = self.workers_spin.value()
         self.status.setText("Running simulation...")
-        self.progress.setRange(0, 300)
+        self.progress.setRange(0, runs)
         self.progress.setValue(0)
         self.run_btn.setEnabled(False)
-        self.worker = SimulationWorker(setup_data)
-        self.worker.progress_update.connect(lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d)))
+        self.worker = SimulationWorker(setup_data, runs, workers)
+        self.worker.progress_update.connect(
+            lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
+        )
         self.worker.finished_text.connect(self._sim_finished)
         self.worker.error.connect(self._sim_error)
         self.worker.finished.connect(self.worker.deleteLater)

@@ -49,6 +49,9 @@ class Army:
     active_effects: List[EffectInstance] = field(init=False, default_factory=list)
     upcoming_effects: List[EffectInstance] = field(init=False, default_factory=list)
     effects_to_activate_next_round: List[EffectInstance] = field(init=False, default_factory=list)
+    stat_cache: Dict[Tuple[StatType, Optional[str]], float] = field(
+        init=False, default_factory=dict
+    )
 
     triggered_skills_this_round: List[str] = field(init=False, default_factory=list)
     pending_hp_damage_this_round: float = field(init=False, default=0.0)
@@ -81,6 +84,9 @@ class Army:
 
     def __post_init__(self):
         self.reset_for_new_battle()
+
+    def _reset_stat_cache(self) -> None:
+        self.stat_cache.clear()
 
     def increment_skill_trigger_count(self, skill_id: str):
         self.skill_trigger_counts[skill_id] = self.skill_trigger_counts.get(skill_id, 0) + 1
@@ -148,16 +154,22 @@ class Army:
         self.activate_queued_effects()
 
     def get_sum_stat_magnitudes(self, stat_type: StatType, attack_type_filter: Optional[str] = None) -> float:
+        key = (stat_type, attack_type_filter)
+        if key in self.stat_cache:
+            return self.stat_cache[key]
+
         sum_of_magnitudes = 0.0
         for effect in self.active_effects:
-            if effect.effect_type == EffectType.STAT_MOD and effect.config.get('stat_to_mod') == stat_type:
-                eff_filter = effect.config.get('config_filter', {}).get('attack_type')
+            if effect.effect_type == EffectType.STAT_MOD and effect.config.get("stat_to_mod") == stat_type:
+                eff_filter = effect.config.get("config_filter", {}).get("attack_type")
                 if attack_type_filter:
                     if not eff_filter or eff_filter == attack_type_filter:
                         sum_of_magnitudes += effect.magnitude
                 else:
                     if not eff_filter:
                         sum_of_magnitudes += effect.magnitude
+
+        self.stat_cache[key] = sum_of_magnitudes
         return sum_of_magnitudes
 
     def get_current_shield_hp(self) -> float:
@@ -183,6 +195,8 @@ class Army:
 
         self.active_effects = [eff for eff in self.active_effects if
                                not (eff.effect_type == EffectType.SHIELD and eff.magnitude <= 0.001)]
+        if absorbed_total > 0 or hp_dmg_final != damage_after_percent_mods:
+            self._reset_stat_cache()
 
         return {'hp_damage_to_troops': hp_dmg_final, 'absorbed_by_shield': absorbed_total}
 
@@ -701,6 +715,7 @@ class Army:
                     elif targeted_buff_names_initial_log:
                         self.simulator._log_skill_trigger(self, f"{source_skill_name} ({effect.name} Attempt)",
                                                           f"Targeted buffs ({', '.join(targeted_buff_names_initial_log)}) were no longer active or already expired on self.")
+        self._reset_stat_cache()
 
     def activate_queued_effects(self):
         effects_to_add_to_active = []
@@ -737,6 +752,8 @@ class Army:
 
         self.active_effects.extend(effects_to_add_to_active)
         self.upcoming_effects.clear()
+        if effects_to_add_to_active:
+            self._reset_stat_cache()
 
     def decrement_effect_durations(self):
         next_active_effects = []
@@ -755,6 +772,7 @@ class Army:
                 if eff.duration >= 0:
                     next_active_effects.append(eff)
         self.active_effects = next_active_effects
+        self._reset_stat_cache()
 
     def apply_start_of_round_rage_deductions(self):
         """Apply all pending rage reduction effects before other start-of-round logic."""
@@ -777,6 +795,8 @@ class Army:
         for r in to_remove:
             if r in self.active_effects:
                 self.active_effects.remove(r)
+        if to_remove:
+            self._reset_stat_cache()
 
     def has_active_debuff(self, debuff_name: str) -> bool:
         for effect in self.active_effects:
@@ -792,6 +812,7 @@ class Army:
         self.active_effects.clear()
         self.upcoming_effects.clear()
         self.effects_to_activate_next_round.clear()
+        self._reset_stat_cache()
         self.triggered_skills_this_round.clear()
         self.pending_hp_damage_this_round = 0.0  # Reset here is good
         self.pending_hp_healing_this_round = 0.0  # Reset here is good

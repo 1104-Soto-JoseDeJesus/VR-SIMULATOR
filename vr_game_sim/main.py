@@ -205,11 +205,11 @@ def run_additional_simulations(
     # Ensure any previous figures are closed before starting the additional runs
     plt.close("all")
 
-    own_remaining: List[float] = []
-    enemy_remaining: List[float] = []
-    rounds_taken: List[int] = []
-    diff_results: List[float] = []
-    winners: List[int] = []  # 1 -> army1, 2 -> army2, 0 -> draw
+    own_remaining = np.empty(runs)
+    enemy_remaining = np.empty(runs)
+    rounds_taken = np.empty(runs, dtype=int)
+    diff_results = np.empty(runs)
+    winners = np.empty(runs, dtype=int)
 
     army1_name = (
         setup_data[0].get("army_name", "Army 1") if len(setup_data) > 0 else "Army 1"
@@ -217,7 +217,7 @@ def run_additional_simulations(
     army2_name = (
         setup_data[1].get("army_name", "Army 2") if len(setup_data) > 1 else "Army 2"
     )
-    battle_results: List[tuple] = []
+    battle_results = np.empty((runs, 2))
 
     worker_inputs = [setup_data] * runs
     if num_workers > 1:
@@ -226,36 +226,34 @@ def run_additional_simulations(
         ) as ex:
             results_iter = ex.map(_run_single_battle, worker_inputs)
             completed = 0
-            for own, enemy, r_taken, diff, winner in results_iter:
-                own_remaining.append(own)
-                enemy_remaining.append(enemy)
-                rounds_taken.append(r_taken)
-                diff_results.append(diff)
-                winners.append(winner)
-                battle_results.append((own, enemy))
+            for idx, (own, enemy, r_taken, diff, winner) in enumerate(results_iter):
+                own_remaining[idx] = own
+                enemy_remaining[idx] = enemy
+                rounds_taken[idx] = r_taken
+                diff_results[idx] = diff
+                winners[idx] = winner
+                battle_results[idx] = (own, enemy)
                 completed += 1
                 if progress_callback:
                     progress_callback(completed, runs)
     else:
         for i in range(runs):
             own, enemy, r_taken, diff, winner = _run_single_battle(setup_data)
-            own_remaining.append(own)
-            enemy_remaining.append(enemy)
-            rounds_taken.append(r_taken)
-            diff_results.append(diff)
-            winners.append(winner)
-            battle_results.append((own, enemy))
+            own_remaining[i] = own
+            enemy_remaining[i] = enemy
+            rounds_taken[i] = r_taken
+            diff_results[i] = diff
+            winners[i] = winner
+            battle_results[i] = (own, enemy)
             if progress_callback:
                 progress_callback(i + 1, runs)
 
     if generate_histograms:
         ensure_histogram_dir()
 
-        avg_own = sum(own_remaining) / len(own_remaining) if own_remaining else 0
-        avg_enemy = (
-            sum(enemy_remaining) / len(enemy_remaining) if enemy_remaining else 0
-        )
-        avg_rounds = sum(rounds_taken) / len(rounds_taken) if rounds_taken else 0
+        avg_own = float(np.mean(own_remaining))
+        avg_enemy = float(np.mean(enemy_remaining))
+        avg_rounds = float(np.mean(rounds_taken))
 
         with plt.style.context("ggplot"):
             fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
@@ -457,10 +455,10 @@ def run_additional_simulations(
             fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
             fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
             ax.set_facecolor(HISTOGRAM_BG_COLOR)
-            x = np.arange(1, len(own_remaining) + 1)
+            x = np.arange(1, runs + 1)
             own_avg = np.cumsum(own_remaining) / x
             enemy_avg = np.cumsum(enemy_remaining) / x
-            win_avg = np.cumsum([1 if w == 1 else 0 for w in winners]) / x
+            win_avg = np.cumsum(winners == 1) / x
             ax.plot(x, own_avg, label="Own", linewidth=0.5, color="green")
             ax.plot(x, enemy_avg, label="Enemy", linewidth=0.5, color="red")
             ax2 = ax.twinx()
@@ -488,8 +486,8 @@ def run_additional_simulations(
             plt.close(fig)
 
     # Pie chart for win percentages
-    wins_army1 = winners.count(1)
-    wins_army2 = winners.count(2)
+    wins_army1 = int(np.sum(winners == 1))
+    wins_army2 = int(np.sum(winners == 2))
     if generate_histograms and wins_army1 + wins_army2 > 0:
         with plt.style.context("default"):
             fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
@@ -526,10 +524,8 @@ def run_additional_simulations(
 
     # Determine battle closest to average outcome
     if verbose and diff_results:
-        avg_diff = sum(diff_results) / len(diff_results)
-        closest_idx = min(
-            range(len(diff_results)), key=lambda i: abs(diff_results[i] - avg_diff)
-        )
+        avg_diff = float(np.mean(diff_results))
+        closest_idx = int(np.argmin(np.abs(diff_results - avg_diff)))
         closest_own, closest_enemy = battle_results[closest_idx]
         winner_text = "Draw"
         if winners[closest_idx] == 1:

@@ -1,86 +1,88 @@
 [
     {
         "army_name": "Army 1",
-        "unit_type": "pikemen",
+        "unit_type": "archers",
         "tier": 7,
-        "count": 200000,
-        "atk_mod": 1.0,
-        "def_mod": 1.0,
-        "hp_mod": 0.5,
+        "count": 300000,
+        "atk_mod": 2.5,
+        "def_mod": 2.5,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.5,
         "heroes": [
             {
-                "hero_name_or_preset": "Yvette",
+                "hero_name_or_preset": "Athelstan",
                 "talent_ids": [
-                    "talent_healing_chords",
-                    "talent_healing_hymn",
-                    "talent_horn_of_countering"
+                    "talent_erudite",
+                    "talent_strategize",
+                    "talent_adaptable_to_changes"
                 ],
                 "base_skill_ids": [
-                    "base_skill_sanctity_of_life",
-                    "base_skill_vital_blessing"
+                    "base_skill_heart_of_tolerance",
+                    "base_skill_holy_enlightenment"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_divine_blessing",
-                    "plugin_shield_support"
+                    "plugin_rage_leech",
+                    "plugin_fiery_rage"
                 ]
             },
             {
-                "hero_name_or_preset": "Laird",
+                "hero_name_or_preset": "Olena",
                 "talent_ids": [
-                    "talent_holy_shield",
-                    "talent_sacred_counter",
-                    "talent_divine_resistance"
+                    "talent_scorching_arrow",
+                    "talent_multi_shot_arrow",
+                    "talent_poised_shot"
                 ],
                 "base_skill_ids": [
-                    "base_skill_flame_guardian",
-                    "base_skill_sacred_blade"
+                    "base_skill_enchanted_arrow",
+                    "base_skill_concentration"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_freyas_blessing",
-                    "plugin_hymn_of_life"
+                    "plugin_first_strike",
+                    "plugin_this_too_shall_pass"
                 ]
             }
         ]
     },
     {
         "army_name": "Army 2",
-        "unit_type": "pikemen",
+        "unit_type": "archers",
         "tier": 7,
-        "count": 200000,
-        "atk_mod": 1.0,
-        "def_mod": 1.0,
-        "hp_mod": 0.5,
+        "count": 300000,
+        "atk_mod": 2.5,
+        "def_mod": 2.5,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.5,
         "heroes": [
             {
-                "hero_name_or_preset": "Laird",
+                "hero_name_or_preset": "Yulmi",
                 "talent_ids": [
-                    "talent_holy_shield",
-                    "talent_sacred_counter",
-                    "talent_divine_resistance"
+                    "talent_dreadful_curse",
+                    "talent_high_fighting_spirit",
+                    "talent_low_whispers"
                 ],
                 "base_skill_ids": [
-                    "base_skill_flame_guardian",
-                    "base_skill_sacred_blade"
+                    "base_skill_plague",
+                    "rage_skill_undead_harvest"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_divine_blessing",
-                    "plugin_shield_support"
+                    "plugin_blow_of_chaos",
+                    "plugin_joint_offense"
                 ]
             },
             {
-                "hero_name_or_preset": "Leif",
+                "hero_name_or_preset": "Olena",
                 "talent_ids": [
-                    "talent_blade_counter",
-                    "talent_shield_of_resistance",
-                    "talent_revenge_echo"
+                    "talent_scorching_arrow",
+                    "talent_multi_shot_arrow",
+                    "talent_poised_shot"
                 ],
                 "base_skill_ids": [
-                    "base_skill_planned_attack",
-                    "base_skill_sharp_pursuit"
+                    "base_skill_enchanted_arrow",
+                    "base_skill_concentration"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_freyas_blessing",
-                    "plugin_hymn_of_life"
+                    "plugin_odins_asylum",
+                    "plugin_rage_leech"
                 ]
             }
         ]

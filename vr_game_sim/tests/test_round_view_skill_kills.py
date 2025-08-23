@@ -61,3 +61,21 @@ def test_round_view_displays_combat_actions():
     # The action entry should have an associated widget describing the action.
     assert window.output_tree.itemWidget(action_item, 0) is not None
     window.close()
+
+
+def test_round_view_displays_active_effects():
+    window = MainWindow()
+    rounds = [
+        {
+            "round": 1,
+            "combat_actions": [],
+            "skill_triggers": {},
+            "active_effects": ["Burning", "Poisoned"],
+        }
+    ]
+    window._populate_round_tree(rounds)
+    round_item = window.output_tree.topLevelItem(0)
+    effects_item = round_item.child(0)
+    first_effect = effects_item.child(0)
+    assert first_effect.text(0) == "Burning"
+    window.close()

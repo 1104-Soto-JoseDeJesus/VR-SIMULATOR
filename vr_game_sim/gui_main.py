@@ -1389,9 +1389,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
             if r.get("active_effects"):
                 effects_item = QtWidgets.QTreeWidgetItem(["Active Effects", "", ""])
+                # Attach the effects container before populating it.  Similar
+                # to combat actions, interacting with a tree item that had
+                # children assigned prior to being part of the view can cause
+                # Qt to crash.  Adding the item first keeps the tree stable
+                # even with the richer report data.
+                round_item.addChild(effects_item)
                 for eff in r["active_effects"]:
                     QtWidgets.QTreeWidgetItem(effects_item, [eff])
-                round_item.addChild(effects_item)
 
             if r.get("combat_actions"):
                 actions_item = QtWidgets.QTreeWidgetItem(["Combat Actions", "", ""])
@@ -1428,6 +1433,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
             for army_name, triggers in r.get("skill_triggers", {}).items():
                 army_item = QtWidgets.QTreeWidgetItem([f"{army_name} Skill Triggers", "", ""])
+                # Add the army container to the round before populating it with
+                # individual trigger entries.  This mirrors the approach used
+                # for combat actions and avoids crashes when interacting with
+                # the richer report contents.
+                round_item.addChild(army_item)
                 color = army_colors.get(army_name)
                 if color:
                     army_item.setForeground(0, QtGui.QBrush(QtGui.QColor(color)))
@@ -1444,7 +1454,6 @@ class MainWindow(QtWidgets.QMainWindow):
                             detail += f" Kills {tr['potential_kills']}"
                         text = f"{tr['skill_name']}: {tr['effect_description']}{detail}"
                         QtWidgets.QTreeWidgetItem(army_item, [text])
-                round_item.addChild(army_item)
 
     def _sim_finished(self, text: str, rounds: list[dict]) -> None:
         self.output_text.setPlainText(text)

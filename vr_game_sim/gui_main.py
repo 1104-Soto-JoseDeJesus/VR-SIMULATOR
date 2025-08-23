@@ -520,11 +520,12 @@ class SimulationWorker(QtCore.QThread):
     finished_text = QtCore.pyqtSignal(str)
     error = QtCore.pyqtSignal(str)
 
-    def __init__(self, setup_data: list[dict], runs: int, num_workers: int) -> None:
+    def __init__(self, setup_data: list[dict], runs: int, num_workers: int, battle_log: bool) -> None:
         super().__init__()
         self.setup_data = setup_data
         self.runs = runs
         self.num_workers = num_workers
+        self.battle_log = battle_log
         self._cancelled = threading.Event()
 
     def cancel(self) -> None:
@@ -537,7 +538,8 @@ class SimulationWorker(QtCore.QThread):
             if self._cancelled.is_set():
                 raise RuntimeError("cancelled")
 
-            report_builder = ReportBuilder(use_color=False)
+            style = "battle_log" if self.battle_log else "grid"
+            report_builder = ReportBuilder(use_color=False, style=style)
             sim = GameSimulator(armies[0], armies[1], report_builder, track_stats=True)
             report_text = sim.simulate_battle()
             if self._cancelled.is_set():
@@ -876,6 +878,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.workers_spin.setRange(1, cpu_count)
         self.workers_spin.setValue(cpu_count)
         opts_layout.addWidget(self.workers_spin)
+
+        self.battle_log_check = QtWidgets.QCheckBox("Battle Log Format")
+        self.battle_log_check.setChecked(True)
+        opts_layout.addWidget(self.battle_log_check)
 
     # --- Setup load/save -------------------------------------------------
     def save_setup(self) -> None:
@@ -1265,7 +1271,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress.setRange(0, runs)
         self.progress.setValue(0)
         self.run_action.setText("Cancel")
-        self.worker = SimulationWorker(setup_data, runs, workers)
+        self.worker = SimulationWorker(setup_data, runs, workers, self.battle_log_check.isChecked())
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
         )

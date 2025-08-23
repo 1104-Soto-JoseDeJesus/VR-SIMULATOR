@@ -7,13 +7,14 @@ import sys
 _COLORAMA_INITIALIZED = False
 
 class ReportBuilder:
-    def __init__(self, use_color: bool = True):
+    def __init__(self, use_color: bool = True, style: str = "grid"):
         global _COLORAMA_INITIALIZED
         self.use_color = use_color and sys.stdout.isatty()
         if self.use_color and not _COLORAMA_INITIALIZED:
             init(autoreset=True)
             _COLORAMA_INITIALIZED = True
         self.lines: List[str] = []
+        self.style = style
 
     def _c(self, text: str, color: str) -> str:
         if self.use_color:
@@ -23,17 +24,63 @@ class ReportBuilder:
     def log_active_effects(self, lines: List[str]):
         self.lines.extend(lines)
 
-    def emit_round(self, round_num: int, combat_actions: List[Dict[str, Any]], skill_triggers: Dict[str, List[Dict[str, Any]]], active_effects: List[str] | None = None):
+    def emit_round(
+        self,
+        round_num: int,
+        combat_actions: List[Dict[str, Any]],
+        skill_triggers: Dict[str, List[Dict[str, Any]]],
+        active_effects: List[str] | None = None,
+    ):
         self.lines.append("\n" + "=" * 40)
         self.lines.append(self._c(f"Round {round_num}", Fore.CYAN))
         if active_effects:
             self.lines.extend(active_effects)
-        if combat_actions:
+
+        army_names = list(skill_triggers.keys())
+        colors = [Fore.BLUE, Fore.RED]
+        color_map = {name: col for name, col in zip(army_names, colors)}
+
+        if combat_actions and self.style == "battle_log":
+            start_counts: Dict[str, float] = {}
+            end_counts: Dict[str, float] = {}
+            for a in combat_actions:
+                att = a["attacker_name"]
+                dfd = a["defender_name"]
+                start_counts.setdefault(att, a["attacker_troops_before"])
+                start_counts.setdefault(dfd, a["defender_troops_before"])
+                end_counts[att] = a["attacker_troops_after"]
+                end_counts[dfd] = a["defender_troops_after"]
+
+            for name in army_names:
+                start = start_counts.get(name, 0)
+                end = end_counts.get(name, start)
+                losses = start - end
+                self.lines.append(
+                    f"{self._c(name, color_map.get(name, Fore.WHITE))}: {start:.0f} -> {end:.0f} (Losses: {self._c(str(int(losses)), Fore.RED)})"
+                )
+
+            for a in combat_actions:
+                att_color = color_map.get(a["attacker_name"], Fore.WHITE)
+                dfd_color = color_map.get(a["defender_name"], Fore.WHITE)
+                line = (
+                    f"{self._c(a['attacker_name'], att_color)} ({a['attacker_troops_before']:.0f}->{a['attacker_troops_after']:.0f}) "
+                    f"launched a {a['action_type']} on {self._c(a['defender_name'], dfd_color)} "
+                    f"({a['defender_troops_before']:.0f}->{a['defender_troops_after']:.0f}). "
+                    f"{self._c(a['defender_name'], dfd_color)} lost {a['potential_kills']} units."
+                )
+                self.lines.append(line)
+        elif combat_actions:
             table = tabulate(
                 [
-                    [a['attacker_name'], a['defender_name'], a['action_type'],
-                     f"{a['damage_potential_hp']:.0f}", f"{a['absorbed_hp']:.0f}",
-                     f"{a['final_hp_damage']:.0f}", a['potential_kills']]
+                    [
+                        a['attacker_name'],
+                        a['defender_name'],
+                        a['action_type'],
+                        f"{a['damage_potential_hp']:.0f}",
+                        f"{a['absorbed_hp']:.0f}",
+                        f"{a['final_hp_damage']:.0f}",
+                        a['potential_kills'],
+                    ]
                     for a in combat_actions
                 ],
                 headers=["Attacker", "Defender", "Type", "DMG Pot", "Absorb", "Final DMG", "Kills"],

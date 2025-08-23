@@ -47,7 +47,14 @@ class GameSimulator:
         if adv.get(def_type) == atk_type: return 0.95
         return 1.0
 
-    def __init__(self, army1: Army, army2: Army, report_builder: Optional[ReportBuilder] = None, track_stats: bool = True):
+    def __init__(
+        self,
+        army1: Army,
+        army2: Army,
+        report_builder: Optional[ReportBuilder] = None,
+        track_stats: bool = True,
+        report_style: str = "grid",
+    ):
         self.army1: Army = army1
         self.army2: Army = army2
         self.army1.simulator = self
@@ -55,9 +62,10 @@ class GameSimulator:
         self.round: int = 0
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
-            self.army1.name: [], self.army2.name: []
+            self.army1.name: [],
+            self.army2.name: [],
         }
-        self.report_builder = report_builder or ReportBuilder()
+        self.report_builder = report_builder or ReportBuilder(style=report_style)
         self.track_stats = track_stats
 
     def _log_active_effects_for_report(self) -> List[str]:
@@ -85,12 +93,22 @@ class GameSimulator:
 
     def _log_combat_action(self, attacker: Army, defender: Army,
                            damage_potential_hp: float, absorbed_hp: float,
-                           final_hp_damage: float, potential_kills: int, is_counter: bool):
+                           final_hp_damage: float, potential_kills: int, is_counter: bool,
+                           attacker_troops_before: float, defender_troops_before: float,
+                           attacker_troops_after: float, defender_troops_after: float):
         action_type = "Counter Attack" if is_counter else "Basic Attack"
         log_entry = {
-            "attacker_name": attacker.name, "defender_name": defender.name, "action_type": action_type,
-            "damage_potential_hp": damage_potential_hp, "absorbed_hp": absorbed_hp,
-            "final_hp_damage": final_hp_damage, "potential_kills": potential_kills
+            "attacker_name": attacker.name,
+            "defender_name": defender.name,
+            "action_type": action_type,
+            "damage_potential_hp": damage_potential_hp,
+            "absorbed_hp": absorbed_hp,
+            "final_hp_damage": final_hp_damage,
+            "potential_kills": potential_kills,
+            "attacker_troops_before": attacker_troops_before,
+            "defender_troops_before": defender_troops_before,
+            "attacker_troops_after": attacker_troops_after,
+            "defender_troops_after": defender_troops_after,
         }
         self.round_combat_actions_log.append(log_entry)
 
@@ -464,7 +482,10 @@ class GameSimulator:
         defender_effective_def = dfd.unit.effective_defense(dfd.active_effects)
         if defender_effective_def <= 0: defender_effective_def = 1
 
-        troop_count_scalar = GameSimulator.troop_scalar(att.current_troop_count)
+        att_troops_before = att.current_troop_count
+        dfd_troops_before = dfd.current_troop_count
+
+        troop_count_scalar = GameSimulator.troop_scalar(att_troops_before)
         raw_damage_potential = (attacker_effective_atk / defender_effective_def) * troop_count_scalar
 
         specific_attack_stat = StatType.COUNTER_DAMAGE_ADJUST if is_counter else StatType.BASIC_DAMAGE_ADJUST
@@ -501,10 +522,22 @@ class GameSimulator:
             potential_units_killed_this_hit_float = hp_damage_to_troops / defender_hp_per_troop
             potential_units_killed_this_hit_rounded = round(potential_units_killed_this_hit_float)
 
+        att_troops_after = att_troops_before  # attacker does not lose troops from own attack
+        dfd_troops_after = max(0, dfd_troops_before - potential_units_killed_this_hit_rounded)
+
         self._log_combat_action(
-            attacker=att, defender=dfd, damage_potential_hp=damage_after_all_percent_mods,
-            absorbed_hp=absorbed_by_shield, final_hp_damage=hp_damage_to_troops,
-            potential_kills=potential_units_killed_this_hit_rounded, is_counter=is_counter)
+            attacker=att,
+            defender=dfd,
+            damage_potential_hp=damage_after_all_percent_mods,
+            absorbed_hp=absorbed_by_shield,
+            final_hp_damage=hp_damage_to_troops,
+            potential_kills=potential_units_killed_this_hit_rounded,
+            is_counter=is_counter,
+            attacker_troops_before=att_troops_before,
+            defender_troops_before=dfd_troops_before,
+            attacker_troops_after=att_troops_after,
+            defender_troops_after=dfd_troops_after,
+        )
 
         return hp_damage_to_troops, absorbed_by_shield, damage_after_all_percent_mods, potential_units_killed_this_hit_rounded
 

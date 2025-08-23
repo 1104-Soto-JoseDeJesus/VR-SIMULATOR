@@ -24,6 +24,20 @@ from vr_game_sim.main import (
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 
 
+class ThousandSepSpinBox(QtWidgets.QSpinBox):
+    """QSpinBox that displays numbers with thousand separators."""
+
+    def textFromValue(self, value: int) -> str:  # type: ignore[override]
+        return f"{value:,}"
+
+    def valueFromText(self, text: str) -> int:  # type: ignore[override]
+        clean = text.replace(",", "")
+        try:
+            return int(clean)
+        except ValueError:
+            return 0
+
+
 class HeroEditDialog(QtWidgets.QDialog):
     """Dialog to edit or create a hero configuration."""
 
@@ -130,7 +144,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.tier_spin.setRange(min(Unit.ALLOWED_TIERS), max(Unit.ALLOWED_TIERS))
         self.tier_spin.setValue(5)
 
-        self.count_spin = QtWidgets.QSpinBox()
+        self.count_spin = ThousandSepSpinBox()
         self.count_spin.setRange(0, 100000000)
         self.count_spin.setValue(100000)
 

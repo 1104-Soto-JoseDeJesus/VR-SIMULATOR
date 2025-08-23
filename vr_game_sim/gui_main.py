@@ -1343,6 +1343,8 @@ class MainWindow(QtWidgets.QMainWindow):
                             detail = f" DMG {tr['damage_done_hp']:.0f}"
                         elif "shield_hp_gained" in tr:
                             detail = f" Shield {tr['shield_hp_gained']:.0f}"
+                        if tr.get("potential_kills"):
+                            detail += f" Kills {tr['potential_kills']}"
                         text = f"{tr['skill_name']}: {tr['effect_description']}{detail}"
                         QtWidgets.QTreeWidgetItem(army_item, [text])
                 round_item.addChild(army_item)

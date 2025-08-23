@@ -114,7 +114,13 @@ class HeroEditDialog(QtWidgets.QDialog):
         self.setWindowTitle("Edit Hero")
         self.setModal(True)
 
-        layout = QtWidgets.QFormLayout(self)
+        outer_layout = QtWidgets.QVBoxLayout(self)
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        container = QtWidgets.QWidget()
+        layout = QtWidgets.QFormLayout(container)
+        scroll.setWidget(container)
+        outer_layout.addWidget(scroll)
 
         self.name_edit = QtWidgets.QLineEdit(hero_config.get("hero_name_or_preset", "") if hero_config else "")
         layout.addRow("Hero Name:", self.name_edit)
@@ -221,7 +227,7 @@ class HeroEditDialog(QtWidgets.QDialog):
         )
         btns.accepted.connect(self.accept)
         btns.rejected.connect(self.reject)
-        layout.addWidget(btns)
+        outer_layout.addWidget(btns)
 
     def result_config(self) -> dict | None:
         if self.result() != QtWidgets.QDialog.DialogCode.Accepted:

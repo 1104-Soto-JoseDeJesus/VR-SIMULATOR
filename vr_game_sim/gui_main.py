@@ -1147,6 +1147,47 @@ class MainWindow(QtWidgets.QMainWindow):
                     x += padding
             painter.end()
 
+        # Add a legend below the army previews so exported summaries clearly
+        # indicate which side belongs to which army.  Each entry shows a coloured
+        # square (red for the first army and green for the second) alongside the
+        # army's name.
+        legend_height = 200
+        preview_with_key = QtGui.QPixmap(preview_pix.width(), preview_pix.height() + legend_height)
+        preview_with_key.fill(QtCore.Qt.GlobalColor.transparent)
+        painter = QtGui.QPainter(preview_with_key)
+        painter.drawPixmap(0, 0, preview_pix)
+        painter.setPen(QtGui.QColor("white"))
+
+        weight_obj = getattr(QtGui.QFont, "Weight", None)
+        bold_weight = getattr(weight_obj, "Bold", None) if weight_obj is not None else None
+        if bold_weight is None:
+            bold_weight = getattr(QtGui.QFont, "Bold")
+        legend_font = QtGui.QFont("Times New Roman", 100, bold_weight)
+        painter.setFont(legend_font)
+        fm = painter.fontMetrics()
+
+        army_names = [
+            self.army1_frame.name_edit.text() or "Army 1",
+            self.army2_frame.name_edit.text() or "Army 2",
+        ]
+        colors = [QtGui.QColor("red"), QtGui.QColor("green")]
+        square_size = 100
+        spacing = 40
+        y = preview_pix.height() + (legend_height - square_size) // 2
+        for idx, (name, color) in enumerate(zip(army_names, colors)):
+            center_x = preview_pix.width() * (1 / 4 if idx == 0 else 3 / 4)
+            text_width = fm.horizontalAdvance(name)
+            total_width = square_size + spacing + text_width
+            x = int(center_x - total_width / 2)
+            painter.fillRect(x, y, square_size, square_size, color)
+            painter.drawRect(x, y, square_size, square_size)
+            text_x = x + square_size + spacing
+            text_y = int(y + square_size / 2 + (fm.ascent() - fm.descent()) / 2)
+            painter.drawText(text_x, text_y, name)
+
+        painter.end()
+        preview_pix = preview_with_key
+
         final_width = max(preview_pix.width(), *(p.width() for p in hist_pixmaps))
         final_height = preview_pix.height() + sum(p.height() for p in hist_pixmaps)
         final_pix = QtGui.QPixmap(final_width, final_height)

@@ -88,9 +88,15 @@ class GameSimulator:
                            final_hp_damage: float, potential_kills: int, is_counter: bool):
         action_type = "Counter Attack" if is_counter else "Basic Attack"
         log_entry = {
-            "attacker_name": attacker.name, "defender_name": defender.name, "action_type": action_type,
-            "damage_potential_hp": damage_potential_hp, "absorbed_hp": absorbed_hp,
-            "final_hp_damage": final_hp_damage, "potential_kills": potential_kills
+            "attacker_name": attacker.name,
+            "defender_name": defender.name,
+            "action_type": action_type,
+            "damage_potential_hp": damage_potential_hp,
+            "absorbed_hp": absorbed_hp,
+            "final_hp_damage": final_hp_damage,
+            "potential_kills": potential_kills,
+            "attacker_side": 1 if attacker is self.army1 else 2,
+            "defender_side": 1 if defender is self.army1 else 2,
         }
         self.round_combat_actions_log.append(log_entry)
 
@@ -515,6 +521,8 @@ class GameSimulator:
 
         while self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
             self.round += 1
+            start_count1 = self.army1.current_troop_count
+            start_count2 = self.army2.current_troop_count
 
             self.army1.rage_added_this_round = 0.0
             self.army2.rage_added_this_round = 0.0
@@ -618,16 +626,31 @@ class GameSimulator:
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 
+            self.army1.commit_pending_healing_and_damage()
+            self.army2.commit_pending_healing_and_damage()
+
+            round_summary = {
+                self.army1.name: {
+                    "start": start_count1,
+                    "end": self.army1.current_troop_count,
+                    "delta": self.army1.current_troop_count - start_count1,
+                },
+                self.army2.name: {
+                    "start": start_count2,
+                    "end": self.army2.current_troop_count,
+                    "delta": self.army2.current_troop_count - start_count2,
+                },
+            }
+
             active_lines = self._log_active_effects_for_report()
             self.report_builder.emit_round(
                 self.round,
                 self.round_combat_actions_log,
                 self.round_skill_triggers_log,
                 active_effects=active_lines,
+                round_summary=round_summary,
             )
 
-            self.army1.commit_pending_healing_and_damage()
-            self.army2.commit_pending_healing_and_damage()
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 
             for army, opponent in [(self.army1, self.army2), (self.army2, self.army1)]:

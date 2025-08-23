@@ -24,6 +24,28 @@ from vr_game_sim.main import (
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 
 
+class RoundItemDelegate(QtWidgets.QStyledItemDelegate):
+    def paint(self, painter: QtGui.QPainter, option: QtWidgets.QStyleOptionViewItem, index: QtCore.QModelIndex) -> None:  # type: ignore[override]
+        level = 0
+        parent = index.parent()
+        while parent.isValid():
+            level += 1
+            parent = parent.parent()
+
+        rect = option.rect.adjusted(2, 2, -2, -2)
+        painter.save()
+        if level == 0:
+            path = QtGui.QPainterPath()
+            path.addRoundedRect(rect, 6, 6)
+            painter.fillPath(path, QtGui.QColor("#2a2a2a"))
+        elif level == 1:
+            painter.fillRect(rect, QtGui.QColor("#333333"))
+        else:
+            painter.fillRect(rect, QtGui.QColor("#2e2e2e"))
+        painter.restore()
+        super().paint(painter, option, index)
+
+
 class ThousandSepSpinBox(QtWidgets.QSpinBox):
     """QSpinBox that displays numbers with thousand separators."""
 
@@ -840,12 +862,21 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
         self.output_tree = QtWidgets.QTreeWidget()
-        self.output_tree.setHeaderHidden(True)
+        self.output_tree.setColumnCount(3)
+        self.output_tree.setHeaderLabels(["Round", "Troops", "Battle Results"])
         self.output_tree.setFont(fixed_font)
+        self.output_tree.setTextElideMode(QtCore.Qt.TextElideMode.ElideNone)
         self.output_tree.setStyleSheet(
             "QTreeWidget { background-color: #1e1e1e; color: #ffffff; "
-            "border: 1px solid #444444; }"
+            "border: 1px solid #444444; } "
+            "QTreeView::branch { border-image: none; image: none; }"
         )
+        self.output_tree.setRootIsDecorated(False)
+        self.output_tree.setItemDelegate(RoundItemDelegate(self.output_tree))
+        header = self.output_tree.header()
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.Stretch)
         self.report_stack.addWidget(self.output_tree)
 
         self.output_text = QtWidgets.QTextEdit()
@@ -1305,25 +1336,89 @@ class MainWindow(QtWidgets.QMainWindow):
  
     def _populate_round_tree(self, rounds: list[dict]) -> None:
         self.output_tree.clear()
+        army1_name = self.army1_frame.name_edit.text() or "Army 1"
+        army2_name = self.army2_frame.name_edit.text() or "Army 2"
+        army_colors = {army1_name: "#00c8ff", army2_name: "#ff6464"}
+
+        icon_dir = os.path.join(os.path.dirname(__file__), "Icons")
+        army_icons = {
+            army1_name: QtGui.QIcon(os.path.join(icon_dir, f"{self.army1_frame.unit_combo.currentText()}.png")),
+            army2_name: QtGui.QIcon(os.path.join(icon_dir, f"{self.army2_frame.unit_combo.currentText()}.png")),
+        }
+
         for r in rounds:
-            round_item = QtWidgets.QTreeWidgetItem([f"Round {r['round']}"])
+            round_item = QtWidgets.QTreeWidgetItem([
+                f"Round {r['round']}",
+                "",
+                "",
+            ])
+
+            summary = r.get("round_summary", {})
+            if summary:
+                troop_texts: list[str] = []
+                result_texts: list[str] = []
+                for name in [army1_name, army2_name]:
+                    st = summary.get(name, {})
+                    remaining = st.get("end", 0)
+                    delta = st.get("delta", 0)
+                    color = army_colors.get(name, "#ffffff")
+                    troop_texts.append(
+                        f"<span style='color:{color}'>{name}: {remaining:,}</span>"
+                    )
+                    if delta:
+                        sign = "+" if delta > 0 else ""
+                        delta_color = "#00ff00" if delta > 0 else "#ff6464"
+                        result_texts.append(
+                            f"<span style='color:{color}'>{name}: "
+                            f"<span style='color:{delta_color}'>{sign}{delta:,}</span></span>"
+                        )
+                troop_label = QtWidgets.QLabel(" | ".join(troop_texts))
+                troop_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+                result_label = QtWidgets.QLabel(" | ".join(result_texts))
+                result_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+                self.output_tree.setItemWidget(round_item, 1, troop_label)
+                self.output_tree.setItemWidget(round_item, 2, result_label)
+
             if r.get("active_effects"):
-                effects_item = QtWidgets.QTreeWidgetItem(["Active Effects"])
+                effects_item = QtWidgets.QTreeWidgetItem(["Active Effects", "", ""])
                 for eff in r["active_effects"]:
                     QtWidgets.QTreeWidgetItem(effects_item, [eff])
                 round_item.addChild(effects_item)
+
             if r.get("combat_actions"):
-                actions_item = QtWidgets.QTreeWidgetItem(["Combat Actions"])
+                actions_item = QtWidgets.QTreeWidgetItem(["Combat Actions", "", ""])
                 for a in r["combat_actions"]:
-                    desc = (
+                    desc_plain = (
                         f"{a['attacker_name']} -> {a['defender_name']} {a['action_type']}"
                         f" DMG Pot {a['damage_potential_hp']:.0f} Absorb {a['absorbed_hp']:.0f}"
                         f" Final {a['final_hp_damage']:.0f} Kills {a['potential_kills']}"
                     )
-                    QtWidgets.QTreeWidgetItem(actions_item, [desc])
+                    action_item = QtWidgets.QTreeWidgetItem(actions_item, [desc_plain])
+                    atk_color = army_colors.get(a.get("attacker_name"), "#ffffff")
+                    def_color = army_colors.get(a.get("defender_name"), "#ffffff")
+                    dmg_color = "#ff6464" if a.get("final_hp_damage", 0) > 0 else "#00ff00"
+                    html = (
+                        f"<b style='color:{atk_color}'>{a['attacker_name']}</b> -> "
+                        f"<b style='color:{def_color}'>{a['defender_name']}</b> {a['action_type']} "
+                        f"<span style='color:{dmg_color}'>-{a['final_hp_damage']:.0f}</span>"
+                    )
+                    label = QtWidgets.QLabel(html)
+                    label.setTextFormat(QtCore.Qt.TextFormat.RichText)
+                    self.output_tree.setItemWidget(action_item, 0, label)
+                    icon = army_icons.get(a.get("attacker_name"))
+                    if icon and not icon.isNull():
+                        action_item.setData(
+                            0,
+                            QtCore.Qt.ItemDataRole.DecorationRole,
+                            icon,
+                        )
                 round_item.addChild(actions_item)
+
             for army_name, triggers in r.get("skill_triggers", {}).items():
-                army_item = QtWidgets.QTreeWidgetItem([f"{army_name} Skill Triggers"])
+                army_item = QtWidgets.QTreeWidgetItem([f"{army_name} Skill Triggers", "", ""])
+                color = army_colors.get(army_name)
+                if color:
+                    army_item.setForeground(0, QtGui.QBrush(QtGui.QColor(color)))
                 if not triggers:
                     QtWidgets.QTreeWidgetItem(army_item, ["None"])
                 else:
@@ -1338,7 +1433,9 @@ class MainWindow(QtWidgets.QMainWindow):
                         text = f"{tr['skill_name']}: {tr['effect_description']}{detail}"
                         QtWidgets.QTreeWidgetItem(army_item, [text])
                 round_item.addChild(army_item)
+
             self.output_tree.addTopLevelItem(round_item)
+            round_item.setExpanded(True)
 
     def _sim_finished(self, text: str, rounds: list[dict]) -> None:
         self.output_text.setPlainText(text)

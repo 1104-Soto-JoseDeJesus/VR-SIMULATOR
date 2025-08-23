@@ -31,6 +31,7 @@ class ReportBuilder:
         combat_actions: List[Dict[str, Any]],
         skill_triggers: Dict[str, List[Dict[str, Any]]],
         active_effects: List[str] | None = None,
+        round_summary: Dict[str, Any] | None = None,
     ) -> None:
         self.rounds.append(
             {
@@ -38,6 +39,7 @@ class ReportBuilder:
                 "combat_actions": copy.deepcopy(combat_actions),
                 "skill_triggers": copy.deepcopy(skill_triggers),
                 "active_effects": list(active_effects) if active_effects else [],
+                "round_summary": copy.deepcopy(round_summary) if round_summary else {},
             }
         )
         self.lines.append("\n" + "=" * 40)

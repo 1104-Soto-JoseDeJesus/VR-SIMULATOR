@@ -698,54 +698,44 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Battle Simulator")
-        self.file_menu, self.toolbar = self._init_menu_toolbar()
+        self.toolbar = self._init_menu_toolbar()
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
 
-    def _init_menu_toolbar(self) -> tuple[QtWidgets.QMenu, QtWidgets.QToolBar]:
-        """Create the main menu and toolbar."""
-        menu_bar = self.menuBar()
-        file_menu = menu_bar.addMenu("&File")
-
+    def _init_menu_toolbar(self) -> QtWidgets.QToolBar:
+        """Create the main toolbar."""
         toolbar = self.addToolBar("Actions")
 
         self.run_action = QtGui.QAction("Run Simulation", self)
         self.run_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
         self.run_action.triggered.connect(self.run_simulation)
-        file_menu.addAction(self.run_action)
         toolbar.addAction(self.run_action)
 
         save_action = QtGui.QAction("Save Setup", self)
         save_action.setShortcut(QtGui.QKeySequence("Ctrl+S"))
         save_action.triggered.connect(self.save_setup)
-        file_menu.addAction(save_action)
         toolbar.addAction(save_action)
 
         load_action = QtGui.QAction("Load Setup", self)
         load_action.setShortcut(QtGui.QKeySequence("Ctrl+O"))
         load_action.triggered.connect(self.load_setup)
-        file_menu.addAction(load_action)
         toolbar.addAction(load_action)
 
         export_report_action = QtGui.QAction("Export Report", self)
         export_report_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+R"))
         export_report_action.triggered.connect(self.export_report)
-        file_menu.addAction(export_report_action)
 
         export_fig_action = QtGui.QAction("Export Figures", self)
         export_fig_action.setShortcut(QtGui.QKeySequence("Ctrl+E"))
         export_fig_action.triggered.connect(self.export_figures)
-        file_menu.addAction(export_fig_action)
 
         export_summary_action = QtGui.QAction("Export Summary Image", self)
         export_summary_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+E"))
         export_summary_action.triggered.connect(self.export_summary_image)
-        file_menu.addAction(export_summary_action)
 
         swap_action = QtGui.QAction("Swap Armies", self)
         swap_action.setShortcut(QtGui.QKeySequence("Ctrl+W"))
         swap_action.triggered.connect(self.swap_armies)
-        file_menu.addAction(swap_action)
         toolbar.addAction(swap_action)
 
         clear_action = QtGui.QAction("Clear Output", self)
@@ -776,9 +766,9 @@ class MainWindow(QtWidgets.QMainWindow):
         quit_action = QtGui.QAction("Quit", self)
         quit_action.setShortcut(QtGui.QKeySequence("Ctrl+Q"))
         quit_action.triggered.connect(self.close)
-        file_menu.addAction(quit_action)
+        toolbar.addAction(quit_action)
 
-        return file_menu, toolbar
+        return toolbar
 
     def _init_tabs(self) -> QtWidgets.QVBoxLayout:
         """Create the central widget and all tabs."""

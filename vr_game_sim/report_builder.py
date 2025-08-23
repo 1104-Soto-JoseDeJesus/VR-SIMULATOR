@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 from tabulate import tabulate
 from colorama import Fore, Style, init
 import sys
+import copy
 
 # Track whether colorama has been initialized to avoid repeated global wrapping
 _COLORAMA_INITIALIZED = False
@@ -14,6 +15,7 @@ class ReportBuilder:
             init(autoreset=True)
             _COLORAMA_INITIALIZED = True
         self.lines: List[str] = []
+        self.rounds: List[Dict[str, Any]] = []
 
     def _c(self, text: str, color: str) -> str:
         if self.use_color:
@@ -23,7 +25,21 @@ class ReportBuilder:
     def log_active_effects(self, lines: List[str]):
         self.lines.extend(lines)
 
-    def emit_round(self, round_num: int, combat_actions: List[Dict[str, Any]], skill_triggers: Dict[str, List[Dict[str, Any]]], active_effects: List[str] | None = None):
+    def emit_round(
+        self,
+        round_num: int,
+        combat_actions: List[Dict[str, Any]],
+        skill_triggers: Dict[str, List[Dict[str, Any]]],
+        active_effects: List[str] | None = None,
+    ) -> None:
+        self.rounds.append(
+            {
+                "round": round_num,
+                "combat_actions": copy.deepcopy(combat_actions),
+                "skill_triggers": copy.deepcopy(skill_triggers),
+                "active_effects": list(active_effects) if active_effects else [],
+            }
+        )
         self.lines.append("\n" + "=" * 40)
         self.lines.append(self._c(f"Round {round_num}", Fore.CYAN))
         if active_effects:
@@ -31,13 +47,27 @@ class ReportBuilder:
         if combat_actions:
             table = tabulate(
                 [
-                    [a['attacker_name'], a['defender_name'], a['action_type'],
-                     f"{a['damage_potential_hp']:.0f}", f"{a['absorbed_hp']:.0f}",
-                     f"{a['final_hp_damage']:.0f}", a['potential_kills']]
+                    [
+                        a['attacker_name'],
+                        a['defender_name'],
+                        a['action_type'],
+                        f"{a['damage_potential_hp']:.0f}",
+                        f"{a['absorbed_hp']:.0f}",
+                        f"{a['final_hp_damage']:.0f}",
+                        a['potential_kills'],
+                    ]
                     for a in combat_actions
                 ],
-                headers=["Attacker", "Defender", "Type", "DMG Pot", "Absorb", "Final DMG", "Kills"],
-                tablefmt="grid"
+                headers=[
+                    "Attacker",
+                    "Defender",
+                    "Type",
+                    "DMG Pot",
+                    "Absorb",
+                    "Final DMG",
+                    "Kills",
+                ],
+                tablefmt="grid",
             )
             self.lines.append(table)
         else:
@@ -54,9 +84,13 @@ class ReportBuilder:
                     if 'damage_done_hp' in tr:
                         detail = self._c(f"DMG {tr['damage_done_hp']:.0f}", Fore.RED)
                     elif 'shield_hp_gained' in tr:
-                        detail = self._c(f"Shield {tr['shield_hp_gained']:.0f}", Fore.GREEN)
+                        detail = self._c(
+                            f"Shield {tr['shield_hp_gained']:.0f}", Fore.GREEN
+                        )
                     rows.append([tr['skill_name'], tr['effect_description'], detail])
-                self.lines.append(tabulate(rows, headers=["Skill", "Effect", "Details"], tablefmt="grid"))
+                self.lines.append(
+                    tabulate(rows, headers=["Skill", "Effect", "Details"], tablefmt="grid")
+                )
 
     def emit_final(self, winner: str, rounds: int, army1_state: str, army2_state: str):
         self.lines.append("\n" + "=" * 40)
@@ -72,3 +106,7 @@ class ReportBuilder:
     def get_report_text(self) -> str:
         """Returns the full report text without printing."""
         return "\n".join(self.lines).lstrip()
+
+    def get_rounds(self) -> List[Dict[str, Any]]:
+        """Return structured data for each round."""
+        return self.rounds

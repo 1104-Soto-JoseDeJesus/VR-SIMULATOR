@@ -517,7 +517,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
 class SimulationWorker(QtCore.QThread):
     progress_update = QtCore.pyqtSignal(int, int)
-    finished_text = QtCore.pyqtSignal(str)
+    finished_text = QtCore.pyqtSignal(str, object)
     error = QtCore.pyqtSignal(str)
 
     def __init__(self, setup_data: list[dict], runs: int, num_workers: int) -> None:
@@ -540,6 +540,7 @@ class SimulationWorker(QtCore.QThread):
             report_builder = ReportBuilder(use_color=False)
             sim = GameSimulator(armies[0], armies[1], report_builder, track_stats=True)
             report_text = sim.simulate_battle()
+            rounds = report_builder.get_rounds()
             if self._cancelled.is_set():
                 raise RuntimeError("cancelled")
 
@@ -562,10 +563,10 @@ class SimulationWorker(QtCore.QThread):
                 report_text
                 + f"\nWin rate for {armies[0].name}: {win_rate*100:.1f}% over {self.runs} runs.\n"
             )
-            self.finished_text.emit(result_text)
+            self.finished_text.emit(result_text, rounds)
         except RuntimeError as exc:  # pragma: no cover - GUI feedback
             if str(exc) == "cancelled":
-                self.finished_text.emit("Simulation cancelled.")
+                self.finished_text.emit("Simulation cancelled.", [])
             else:
                 self.error.emit(str(exc))
         except Exception as exc:  # pragma: no cover - GUI feedback
@@ -748,7 +749,7 @@ class MainWindow(QtWidgets.QMainWindow):
         toolbar.addAction(swap_action)
 
         clear_action = QtGui.QAction("Clear Output", self)
-        clear_action.triggered.connect(lambda: self.output.clear())
+        clear_action.triggered.connect(self._clear_report)
         toolbar.addAction(clear_action)
 
         duplicate_btn = QtWidgets.QToolButton()
@@ -831,17 +832,43 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.addTab(setup_tab, "Army Setup")
 
         # --- Report tab ---
-        self.output = QtWidgets.QTextEdit()
-        self.output.setReadOnly(True)
+        report_tab = QtWidgets.QWidget()
+        report_layout = QtWidgets.QVBoxLayout(report_tab)
+
+        self.toggle_report_view_btn = QtWidgets.QPushButton("Show Text Report")
+        self.toggle_report_view_btn.setCheckable(True)
+        self.toggle_report_view_btn.toggled.connect(self._toggle_report_view)
+        report_layout.addWidget(
+            self.toggle_report_view_btn,
+            alignment=QtCore.Qt.AlignmentFlag.AlignLeft,
+        )
+
+        self.report_stack = QtWidgets.QStackedWidget()
+
         fixed_font = QtGui.QFontDatabase.systemFont(
             QtGui.QFontDatabase.SystemFont.FixedFont
         )
-        self.output.setFont(fixed_font)
-        self.output.setStyleSheet(
+
+        self.output_tree = QtWidgets.QTreeWidget()
+        self.output_tree.setHeaderHidden(True)
+        self.output_tree.setFont(fixed_font)
+        self.output_tree.setStyleSheet(
+            "QTreeWidget { background-color: #1e1e1e; color: #ffffff; "
+            "border: 1px solid #444444; }"
+        )
+        self.report_stack.addWidget(self.output_tree)
+
+        self.output_text = QtWidgets.QTextEdit()
+        self.output_text.setReadOnly(True)
+        self.output_text.setFont(fixed_font)
+        self.output_text.setStyleSheet(
             "QTextEdit { background-color: #1e1e1e; color: #ffffff; "
             "border: 1px solid #444444; }"
         )
-        self.tabs.addTab(self.output, "Report")
+        self.report_stack.addWidget(self.output_text)
+
+        report_layout.addWidget(self.report_stack)
+        self.tabs.addTab(report_tab, "Report")
 
         # --- Figures tab ---
         self.hist_container = QtWidgets.QWidget()
@@ -934,6 +961,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hist_scroll.setWidget(self.hist_container)
         self.status.setText("Armies swapped")
 
+    def _clear_report(self) -> None:
+        self.output_text.clear()
+        self.output_tree.clear()
+
+    def _toggle_report_view(self, checked: bool) -> None:
+        if checked:
+            self.report_stack.setCurrentWidget(self.output_text)
+            self.toggle_report_view_btn.setText("Show Round View")
+        else:
+            self.report_stack.setCurrentWidget(self.output_tree)
+            self.toggle_report_view_btn.setText("Show Text Report")
+
     def export_report(self) -> None:
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
@@ -945,7 +984,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.last_setup_dir = os.path.dirname(file_path)
             try:
                 with open(file_path, "w", encoding="utf-8") as fh:
-                    fh.write(self.output.toPlainText())
+                    fh.write(self.output_text.toPlainText())
                 self.status.setText(f"Report exported to {os.path.basename(file_path)}")
             except OSError as exc:
                 QtWidgets.QMessageBox.critical(
@@ -1273,9 +1312,45 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.error.connect(self._sim_error)
         self.worker.finished.connect(self.worker.deleteLater)
         self.worker.start()
+ 
+    def _populate_round_tree(self, rounds: list[dict]) -> None:
+        self.output_tree.clear()
+        for r in rounds:
+            round_item = QtWidgets.QTreeWidgetItem([f"Round {r['round']}"])
+            if r.get("active_effects"):
+                effects_item = QtWidgets.QTreeWidgetItem(["Active Effects"])
+                for eff in r["active_effects"]:
+                    QtWidgets.QTreeWidgetItem(effects_item, [eff])
+                round_item.addChild(effects_item)
+            if r.get("combat_actions"):
+                actions_item = QtWidgets.QTreeWidgetItem(["Combat Actions"])
+                for a in r["combat_actions"]:
+                    desc = (
+                        f"{a['attacker_name']} -> {a['defender_name']} {a['action_type']}"
+                        f" DMG Pot {a['damage_potential_hp']:.0f} Absorb {a['absorbed_hp']:.0f}"
+                        f" Final {a['final_hp_damage']:.0f} Kills {a['potential_kills']}"
+                    )
+                    QtWidgets.QTreeWidgetItem(actions_item, [desc])
+                round_item.addChild(actions_item)
+            for army_name, triggers in r.get("skill_triggers", {}).items():
+                army_item = QtWidgets.QTreeWidgetItem([f"{army_name} Skill Triggers"])
+                if not triggers:
+                    QtWidgets.QTreeWidgetItem(army_item, ["None"])
+                else:
+                    for tr in triggers:
+                        detail = ""
+                        if "damage_done_hp" in tr:
+                            detail = f" DMG {tr['damage_done_hp']:.0f}"
+                        elif "shield_hp_gained" in tr:
+                            detail = f" Shield {tr['shield_hp_gained']:.0f}"
+                        text = f"{tr['skill_name']}: {tr['effect_description']}{detail}"
+                        QtWidgets.QTreeWidgetItem(army_item, [text])
+                round_item.addChild(army_item)
+            self.output_tree.addTopLevelItem(round_item)
 
-    def _sim_finished(self, text: str) -> None:
-        self.output.setPlainText(text)
+    def _sim_finished(self, text: str, rounds: list[dict]) -> None:
+        self.output_text.setPlainText(text)
+        self._populate_round_tree(rounds)
         display_histograms(
             self.hist_scroll,
             self.army1_frame.name_edit.text() or f"Army 1",

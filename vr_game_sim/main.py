@@ -14,9 +14,9 @@ import matplotlib
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 
-# Use a non-interactive backend so matplotlib doesn't block the script when
-# generating figures. This avoids hangs after the battle summary prints.
-matplotlib.use("Agg")
+# Use a non-interactive backend when not already configured (e.g., GUI sets a Qt backend).
+if "qt" not in matplotlib.get_backend().lower():
+    matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 # Explicitly disable interactive mode and clear any existing figures.
@@ -195,13 +195,15 @@ def run_additional_simulations(
     verbose: bool = True,
     num_workers: int = 1,
     progress_callback: Optional[Callable[[int, int], None]] = None,
-) -> float:
+    return_data: bool = False,
+) -> float | tuple[float, dict[str, list]]:
     """Runs extra simulations silently and computes summary statistics.
 
     If ``num_workers`` is greater than 1, simulations are spread across multiple
     processes to utilize additional CPU cores. ``progress_callback`` can be used
     to report completion status as ``(completed, total)``. The function returns
-    the win rate for Army 1 as a float between 0 and 1."""
+    the win rate for Army 1 as a float between 0 and 1. If ``return_data`` is
+    ``True`` a tuple of ``(win_rate, stats)`` with raw result lists is returned."""
     # Ensure any previous figures are closed before starting the additional runs
     plt.close("all")
 
@@ -542,7 +544,16 @@ def run_additional_simulations(
 
     # Final cleanup to ensure matplotlib does not keep figures open
     plt.close("all")
-    return wins_army1 / runs
+    win_rate = wins_army1 / runs
+    if return_data:
+        return win_rate, {
+            "own_remaining": own_remaining,
+            "enemy_remaining": enemy_remaining,
+            "rounds_taken": rounds_taken,
+            "diff_results": diff_results,
+            "winners": winners,
+        }
+    return win_rate
 
 
 def run_interactive_setup() -> List[Army]:

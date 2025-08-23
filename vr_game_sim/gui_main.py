@@ -6,9 +6,13 @@ import os
 from typing import Any
 import threading
 
+import matplotlib
+matplotlib.use("QtAgg")
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT
+
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
-from PIL import Image, ImageQt
 import numpy as np
 
 from vr_game_sim.hero_definition import HERO_PRESETS
@@ -517,7 +521,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
 class SimulationWorker(QtCore.QThread):
     progress_update = QtCore.pyqtSignal(int, int)
-    finished_text = QtCore.pyqtSignal(str, object)
+    finished_text = QtCore.pyqtSignal(str, object, object)
     error = QtCore.pyqtSignal(str)
 
     def __init__(self, setup_data: list[dict], runs: int, num_workers: int) -> None:
@@ -549,131 +553,78 @@ class SimulationWorker(QtCore.QThread):
                 if self._cancelled.is_set():
                     raise RuntimeError("cancelled")
 
-            win_rate = run_additional_simulations(
+            win_rate, stats = run_additional_simulations(
                 self.setup_data,
                 runs=self.runs,
                 verbose=False,
                 progress_callback=progress_cb,
                 num_workers=self.num_workers,
+                generate_histograms=False,
+                return_data=True,
             )
             if self._cancelled.is_set():
                 raise RuntimeError("cancelled")
+
+            stats.update(
+                {
+                    "army1_damage": sim.army1.damage_dealt_history,
+                    "army2_damage": sim.army2.damage_dealt_history,
+                    "army1_heal": sim.army1.heal_received_history,
+                    "army2_heal": sim.army2.heal_received_history,
+                    "army1_shield": sim.army1.shield_received_history,
+                    "army2_shield": sim.army2.shield_received_history,
+                    "army1_rage": sim.army1.rage_gained_history,
+                    "army2_rage": sim.army2.rage_gained_history,
+                }
+            )
 
             result_text = (
                 report_text
                 + f"\nWin rate for {armies[0].name}: {win_rate*100:.1f}% over {self.runs} runs.\n"
             )
-            self.finished_text.emit(result_text, rounds)
+            self.finished_text.emit(result_text, rounds, stats)
         except RuntimeError as exc:  # pragma: no cover - GUI feedback
             if str(exc) == "cancelled":
-                self.finished_text.emit("Simulation cancelled.", [])
+                self.finished_text.emit("Simulation cancelled.", [], {})
             else:
                 self.error.emit(str(exc))
         except Exception as exc:  # pragma: no cover - GUI feedback
             self.error.emit(str(exc))
 
 
+
+
 def display_histograms(
     scroll: QtWidgets.QScrollArea,
+    stats: dict,
     army1_name: str = "Army 1",
     army2_name: str = "Army 2",
 ) -> None:
-    """Render histogram images into the scroll area.
-
-    A new widget is created each time to avoid layout re-parenting issues that
-    previously caused crashes on some systems.  Images are scaled so that a
-    2x2 grid fits within the available screen without clipping and the entire
-    layout is centered within the scroll area."""
+    """Render interactive matplotlib figures into the scroll area."""
 
     old_widget = scroll.takeWidget()
     if old_widget is not None:
         old_widget.deleteLater()
 
     frame = QtWidgets.QWidget()
-    # Allow the frame to resize with the scroll area so images are not clipped
     scroll.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
-    image_files = [
-        "own_remaining_troops.png",
-        "enemy_remaining_troops.png",
-        "rounds_to_battle_end.png",
-        "victory_distribution.png",
-        "troop_difference.png",
-        "diff_vs_rounds.png",
-        "rounds_cdf.png",
-        "rolling_stats.png",
-        "damage_accumulated_army1.png",
-        "damage_accumulated_army2.png",
-        "heal_accumulated_army1.png",
-        "heal_accumulated_army2.png",
-        "shield_accumulated_army1.png",
-        "shield_accumulated_army2.png",
-        "rage_per_round_army1.png",
-        "rage_per_round_army2.png",
-    ]
     layout = QtWidgets.QGridLayout()
     layout.setSpacing(10)
     layout.setContentsMargins(10, 10, 10, 10)
 
-    scroll_width = scroll.viewport().width()
-    screen_geom = QtWidgets.QApplication.primaryScreen().availableGeometry()
-    max_width = min(scroll_width - 40 if scroll_width > 40 else 300, screen_geom.width() // 2)
-    max_height = screen_geom.height() // 2
     row = col = 0
-    base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
-    for img_name in image_files:
-        path = os.path.join(base_hist_dir, img_name)
-        if not os.path.exists(path):
-            continue
-        try:
-            # Use a context manager so file handles are closed immediately.
-            # Leaving images open prevented them from being overwritten on
-            # subsequent runs which caused the simulator to crash when run
-            # multiple times in the same session.
-            with Image.open(path) as img:
-                if img.width > max_width or img.height > max_height:
-                    ratio = min(max_width / img.width, max_height / img.height)
-                    img = img.resize(
-                        (int(img.width * ratio), int(img.height * ratio)),
-                        Image.LANCZOS,
-                    )
-                qimg = ImageQt.ImageQt(img)
-                pix = QtGui.QPixmap.fromImage(qimg)
-        except Exception:
-            continue
-        lbl = QtWidgets.QLabel()
-        lbl.setPixmap(pix)
-        lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        lbl.setStyleSheet(
-            "QLabel {"
-            "border: 1px solid rgba(255, 255, 255, 40);"
-            "background-color: rgba(0, 0, 0, 80);"
-            "color: #ffffff;"
-            "}"
-        )
-        layout.addWidget(lbl, row, col, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
-        if img_name == "own_remaining_troops.png":
-            caption_text = f"{army1_name} troops remaining"
-        elif img_name == "enemy_remaining_troops.png":
-            caption_text = f"{army2_name} troops remaining"
-        elif img_name == "damage_accumulated_army1.png":
-            caption_text = f"{army1_name} damage dealt (cumulative)"
-        elif img_name == "damage_accumulated_army2.png":
-            caption_text = f"{army2_name} damage dealt (cumulative)"
-        elif img_name == "heal_accumulated_army1.png":
-            caption_text = f"{army1_name} healing received (cumulative)"
-        elif img_name == "heal_accumulated_army2.png":
-            caption_text = f"{army2_name} healing received (cumulative)"
-        elif img_name == "shield_accumulated_army1.png":
-            caption_text = f"{army1_name} shields gained (cumulative)"
-        elif img_name == "shield_accumulated_army2.png":
-            caption_text = f"{army2_name} shields gained (cumulative)"
-        elif img_name == "rage_per_round_army1.png":
-            caption_text = f"{army1_name} rage per round"
-        elif img_name == "rage_per_round_army2.png":
-            caption_text = f"{army2_name} rage per round"
-        else:
-            caption_text = img_name.replace("_", " ").replace(".png", "").title()
+
+    def add_plot(fig: plt.Figure, caption_text: str) -> None:
+        nonlocal row, col
+        canvas = FigureCanvasQTAgg(fig)
+        toolbar = NavigationToolbar2QT(canvas, scroll)
+        container = QtWidgets.QWidget()
+        vbox = QtWidgets.QVBoxLayout(container)
+        vbox.setContentsMargins(0, 0, 0, 0)
+        vbox.addWidget(toolbar)
+        vbox.addWidget(canvas)
+        layout.addWidget(container, row, col)
         caption = QtWidgets.QLabel(caption_text)
         caption.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         caption.setStyleSheet(
@@ -684,6 +635,168 @@ def display_histograms(
         if col >= 2:
             col = 0
             row += 2
+
+    def create_hist(data, title, xlabel, color):
+        if not data:
+            return None
+        with plt.style.context("ggplot"):
+            fig, ax = plt.subplots(figsize=(4, 3), dpi=100)
+            ax.hist(data, bins=60, color=color, edgecolor="black")
+            ax.set_title(title, fontsize=8)
+            ax.set_xlabel(xlabel, fontsize=8)
+            ax.set_ylabel("Frequency", fontsize=8)
+            ax.tick_params(axis="both", labelsize=6)
+            fig.tight_layout()
+            return fig
+
+    def create_scatter(x, y, title, xlabel, ylabel):
+        if not x or not y:
+            return None
+        with plt.style.context("ggplot"):
+            fig, ax = plt.subplots(figsize=(4, 3), dpi=100)
+            colors = ["green" if d >= 0 else "red" for d in y]
+            ax.scatter(x, y, c=colors, s=5, edgecolors="none")
+            ax.set_title(title, fontsize=8)
+            ax.set_xlabel(xlabel, fontsize=8)
+            ax.set_ylabel(ylabel, fontsize=8)
+            ax.tick_params(axis="both", labelsize=6)
+            fig.tight_layout()
+            return fig
+
+    def create_cdf(data, title):
+        if not data:
+            return None
+        with plt.style.context("ggplot"):
+            fig, ax = plt.subplots(figsize=(4, 3), dpi=100)
+            sorted_rounds = np.sort(data)
+            cdf = np.arange(1, len(sorted_rounds) + 1) / len(sorted_rounds)
+            ax.plot(sorted_rounds, cdf, color="cyan", linewidth=1)
+            ax.set_title(title, fontsize=8)
+            ax.set_xlabel("Rounds", fontsize=8)
+            ax.set_ylabel("Probability", fontsize=8)
+            ax.tick_params(axis="both", labelsize=6)
+            fig.tight_layout()
+            return fig
+
+    def create_rolling(own, enemy, winners):
+        if not own:
+            return None
+        with plt.style.context("ggplot"):
+            fig, ax = plt.subplots(figsize=(4, 3), dpi=100)
+            x = np.arange(1, len(own) + 1)
+            own_avg = np.cumsum(own) / x
+            enemy_avg = np.cumsum(enemy) / x
+            win_avg = np.cumsum([1 if w == 1 else 0 for w in winners]) / x
+            ax.plot(x, own_avg, linewidth=0.5, color="green")
+            ax.plot(x, enemy_avg, linewidth=0.5, color="red")
+            ax2 = ax.twinx()
+            ax2.plot(x, win_avg, linewidth=0.5, color="white")
+            ax.set_title("Rolling Averages", fontsize=8)
+            ax.set_xlabel("Runs", fontsize=8)
+            ax.set_ylabel("Avg Troops", fontsize=8)
+            ax2.set_ylabel("Win Rate", fontsize=8)
+            ax.tick_params(axis="both", labelsize=6)
+            ax2.tick_params(axis="both", labelsize=6)
+            fig.tight_layout()
+            return fig
+
+    def create_line(data, title, ylabel, color):
+        if not data:
+            return None
+        with plt.style.context("ggplot"):
+            fig, ax = plt.subplots(figsize=(4, 3), dpi=100)
+            rounds = np.arange(1, len(data) + 1)
+            ax.plot(rounds, data, color=color, linewidth=1)
+            ax.set_title(title, fontsize=8)
+            ax.set_xlabel("Round", fontsize=8)
+            ax.set_ylabel(ylabel, fontsize=8)
+            ax.tick_params(axis="both", labelsize=6)
+            fig.tight_layout()
+            return fig
+
+    fig = create_hist(stats.get("own_remaining"), f"{army1_name} Remaining Troops", "Troops", "green")
+    if fig:
+        add_plot(fig, f"{army1_name} troops remaining")
+
+    fig = create_hist(stats.get("enemy_remaining"), f"{army2_name} Remaining Troops", "Troops", "red")
+    if fig:
+        add_plot(fig, f"{army2_name} troops remaining")
+
+    fig = create_hist(stats.get("rounds_taken"), "Rounds to Battle End", "Rounds", "lightgreen")
+    if fig:
+        add_plot(fig, "Rounds to battle end")
+
+    winners = stats.get("winners", [])
+    if winners:
+        fig, ax = plt.subplots(figsize=(4, 3), dpi=100)
+        wins_army1 = winners.count(1)
+        wins_army2 = winners.count(2)
+        if wins_army1 + wins_army2 > 0:
+            ax.pie(
+                [wins_army1, wins_army2],
+                labels=[army1_name, army2_name],
+                autopct="%.1f%%",
+                colors=["green", "red"],
+                startangle=90,
+            )
+            ax.axis("equal")
+            ax.set_title("Victory Distribution", fontsize=8)
+            fig.tight_layout()
+            add_plot(fig, "Victory distribution")
+
+    fig = create_hist(stats.get("diff_results"), "Difference in Surviving Troops", "Own - Enemy", "orange")
+    if fig:
+        add_plot(fig, "Difference in surviving troops")
+
+    diff_results = stats.get("diff_results")
+    rounds_taken = stats.get("rounds_taken")
+    fig = create_scatter(rounds_taken, diff_results, "Diff vs Rounds", "Rounds", "Own - Enemy")
+    if fig:
+        add_plot(fig, "Diff vs rounds")
+
+    fig = create_cdf(stats.get("rounds_taken"), "CDF of Rounds")
+    if fig:
+        add_plot(fig, "CDF of rounds")
+
+    fig = create_rolling(
+        stats.get("own_remaining"),
+        stats.get("enemy_remaining"),
+        stats.get("winners"),
+    )
+    if fig:
+        add_plot(fig, "Rolling averages")
+
+    fig = create_line(stats.get("army1_damage"), f"{army1_name} Damage Dealt", "Damage", "green")
+    if fig:
+        add_plot(fig, f"{army1_name} damage dealt (cumulative)")
+
+    fig = create_line(stats.get("army2_damage"), f"{army2_name} Damage Dealt", "Damage", "red")
+    if fig:
+        add_plot(fig, f"{army2_name} damage dealt (cumulative)")
+
+    fig = create_line(stats.get("army1_heal"), f"{army1_name} Healing Received", "Healing", "green")
+    if fig:
+        add_plot(fig, f"{army1_name} healing received (cumulative)")
+
+    fig = create_line(stats.get("army2_heal"), f"{army2_name} Healing Received", "Healing", "red")
+    if fig:
+        add_plot(fig, f"{army2_name} healing received (cumulative)")
+
+    fig = create_line(stats.get("army1_shield"), f"{army1_name} Shield Received", "Shield", "green")
+    if fig:
+        add_plot(fig, f"{army1_name} shields gained (cumulative)")
+
+    fig = create_line(stats.get("army2_shield"), f"{army2_name} Shield Received", "Shield", "red")
+    if fig:
+        add_plot(fig, f"{army2_name} shields gained (cumulative)")
+
+    fig = create_line(stats.get("army1_rage"), f"{army1_name} Rage Per Round", "Rage", "green")
+    if fig:
+        add_plot(fig, f"{army1_name} rage per round")
+
+    fig = create_line(stats.get("army2_rage"), f"{army2_name} Rage Per Round", "Rage", "red")
+    if fig:
+        add_plot(fig, f"{army2_name} rage per round")
 
     outer = QtWidgets.QVBoxLayout()
     outer.addStretch()
@@ -1340,13 +1453,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 round_item.addChild(army_item)
             self.output_tree.addTopLevelItem(round_item)
 
-    def _sim_finished(self, text: str, rounds: list[dict]) -> None:
+    def _sim_finished(self, text: str, rounds: list[dict], stats: dict) -> None:
         self.output_text.setPlainText(text)
         self._populate_round_tree(rounds)
         display_histograms(
             self.hist_scroll,
-            self.army1_frame.name_edit.text() or f"Army 1",
-            self.army2_frame.name_edit.text() or f"Army 2",
+            stats,
+            self.army1_frame.name_edit.text() or "Army 1",
+            self.army2_frame.name_edit.text() or "Army 2",
         )
         self.progress.setValue(0)
         self.status.setText("Ready")

@@ -595,12 +595,19 @@ def display_histograms(
         if not os.path.exists(path):
             continue
         try:
-            img = Image.open(path)
-            if img.width > max_width or img.height > max_height:
-                ratio = min(max_width / img.width, max_height / img.height)
-                img = img.resize((int(img.width * ratio), int(img.height * ratio)), Image.LANCZOS)
-            qimg = ImageQt.ImageQt(img)
-            pix = QtGui.QPixmap.fromImage(qimg)
+            # Use a context manager so file handles are closed immediately.
+            # Leaving images open prevented them from being overwritten on
+            # subsequent runs which caused the simulator to crash when run
+            # multiple times in the same session.
+            with Image.open(path) as img:
+                if img.width > max_width or img.height > max_height:
+                    ratio = min(max_width / img.width, max_height / img.height)
+                    img = img.resize(
+                        (int(img.width * ratio), int(img.height * ratio)),
+                        Image.LANCZOS,
+                    )
+                qimg = ImageQt.ImageQt(img)
+                pix = QtGui.QPixmap.fromImage(qimg)
         except Exception:
             continue
         lbl = QtWidgets.QLabel()

@@ -856,6 +856,18 @@ class MainWindow(QtWidgets.QMainWindow):
         swap_btn.setToolTip("Swap Armies (Ctrl+W)")
         btn_layout.addWidget(swap_btn)
 
+        duplicate_btn = QtWidgets.QToolButton()
+        duplicate_btn.setText("Duplicate Army")
+        duplicate_btn.setToolTip("Duplicate Army")
+        dup_menu = QtWidgets.QMenu(duplicate_btn)
+        dup1_action = dup_menu.addAction("1 \u2192 2")
+        dup1_action.triggered.connect(lambda: self.duplicate_army(1, 2))
+        dup2_action = dup_menu.addAction("2 \u2192 1")
+        dup2_action.triggered.connect(lambda: self.duplicate_army(2, 1))
+        duplicate_btn.setMenu(dup_menu)
+        duplicate_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
+        btn_layout.addWidget(duplicate_btn)
+
         clear_btn = QtWidgets.QPushButton("Clear Output")
         clear_btn.clicked.connect(lambda: self.output.clear())
         btn_layout.addWidget(clear_btn)
@@ -905,6 +917,20 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.army1_frame.populate_from_config(data[0])
                 self.army2_frame.populate_from_config(data[1])
                 self.status.setText(f"Loaded {os.path.basename(file_path)}")
+
+    def duplicate_army(self, source: int, target: int) -> None:
+        if source == target or source not in {1, 2} or target not in {1, 2}:
+            return
+        src_frame = self.army1_frame if source == 1 else self.army2_frame
+        dst_frame = self.army1_frame if target == 1 else self.army2_frame
+        cfg = src_frame.build_config()
+        dst_frame.populate_from_config(cfg)
+        old_widget = self.hist_scroll.takeWidget()
+        if old_widget is not None:
+            old_widget.deleteLater()
+        self.hist_container = QtWidgets.QWidget()
+        self.hist_scroll.setWidget(self.hist_container)
+        self.status.setText(f"Army {source} duplicated to Army {target}")
 
     def swap_armies(self) -> None:
         cfg1 = self.army1_frame.build_config()

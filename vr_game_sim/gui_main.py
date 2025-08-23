@@ -8,7 +8,7 @@ import threading
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
-from PIL import Image, ImageQt
+from PIL import Image, ImageQt, ImageFilter
 import numpy as np
 
 from vr_game_sim.hero_definition import HERO_PRESETS
@@ -81,6 +81,9 @@ class StarredImageLabel(QtWidgets.QLabel):
         if self.star_count < 6:
             arr = np.array(image)
             mask = (arr[:, :, 0] > 230) & (arr[:, :, 1] > 230) & (arr[:, :, 2] < 150)
+            mask_img = Image.fromarray(mask.astype("uint8") * 255)
+            mask = np.array(mask_img.filter(ImageFilter.MaxFilter(11))) > 0
+            mask &= (arr[:, :, 0] > 100) & (arr[:, :, 1] > 100)
             ys, xs = np.where(mask)
             if ys.size:
                 y0, y1 = ys.min(), ys.max()

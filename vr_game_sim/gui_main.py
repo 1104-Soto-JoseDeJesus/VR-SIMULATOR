@@ -1347,18 +1347,14 @@ class MainWindow(QtWidgets.QMainWindow):
         }
 
         for r in rounds:
-            round_item = QtWidgets.QTreeWidgetItem([
-                f"Round {r['round']}",
-                "",
-                "",
-            ])
-
-            # Ensure the item is part of the tree before assigning widgets.
-            # setItemWidget requires the item to already belong to the
-            # QTreeWidget; otherwise Qt may crash when the row is interacted
-            # with after population.  Adding the item first avoids the crash
-            # observed when clicking the report after a simulation.
-            self.output_tree.addTopLevelItem(round_item)
+            round_item = QtWidgets.QTreeWidgetItem(
+                self.output_tree,
+                [f"Round {r['round']}", "", ""],
+            )
+            # The item must belong to the tree *before* any child widgets are
+            # assigned.  Otherwise Qt may crash when the item is interacted
+            # with.  Constructing the item with the tree as its parent ensures
+            # it is immediately part of the view.
             round_item.setExpanded(True)
 
             summary = r.get("round_summary", {})
@@ -1388,41 +1384,23 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.output_tree.setItemWidget(round_item, 2, result_label)
 
             if r.get("active_effects"):
-                effects_item = QtWidgets.QTreeWidgetItem(["Active Effects", "", ""])
-                # Attach the effects container before populating it.  Similar
-                # to combat actions, interacting with a tree item that had
-                # children assigned prior to being part of the view can cause
-                # Qt to crash.  Adding the item first keeps the tree stable
-                # even with the richer report data.
-                round_item.addChild(effects_item)
+                effects_item = QtWidgets.QTreeWidgetItem(
+                    round_item, ["Active Effects", "", ""]
+                )
                 for eff in r["active_effects"]:
-                    # Create the effect item first then attach it to the tree.
-                    # Passing the parent to the constructor would also add the
-                    # item, but constructing it separately ensures the item is
-                    # part of the view before any later interaction.
-                    eff_item = QtWidgets.QTreeWidgetItem([eff])
-                    effects_item.addChild(eff_item)
+                    QtWidgets.QTreeWidgetItem(effects_item, [eff])
 
             if r.get("combat_actions"):
-                actions_item = QtWidgets.QTreeWidgetItem(["Combat Actions", "", ""])
-                # Ensure the actions container is attached to the tree before
-                # adding child items and assigning widgets.  Failing to do so
-                # can lead to crashes when the items are interacted with in the
-                # view, similar to the top-level round items above.
-                round_item.addChild(actions_item)
+                actions_item = QtWidgets.QTreeWidgetItem(
+                    round_item, ["Combat Actions", "", ""]
+                )
                 for a in r["combat_actions"]:
                     desc_plain = (
                         f"{a['attacker_name']} -> {a['defender_name']} {a['action_type']}"
                         f" DMG Pot {a['damage_potential_hp']:.0f} Absorb {a['absorbed_hp']:.0f}"
                         f" Final {a['final_hp_damage']:.0f} Kills {a['potential_kills']}"
                     )
-                    # Similar to the top-level round rows, create each action
-                    # item independently and attach it afterwards so Qt knows
-                    # the item belongs to the tree before we assign custom
-                    # widgets.  This prevents crashes when clicking the report
-                    # entries on some systems.
-                    action_item = QtWidgets.QTreeWidgetItem([desc_plain])
-                    actions_item.addChild(action_item)
+                    action_item = QtWidgets.QTreeWidgetItem(actions_item, [desc_plain])
                     atk_color = army_colors.get(a.get("attacker_name"), "#ffffff")
                     def_color = army_colors.get(a.get("defender_name"), "#ffffff")
                     dmg_color = "#ff6464" if a.get("final_hp_damage", 0) > 0 else "#00ff00"
@@ -1443,17 +1421,14 @@ class MainWindow(QtWidgets.QMainWindow):
                         )
 
             for army_name, triggers in r.get("skill_triggers", {}).items():
-                army_item = QtWidgets.QTreeWidgetItem([f"{army_name} Skill Triggers", "", ""])
-                # Add the army container to the round before populating it with
-                # individual trigger entries.  This mirrors the approach used
-                # for combat actions and avoids crashes when interacting with
-                # the richer report contents.
-                round_item.addChild(army_item)
+                army_item = QtWidgets.QTreeWidgetItem(
+                    round_item, [f"{army_name} Skill Triggers", "", ""]
+                )
                 color = army_colors.get(army_name)
                 if color:
                     army_item.setForeground(0, QtGui.QBrush(QtGui.QColor(color)))
                 if not triggers:
-                    army_item.addChild(QtWidgets.QTreeWidgetItem(["None"]))
+                    QtWidgets.QTreeWidgetItem(army_item, ["None"])
                 else:
                     for tr in triggers:
                         detail = ""
@@ -1464,7 +1439,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         if tr.get("potential_kills"):
                             detail += f" Kills {tr['potential_kills']}"
                         text = f"{tr['skill_name']}: {tr['effect_description']}{detail}"
-                        army_item.addChild(QtWidgets.QTreeWidgetItem([text]))
+                        QtWidgets.QTreeWidgetItem(army_item, [text])
 
     def _sim_finished(self, text: str, rounds: list[dict]) -> None:
         self.output_text.setPlainText(text)

@@ -1087,11 +1087,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # --- Simulation handling --------------------------------------------
     def run_simulation(self) -> None:
-        if hasattr(self, "worker") and self.worker and self.worker.isRunning():
-            self.worker.cancel()
-            self.run_btn.setText("Run Simulation")
-            self.run_btn.setEnabled(True)
-            return
+        worker = getattr(self, "worker", None)
+        if worker:
+            try:
+                if worker.isRunning():
+                    worker.cancel()
+                    self.run_btn.setText("Run Simulation")
+                    self.run_btn.setEnabled(True)
+                    return
+            except RuntimeError:
+                self.worker = None
 
         setup_data = [self.army1_frame.build_config(), self.army2_frame.build_config()]
         runs = self.runs_spin.value()
@@ -1120,6 +1125,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status.setText("Ready")
         self.run_btn.setEnabled(True)
         self.run_btn.setText("Run Simulation")
+        self.worker = None
 
     def _sim_error(self, msg: str) -> None:  # pragma: no cover - GUI feedback
         QtWidgets.QMessageBox.critical(self, "Error", msg)
@@ -1127,6 +1133,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status.setText("Ready")
         self.run_btn.setEnabled(True)
         self.run_btn.setText("Run Simulation")
+        self.worker = None
 
 
 def main() -> None:

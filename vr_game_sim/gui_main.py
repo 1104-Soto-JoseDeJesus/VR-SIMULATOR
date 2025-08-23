@@ -702,20 +702,25 @@ class MainWindow(QtWidgets.QMainWindow):
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("&File")
 
-        run_action = QtGui.QAction("Run Simulation", self)
-        run_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
-        run_action.triggered.connect(self.run_simulation)
-        file_menu.addAction(run_action)
+        toolbar = self.addToolBar("Actions")
+
+        self.run_action = QtGui.QAction("Run Simulation", self)
+        self.run_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
+        self.run_action.triggered.connect(self.run_simulation)
+        file_menu.addAction(self.run_action)
+        toolbar.addAction(self.run_action)
 
         save_action = QtGui.QAction("Save Setup", self)
         save_action.setShortcut(QtGui.QKeySequence("Ctrl+S"))
         save_action.triggered.connect(self.save_setup)
         file_menu.addAction(save_action)
+        toolbar.addAction(save_action)
 
         load_action = QtGui.QAction("Load Setup", self)
         load_action.setShortcut(QtGui.QKeySequence("Ctrl+O"))
         load_action.triggered.connect(self.load_setup)
         file_menu.addAction(load_action)
+        toolbar.addAction(load_action)
 
         export_report_action = QtGui.QAction("Export Report", self)
         export_report_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+R"))
@@ -736,6 +741,32 @@ class MainWindow(QtWidgets.QMainWindow):
         swap_action.setShortcut(QtGui.QKeySequence("Ctrl+W"))
         swap_action.triggered.connect(self.swap_armies)
         file_menu.addAction(swap_action)
+        toolbar.addAction(swap_action)
+
+        clear_action = QtGui.QAction("Clear Output", self)
+        clear_action.triggered.connect(lambda: self.output.clear())
+        toolbar.addAction(clear_action)
+
+        duplicate_btn = QtWidgets.QToolButton()
+        duplicate_btn.setText("Duplicate Army")
+        dup_menu = QtWidgets.QMenu(duplicate_btn)
+        dup1_action = dup_menu.addAction("1 \u2192 2")
+        dup1_action.triggered.connect(lambda: self.duplicate_army(1, 2))
+        dup2_action = dup_menu.addAction("2 \u2192 1")
+        dup2_action.triggered.connect(lambda: self.duplicate_army(2, 1))
+        duplicate_btn.setMenu(dup_menu)
+        duplicate_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
+        toolbar.addWidget(duplicate_btn)
+
+        export_btn = QtWidgets.QToolButton()
+        export_btn.setText("Export")
+        export_menu = QtWidgets.QMenu(export_btn)
+        export_menu.addAction(export_report_action)
+        export_menu.addAction(export_fig_action)
+        export_menu.addAction(export_summary_action)
+        export_btn.setMenu(export_menu)
+        export_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
+        toolbar.addWidget(export_btn)
 
         quit_action = QtGui.QAction("Quit", self)
         quit_action.setShortcut(QtGui.QKeySequence("Ctrl+Q"))
@@ -833,59 +864,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.workers_spin.setRange(1, cpu_count)
         self.workers_spin.setValue(cpu_count)
         opts_layout.addWidget(self.workers_spin)
-
-        btn_layout = QtWidgets.QHBoxLayout()
-        main_layout.addLayout(btn_layout)
-        self.run_btn = QtWidgets.QPushButton("Run Simulation")
-        self.run_btn.clicked.connect(self.run_simulation)
-        self.run_btn.setToolTip("Run Simulation (Ctrl+R)")
-        btn_layout.addWidget(self.run_btn)
-
-        save_btn = QtWidgets.QPushButton("Save Setup")
-        save_btn.clicked.connect(self.save_setup)
-        save_btn.setToolTip("Save Setup (Ctrl+S)")
-        btn_layout.addWidget(save_btn)
-
-        load_btn = QtWidgets.QPushButton("Load Setup")
-        load_btn.clicked.connect(self.load_setup)
-        load_btn.setToolTip("Load Setup (Ctrl+O)")
-        btn_layout.addWidget(load_btn)
-
-        swap_btn = QtWidgets.QPushButton("Swap Armies")
-        swap_btn.clicked.connect(self.swap_armies)
-        swap_btn.setToolTip("Swap Armies (Ctrl+W)")
-        btn_layout.addWidget(swap_btn)
-
-        duplicate_btn = QtWidgets.QToolButton()
-        duplicate_btn.setText("Duplicate Army")
-        duplicate_btn.setToolTip("Duplicate Army")
-        dup_menu = QtWidgets.QMenu(duplicate_btn)
-        dup1_action = dup_menu.addAction("1 \u2192 2")
-        dup1_action.triggered.connect(lambda: self.duplicate_army(1, 2))
-        dup2_action = dup_menu.addAction("2 \u2192 1")
-        dup2_action.triggered.connect(lambda: self.duplicate_army(2, 1))
-        duplicate_btn.setMenu(dup_menu)
-        duplicate_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
-        btn_layout.addWidget(duplicate_btn)
-
-        clear_btn = QtWidgets.QPushButton("Clear Output")
-        clear_btn.clicked.connect(lambda: self.output.clear())
-        btn_layout.addWidget(clear_btn)
-
-        report_btn = QtWidgets.QPushButton("Export Report")
-        report_btn.clicked.connect(self.export_report)
-        report_btn.setToolTip("Export Report (Ctrl+Shift+R)")
-        btn_layout.addWidget(report_btn)
-
-        export_btn = QtWidgets.QPushButton("Export Figures")
-        export_btn.clicked.connect(self.export_figures)
-        export_btn.setToolTip("Export Figures (Ctrl+E)")
-        btn_layout.addWidget(export_btn)
-
-        summary_btn = QtWidgets.QPushButton("Export Summary Image")
-        summary_btn.clicked.connect(self.export_summary_image)
-        summary_btn.setToolTip("Export Summary Image (Ctrl+Shift+E)")
-        btn_layout.addWidget(summary_btn)
 
     # --- Setup load/save -------------------------------------------------
     def save_setup(self) -> None:
@@ -1221,8 +1199,8 @@ class MainWindow(QtWidgets.QMainWindow):
             try:
                 if worker.isRunning():
                     worker.cancel()
-                    self.run_btn.setText("Run Simulation")
-                    self.run_btn.setEnabled(True)
+                    self.run_action.setText("Run Simulation")
+                    self.run_action.setEnabled(True)
                     return
             except RuntimeError:
                 self.worker = None
@@ -1233,7 +1211,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status.setText("Running simulation...")
         self.progress.setRange(0, runs)
         self.progress.setValue(0)
-        self.run_btn.setText("Cancel")
+        self.run_action.setText("Cancel")
         self.worker = SimulationWorker(setup_data, runs, workers)
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
@@ -1252,16 +1230,16 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         self.progress.setValue(0)
         self.status.setText("Ready")
-        self.run_btn.setEnabled(True)
-        self.run_btn.setText("Run Simulation")
+        self.run_action.setEnabled(True)
+        self.run_action.setText("Run Simulation")
         self.worker = None
 
     def _sim_error(self, msg: str) -> None:  # pragma: no cover - GUI feedback
         QtWidgets.QMessageBox.critical(self, "Error", msg)
         self.progress.setValue(0)
         self.status.setText("Ready")
-        self.run_btn.setEnabled(True)
-        self.run_btn.setText("Run Simulation")
+        self.run_action.setEnabled(True)
+        self.run_action.setText("Run Simulation")
         self.worker = None
 
 

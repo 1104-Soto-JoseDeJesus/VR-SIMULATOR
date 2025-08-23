@@ -80,13 +80,17 @@ class ReportBuilder:
             else:
                 rows = []
                 for tr in triggers:
-                    detail = ""
+                    detail_parts: List[str] = []
                     if 'damage_done_hp' in tr:
-                        detail = self._c(f"DMG {tr['damage_done_hp']:.0f}", Fore.RED)
+                        detail_parts.append(self._c(f"DMG {tr['damage_done_hp']:.0f}", Fore.RED))
                     elif 'shield_hp_gained' in tr:
-                        detail = self._c(
-                            f"Shield {tr['shield_hp_gained']:.0f}", Fore.GREEN
+                        detail_parts.append(
+                            self._c(f"Shield {tr['shield_hp_gained']:.0f}", Fore.GREEN)
                         )
+                    kills = tr.get('potential_kills')
+                    if kills:
+                        detail_parts.append(self._c(f"Kills {kills}", Fore.YELLOW))
+                    detail = ", ".join(detail_parts)
                     rows.append([tr['skill_name'], tr['effect_description'], detail])
                 self.lines.append(
                     tabulate(rows, headers=["Skill", "Effect", "Details"], tablefmt="grid")

@@ -1353,6 +1353,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 "",
             ])
 
+            # Ensure the item is part of the tree before assigning widgets.
+            # setItemWidget requires the item to already belong to the
+            # QTreeWidget; otherwise Qt may crash when the row is interacted
+            # with after population.  Adding the item first avoids the crash
+            # observed when clicking the report after a simulation.
+            self.output_tree.addTopLevelItem(round_item)
+            round_item.setExpanded(True)
+
             summary = r.get("round_summary", {})
             if summary:
                 troop_texts: list[str] = []
@@ -1433,9 +1441,6 @@ class MainWindow(QtWidgets.QMainWindow):
                         text = f"{tr['skill_name']}: {tr['effect_description']}{detail}"
                         QtWidgets.QTreeWidgetItem(army_item, [text])
                 round_item.addChild(army_item)
-
-            self.output_tree.addTopLevelItem(round_item)
-            round_item.setExpanded(True)
 
     def _sim_finished(self, text: str, rounds: list[dict]) -> None:
         self.output_text.setPlainText(text)

@@ -1162,7 +1162,7 @@ class MainWindow(QtWidgets.QMainWindow):
         bold_weight = getattr(weight_obj, "Bold", None) if weight_obj is not None else None
         if bold_weight is None:
             bold_weight = getattr(QtGui.QFont, "Bold")
-        legend_font = QtGui.QFont("Times New Roman", 100, bold_weight)
+        legend_font = QtGui.QFont("Times New Roman", 80, bold_weight)
         painter.setFont(legend_font)
         fm = painter.fontMetrics()
 
@@ -1170,7 +1170,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.army1_frame.name_edit.text() or "Army 1",
             self.army2_frame.name_edit.text() or "Army 2",
         ]
-        colors = [QtGui.QColor("red"), QtGui.QColor("green")]
+        colors = [QtGui.QColor("green"), QtGui.QColor("red")]
         square_size = 100
         spacing = 40
         y = preview_pix.height() + (legend_height - square_size) // 2

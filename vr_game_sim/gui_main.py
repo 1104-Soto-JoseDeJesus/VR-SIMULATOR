@@ -697,8 +697,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Battle Simulator")
+        self.file_menu, self.toolbar = self._init_menu_toolbar()
+        main_layout = self._init_tabs()
+        self._init_status_controls(main_layout)
 
-        # --- Menu bar ------------------------------------------------------
+    def _init_menu_toolbar(self) -> tuple[QtWidgets.QMenu, QtWidgets.QToolBar]:
+        """Create the main menu and toolbar."""
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("&File")
 
@@ -773,6 +777,10 @@ class MainWindow(QtWidgets.QMainWindow):
         quit_action.triggered.connect(self.close)
         file_menu.addAction(quit_action)
 
+        return file_menu, toolbar
+
+    def _init_tabs(self) -> QtWidgets.QVBoxLayout:
+        """Create the central widget and all tabs."""
         central = QtWidgets.QWidget()
         self.setCentralWidget(central)
         main_layout = QtWidgets.QVBoxLayout(central)
@@ -842,6 +850,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hist_scroll.setWidget(self.hist_container)
         self.tabs.addTab(self.hist_scroll, "Figures")
 
+        return main_layout
+
+    def _init_status_controls(self, main_layout: QtWidgets.QVBoxLayout) -> None:
+        """Create status label, progress bar and run options."""
         self.status = QtWidgets.QLabel("Ready")
         main_layout.addWidget(self.status)
 

@@ -38,7 +38,10 @@ from vr_game_sim.interactive_setup import (
     setup_hero_interactive,
     input_multi_choice_numbered,
 )
-from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
+from vr_game_sim.skill_definitions import (
+    SKILL_REGISTRY_GLOBAL,
+    build_skill_registry_with_overrides,
+)
 
 # --- Configuration for Save/Load ---
 SETUPS_DIR = "setups"
@@ -149,13 +152,18 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
         )
         heroes_list: List[Hero] = []
         for hero_conf in army_config.get("heroes", []):
-            # Hero constructor takes skill IDs and registry
+            overrides = hero_conf.get("skill_overrides")
+            registry = (
+                build_skill_registry_with_overrides(overrides)
+                if overrides
+                else SKILL_REGISTRY_GLOBAL
+            )
             hero = Hero(
                 name=hero_conf["hero_name_or_preset"],
                 talent_ids=hero_conf["talent_ids"],
                 base_skill_ids=hero_conf["base_skill_ids"],
                 plugin_skill_ids=hero_conf["plugin_skill_ids"],
-                skill_registry=SKILL_REGISTRY_GLOBAL,
+                skill_registry=registry,
             )
             heroes_list.append(hero)
 

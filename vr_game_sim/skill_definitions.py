@@ -1,5 +1,6 @@
 # === File: skill_definitions.py ===
-from typing import Dict
+import copy
+from typing import Dict, Any
 from .enums import (
     EffectType,
     SkillTriggerType,
@@ -1375,3 +1376,36 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "effects_to_apply": [], "logic_handler": None
     }
 }
+
+
+def _apply_overrides(base: Dict[str, Any], overrides: Dict[str, Any]) -> None:
+    """Recursively apply ``overrides`` into ``base`` in-place."""
+    for key, val in overrides.items():
+        if (
+            isinstance(val, dict)
+            and isinstance(base.get(key), dict)
+        ):
+            _apply_overrides(base[key], val)
+        else:
+            base[key] = val
+
+
+def build_skill_registry_with_overrides(
+    overrides: Dict[str, Dict[str, Any]] | None,
+) -> Dict[str, SkillDefinition]:
+    """Return a skill registry with ``overrides`` applied.
+
+    Parameters
+    ----------
+    overrides:
+        Mapping of skill id to a dictionary of values that should override the
+        defaults from :data:`SKILL_REGISTRY_GLOBAL`.
+    """
+
+    registry = {sid: copy.deepcopy(defn) for sid, defn in SKILL_REGISTRY_GLOBAL.items()}
+    if not overrides:
+        return registry
+    for sid, params in overrides.items():
+        if sid in registry and isinstance(params, dict):
+            _apply_overrides(registry[sid], params)
+    return registry

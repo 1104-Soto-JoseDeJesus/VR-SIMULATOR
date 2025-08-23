@@ -38,6 +38,74 @@ class ThousandSepSpinBox(QtWidgets.QSpinBox):
             return 0
 
 
+class SkillParamEditor(QtWidgets.QWidget):
+    """Widget providing spin boxes for configurable skill parameters."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._layout = QtWidgets.QFormLayout(self)
+        self._fields: dict[tuple[str, ...], QtWidgets.QDoubleSpinBox] = {}
+        self._defaults: dict[tuple[str, ...], float] = {}
+        self._skill_id: str | None = None
+
+    def set_skill(self, skill_id: str | None, overrides: dict | None = None) -> None:
+        """Populate editors for ``skill_id`` using optional ``overrides``."""
+        # Save current overrides before switching
+        self.clear()
+        self._skill_id = skill_id or None
+        if not skill_id:
+            return
+        sdef = SKILL_REGISTRY_GLOBAL.get(skill_id)
+        if not sdef:
+            return
+        overrides = overrides or {}
+        # Trigger chance
+        tc = sdef.get("trigger_chance")
+        if isinstance(tc, (int, float)):
+            spin = QtWidgets.QDoubleSpinBox()
+            spin.setRange(0.0, 1.0)
+            spin.setSingleStep(0.01)
+            spin.setValue(overrides.get("trigger_chance", tc))
+            self._layout.addRow("Trigger Chance", spin)
+            self._fields[("trigger_chance",)] = spin
+            self._defaults[("trigger_chance",)] = float(tc)
+        # Config numeric entries
+        cfg = sdef.get("config", {})
+        override_cfg = overrides.get("config", {})
+        if isinstance(cfg, dict):
+            for key, val in cfg.items():
+                if isinstance(val, (int, float)):
+                    spin = QtWidgets.QDoubleSpinBox()
+                    spin.setRange(-1e9, 1e9)
+                    spin.setDecimals(3)
+                    spin.setValue(override_cfg.get(key, float(val)))
+                    self._layout.addRow(key.replace("_", " ").title(), spin)
+                    self._fields[("config", key)] = spin
+                    self._defaults[("config", key)] = float(val)
+
+    def clear(self) -> None:
+        while self._layout.count():
+            item = self._layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+        self._fields.clear()
+        self._defaults.clear()
+
+    def get_overrides(self) -> dict:
+        overrides: dict = {}
+        for path, spin in self._fields.items():
+            val = float(spin.value())
+            default = self._defaults.get(path)
+            if default is None or val == default:
+                continue
+            d = overrides
+            for key in path[:-1]:
+                d = d.setdefault(key, {})
+            d[path[-1]] = val
+        return overrides
+
+
 class HeroEditDialog(QtWidgets.QDialog):
     """Dialog to edit or create a hero configuration."""
 
@@ -64,6 +132,10 @@ class HeroEditDialog(QtWidgets.QDialog):
         self.talent_boxes: list[QtWidgets.QComboBox] = []
         self.base_boxes: list[QtWidgets.QComboBox] = []
         self.plugin_boxes: list[QtWidgets.QComboBox] = []
+        self.talent_param_editors: list[SkillParamEditor] = []
+        self.base_param_editors: list[SkillParamEditor] = []
+        self.plugin_param_editors: list[SkillParamEditor] = []
+        overrides_map = hero_config.get("skill_overrides", {}) if hero_config else {}
 
         talent_opts = _skill_options(SkillType.TALENT)
         base_opts = _skill_options(SkillType.BASE_SKILL)
@@ -77,6 +149,8 @@ class HeroEditDialog(QtWidgets.QDialog):
             completer = QtWidgets.QCompleter([n for n, _ in talent_opts], box)
             completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
             box.setCompleter(completer)
+            param_editor = SkillParamEditor()
+            sid = ""
             if hero_config and i < len(hero_config.get("talent_ids", [])):
                 sid = hero_config["talent_ids"][i]
                 name = SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", "None")
@@ -84,7 +158,13 @@ class HeroEditDialog(QtWidgets.QDialog):
                 if idx >= 0:
                     box.setCurrentIndex(idx)
             self.talent_boxes.append(box)
+            self.talent_param_editors.append(param_editor)
+            param_editor.set_skill(sid, overrides_map.get(sid))
+            box.currentIndexChanged.connect(
+                lambda _i, b=box, e=param_editor: e.set_skill(b.currentData())
+            )
             layout.addRow(f"Talent {i+1}:", box)
+            layout.addRow("", param_editor)
 
         for i in range(2):
             box = QtWidgets.QComboBox()
@@ -94,6 +174,8 @@ class HeroEditDialog(QtWidgets.QDialog):
             completer = QtWidgets.QCompleter([n for n, _ in base_opts], box)
             completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
             box.setCompleter(completer)
+            param_editor = SkillParamEditor()
+            sid = ""
             if hero_config and i < len(hero_config.get("base_skill_ids", [])):
                 sid = hero_config["base_skill_ids"][i]
                 name = SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", "None")
@@ -101,7 +183,13 @@ class HeroEditDialog(QtWidgets.QDialog):
                 if idx >= 0:
                     box.setCurrentIndex(idx)
             self.base_boxes.append(box)
+            self.base_param_editors.append(param_editor)
+            param_editor.set_skill(sid, overrides_map.get(sid))
+            box.currentIndexChanged.connect(
+                lambda _i, b=box, e=param_editor: e.set_skill(b.currentData())
+            )
             layout.addRow(f"Base Skill {i+1}:", box)
+            layout.addRow("", param_editor)
 
         for i in range(2):
             box = QtWidgets.QComboBox()
@@ -111,6 +199,8 @@ class HeroEditDialog(QtWidgets.QDialog):
             completer = QtWidgets.QCompleter([n for n, _ in plugin_opts], box)
             completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
             box.setCompleter(completer)
+            param_editor = SkillParamEditor()
+            sid = ""
             if hero_config and i < len(hero_config.get("plugin_skill_ids", [])):
                 sid = hero_config["plugin_skill_ids"][i]
                 name = SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", "None")
@@ -118,7 +208,13 @@ class HeroEditDialog(QtWidgets.QDialog):
                 if idx >= 0:
                     box.setCurrentIndex(idx)
             self.plugin_boxes.append(box)
+            self.plugin_param_editors.append(param_editor)
+            param_editor.set_skill(sid, overrides_map.get(sid))
+            box.currentIndexChanged.connect(
+                lambda _i, b=box, e=param_editor: e.set_skill(b.currentData())
+            )
             layout.addRow(f"Plugin Skill {i+1}:", box)
+            layout.addRow("", param_editor)
 
         btns = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
@@ -130,11 +226,31 @@ class HeroEditDialog(QtWidgets.QDialog):
     def result_config(self) -> dict | None:
         if self.result() != QtWidgets.QDialog.DialogCode.Accepted:
             return None
+        overrides: dict[str, dict] = {}
+        for box, editor in zip(self.talent_boxes, self.talent_param_editors):
+            sid = box.currentData() or ""
+            if sid:
+                ov = editor.get_overrides()
+                if ov:
+                    overrides[sid] = ov
+        for box, editor in zip(self.base_boxes, self.base_param_editors):
+            sid = box.currentData() or ""
+            if sid and box.currentText() != "None":
+                ov = editor.get_overrides()
+                if ov:
+                    overrides[sid] = ov
+        for box, editor in zip(self.plugin_boxes, self.plugin_param_editors):
+            sid = box.currentData() or ""
+            if sid and box.currentText() != "None":
+                ov = editor.get_overrides()
+                if ov:
+                    overrides[sid] = ov
         return {
             "hero_name_or_preset": self.name_edit.text().strip(),
             "talent_ids": [box.currentData() or "" for box in self.talent_boxes],
             "base_skill_ids": [box.currentData() or "" for box in self.base_boxes if box.currentText() != "None"],
             "plugin_skill_ids": [box.currentData() or "" for box in self.plugin_boxes if box.currentText() != "None"],
+            "skill_overrides": overrides,
         }
 
 

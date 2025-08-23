@@ -1376,9 +1376,14 @@ class MainWindow(QtWidgets.QMainWindow):
                             f"<span style='color:{color}'>{name}: "
                             f"<span style='color:{delta_color}'>{sign}{delta:,}</span></span>"
                         )
-                troop_label = QtWidgets.QLabel(" | ".join(troop_texts))
+                # Ensure labels persist after this method exits. Passing the
+                # tree widget as the parent gives Qt ownership immediately so
+                # the Python GC does not dispose of them prematurely, which
+                # could otherwise lead to crashes when the user interacts with
+                # the report tree.
+                troop_label = QtWidgets.QLabel(" | ".join(troop_texts), self.output_tree)
                 troop_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
-                result_label = QtWidgets.QLabel(" | ".join(result_texts))
+                result_label = QtWidgets.QLabel(" | ".join(result_texts), self.output_tree)
                 result_label.setTextFormat(QtCore.Qt.TextFormat.RichText)
                 self.output_tree.setItemWidget(round_item, 1, troop_label)
                 self.output_tree.setItemWidget(round_item, 2, result_label)
@@ -1409,7 +1414,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         f"<b style='color:{def_color}'>{a['defender_name']}</b> {a['action_type']} "
                         f"<span style='color:{dmg_color}'>-{a['final_hp_damage']:.0f}</span>"
                     )
-                    label = QtWidgets.QLabel(html)
+                    label = QtWidgets.QLabel(html, self.output_tree)
                     label.setTextFormat(QtCore.Qt.TextFormat.RichText)
                     self.output_tree.setItemWidget(action_item, 0, label)
                     icon = army_icons.get(a.get("attacker_name"))

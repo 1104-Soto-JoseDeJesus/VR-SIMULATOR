@@ -1395,6 +1395,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
             if r.get("combat_actions"):
                 actions_item = QtWidgets.QTreeWidgetItem(["Combat Actions", "", ""])
+                # Ensure the actions container is attached to the tree before
+                # adding child items and assigning widgets.  Failing to do so
+                # can lead to crashes when the items are interacted with in the
+                # view, similar to the top-level round items above.
+                round_item.addChild(actions_item)
                 for a in r["combat_actions"]:
                     desc_plain = (
                         f"{a['attacker_name']} -> {a['defender_name']} {a['action_type']}"
@@ -1420,7 +1425,6 @@ class MainWindow(QtWidgets.QMainWindow):
                             QtCore.Qt.ItemDataRole.DecorationRole,
                             icon,
                         )
-                round_item.addChild(actions_item)
 
             for army_name, triggers in r.get("skill_triggers", {}).items():
                 army_item = QtWidgets.QTreeWidgetItem([f"{army_name} Skill Triggers", "", ""])

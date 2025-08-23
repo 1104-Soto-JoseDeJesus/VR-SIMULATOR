@@ -80,14 +80,27 @@ class StarredImageLabel(QtWidgets.QLabel):
         image = self._orig_image.copy()
         if self.star_count < 6:
             arr = np.array(image)
-            mask = (arr[:, :, 0] > 230) & (arr[:, :, 1] > 230) & (arr[:, :, 2] < 150)
-            mask_img = Image.fromarray(mask.astype("uint8") * 255)
-            mask = np.array(mask_img.filter(ImageFilter.MaxFilter(11))) > 0
-            mask &= (arr[:, :, 0] > 100) & (arr[:, :, 1] > 100)
-            ys, xs = np.where(mask)
+            base_mask = (
+                (arr[:, :, 0] > 230)
+                & (arr[:, :, 1] > 230)
+                & (arr[:, :, 2] < 150)
+            )
+            ys, xs = np.where(base_mask)
             if ys.size:
                 y0, y1 = ys.min(), ys.max()
                 x0, x1 = xs.min(), xs.max()
+                mask_img = Image.fromarray(base_mask.astype("uint8") * 255)
+                mask_img = mask_img.filter(ImageFilter.MaxFilter(5)).filter(
+                    ImageFilter.MinFilter(5)
+                )
+                mask_img = mask_img.filter(ImageFilter.MinFilter(3)).filter(
+                    ImageFilter.MaxFilter(3)
+                )
+                mask = np.array(mask_img) > 0
+                mask &= (arr[:, :, 0] > 100) & (arr[:, :, 1] > 100)
+                mask_bbox = np.zeros_like(mask)
+                mask_bbox[y0 : y1 + 1, x0 : x1 + 1] = mask[y0 : y1 + 1, x0 : x1 + 1]
+                mask = mask_bbox
                 total_width = x1 - x0 + 1
                 star_w = total_width / 6
                 x_coords = np.arange(arr.shape[1])[None, :]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import math
 from typing import Any
 import threading
 
@@ -22,6 +23,69 @@ from vr_game_sim.main import (
     load_setup_from_file,
 )
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
+
+
+class ClickableLabel(QtWidgets.QLabel):
+    """QLabel that emits a ``clicked`` signal when pressed."""
+
+    clicked = QtCore.pyqtSignal()
+
+    def __init__(self, *args, **kwargs) -> None:  # pragma: no cover - Qt GUI element
+        super().__init__(*args, **kwargs)
+        self.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # pragma: no cover - GUI interaction
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+
+def apply_star_overlay(path: str, stars: int) -> QtGui.QPixmap:
+    """Return pixmap for ``path`` with a star rating overlay.
+
+    The function draws six stars along the bottom of the image and grays out
+    those beyond ``stars`` from right to left. It gracefully handles missing
+    images by returning an empty ``QPixmap``.
+    """
+
+    pix = QtGui.QPixmap(path)
+    if pix.isNull():
+        return pix
+
+    stars = max(0, min(6, stars))
+    painter = QtGui.QPainter(pix)
+    star_count = 6
+    # Size and positioning of the stars relative to the image size
+    star_size = max(6, pix.width() // (star_count + 2))
+    spacing = star_size // 5
+    total_w = star_count * star_size + (star_count - 1) * spacing
+    start_x = (pix.width() - total_w) // 2
+    y = pix.height() - star_size - spacing
+
+    for i in range(star_count):
+        x = start_x + i * (star_size + spacing)
+        color = QtGui.QColor(255, 215, 0) if i < stars else QtGui.QColor(100, 100, 100)
+        path_star = QtGui.QPainterPath()
+        cx = x + star_size / 2
+        cy = y + star_size / 2
+        outer = star_size / 2
+        inner = outer * 0.5
+        for p in range(10):
+            angle = math.radians(p * 36 - 90)
+            r = outer if p % 2 == 0 else inner
+            px = cx + r * math.cos(angle)
+            py = cy + r * math.sin(angle)
+            if p == 0:
+                path_star.moveTo(px, py)
+            else:
+                path_star.lineTo(px, py)
+        path_star.closeSubpath()
+        painter.setBrush(QtGui.QBrush(color))
+        painter.setPen(QtGui.QPen(QtCore.Qt.GlobalColor.black))
+        painter.drawPath(path_star)
+
+    painter.end()
+    return pix
 
 
 class ThousandSepSpinBox(QtWidgets.QSpinBox):
@@ -115,6 +179,8 @@ class HeroEditDialog(QtWidgets.QDialog):
         self.setModal(True)
 
         layout = QtWidgets.QFormLayout(self)
+
+        self._star_counts = hero_config.get("star_counts") if hero_config else None
 
         self.name_edit = QtWidgets.QLineEdit(hero_config.get("hero_name_or_preset", "") if hero_config else "")
         layout.addRow("Hero Name:", self.name_edit)
@@ -245,13 +311,16 @@ class HeroEditDialog(QtWidgets.QDialog):
                 ov = editor.get_overrides()
                 if ov:
                     overrides[sid] = ov
-        return {
+        result = {
             "hero_name_or_preset": self.name_edit.text().strip(),
             "talent_ids": [box.currentData() or "" for box in self.talent_boxes],
             "base_skill_ids": [box.currentData() or "" for box in self.base_boxes if box.currentText() != "None"],
             "plugin_skill_ids": [box.currentData() or "" for box in self.plugin_boxes if box.currentText() != "None"],
             "skill_overrides": overrides,
         }
+        if self._star_counts:
+            result["star_counts"] = self._star_counts
+        return result
 
 
 class ArmyFrame(QtWidgets.QGroupBox):
@@ -371,13 +440,15 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.unit_icon.setScaledContents(True)
 
         # --- Hero 1 preview widget ---
-        self.hero1_img = QtWidgets.QLabel()
+        self.hero1_img = ClickableLabel()
         self.hero1_img.setFixedSize(64, 92)
         self.hero1_img.setScaledContents(True)
-        self.hero1_plugin_imgs = [QtWidgets.QLabel(), QtWidgets.QLabel()]
-        for lbl in self.hero1_plugin_imgs:
+        self.hero1_img.clicked.connect(lambda: self._set_star_count(1, None))
+        self.hero1_plugin_imgs = [ClickableLabel(), ClickableLabel()]
+        for idx, lbl in enumerate(self.hero1_plugin_imgs):
             lbl.setFixedSize(75, 92)
             lbl.setScaledContents(True)
+            lbl.clicked.connect(lambda i=idx: self._set_star_count(1, i))
         hero1_preview_layout = QtWidgets.QHBoxLayout()
         hero1_preview_layout.setContentsMargins(0, 0, 0, 0)
         hero1_preview_layout.setSpacing(30)
@@ -393,13 +464,15 @@ class ArmyFrame(QtWidgets.QGroupBox):
         hero1_preview_widget.setLayout(hero1_preview_layout)
 
         # --- Hero 2 preview widget ---
-        self.hero2_img = QtWidgets.QLabel()
+        self.hero2_img = ClickableLabel()
         self.hero2_img.setFixedSize(64, 92)
         self.hero2_img.setScaledContents(True)
-        self.hero2_plugin_imgs = [QtWidgets.QLabel(), QtWidgets.QLabel()]
-        for lbl in self.hero2_plugin_imgs:
+        self.hero2_img.clicked.connect(lambda: self._set_star_count(2, None))
+        self.hero2_plugin_imgs = [ClickableLabel(), ClickableLabel()]
+        for idx, lbl in enumerate(self.hero2_plugin_imgs):
             lbl.setFixedSize(75, 92)
             lbl.setScaledContents(True)
+            lbl.clicked.connect(lambda i=idx: self._set_star_count(2, i))
         hero2_preview_layout = QtWidgets.QHBoxLayout()
         hero2_preview_layout.setContentsMargins(0, 0, 0, 0)
         hero2_preview_layout.setSpacing(30)
@@ -503,6 +576,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         cfg = self.custom_heroes.get(slot)
         if cfg and cfg.get("hero_name_or_preset") != name and name not in {"None", "Custom"}:
             self.custom_heroes[slot] = None
+            cfg = None
 
         img_label = self.hero1_img if slot == 1 else self.hero2_img
         img_label.clear()
@@ -512,9 +586,17 @@ class ArmyFrame(QtWidgets.QGroupBox):
             lbl.clear()
             lbl.setToolTip("")
         if name not in {"None", "Custom"}:
+            star_counts = {"hero": 6, "plugin_skills": [6, 6]}
+            if cfg and cfg.get("star_counts"):
+                sc = cfg.get("star_counts", {})
+                star_counts["hero"] = sc.get("hero", 6)
+                for i, v in enumerate(sc.get("plugin_skills", [])):
+                    if i < 2:
+                        star_counts["plugin_skills"][i] = v
+
             img_path = os.path.join(os.path.dirname(__file__), "Hero Images", f"{name.capitalize()}.png")
             if os.path.exists(img_path):
-                pix = QtGui.QPixmap(img_path)
+                pix = apply_star_overlay(img_path, star_counts["hero"])
                 img_label.setPixmap(
                     pix.scaled(64, 92, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
                 )
@@ -530,15 +612,16 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 preset = HERO_PRESETS.get(name.lower())
                 if preset:
                     plugin_ids = preset.get("plugin_skills", [])
-            for lbl, sid in zip(plugin_labels, plugin_ids):
+            for i, (lbl, sid) in enumerate(zip(plugin_labels, plugin_ids)):
                 skill_def = SKILL_REGISTRY_GLOBAL.get(sid)
                 if not skill_def:
                     continue
                 img_name = skill_def["name"].replace("'", "").replace(" ", "-") + ".png"
                 skill_img_path = os.path.join(os.path.dirname(__file__), "Plugin Skill Images", img_name)
                 lbl.setToolTip(skill_def.get("name", sid))
+                star_val = star_counts["plugin_skills"][i] if i < len(star_counts["plugin_skills"]) else 6
                 if os.path.exists(skill_img_path):
-                    pix = QtGui.QPixmap(skill_img_path)
+                    pix = apply_star_overlay(skill_img_path, star_val)
                     lbl.setPixmap(
                         pix.scaled(75, 92, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
                     )
@@ -566,6 +649,57 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.unit_icon.setText(unit)
             self.unit_icon.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
+    def _ensure_star_counts(self, slot: int) -> dict:
+        cfg = self.custom_heroes.get(slot)
+        sc = cfg.get("star_counts") if cfg else None
+        if not sc:
+            sc = {"hero": 6, "plugin_skills": [6, 6]}
+            if cfg:
+                cfg["star_counts"] = sc
+            else:
+                self.custom_heroes[slot] = {"star_counts": sc}
+        else:
+            sc.setdefault("hero", 6)
+            sc.setdefault("plugin_skills", [6, 6])
+            if len(sc["plugin_skills"]) < 2:
+                sc["plugin_skills"].extend([6] * (2 - len(sc["plugin_skills"])) )
+        return sc
+
+    def _set_star_count(self, slot: int, plugin_idx: int | None) -> None:
+        name = self.hero1_combo.currentText() if slot == 1 else self.hero2_combo.currentText()
+        if name in {"None", "Custom"}:
+            return
+
+        cfg = self.custom_heroes.get(slot)
+        if not cfg or cfg.get("hero_name_or_preset") != name:
+            preset = HERO_PRESETS.get(name.lower(), {})
+            cfg = {
+                "hero_name_or_preset": name,
+                "talent_ids": preset.get("talents", []),
+                "base_skill_ids": preset.get("base_skills", []),
+                "plugin_skill_ids": preset.get("plugin_skills", []),
+            }
+            self.custom_heroes[slot] = cfg
+        star_counts = self._ensure_star_counts(slot)
+        current = star_counts["hero"] if plugin_idx is None else star_counts["plugin_skills"][plugin_idx]
+        new_val, ok = QtWidgets.QInputDialog.getInt(
+            self,
+            "Star Count",
+            "Stars (0-6):",
+            current,
+            0,
+            6,
+        )
+        if not ok:
+            return
+        if plugin_idx is None:
+            star_counts["hero"] = new_val
+        else:
+            star_counts["plugin_skills"][plugin_idx] = new_val
+        cfg["star_counts"] = star_counts
+        self.custom_heroes[slot] = cfg
+        self._hero_selected(slot, name)
+
     def populate_from_config(self, cfg: dict) -> None:
         self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))
         self.unit_combo.setCurrentText(cfg.get("unit_type", "pikemen"))
@@ -587,7 +721,18 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 break
             name = hero_cfg.get("hero_name_or_preset", "")
             preset = HERO_PRESETS.get(name.lower())
-            if preset and preset.get("talents") == hero_cfg.get("talent_ids") and preset.get("base_skills") == hero_cfg.get("base_skill_ids") and preset.get("plugin_skills") == hero_cfg.get("plugin_skill_ids"):
+            star_counts = hero_cfg.get("star_counts")
+            is_default_star = not star_counts or (
+                star_counts.get("hero", 6) == 6
+                and all(s == 6 for s in star_counts.get("plugin_skills", []))
+            )
+            if (
+                preset
+                and preset.get("talents") == hero_cfg.get("talent_ids")
+                and preset.get("base_skills") == hero_cfg.get("base_skill_ids")
+                and preset.get("plugin_skills") == hero_cfg.get("plugin_skill_ids")
+                and is_default_star
+            ):
                 hero_name_display = name.capitalize()
             else:
                 hero_name_display = name

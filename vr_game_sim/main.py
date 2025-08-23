@@ -92,7 +92,12 @@ def _smooth_counts(counts: np.ndarray, sigma: float = 1.0) -> np.ndarray:
 
 
 def save_setup_to_file(setup_data: List[Dict[str, Any]], filename: str):
-    """Saves the army setup data to a JSON file."""
+    """Saves the army setup data to a JSON file.
+
+    ``setup_data`` may contain additional metadata such as skill overrides or
+    star counts.  All information present in the dictionaries is written out so
+    it can be restored later without loss.
+    """
     ensure_setups_dir()
     filepath = os.path.join(SETUPS_DIR, filename)
     try:
@@ -107,7 +112,12 @@ def save_setup_to_file(setup_data: List[Dict[str, Any]], filename: str):
 
 
 def load_setup_from_file(filename: str) -> Optional[List[Dict[str, Any]]]:
-    """Loads army setup data from a JSON file. Accepts absolute or relative path."""
+    """Loads army setup data from a JSON file.
+
+    The loader preserves any extra keys (e.g. star counts) present in the file
+    so that subsequent saves round-trip the data correctly.
+    Accepts absolute or relative path.
+    """
     filepath = filename
     if not os.path.isabs(filename):
         filepath = os.path.join(SETUPS_DIR, filename)
@@ -158,6 +168,9 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
                 if overrides
                 else SKILL_REGISTRY_GLOBAL
             )
+            # star_counts is currently only used for UI previews and does not
+            # influence simulation logic, but it is preserved in the loaded
+            # configuration so that saving again retains the information.
             hero = Hero(
                 name=hero_conf["hero_name_or_preset"],
                 talent_ids=hero_conf["talent_ids"],

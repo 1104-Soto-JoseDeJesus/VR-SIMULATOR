@@ -495,16 +495,28 @@ class SimulationWorker(QtCore.QThread):
         self.setup_data = setup_data
         self.runs = runs
         self.num_workers = num_workers
+        self._cancelled = threading.Event()
+
+    def cancel(self) -> None:
+        """Request the simulation to stop."""
+        self._cancelled.set()
 
     def run(self) -> None:
         try:
             armies = create_armies_from_data(self.setup_data)
+            if self._cancelled.is_set():
+                raise RuntimeError("cancelled")
+
             report_builder = ReportBuilder(use_color=False)
             sim = GameSimulator(armies[0], armies[1], report_builder, track_stats=True)
             report_text = sim.simulate_battle()
+            if self._cancelled.is_set():
+                raise RuntimeError("cancelled")
 
             def progress_cb(done: int, total: int) -> None:
                 self.progress_update.emit(done, total)
+                if self._cancelled.is_set():
+                    raise RuntimeError("cancelled")
 
             win_rate = run_additional_simulations(
                 self.setup_data,
@@ -513,12 +525,19 @@ class SimulationWorker(QtCore.QThread):
                 progress_callback=progress_cb,
                 num_workers=self.num_workers,
             )
+            if self._cancelled.is_set():
+                raise RuntimeError("cancelled")
 
             result_text = (
                 report_text
                 + f"\nWin rate for {armies[0].name}: {win_rate*100:.1f}% over {self.runs} runs.\n"
             )
             self.finished_text.emit(result_text)
+        except RuntimeError as exc:  # pragma: no cover - GUI feedback
+            if str(exc) == "cancelled":
+                self.finished_text.emit("Simulation cancelled.")
+            else:
+                self.error.emit(str(exc))
         except Exception as exc:  # pragma: no cover - GUI feedback
             self.error.emit(str(exc))
 
@@ -1061,13 +1080,19 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # --- Simulation handling --------------------------------------------
     def run_simulation(self) -> None:
+        if hasattr(self, "worker") and self.worker and self.worker.isRunning():
+            self.worker.cancel()
+            self.run_btn.setText("Run Simulation")
+            self.run_btn.setEnabled(True)
+            return
+
         setup_data = [self.army1_frame.build_config(), self.army2_frame.build_config()]
         runs = self.runs_spin.value()
         workers = self.workers_spin.value()
         self.status.setText("Running simulation...")
         self.progress.setRange(0, runs)
         self.progress.setValue(0)
-        self.run_btn.setEnabled(False)
+        self.run_btn.setText("Cancel")
         self.worker = SimulationWorker(setup_data, runs, workers)
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
@@ -1087,12 +1112,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress.setValue(0)
         self.status.setText("Ready")
         self.run_btn.setEnabled(True)
+        self.run_btn.setText("Run Simulation")
 
     def _sim_error(self, msg: str) -> None:  # pragma: no cover - GUI feedback
         QtWidgets.QMessageBox.critical(self, "Error", msg)
         self.progress.setValue(0)
         self.status.setText("Ready")
         self.run_btn.setEnabled(True)
+        self.run_btn.setText("Run Simulation")
 
 
 def main() -> None:

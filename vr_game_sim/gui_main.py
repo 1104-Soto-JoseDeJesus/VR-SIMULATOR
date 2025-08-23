@@ -8,7 +8,7 @@ import threading
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
-from PIL import Image, ImageQt, ImageDraw
+from PIL import Image, ImageQt
 import numpy as np
 
 from vr_game_sim.hero_definition import HERO_PRESETS
@@ -87,11 +87,13 @@ class StarredImageLabel(QtWidgets.QLabel):
                 x0, x1 = xs.min(), xs.max()
                 total_width = x1 - x0 + 1
                 star_w = total_width / 6
-                draw = ImageDraw.Draw(image)
+                x_coords = np.arange(arr.shape[1])[None, :]
                 for i in range(self.star_count, 6):
                     left = int(x0 + i * star_w)
                     right = int(x0 + (i + 1) * star_w)
-                    draw.rectangle([left, y0, right, y1], fill=(100, 100, 100, 180))
+                    star_region = mask & (x_coords >= left) & (x_coords < right)
+                    arr[star_region] = [100, 100, 100, 180]
+                image = Image.fromarray(arr, "RGBA")
         qt_img = ImageQt.ImageQt(image)
         pix = QtGui.QPixmap.fromImage(qt_img)
         self.setPixmap(

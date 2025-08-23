@@ -8,7 +8,7 @@ import threading
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
-from PIL import Image, ImageQt, ImageFilter
+from PIL import Image, ImageQt
 import numpy as np
 
 from vr_game_sim.hero_definition import HERO_PRESETS
@@ -47,6 +47,7 @@ class StarredImageLabel(QtWidgets.QLabel):
         self._image_path: str | None = None
         self._orig_image: Image.Image | None = None
         self.star_count: int = 6
+        self._is_hero_image: bool = False
 
     def set_image(self, path: str | None) -> None:
         """Load image from ``path`` and reset star count."""
@@ -54,6 +55,8 @@ class StarredImageLabel(QtWidgets.QLabel):
         self.star_count = 6
         if path and os.path.exists(path):
             self._orig_image = Image.open(path).convert("RGBA")
+            # Determine if the image is a hero portrait or a skill image
+            self._is_hero_image = "Hero Images" in path
         else:
             self._orig_image = None
             self.clear()
@@ -80,36 +83,22 @@ class StarredImageLabel(QtWidgets.QLabel):
         image = self._orig_image.copy()
         if self.star_count < 6:
             arr = np.array(image)
-            h = arr.shape[0]
-            search_start = h * 2 // 3
-            bottom = arr[search_start:]
-            base_mask = (
-                (bottom[:, :, 0] > 200)
-                & (bottom[:, :, 1] > 200)
-                & (bottom[:, :, 2] < 200)
-            )
-            ys, xs = np.where(base_mask)
-            if ys.size:
-                y0, y1 = ys.min(), ys.max()
-                x0, x1 = xs.min(), xs.max()
-                mask_img = Image.fromarray(base_mask.astype("uint8") * 255)
-                mask_img = mask_img.filter(ImageFilter.MaxFilter(31))
-                mask = np.array(mask_img) > 0
-                mask &= (bottom[:, :, 0] > 100) & (bottom[:, :, 1] > 100)
-                mask_bbox = np.zeros_like(mask)
-                mask_bbox[y0 : y1 + 1, x0 : x1 + 1] = mask[y0 : y1 + 1, x0 : x1 + 1]
-                full_mask = np.zeros((h, arr.shape[1]), dtype=bool)
-                full_mask[search_start:, :] = mask_bbox
-                y0 += search_start
-                x_coords = np.arange(arr.shape[1])[None, :]
-                total_width = x1 - x0 + 1
-                star_w = total_width / 6
-                for i in range(self.star_count, 6):
-                    left = int(x0 + i * star_w)
-                    right = int(x0 + (i + 1) * star_w)
-                    star_region = full_mask & (x_coords >= left) & (x_coords < right)
-                    arr[star_region] = [100, 100, 100, 180]
-                image = Image.fromarray(arr, "RGBA")
+            h, w = arr.shape[0], arr.shape[1]
+            star_top = int(h * 0.8)
+            x_coords = np.arange(w)[None, :]
+            y_coords = np.arange(h)[:, None]
+            if self._is_hero_image:
+                slope = (h - star_top) / (w / 2)
+                y_limit = star_top + slope * np.abs(x_coords - w / 2)
+                base_mask = y_coords >= y_limit
+            else:
+                base_mask = y_coords >= star_top
+            for i in range(self.star_count, 6):
+                left = int(i * w / 6)
+                right = int((i + 1) * w / 6)
+                star_region = base_mask & (x_coords >= left) & (x_coords < right)
+                arr[star_region] = [100, 100, 100, 180]
+            image = Image.fromarray(arr, "RGBA")
         qt_img = ImageQt.ImageQt(image)
         pix = QtGui.QPixmap.fromImage(qt_img)
         self.setPixmap(

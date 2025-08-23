@@ -1,19 +1,39 @@
 from typing import List, Dict, Any
 from tabulate import tabulate
-from colorama import Fore, Style, init
 import sys
 import copy
+import threading
+
+# ``colorama`` can cause a stack overflow on Windows if ``init`` is invoked
+# multiple times.  This file may construct many ``ReportBuilder`` instances
+# across threads, so we guard initialization behind a lock and degrade
+# gracefully when ``colorama`` isn't available.
+try:  # pragma: no cover - exercised indirectly in tests
+    from colorama import Fore, Style, init
+except Exception:  # pragma: no cover
+    class _DummyColor:  # minimal stub used when colorama is missing
+        def __getattr__(self, name: str) -> str:  # noqa: D401 - trivial
+            return ""
+
+    Fore = Style = _DummyColor()  # type: ignore
+
+    def init(*_args: object, **_kwargs: object) -> None:  # noqa: D401
+        return None
 
 # Track whether colorama has been initialized to avoid repeated global wrapping
 _COLORAMA_INITIALIZED = False
+_COLORAMA_LOCK = threading.Lock()
 
 class ReportBuilder:
     def __init__(self, use_color: bool = True):
         global _COLORAMA_INITIALIZED
-        self.use_color = use_color and sys.stdout.isatty()
-        if self.use_color and not _COLORAMA_INITIALIZED:
-            init(autoreset=True)
-            _COLORAMA_INITIALIZED = True
+        is_tty = bool(getattr(sys.stdout, "isatty", lambda: False)())
+        self.use_color = use_color and is_tty
+        if self.use_color:
+            with _COLORAMA_LOCK:
+                if not _COLORAMA_INITIALIZED:
+                    init(autoreset=True)
+                    _COLORAMA_INITIALIZED = True
         self.lines: List[str] = []
         self.rounds: List[Dict[str, Any]] = []
 

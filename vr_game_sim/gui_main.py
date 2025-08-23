@@ -80,34 +80,34 @@ class StarredImageLabel(QtWidgets.QLabel):
         image = self._orig_image.copy()
         if self.star_count < 6:
             arr = np.array(image)
+            h = arr.shape[0]
+            search_start = h * 2 // 3
+            bottom = arr[search_start:]
             base_mask = (
-                (arr[:, :, 0] > 230)
-                & (arr[:, :, 1] > 230)
-                & (arr[:, :, 2] < 150)
+                (bottom[:, :, 0] > 200)
+                & (bottom[:, :, 1] > 200)
+                & (bottom[:, :, 2] < 200)
             )
             ys, xs = np.where(base_mask)
             if ys.size:
                 y0, y1 = ys.min(), ys.max()
                 x0, x1 = xs.min(), xs.max()
                 mask_img = Image.fromarray(base_mask.astype("uint8") * 255)
-                mask_img = mask_img.filter(ImageFilter.MaxFilter(5)).filter(
-                    ImageFilter.MinFilter(5)
-                )
-                mask_img = mask_img.filter(ImageFilter.MinFilter(3)).filter(
-                    ImageFilter.MaxFilter(3)
-                )
+                mask_img = mask_img.filter(ImageFilter.MaxFilter(31))
                 mask = np.array(mask_img) > 0
-                mask &= (arr[:, :, 0] > 100) & (arr[:, :, 1] > 100)
+                mask &= (bottom[:, :, 0] > 100) & (bottom[:, :, 1] > 100)
                 mask_bbox = np.zeros_like(mask)
                 mask_bbox[y0 : y1 + 1, x0 : x1 + 1] = mask[y0 : y1 + 1, x0 : x1 + 1]
-                mask = mask_bbox
+                full_mask = np.zeros((h, arr.shape[1]), dtype=bool)
+                full_mask[search_start:, :] = mask_bbox
+                y0 += search_start
+                x_coords = np.arange(arr.shape[1])[None, :]
                 total_width = x1 - x0 + 1
                 star_w = total_width / 6
-                x_coords = np.arange(arr.shape[1])[None, :]
                 for i in range(self.star_count, 6):
                     left = int(x0 + i * star_w)
                     right = int(x0 + (i + 1) * star_w)
-                    star_region = mask & (x_coords >= left) & (x_coords < right)
+                    star_region = full_mask & (x_coords >= left) & (x_coords < right)
                     arr[star_region] = [100, 100, 100, 180]
                 image = Image.fromarray(arr, "RGBA")
         qt_img = ImageQt.ImageQt(image)

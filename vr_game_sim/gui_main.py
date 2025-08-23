@@ -687,6 +687,11 @@ class MainWindow(QtWidgets.QMainWindow):
         load_action.triggered.connect(self.load_setup)
         file_menu.addAction(load_action)
 
+        export_report_action = QtGui.QAction("Export Report", self)
+        export_report_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+R"))
+        export_report_action.triggered.connect(self.export_report)
+        file_menu.addAction(export_report_action)
+
         export_fig_action = QtGui.QAction("Export Figures", self)
         export_fig_action.setShortcut(QtGui.QKeySequence("Ctrl+E"))
         export_fig_action.triggered.connect(self.export_figures)
@@ -825,6 +830,11 @@ class MainWindow(QtWidgets.QMainWindow):
         clear_btn.clicked.connect(lambda: self.output.clear())
         btn_layout.addWidget(clear_btn)
 
+        report_btn = QtWidgets.QPushButton("Export Report")
+        report_btn.clicked.connect(self.export_report)
+        report_btn.setToolTip("Export Report (Ctrl+Shift+R)")
+        btn_layout.addWidget(report_btn)
+
         export_btn = QtWidgets.QPushButton("Export Figures")
         export_btn.clicked.connect(self.export_figures)
         export_btn.setToolTip("Export Figures (Ctrl+E)")
@@ -877,6 +887,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hist_container = QtWidgets.QWidget()
         self.hist_scroll.setWidget(self.hist_container)
         self.status.setText("Armies swapped")
+
+    def export_report(self) -> None:
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Export Report",
+            self.last_setup_dir,
+            "Text Files (*.txt)",
+        )
+        if file_path:
+            self.last_setup_dir = os.path.dirname(file_path)
+            try:
+                with open(file_path, "w", encoding="utf-8") as fh:
+                    fh.write(self.output.toPlainText())
+                self.status.setText(f"Report exported to {os.path.basename(file_path)}")
+            except OSError as exc:
+                QtWidgets.QMessageBox.critical(
+                    self, "Error", f"Failed to export report: {exc}"
+                )
 
     def export_figures(self) -> None:
         image_files = [

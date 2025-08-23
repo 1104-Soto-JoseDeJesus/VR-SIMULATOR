@@ -1396,7 +1396,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 # even with the richer report data.
                 round_item.addChild(effects_item)
                 for eff in r["active_effects"]:
-                    QtWidgets.QTreeWidgetItem(effects_item, [eff])
+                    # Create the effect item first then attach it to the tree.
+                    # Passing the parent to the constructor would also add the
+                    # item, but constructing it separately ensures the item is
+                    # part of the view before any later interaction.
+                    eff_item = QtWidgets.QTreeWidgetItem([eff])
+                    effects_item.addChild(eff_item)
 
             if r.get("combat_actions"):
                 actions_item = QtWidgets.QTreeWidgetItem(["Combat Actions", "", ""])
@@ -1411,7 +1416,13 @@ class MainWindow(QtWidgets.QMainWindow):
                         f" DMG Pot {a['damage_potential_hp']:.0f} Absorb {a['absorbed_hp']:.0f}"
                         f" Final {a['final_hp_damage']:.0f} Kills {a['potential_kills']}"
                     )
-                    action_item = QtWidgets.QTreeWidgetItem(actions_item, [desc_plain])
+                    # Similar to the top-level round rows, create each action
+                    # item independently and attach it afterwards so Qt knows
+                    # the item belongs to the tree before we assign custom
+                    # widgets.  This prevents crashes when clicking the report
+                    # entries on some systems.
+                    action_item = QtWidgets.QTreeWidgetItem([desc_plain])
+                    actions_item.addChild(action_item)
                     atk_color = army_colors.get(a.get("attacker_name"), "#ffffff")
                     def_color = army_colors.get(a.get("defender_name"), "#ffffff")
                     dmg_color = "#ff6464" if a.get("final_hp_damage", 0) > 0 else "#00ff00"
@@ -1442,7 +1453,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 if color:
                     army_item.setForeground(0, QtGui.QBrush(QtGui.QColor(color)))
                 if not triggers:
-                    QtWidgets.QTreeWidgetItem(army_item, ["None"])
+                    army_item.addChild(QtWidgets.QTreeWidgetItem(["None"]))
                 else:
                     for tr in triggers:
                         detail = ""
@@ -1453,7 +1464,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         if tr.get("potential_kills"):
                             detail += f" Kills {tr['potential_kills']}"
                         text = f"{tr['skill_name']}: {tr['effect_description']}{detail}"
-                        QtWidgets.QTreeWidgetItem(army_item, [text])
+                        army_item.addChild(QtWidgets.QTreeWidgetItem([text]))
 
     def _sim_finished(self, text: str, rounds: list[dict]) -> None:
         self.output_text.setPlainText(text)

@@ -8,7 +8,7 @@ import threading
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
-from PIL import Image, ImageQt
+from PIL import Image, ImageQt, ImageDraw
 import numpy as np
 
 from vr_game_sim.hero_definition import HERO_PRESETS
@@ -36,6 +36,67 @@ class ThousandSepSpinBox(QtWidgets.QSpinBox):
             return int(clean)
         except ValueError:
             return 0
+
+
+class StarredImageLabel(QtWidgets.QLabel):
+    """QLabel that can grey out stars based on a count."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setScaledContents(True)
+        self._image_path: str | None = None
+        self._orig_image: Image.Image | None = None
+        self.star_count: int = 6
+
+    def set_image(self, path: str | None) -> None:
+        """Load image from ``path`` and reset star count."""
+        self._image_path = path
+        self.star_count = 6
+        if path and os.path.exists(path):
+            self._orig_image = Image.open(path).convert("RGBA")
+        else:
+            self._orig_image = None
+            self.clear()
+            return
+        self._update_pixmap()
+
+    def set_star_count(self, count: int) -> None:
+        self.star_count = max(0, min(6, count))
+        self._update_pixmap()
+
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # type: ignore[override]
+        if self._orig_image is None:
+            return
+        count, ok = QtWidgets.QInputDialog.getInt(
+            self, "Star Count", "Enter star count (0-6):", self.star_count, 0, 6
+        )
+        if ok:
+            self.set_star_count(count)
+
+    def _update_pixmap(self) -> None:
+        if not self._orig_image:
+            self.clear()
+            return
+        image = self._orig_image.copy()
+        if self.star_count < 6:
+            arr = np.array(image)
+            mask = (arr[:, :, 0] > 230) & (arr[:, :, 1] > 230) & (arr[:, :, 2] < 150)
+            ys, xs = np.where(mask)
+            if ys.size:
+                y0, y1 = ys.min(), ys.max()
+                x0, x1 = xs.min(), xs.max()
+                total_width = x1 - x0 + 1
+                star_w = total_width / 6
+                draw = ImageDraw.Draw(image)
+                for i in range(self.star_count, 6):
+                    left = int(x0 + i * star_w)
+                    right = int(x0 + (i + 1) * star_w)
+                    draw.rectangle([left, y0, right, y1], fill=(100, 100, 100, 180))
+        qt_img = ImageQt.ImageQt(image)
+        pix = QtGui.QPixmap.fromImage(qt_img)
+        self.setPixmap(
+            pix.scaled(self.width(), self.height(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+        )
 
 
 class SkillParamEditor(QtWidgets.QWidget):
@@ -377,13 +438,11 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.unit_icon.setScaledContents(True)
 
         # --- Hero 1 preview widget ---
-        self.hero1_img = QtWidgets.QLabel()
+        self.hero1_img = StarredImageLabel()
         self.hero1_img.setFixedSize(64, 92)
-        self.hero1_img.setScaledContents(True)
-        self.hero1_plugin_imgs = [QtWidgets.QLabel(), QtWidgets.QLabel()]
+        self.hero1_plugin_imgs = [StarredImageLabel(), StarredImageLabel()]
         for lbl in self.hero1_plugin_imgs:
             lbl.setFixedSize(75, 92)
-            lbl.setScaledContents(True)
         hero1_preview_layout = QtWidgets.QHBoxLayout()
         hero1_preview_layout.setContentsMargins(0, 0, 0, 0)
         hero1_preview_layout.setSpacing(30)
@@ -399,13 +458,11 @@ class ArmyFrame(QtWidgets.QGroupBox):
         hero1_preview_widget.setLayout(hero1_preview_layout)
 
         # --- Hero 2 preview widget ---
-        self.hero2_img = QtWidgets.QLabel()
+        self.hero2_img = StarredImageLabel()
         self.hero2_img.setFixedSize(64, 92)
-        self.hero2_img.setScaledContents(True)
-        self.hero2_plugin_imgs = [QtWidgets.QLabel(), QtWidgets.QLabel()]
+        self.hero2_plugin_imgs = [StarredImageLabel(), StarredImageLabel()]
         for lbl in self.hero2_plugin_imgs:
             lbl.setFixedSize(75, 92)
-            lbl.setScaledContents(True)
         hero2_preview_layout = QtWidgets.QHBoxLayout()
         hero2_preview_layout.setContentsMargins(0, 0, 0, 0)
         hero2_preview_layout.setSpacing(30)
@@ -511,19 +568,16 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.custom_heroes[slot] = None
 
         img_label = self.hero1_img if slot == 1 else self.hero2_img
-        img_label.clear()
+        img_label.set_image(None)
         img_label.setToolTip(name if name not in {"None", "Custom"} else "")
         plugin_labels = self.hero1_plugin_imgs if slot == 1 else self.hero2_plugin_imgs
         for lbl in plugin_labels:
-            lbl.clear()
+            lbl.set_image(None)
             lbl.setToolTip("")
         if name not in {"None", "Custom"}:
             img_path = os.path.join(os.path.dirname(__file__), "Hero Images", f"{name.capitalize()}.png")
             if os.path.exists(img_path):
-                pix = QtGui.QPixmap(img_path)
-                img_label.setPixmap(
-                    pix.scaled(64, 92, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
-                )
+                img_label.set_image(img_path)
                 img_label.setText("")
             else:
                 img_label.setText(name)
@@ -541,13 +595,12 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 if not skill_def:
                     continue
                 img_name = skill_def["name"].replace("'", "").replace(" ", "-") + ".png"
-                skill_img_path = os.path.join(os.path.dirname(__file__), "Plugin Skill Images", img_name)
+                skill_img_path = os.path.join(
+                    os.path.dirname(__file__), "Plugin Skill Images", img_name
+                )
                 lbl.setToolTip(skill_def.get("name", sid))
                 if os.path.exists(skill_img_path):
-                    pix = QtGui.QPixmap(skill_img_path)
-                    lbl.setPixmap(
-                        pix.scaled(75, 92, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
-                    )
+                    lbl.set_image(skill_img_path)
                     lbl.setText("")
                 else:
                     lbl.setText(skill_def.get("name", sid))

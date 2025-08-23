@@ -668,6 +668,45 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         self.setWindowTitle("Battle Simulator")
 
+        # --- Menu bar ------------------------------------------------------
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("&File")
+
+        run_action = QtGui.QAction("Run Simulation", self)
+        run_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
+        run_action.triggered.connect(self.run_simulation)
+        file_menu.addAction(run_action)
+
+        save_action = QtGui.QAction("Save Setup", self)
+        save_action.setShortcut(QtGui.QKeySequence("Ctrl+S"))
+        save_action.triggered.connect(self.save_setup)
+        file_menu.addAction(save_action)
+
+        load_action = QtGui.QAction("Load Setup", self)
+        load_action.setShortcut(QtGui.QKeySequence("Ctrl+O"))
+        load_action.triggered.connect(self.load_setup)
+        file_menu.addAction(load_action)
+
+        export_fig_action = QtGui.QAction("Export Figures", self)
+        export_fig_action.setShortcut(QtGui.QKeySequence("Ctrl+E"))
+        export_fig_action.triggered.connect(self.export_figures)
+        file_menu.addAction(export_fig_action)
+
+        export_summary_action = QtGui.QAction("Export Summary Image", self)
+        export_summary_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+E"))
+        export_summary_action.triggered.connect(self.export_summary_image)
+        file_menu.addAction(export_summary_action)
+
+        swap_action = QtGui.QAction("Swap Armies", self)
+        swap_action.setShortcut(QtGui.QKeySequence("Ctrl+W"))
+        swap_action.triggered.connect(self.swap_armies)
+        file_menu.addAction(swap_action)
+
+        quit_action = QtGui.QAction("Quit", self)
+        quit_action.setShortcut(QtGui.QKeySequence("Ctrl+Q"))
+        quit_action.triggered.connect(self.close)
+        file_menu.addAction(quit_action)
+
         central = QtWidgets.QWidget()
         self.setCentralWidget(central)
         main_layout = QtWidgets.QVBoxLayout(central)
@@ -764,18 +803,22 @@ class MainWindow(QtWidgets.QMainWindow):
         main_layout.addLayout(btn_layout)
         self.run_btn = QtWidgets.QPushButton("Run Simulation")
         self.run_btn.clicked.connect(self.run_simulation)
+        self.run_btn.setToolTip("Run Simulation (Ctrl+R)")
         btn_layout.addWidget(self.run_btn)
 
         save_btn = QtWidgets.QPushButton("Save Setup")
         save_btn.clicked.connect(self.save_setup)
+        save_btn.setToolTip("Save Setup (Ctrl+S)")
         btn_layout.addWidget(save_btn)
 
         load_btn = QtWidgets.QPushButton("Load Setup")
         load_btn.clicked.connect(self.load_setup)
+        load_btn.setToolTip("Load Setup (Ctrl+O)")
         btn_layout.addWidget(load_btn)
 
         swap_btn = QtWidgets.QPushButton("Swap Armies")
         swap_btn.clicked.connect(self.swap_armies)
+        swap_btn.setToolTip("Swap Armies (Ctrl+W)")
         btn_layout.addWidget(swap_btn)
 
         clear_btn = QtWidgets.QPushButton("Clear Output")
@@ -784,10 +827,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         export_btn = QtWidgets.QPushButton("Export Figures")
         export_btn.clicked.connect(self.export_figures)
+        export_btn.setToolTip("Export Figures (Ctrl+E)")
         btn_layout.addWidget(export_btn)
 
         summary_btn = QtWidgets.QPushButton("Export Summary Image")
         summary_btn.clicked.connect(self.export_summary_image)
+        summary_btn.setToolTip("Export Summary Image (Ctrl+Shift+E)")
         btn_layout.addWidget(summary_btn)
 
     # --- Setup load/save -------------------------------------------------

@@ -73,6 +73,10 @@ class HeroEditDialog(QtWidgets.QDialog):
             box = QtWidgets.QComboBox()
             for name, sid in talent_opts:
                 box.addItem(name, sid)
+            box.setEditable(True)
+            completer = QtWidgets.QCompleter([n for n, _ in talent_opts], box)
+            completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+            box.setCompleter(completer)
             if hero_config and i < len(hero_config.get("talent_ids", [])):
                 sid = hero_config["talent_ids"][i]
                 name = SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", "None")
@@ -86,6 +90,10 @@ class HeroEditDialog(QtWidgets.QDialog):
             box = QtWidgets.QComboBox()
             for name, sid in base_opts:
                 box.addItem(name, sid)
+            box.setEditable(True)
+            completer = QtWidgets.QCompleter([n for n, _ in base_opts], box)
+            completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+            box.setCompleter(completer)
             if hero_config and i < len(hero_config.get("base_skill_ids", [])):
                 sid = hero_config["base_skill_ids"][i]
                 name = SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", "None")
@@ -99,6 +107,10 @@ class HeroEditDialog(QtWidgets.QDialog):
             box = QtWidgets.QComboBox()
             for name, sid in plugin_opts:
                 box.addItem(name, sid)
+            box.setEditable(True)
+            completer = QtWidgets.QCompleter([n for n, _ in plugin_opts], box)
+            completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+            box.setCompleter(completer)
             if hero_config and i < len(hero_config.get("plugin_skill_ids", [])):
                 sid = hero_config["plugin_skill_ids"][i]
                 name = SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", "None")
@@ -173,6 +185,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
         for combo in [self.hero1_combo, self.hero2_combo]:
             for opt in self.hero_options:
                 combo.addItem(opt)
+            combo.setEditable(True)
+            completer = QtWidgets.QCompleter(self.hero_options, combo)
+            completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+            combo.setCompleter(completer)
         self.hero1_combo.currentTextChanged.connect(lambda n: self._hero_selected(1, n))
         self.hero2_combo.currentTextChanged.connect(lambda n: self._hero_selected(2, n))
 

@@ -97,10 +97,11 @@ class StarredImageLabel(QtWidgets.QLabel):
             self.set_star_count(count)
 
     def _build_star_polygon(self, width: int, height: int) -> QtGui.QPolygonF:
-        """Return a five-point star polygon of ``width`` × ``height``.
+        """Return a four-point star polygon of ``width`` × ``height``.
 
-        The polygon is cached to avoid recomputing coordinates on repeated
-        calls with the same dimensions.
+        The polygon alternates outer and inner vertices every 45° producing
+        eight total points. Results are cached by ``(width, height)`` to avoid
+        recomputation.
         """
 
         key = (width, height)
@@ -108,18 +109,20 @@ class StarredImageLabel(QtWidgets.QLabel):
         if cached is not None:
             return cached
 
-        # Geometry for a regular 5‑point star using outer/inner radii
         cx, cy = width / 2, height / 2
         outer_r = min(width, height) / 2
-        # ratio of inner to outer radius for a regular star
-        inner_r = outer_r * 0.38196601125  # sin(18°)/sin(54°)
+        # Inner radius chosen so the inner points sit on the midpoints of the
+        # sides formed by the outer vertices.
+        inner_r = outer_r / math.sqrt(2)
+
         points: list[QtCore.QPointF] = []
-        for i in range(10):
-            angle = math.radians(-90 + i * 36)
+        for i in range(8):
+            angle = math.radians(-90 + i * 45)
             r = outer_r if i % 2 == 0 else inner_r
             x = cx + r * math.cos(angle)
             y = cy + r * math.sin(angle)
             points.append(QtCore.QPointF(x, y))
+
         polygon = QtGui.QPolygonF(points)
         self._star_polygon_cache[key] = polygon
         return polygon

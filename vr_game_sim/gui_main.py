@@ -1116,7 +1116,13 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.edit_btn1.clicked.connect(lambda: self.edit_hero(1))
         self.edit_btn2.clicked.connect(lambda: self.edit_hero(2))
 
+        # Store fully customised hero definitions per slot.  Skill parameter
+        # overrides for preset heroes are tracked separately in
+        # ``hero_overrides`` so presets can be tweaked without becoming
+        # custom entries.
         self.custom_heroes: dict[int, dict] = {1: None, 2: None}
+        self.hero_overrides: dict[int, dict] = {1: {}, 2: {}}
+        self._hero_names: dict[int, str] = {1: "None", 2: "None"}
 
         layout = QtWidgets.QGridLayout(self)
         row = 0
@@ -1251,9 +1257,14 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.hero2_combo.addItem(name)
 
     def edit_hero(self, slot: int) -> None:
+        """Open the hero editor and persist changes.
+
+        Skill parameter overrides are stored separately so that preset heroes
+        can be tweaked without converting them into full custom entries.
+        """
         current_cfg = self.custom_heroes.get(slot)
+        hero_name = self.hero1_combo.currentText() if slot == 1 else self.hero2_combo.currentText()
         if current_cfg is None:
-            hero_name = self.hero1_combo.currentText() if slot == 1 else self.hero2_combo.currentText()
             preset = HERO_PRESETS.get(hero_name.lower())
             if preset:
                 current_cfg = {
@@ -1262,14 +1273,31 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     "base_skill_ids": preset.get("base_skills", []),
                     "plugin_skill_ids": preset.get("plugin_skills", []),
                 }
+        overrides = self.hero_overrides.get(slot)
+        if overrides:
+            current_cfg = dict(current_cfg or {"hero_name_or_preset": hero_name})
+            current_cfg["skill_overrides"] = overrides
 
         dlg = HeroEditDialog(current_cfg, self)
         if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             cfg = dlg.result_config()
             if cfg:
-                self.custom_heroes[slot] = cfg
+                overrides = cfg.pop("skill_overrides", {})
+                self.hero_overrides[slot] = overrides
                 name = cfg["hero_name_or_preset"]
-                self._add_custom_option(name)
+                preset = HERO_PRESETS.get(name.lower())
+                if (
+                    preset
+                    and preset.get("talents", []) == cfg.get("talent_ids")
+                    and preset.get("base_skills", []) == cfg.get("base_skill_ids")
+                    and preset.get("plugin_skills", []) == cfg.get("plugin_skill_ids")
+                ):
+                    self.custom_heroes[slot] = None
+                else:
+                    self.custom_heroes[slot] = cfg
+                    self._add_custom_option(name)
+                # Update selection without losing overrides
+                self._hero_names[slot] = name
                 if slot == 1:
                     self.hero1_combo.setCurrentText(name)
                     self._hero_selected(1, name)
@@ -1299,9 +1327,14 @@ class ArmyFrame(QtWidgets.QGroupBox):
         else:
             self.hero2_info.setText(info)
 
+        prev_name = self._hero_names.get(slot)
         cfg = self.custom_heroes.get(slot)
-        if cfg and cfg.get("hero_name_or_preset") != name and name not in {"None", "Custom"}:
-            self.custom_heroes[slot] = None
+        if prev_name != name:
+            # Changing heroes discards any overrides from the previous selection.
+            self.hero_overrides[slot] = {}
+            if cfg and cfg.get("hero_name_or_preset") != name and name not in {"None", "Custom"}:
+                self.custom_heroes[slot] = None
+        self._hero_names[slot] = name
 
         img_label = self.hero1_img if slot == 1 else self.hero2_img
         img_label.set_image(None)
@@ -1377,18 +1410,29 @@ class ArmyFrame(QtWidgets.QGroupBox):
         for idx, combo in enumerate(hero_combos, start=1):
             combo.setCurrentText("None")
             self.custom_heroes[idx] = None
+            self.hero_overrides[idx] = {}
+            self._hero_names[idx] = "None"
         for idx, hero_cfg in enumerate(cfg.get("heroes", []), start=1):
             if idx > 2:
                 break
             name = hero_cfg.get("hero_name_or_preset", "")
+            overrides = hero_cfg.get("skill_overrides", {})
             preset = HERO_PRESETS.get(name.lower())
-            if preset and preset.get("talents") == hero_cfg.get("talent_ids") and preset.get("base_skills") == hero_cfg.get("base_skill_ids") and preset.get("plugin_skills") == hero_cfg.get("plugin_skill_ids"):
+            if (
+                preset
+                and preset.get("talents") == hero_cfg.get("talent_ids")
+                and preset.get("base_skills") == hero_cfg.get("base_skill_ids")
+                and preset.get("plugin_skills") == hero_cfg.get("plugin_skill_ids")
+            ):
                 hero_name_display = name.capitalize()
+                self.hero_overrides[idx] = overrides
             else:
                 hero_name_display = name
-                self.custom_heroes[idx] = hero_cfg
+                self.custom_heroes[idx] = {k: v for k, v in hero_cfg.items() if k != "skill_overrides"}
+                self.hero_overrides[idx] = overrides
                 self._add_custom_option(name)
             hero_combos[idx - 1].setCurrentText(hero_name_display)
+            self._hero_names[idx] = hero_name_display
             self._hero_selected(idx, hero_name_display)
         for idx, combo in enumerate(hero_combos, start=1):
             self._hero_selected(idx, combo.currentText())
@@ -1398,20 +1442,25 @@ class ArmyFrame(QtWidgets.QGroupBox):
         for idx, combo in enumerate([self.hero1_combo, self.hero2_combo], start=1):
             hero_name = combo.currentText()
             if hero_name and hero_name not in {"None", "Custom"}:
+                overrides = self.hero_overrides.get(idx) or {}
                 custom_cfg = self.custom_heroes.get(idx)
                 if custom_cfg and custom_cfg.get("hero_name_or_preset") == hero_name:
-                    heroes_cfg.append(custom_cfg)
-                    continue
-                preset = HERO_PRESETS.get(hero_name.lower())
-                if preset:
-                    heroes_cfg.append(
-                        {
-                            "hero_name_or_preset": hero_name,
-                            "talent_ids": preset.get("talents", []),
-                            "base_skill_ids": preset.get("base_skills", []),
-                            "plugin_skill_ids": preset.get("plugin_skills", []),
-                        }
-                    )
+                    cfg = custom_cfg.copy()
+                else:
+                    preset = HERO_PRESETS.get(hero_name.lower())
+                    if not preset:
+                        continue
+                    cfg = {
+                        "hero_name_or_preset": hero_name,
+                        "talent_ids": preset.get("talents", []),
+                        "base_skill_ids": preset.get("base_skills", []),
+                        "plugin_skill_ids": preset.get("plugin_skills", []),
+                    }
+                if overrides:
+                    # Overrides tweak preset talents/skills without requiring a
+                    # separate custom hero entry.
+                    cfg["skill_overrides"] = overrides
+                heroes_cfg.append(cfg)
 
         return {
             "army_name": self.name_edit.text() or f"Army {self.index}",

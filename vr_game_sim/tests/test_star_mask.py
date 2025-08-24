@@ -33,6 +33,7 @@ def _expected_mask(label: StarredImageLabel, missing: list[int]) -> np.ndarray:
     painter.setPen(QtCore.Qt.PenStyle.NoPen)
     painter.setBrush(QtGui.QColor(255, 255, 255, 255))
     poly = label._build_star_polygon(int(star_width), int(star_height))
+    assert len(poly) == 8
     y_offset = h - star_height
     for idx in missing:
         painter.save()

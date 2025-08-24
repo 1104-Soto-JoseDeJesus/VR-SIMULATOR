@@ -53,10 +53,14 @@ def _expected_mask(label: StarredImageLabel, missing: list[int]) -> np.ndarray:
     y_offset = h - star_height
     for idx in missing:
         painter.save()
-        offset = 0
-        if label._is_hero_image and idx < len(label.HERO_STAR_V_OFFSETS):
-            offset = label.HERO_STAR_V_OFFSETS[idx] * star_height
-        painter.translate(int(x_offset + idx * star_width), int(y_offset + offset))
+        v_off = 0.0
+        h_off = 0.0
+        if label._is_hero_image:
+            if idx < len(label.hero_star_v_offsets):
+                v_off = label.hero_star_v_offsets[idx] * star_height
+            if idx < len(label.hero_star_h_offsets):
+                h_off = label.hero_star_h_offsets[idx] * star_width
+        painter.translate(int(x_offset + idx * star_width + h_off), int(y_offset + v_off))
         painter.drawPolygon(poly)
         painter.restore()
     painter.end()
@@ -122,6 +126,30 @@ def test_plugin_star_alignment():
     label.set_star_count(4)
     mask = _grey_mask_from_label(label)
     expected = _expected_mask(label, [4, 5])
+    assert not np.any(mask & ~expected)
+    assert mask.sum() > 0
+
+
+def test_horizontal_offsets():
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    label = StarredImageLabel()
+    w, h = 60, 40
+    label.resize(w, h)
+    label._orig_image = Image.new("RGBA", (w, h), (255, 255, 255, 255))
+    label._is_hero_image = True
+
+    label.set_layout(
+        6,
+        label.DEFAULT_STAR_VERTICAL_RATIO,
+        0.0,
+        offsets=label.hero_star_v_offsets,
+        h_offsets=[0.5, 0, 0, 0, 0, 0],
+    )
+    label.star_count = 5
+    label._update_pixmap()
+    mask = _grey_mask_from_label(label)
+    expected = _expected_mask(label, [5])
     assert not np.any(mask & ~expected)
     assert mask.sum() > 0
 

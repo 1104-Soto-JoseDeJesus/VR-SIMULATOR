@@ -38,8 +38,8 @@ def _expected_mask(label: StarredImageLabel, missing: list[int]) -> np.ndarray:
 
     w, h = label._orig_image.size
     max_stars = label.max_stars
-    star_width = w * (1 - 2 * label.star_side_margin_ratio) / max_stars
-    star_height = h * (1 - label.star_vertical_ratio)
+    cell_width = w * (1 - 2 * label.star_side_margin_ratio) / max_stars
+    base_height = h * (1 - label.star_vertical_ratio)
     x_offset = w * label.star_side_margin_ratio
 
     qimg = QtGui.QImage(w, h, QtGui.QImage.Format.Format_ARGB32)
@@ -48,24 +48,33 @@ def _expected_mask(label: StarredImageLabel, missing: list[int]) -> np.ndarray:
     painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
     painter.setPen(QtCore.Qt.PenStyle.NoPen)
     painter.setBrush(QtGui.QColor(255, 255, 255, 255))
-    poly = label._build_star_polygon(int(star_width), int(star_height))
-    assert len(poly) == 8
-    y_offset = h - star_height
     for idx in missing:
         painter.save()
         v_off = 0.0
         h_off = 0.0
+        scale = 1.0
         if label._is_hero_image:
             if idx < len(label.hero_star_v_offsets):
-                v_off = label.hero_star_v_offsets[idx] * star_height
+                v_off = label.hero_star_v_offsets[idx]
             if idx < len(label.hero_star_h_offsets):
-                h_off = label.hero_star_h_offsets[idx] * star_width
+                h_off = label.hero_star_h_offsets[idx]
+            if idx < len(label.hero_star_size_factors):
+                scale = label.hero_star_size_factors[idx]
         elif label._is_plugin_image:
             if idx < len(label.plugin_star_v_offsets):
-                v_off = label.plugin_star_v_offsets[idx] * star_height
+                v_off = label.plugin_star_v_offsets[idx]
             if idx < len(label.plugin_star_h_offsets):
-                h_off = label.plugin_star_h_offsets[idx] * star_width
-        painter.translate(int(x_offset + idx * star_width + h_off), int(y_offset + v_off))
+                h_off = label.plugin_star_h_offsets[idx]
+            if idx < len(label.plugin_star_size_factors):
+                scale = label.plugin_star_size_factors[idx]
+
+        star_w = cell_width * scale
+        star_h = base_height * scale
+        poly = label._build_star_polygon(int(star_w), int(star_h))
+        assert len(poly) == 8
+        y_offset = h - star_h + v_off * star_h
+        x_pos = x_offset + idx * cell_width + (cell_width - star_w) / 2 + h_off * star_w
+        painter.translate(int(x_pos), int(y_offset))
         painter.drawPolygon(poly)
         painter.restore()
     painter.end()
@@ -126,7 +135,7 @@ def test_plugin_star_alignment():
     w, h = label._orig_image.size
     label.resize(w, h)
 
-    assert label.star_vertical_ratio == label.PLUGIN_STAR_VERTICAL_RATIO
+    assert label.star_vertical_ratio == 0.83
 
     label.set_star_count(4)
     mask = _grey_mask_from_label(label)

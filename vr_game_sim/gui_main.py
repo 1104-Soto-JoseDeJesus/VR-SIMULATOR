@@ -70,6 +70,7 @@ class StarredImageLabel(QtWidgets.QLabel):
         -0.01,
         -0.02,
     )
+    HERO_STAR_H_OFFSETS = (0.0,) * 6
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -84,6 +85,7 @@ class StarredImageLabel(QtWidgets.QLabel):
         self.hero_star_vertical_ratio: float = self.HERO_STAR_VERTICAL_RATIO
         self.hero_star_side_margin_ratio: float = self.HERO_STAR_SIDE_MARGIN_RATIO
         self.hero_star_v_offsets: tuple[float, ...] = self.HERO_STAR_V_OFFSETS
+        self.hero_star_h_offsets: tuple[float, ...] = self.HERO_STAR_H_OFFSETS
         self.hero_star_size_factors: tuple[float, ...] = (1.0,) * 6
 
         self.star_color: QtGui.QColor = self.GREY_COLOR
@@ -104,6 +106,7 @@ class StarredImageLabel(QtWidgets.QLabel):
         vertical_ratio: float,
         side_margin: float,
         offsets: list[float] | tuple[float, ...] | None = None,
+        h_offsets: list[float] | tuple[float, ...] | None = None,
         sizes: list[float] | tuple[float, ...] | None = None,
     ) -> None:
         """Override star layout and refresh the image preview."""
@@ -113,6 +116,8 @@ class StarredImageLabel(QtWidgets.QLabel):
         self.star_side_margin_ratio = side_margin
         if offsets is not None:
             self.hero_star_v_offsets = tuple(offsets)
+        if h_offsets is not None:
+            self.hero_star_h_offsets = tuple(h_offsets)
         if sizes is not None:
             self.hero_star_size_factors = tuple(sizes)
         self.star_count = max(0, min(self.max_stars, self.star_count))
@@ -248,11 +253,11 @@ class StarredImageLabel(QtWidgets.QLabel):
                 y_offset = pix.height() - star_h
                 if self._is_hero_image and i < len(self.hero_star_v_offsets):
                     y_offset += star_h * self.hero_star_v_offsets[i]
+                x_pos = x_offset + i * cell_width + (cell_width - star_w) / 2
+                if self._is_hero_image and i < len(self.hero_star_h_offsets):
+                    x_pos += star_w * self.hero_star_h_offsets[i]
                 painter.save()
-                painter.translate(
-                    int(x_offset + i * cell_width + (cell_width - star_w) / 2),
-                    int(y_offset),
-                )
+                painter.translate(int(x_pos), int(y_offset))
                 painter.drawPolygon(polygon)
                 painter.restore()
             painter.end()
@@ -291,16 +296,27 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         self.side_spin.setDecimals(3)
         form.addRow("Side Margin Ratio", self.side_spin)
 
-        offsets_layout = QtWidgets.QHBoxLayout()
-        self.offset_spins: list[QtWidgets.QDoubleSpinBox] = []
+        v_offsets_layout = QtWidgets.QHBoxLayout()
+        self.v_offset_spins: list[QtWidgets.QDoubleSpinBox] = []
         for _ in range(6):
             spin = QtWidgets.QDoubleSpinBox()
             spin.setRange(-2.0, 2.0)
             spin.setSingleStep(0.01)
             spin.setDecimals(3)
-            offsets_layout.addWidget(spin)
-            self.offset_spins.append(spin)
-        form.addRow("Hero V Offsets", offsets_layout)
+            v_offsets_layout.addWidget(spin)
+            self.v_offset_spins.append(spin)
+        form.addRow("Hero V Offsets", v_offsets_layout)
+
+        h_offsets_layout = QtWidgets.QHBoxLayout()
+        self.h_offset_spins: list[QtWidgets.QDoubleSpinBox] = []
+        for _ in range(6):
+            spin = QtWidgets.QDoubleSpinBox()
+            spin.setRange(-2.0, 2.0)
+            spin.setSingleStep(0.01)
+            spin.setDecimals(3)
+            h_offsets_layout.addWidget(spin)
+            self.h_offset_spins.append(spin)
+        form.addRow("Hero H Offsets", h_offsets_layout)
 
         sizes_layout = QtWidgets.QHBoxLayout()
         self.size_spins: list[QtWidgets.QDoubleSpinBox] = []
@@ -330,7 +346,7 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         self.max_spin.valueChanged.connect(self._update_from_spins)
         self.vert_spin.valueChanged.connect(self._update_from_spins)
         self.side_spin.valueChanged.connect(self._update_from_spins)
-        for spin in self.offset_spins + self.size_spins:
+        for spin in self.v_offset_spins + self.h_offset_spins + self.size_spins:
             spin.valueChanged.connect(self._update_from_spins)
         load_hero_btn.clicked.connect(self._load_hero)
         load_plugin_btn.clicked.connect(self._load_plugin)
@@ -342,16 +358,21 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         self.max_spin.blockSignals(True)
         self.vert_spin.blockSignals(True)
         self.side_spin.blockSignals(True)
-        for spin in self.offset_spins + self.size_spins:
+        for spin in self.v_offset_spins + self.h_offset_spins + self.size_spins:
             spin.blockSignals(True)
 
         self.max_spin.setValue(self.preview.max_stars)
         self.vert_spin.setValue(self.preview.star_vertical_ratio)
         self.side_spin.setValue(self.preview.star_side_margin_ratio)
-        for i, spin in enumerate(self.offset_spins):
+        for i, spin in enumerate(self.v_offset_spins):
             val = 0.0
             if i < len(self.preview.hero_star_v_offsets):
                 val = self.preview.hero_star_v_offsets[i]
+            spin.setValue(val)
+        for i, spin in enumerate(self.h_offset_spins):
+            val = 0.0
+            if i < len(self.preview.hero_star_h_offsets):
+                val = self.preview.hero_star_h_offsets[i]
             spin.setValue(val)
         for i, spin in enumerate(self.size_spins):
             val = 1.0
@@ -362,17 +383,19 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         self.max_spin.blockSignals(False)
         self.vert_spin.blockSignals(False)
         self.side_spin.blockSignals(False)
-        for spin in self.offset_spins + self.size_spins:
+        for spin in self.v_offset_spins + self.h_offset_spins + self.size_spins:
             spin.blockSignals(False)
 
     def _update_from_spins(self) -> None:
-        offsets = [spin.value() for spin in self.offset_spins]
+        v_offsets = [spin.value() for spin in self.v_offset_spins]
+        h_offsets = [spin.value() for spin in self.h_offset_spins]
         sizes = [spin.value() for spin in self.size_spins]
         self.preview.set_layout(
             self.max_spin.value(),
             self.vert_spin.value(),
             self.side_spin.value(),
-            offsets=offsets,
+            offsets=v_offsets,
+            h_offsets=h_offsets,
             sizes=sizes,
         )
 

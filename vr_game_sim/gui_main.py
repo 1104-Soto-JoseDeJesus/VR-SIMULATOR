@@ -58,6 +58,18 @@ class StarredImageLabel(QtWidgets.QLabel):
 
     # Colour used when greying out missing stars (matches previous behaviour)
     GREY_COLOR = QtGui.QColor(100, 100, 100, 180)
+    DEFAULT_STAR_VERTICAL_RATIO = 0.8
+    PLUGIN_STAR_VERTICAL_RATIO = 0.88
+    HERO_STAR_VERTICAL_RATIO = 0.88
+    HERO_STAR_SIDE_MARGIN_RATIO = 0.04
+    HERO_STAR_V_OFFSETS = (
+        -0.02,
+        -0.01,
+        0.01,
+        0.01,
+        -0.01,
+        -0.02,
+    )
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -67,18 +79,14 @@ class StarredImageLabel(QtWidgets.QLabel):
 
         # Default layout configuration
         self.default_max_stars: int = 6
-        self.default_star_vertical_ratio: float = 0.8
-        self.plugin_star_vertical_ratio: float = 0.88
-        self.hero_star_vertical_ratio: float = 0.88
-        self.hero_star_side_margin_ratio: float = 0.04
-        self.hero_star_v_offsets: tuple[float, ...] = (
-            -0.02,
-            -0.01,
-            0.01,
-            0.01,
-            -0.01,
-            -0.02,
-        )
+        self.default_star_vertical_ratio: float = self.DEFAULT_STAR_VERTICAL_RATIO
+        self.plugin_star_vertical_ratio: float = self.PLUGIN_STAR_VERTICAL_RATIO
+        self.hero_star_vertical_ratio: float = self.HERO_STAR_VERTICAL_RATIO
+        self.hero_star_side_margin_ratio: float = self.HERO_STAR_SIDE_MARGIN_RATIO
+        self.hero_star_v_offsets: tuple[float, ...] = self.HERO_STAR_V_OFFSETS
+        self.hero_star_size_factors: tuple[float, ...] = (1.0,) * 6
+
+        self.star_color: QtGui.QColor = self.GREY_COLOR
 
         # runtime layout configuration that may be overridden via metadata
         self.max_stars: int = self.default_max_stars
@@ -96,6 +104,7 @@ class StarredImageLabel(QtWidgets.QLabel):
         vertical_ratio: float,
         side_margin: float,
         offsets: list[float] | tuple[float, ...] | None = None,
+        sizes: list[float] | tuple[float, ...] | None = None,
     ) -> None:
         """Override star layout and refresh the image preview."""
 
@@ -104,7 +113,14 @@ class StarredImageLabel(QtWidgets.QLabel):
         self.star_side_margin_ratio = side_margin
         if offsets is not None:
             self.hero_star_v_offsets = tuple(offsets)
+        if sizes is not None:
+            self.hero_star_size_factors = tuple(sizes)
         self.star_count = max(0, min(self.max_stars, self.star_count))
+        self._update_pixmap()
+
+    def set_star_color(self, color: QtGui.QColor) -> None:
+        """Set the colour used to draw missing stars."""
+        self.star_color = color
         self._update_pixmap()
 
     def set_image(self, path: str | None) -> None:
@@ -215,21 +231,28 @@ class StarredImageLabel(QtWidgets.QLabel):
             painter = QtGui.QPainter(pix)
             painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
             painter.setPen(QtCore.Qt.PenStyle.NoPen)
-            painter.setBrush(self.GREY_COLOR)
+            painter.setBrush(self.star_color)
 
             usable_width = pix.width() * (1 - 2 * self.star_side_margin_ratio)
-            star_width = usable_width / self.max_stars
-            star_height = pix.height() * (1 - self.star_vertical_ratio)
-            polygon = self._build_star_polygon(int(star_width), int(star_height))
+            cell_width = usable_width / self.max_stars
+            base_height = pix.height() * (1 - self.star_vertical_ratio)
             x_offset = pix.width() * self.star_side_margin_ratio
-            y_offset = pix.height() - star_height
 
             for i in range(self.star_count, self.max_stars):
-                painter.save()
-                y_off = y_offset
+                scale = 1.0
+                if self._is_hero_image and i < len(self.hero_star_size_factors):
+                    scale = self.hero_star_size_factors[i]
+                star_w = cell_width * scale
+                star_h = base_height * scale
+                polygon = self._build_star_polygon(int(star_w), int(star_h))
+                y_offset = pix.height() - star_h
                 if self._is_hero_image and i < len(self.hero_star_v_offsets):
-                    y_off += star_height * self.hero_star_v_offsets[i]
-                painter.translate(int(x_offset + i * star_width), int(y_off))
+                    y_offset += star_h * self.hero_star_v_offsets[i]
+                painter.save()
+                painter.translate(
+                    int(x_offset + i * cell_width + (cell_width - star_w) / 2),
+                    int(y_offset),
+                )
                 painter.drawPolygon(polygon)
                 painter.restore()
             painter.end()
@@ -272,20 +295,34 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         self.offset_spins: list[QtWidgets.QDoubleSpinBox] = []
         for _ in range(6):
             spin = QtWidgets.QDoubleSpinBox()
-            spin.setRange(-1.0, 1.0)
+            spin.setRange(-2.0, 2.0)
             spin.setSingleStep(0.01)
             spin.setDecimals(3)
             offsets_layout.addWidget(spin)
             self.offset_spins.append(spin)
         form.addRow("Hero V Offsets", offsets_layout)
+
+        sizes_layout = QtWidgets.QHBoxLayout()
+        self.size_spins: list[QtWidgets.QDoubleSpinBox] = []
+        for _ in range(6):
+            spin = QtWidgets.QDoubleSpinBox()
+            spin.setRange(0.1, 2.0)
+            spin.setSingleStep(0.01)
+            spin.setDecimals(3)
+            spin.setValue(1.0)
+            sizes_layout.addWidget(spin)
+            self.size_spins.append(spin)
+        form.addRow("Hero Size Factors", sizes_layout)
         layout.addLayout(form)
 
         btn_row = QtWidgets.QHBoxLayout()
         load_hero_btn = QtWidgets.QPushButton("Load Hero Image")
         load_plugin_btn = QtWidgets.QPushButton("Load Plugin Image")
         save_btn = QtWidgets.QPushButton("Save Layout")
+        color_btn = QtWidgets.QPushButton("Star Color")
         btn_row.addWidget(load_hero_btn)
         btn_row.addWidget(load_plugin_btn)
+        btn_row.addWidget(color_btn)
         btn_row.addWidget(save_btn)
         layout.addLayout(btn_row)
 
@@ -293,10 +330,11 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         self.max_spin.valueChanged.connect(self._update_from_spins)
         self.vert_spin.valueChanged.connect(self._update_from_spins)
         self.side_spin.valueChanged.connect(self._update_from_spins)
-        for spin in self.offset_spins:
+        for spin in self.offset_spins + self.size_spins:
             spin.valueChanged.connect(self._update_from_spins)
         load_hero_btn.clicked.connect(self._load_hero)
         load_plugin_btn.clicked.connect(self._load_plugin)
+        color_btn.clicked.connect(self._pick_color)
         save_btn.clicked.connect(self._save_layout)
 
     # --- helpers -----------------------------------------------------
@@ -304,7 +342,7 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         self.max_spin.blockSignals(True)
         self.vert_spin.blockSignals(True)
         self.side_spin.blockSignals(True)
-        for spin in self.offset_spins:
+        for spin in self.offset_spins + self.size_spins:
             spin.blockSignals(True)
 
         self.max_spin.setValue(self.preview.max_stars)
@@ -315,21 +353,35 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
             if i < len(self.preview.hero_star_v_offsets):
                 val = self.preview.hero_star_v_offsets[i]
             spin.setValue(val)
+        for i, spin in enumerate(self.size_spins):
+            val = 1.0
+            if i < len(self.preview.hero_star_size_factors):
+                val = self.preview.hero_star_size_factors[i]
+            spin.setValue(val)
 
         self.max_spin.blockSignals(False)
         self.vert_spin.blockSignals(False)
         self.side_spin.blockSignals(False)
-        for spin in self.offset_spins:
+        for spin in self.offset_spins + self.size_spins:
             spin.blockSignals(False)
 
     def _update_from_spins(self) -> None:
         offsets = [spin.value() for spin in self.offset_spins]
+        sizes = [spin.value() for spin in self.size_spins]
         self.preview.set_layout(
             self.max_spin.value(),
             self.vert_spin.value(),
             self.side_spin.value(),
             offsets=offsets,
+            sizes=sizes,
         )
+
+    def _pick_color(self) -> None:
+        color = QtWidgets.QColorDialog.getColor(
+            self.preview.star_color, self, "Select Star Color"
+        )
+        if color.isValid():
+            self.preview.set_star_color(color)
 
     def _load_hero(self) -> None:
         hero_dir = os.path.join(os.path.dirname(__file__), "Hero Images")

@@ -73,3 +73,21 @@ pytest
 ```
 
 This will execute the unit tests located in `vr_game_sim/tests`.
+
+## Image layout metadata
+
+`StarredImageLabel` uses a small JSON sidecar file to customise how stars are
+positioned over an image.  Place a file next to the image with the same base
+name and a `.json` extension containing optional keys:
+
+```json
+{
+  "max_stars": 6,
+  "star_vertical_ratio": 0.88,
+  "star_side_margin_ratio": 0.04
+}
+```
+
+Ratios are expressed as fractions of the full image dimensions.  They control
+the number of stars, how far from the top the star strip begins and any
+horizontal padding around the stars.

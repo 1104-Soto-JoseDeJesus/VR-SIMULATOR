@@ -45,12 +45,23 @@ class StarredImageLabel(QtWidgets.QLabel):
     Stars are drawn procedurally via :class:`QPainter` so the repository does
     not need to ship binary star images.  Only the star shapes are affected
     which avoids greying rectangular slices of the artwork.
+
+    Layout ratios describe how a star strip is positioned within an image.  For
+    generic skill images the stars span the full width and occupy the bottom
+    ``20 %`` of the image.  Hero portraits include built-in star graphics with
+    horizontal padding, so separate ratios are used.  These values can be
+    overridden by placing a JSON file next to the image containing optional
+    ``max_stars``, ``star_vertical_ratio`` and ``star_side_margin_ratio``
+    entries.  Ratios are expressed as fractions of the full image dimensions.
     """
 
     # Layout constants to avoid magic numbers sprinkled through the code
     MAX_STARS = 6
     # Portion of the image above the stars
     STAR_VERTICAL_RATIO = 0.8
+    # Hero portraits use smaller stars with left/right padding
+    HERO_STAR_VERTICAL_RATIO = 0.88
+    HERO_STAR_SIDE_MARGIN_RATIO = 0.04
     # Colour used when greying out missing stars (matches previous behaviour)
     GREY_COLOR = QtGui.QColor(100, 100, 100, 180)
 
@@ -59,7 +70,11 @@ class StarredImageLabel(QtWidgets.QLabel):
         self.setScaledContents(True)
         self._image_path: str | None = None
         self._orig_image: Image.Image | None = None
-        self.star_count: int = self.MAX_STARS
+        # runtime layout configuration that may be overridden via metadata
+        self.max_stars: int = self.MAX_STARS
+        self.star_vertical_ratio: float = self.STAR_VERTICAL_RATIO
+        self.star_side_margin_ratio: float = 0.0
+        self.star_count: int = self.max_stars
         self._is_hero_image: bool = False
         # cache of star polygons keyed by their (width, height)
         self._star_polygon_cache: dict[tuple[int, int], QtGui.QPolygonF] = {}
@@ -72,6 +87,35 @@ class StarredImageLabel(QtWidgets.QLabel):
             self._orig_image = Image.open(path).convert("RGBA")
             # Determine if the image is a hero portrait or a skill image
             self._is_hero_image = "Hero Images" in path
+
+            # Apply default layout for the image type
+            self.max_stars = self.MAX_STARS
+            if self._is_hero_image:
+                self.star_vertical_ratio = self.HERO_STAR_VERTICAL_RATIO
+                self.star_side_margin_ratio = self.HERO_STAR_SIDE_MARGIN_RATIO
+            else:
+                self.star_vertical_ratio = self.STAR_VERTICAL_RATIO
+                self.star_side_margin_ratio = 0.0
+
+            # Allow optional metadata to override layout assumptions
+            meta_path = os.path.splitext(path)[0] + ".json"
+            if os.path.exists(meta_path):
+                try:
+                    import json
+
+                    with open(meta_path, "r", encoding="utf-8") as fh:
+                        meta = json.load(fh)
+                    self.max_stars = int(meta.get("max_stars", self.max_stars))
+                    self.star_vertical_ratio = float(
+                        meta.get("star_vertical_ratio", self.star_vertical_ratio)
+                    )
+                    self.star_side_margin_ratio = float(
+                        meta.get("star_side_margin_ratio", self.star_side_margin_ratio)
+                    )
+                except Exception:
+                    # Ignore malformed metadata files
+                    pass
+            self.star_count = self.max_stars
         else:
             self._orig_image = None
             self.clear()
@@ -79,7 +123,7 @@ class StarredImageLabel(QtWidgets.QLabel):
         self._update_pixmap()
 
     def set_star_count(self, count: int) -> None:
-        self.star_count = max(0, min(self.MAX_STARS, count))
+        self.star_count = max(0, min(self.max_stars, count))
         self._update_pixmap()
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # type: ignore[override]
@@ -88,10 +132,10 @@ class StarredImageLabel(QtWidgets.QLabel):
         count, ok = QtWidgets.QInputDialog.getInt(
             self,
             "Star Count",
-            f"Enter star count (0-{self.MAX_STARS}):",
+            f"Enter star count (0-{self.max_stars}):",
             self.star_count,
             0,
-            self.MAX_STARS,
+            self.max_stars,
         )
         if ok:
             self.set_star_count(count)
@@ -137,20 +181,22 @@ class StarredImageLabel(QtWidgets.QLabel):
         qt_img = ImageQt.ImageQt(self._orig_image)
         pix = QtGui.QPixmap.fromImage(qt_img)
 
-        if self.star_count < self.MAX_STARS:
+        if self.star_count < self.max_stars:
             painter = QtGui.QPainter(pix)
             painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
             painter.setPen(QtCore.Qt.PenStyle.NoPen)
             painter.setBrush(self.GREY_COLOR)
 
-            star_width = pix.width() / self.MAX_STARS
-            star_height = pix.height() * (1 - self.STAR_VERTICAL_RATIO)
+            usable_width = pix.width() * (1 - 2 * self.star_side_margin_ratio)
+            star_width = usable_width / self.max_stars
+            star_height = pix.height() * (1 - self.star_vertical_ratio)
             polygon = self._build_star_polygon(int(star_width), int(star_height))
+            x_offset = pix.width() * self.star_side_margin_ratio
             y_offset = pix.height() - star_height
 
-            for i in range(self.star_count, self.MAX_STARS):
+            for i in range(self.star_count, self.max_stars):
                 painter.save()
-                painter.translate(int(i * star_width), int(y_offset))
+                painter.translate(int(x_offset + i * star_width), int(y_offset))
                 painter.drawPolygon(polygon)
                 painter.restore()
             painter.end()

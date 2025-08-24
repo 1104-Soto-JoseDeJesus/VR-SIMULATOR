@@ -3,7 +3,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import json
 from PIL import Image
 from vr_game_sim import gui_main
-from PyQt6 import QtWidgets
+from PyQt6 import QtWidgets, QtGui
 
 
 def _create_img(path):
@@ -36,6 +36,7 @@ def test_save_layout_propagates(tmp_path):
             h_offsets=[0.2] * 6,
             sizes=[1.1] * 6,
         )
+        dialog.preview.set_star_color(QtGui.QColor("#11223344"))
         dialog._save_layout()
         # Expect json for both hero images
         for name in ["h1", "h2"]:
@@ -45,12 +46,16 @@ def test_save_layout_propagates(tmp_path):
             assert meta["v_offsets"][0] == 0.1
             assert meta["h_offsets"][0] == 0.2
             assert meta["size_factors"][0] == 1.1
+            assert meta["star_color"] == "#11223344"
         # Loading second hero should use saved layout
         label = gui_main.StarredImageLabel()
         label.set_image(str(hero_dir / "h2.png"))
         assert label.hero_star_v_offsets[0] == 0.1
         assert label.hero_star_h_offsets[0] == 0.2
         assert label.hero_star_size_factors[0] == 1.1
+        assert (
+            label.star_color.name(QtGui.QColor.NameFormat.HexArgb) == "#11223344"
+        )
 
         # Plugin layout save
         p1_path = plugin_dir / "p1.png"
@@ -63,14 +68,19 @@ def test_save_layout_propagates(tmp_path):
             h_offsets=[0.0] * 6,
             sizes=[1.0] * 6,
         )
+        dialog.preview.set_star_color(QtGui.QColor("#55667788"))
         dialog._save_layout()
         for name in ["p1", "p2"]:
             meta = json.load(open(plugin_dir / f"{name}.json"))
             assert meta["star_vertical_ratio"] == 0.95
             assert meta["v_offsets"][0] == 0.3
+            assert meta["star_color"] == "#55667788"
         # Loading second plugin uses saved layout
         label2 = gui_main.StarredImageLabel()
         label2.set_image(str(plugin_dir / "p2.png"))
         assert label2.plugin_star_v_offsets[0] == 0.3
+        assert (
+            label2.star_color.name(QtGui.QColor.NameFormat.HexArgb) == "#55667788"
+        )
     finally:
         gui_main.__file__ = original_file

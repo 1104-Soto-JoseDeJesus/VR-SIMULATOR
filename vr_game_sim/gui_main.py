@@ -170,6 +170,9 @@ class StarredImageLabel(QtWidgets.QLabel):
                 self.star_vertical_ratio = self.default_star_vertical_ratio
                 self.star_side_margin_ratio = 0.0
 
+            # Reset colour to default before applying metadata
+            self.star_color = self.GREY_COLOR
+
             # Allow optional metadata to override layout assumptions
             meta_path = os.path.splitext(path)[0] + ".json"
             if os.path.exists(meta_path):
@@ -186,6 +189,11 @@ class StarredImageLabel(QtWidgets.QLabel):
                     v_off = meta.get("v_offsets")
                     h_off = meta.get("h_offsets")
                     size_fact = meta.get("size_factors")
+                    color = meta.get("star_color")
+                    if color is not None:
+                        qcol = QtGui.QColor(color)
+                        if qcol.isValid():
+                            self.star_color = qcol
                     if self._is_hero_image:
                         if v_off is not None:
                             self.hero_star_v_offsets = tuple(float(x) for x in v_off)
@@ -558,6 +566,9 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
             "max_stars": self.preview.max_stars,
             "star_vertical_ratio": self.preview.star_vertical_ratio,
             "star_side_margin_ratio": self.preview.star_side_margin_ratio,
+            "star_color": self.preview.star_color.name(
+                QtGui.QColor.NameFormat.HexArgb
+            ),
         }
         if self.preview._is_hero_image:
             data.update(

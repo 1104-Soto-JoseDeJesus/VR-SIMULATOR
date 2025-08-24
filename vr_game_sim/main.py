@@ -178,10 +178,35 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
     return armies
 
 
-def _run_single_battle(setup_data: List[Dict[str, Any]]) -> tuple:
-    """Helper to run a single battle. Returns (own, enemy, rounds, diff, winner)."""
+def _run_single_battle(
+    setup_data: List[Dict[str, Any]],
+    seed: int | None = None,
+    return_report: bool = False,
+) -> tuple:
+    """Helper to run a single battle.
+
+    Parameters
+    ----------
+    setup_data: List[Dict[str, Any]]
+        Serialized army setup.
+    seed: int | None
+        When provided, ``random.seed`` is set before creating the simulator to
+        ensure deterministic results.
+    return_report: bool
+        If ``True`` the full battle report text is returned as the final element
+        in the tuple. ``GameSimulator`` is instantiated with ``track_stats`` set
+        to ``True`` so that the report contains damage/heal/shield/rage figures.
+
+    Returns
+    -------
+    tuple
+        ``(own, enemy, rounds, diff, winner[, report_text])``
+    """
+    if seed is not None:
+        random.seed(seed)
+
     armies = create_armies_from_data(setup_data)
-    sim = GameSimulator(armies[0], armies[1], track_stats=False)
+    sim = GameSimulator(armies[0], armies[1], track_stats=return_report)
     with contextlib.redirect_stdout(io.StringIO()):
         sim.simulate_battle()
     winner = 0
@@ -192,7 +217,11 @@ def _run_single_battle(setup_data: List[Dict[str, Any]]) -> tuple:
     own = sim.army1.current_troop_count
     enemy = sim.army2.current_troop_count
     diff = own - enemy
-    return own, enemy, sim.round, diff, winner
+    result = (own, enemy, sim.round, diff, winner)
+    if return_report:
+        report_text = sim.report_builder.get_report_text()
+        return (*result, report_text)
+    return result
 
 
 def run_additional_simulations(
@@ -204,12 +233,14 @@ def run_additional_simulations(
     num_workers: int = 1,
     progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> float:
-    """Runs extra simulations silently and computes summary statistics.
+    """Runs extra simulations and computes summary statistics.
 
-    If ``num_workers`` is greater than 1, simulations are spread across multiple
-    processes to utilize additional CPU cores. ``progress_callback`` can be used
-    to report completion status as ``(completed, total)``. The function returns
-    the win rate for Army 1 as a float between 0 and 1."""
+    In addition to the aggregate statistics, a representative battle whose
+    outcome is closest to the average troop difference is replayed with tracked
+    stats and its report printed.  If ``num_workers`` is greater than 1,
+    simulations are spread across multiple processes. ``progress_callback`` can
+    be used to report completion status as ``(completed, total)``. The function
+    returns the win rate for Army 1 as a float between 0 and 1."""
     # Ensure any previous figures are closed before starting the additional runs
     plt.close("all")
 
@@ -226,13 +257,14 @@ def run_additional_simulations(
         setup_data[1].get("army_name", "Army 2") if len(setup_data) > 1 else "Army 2"
     )
     battle_results: List[tuple] = []
+    seeds = [random.randrange(1 << 30) for _ in range(runs)]
 
     worker_inputs = [setup_data] * runs
     if num_workers > 1:
         with ProcessPoolExecutor(
             max_workers=num_workers, mp_context=multiprocessing.get_context("spawn")
         ) as ex:
-            results_iter = ex.map(_run_single_battle, worker_inputs)
+            results_iter = ex.map(_run_single_battle, worker_inputs, seeds)
             completed = 0
             for own, enemy, r_taken, diff, winner in results_iter:
                 own_remaining.append(own)
@@ -245,8 +277,8 @@ def run_additional_simulations(
                 if progress_callback:
                     progress_callback(completed, runs)
     else:
-        for i in range(runs):
-            own, enemy, r_taken, diff, winner = _run_single_battle(setup_data)
+        for i, seed_val in enumerate(seeds):
+            own, enemy, r_taken, diff, winner = _run_single_battle(setup_data, seed=seed_val)
             own_remaining.append(own)
             enemy_remaining.append(enemy)
             rounds_taken.append(r_taken)
@@ -255,6 +287,14 @@ def run_additional_simulations(
             battle_results.append((own, enemy))
             if progress_callback:
                 progress_callback(i + 1, runs)
+
+    avg_diff = sum(diff_results) / len(diff_results) if diff_results else 0
+    best_idx = min(range(runs), key=lambda i: abs(diff_results[i] - avg_diff)) if diff_results else 0
+    if diff_results:
+        _, _, _, _, _, report_text = _run_single_battle(
+            setup_data, seed=seeds[best_idx], return_report=True
+        )
+        print(report_text)
 
     if generate_histograms:
         ensure_histogram_dir()
@@ -534,10 +574,7 @@ def run_additional_simulations(
 
     # Determine battle closest to average outcome
     if verbose and diff_results:
-        avg_diff = sum(diff_results) / len(diff_results)
-        closest_idx = min(
-            range(len(diff_results)), key=lambda i: abs(diff_results[i] - avg_diff)
-        )
+        closest_idx = best_idx
         closest_own, closest_enemy = battle_results[closest_idx]
         winner_text = "Draw"
         if winners[closest_idx] == 1:
@@ -666,9 +703,6 @@ if __name__ == "__main__":
         loaded = load_setup_from_file(args.setup)
         if not loaded:
             sys.exit(1)
-        armies = create_armies_from_data(loaded)
-        sim = GameSimulator(armies[0], armies[1])
-        sim.simulate_battle()
         run_additional_simulations(loaded, num_workers=os.cpu_count())
         plt.close("all")
         sys.exit(0)
@@ -770,11 +804,7 @@ if __name__ == "__main__":
             armies_to_simulate = []  # Reset to ensure loop continues if setup failed
 
     if armies_to_simulate and len(armies_to_simulate) == 2:
-        # The GameSimulator constructor will inject the simulator instance into each Army
         setup_snapshot = get_setup_data_for_saving(armies_to_simulate)
-        sim = GameSimulator(armies_to_simulate[0], armies_to_simulate[1])
-        sim.simulate_battle()
-
         run_additional_simulations(setup_snapshot, num_workers=os.cpu_count())
         plt.close("all")
         sys.exit(0)

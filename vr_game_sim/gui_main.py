@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from typing import Any
 import threading
+import math
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
@@ -39,20 +40,34 @@ class ThousandSepSpinBox(QtWidgets.QSpinBox):
 
 
 class StarredImageLabel(QtWidgets.QLabel):
-    """QLabel that can grey out stars based on a count."""
+    """QLabel that can grey out stars based on a count.
+
+    Stars are drawn procedurally via :class:`QPainter` so the repository does
+    not need to ship binary star images.  Only the star shapes are affected
+    which avoids greying rectangular slices of the artwork.
+    """
+
+    # Layout constants to avoid magic numbers sprinkled through the code
+    MAX_STARS = 6
+    # Portion of the image above the stars
+    STAR_VERTICAL_RATIO = 0.8
+    # Colour used when greying out missing stars (matches previous behaviour)
+    GREY_COLOR = QtGui.QColor(100, 100, 100, 180)
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.setScaledContents(True)
         self._image_path: str | None = None
         self._orig_image: Image.Image | None = None
-        self.star_count: int = 6
+        self.star_count: int = self.MAX_STARS
         self._is_hero_image: bool = False
+        # cache of star polygons keyed by their (width, height)
+        self._star_polygon_cache: dict[tuple[int, int], QtGui.QPolygonF] = {}
 
     def set_image(self, path: str | None) -> None:
         """Load image from ``path`` and reset star count."""
         self._image_path = path
-        self.star_count = 6
+        self.star_count = self.MAX_STARS
         if path and os.path.exists(path):
             self._orig_image = Image.open(path).convert("RGBA")
             # Determine if the image is a hero portrait or a skill image
@@ -64,43 +79,77 @@ class StarredImageLabel(QtWidgets.QLabel):
         self._update_pixmap()
 
     def set_star_count(self, count: int) -> None:
-        self.star_count = max(0, min(6, count))
+        self.star_count = max(0, min(self.MAX_STARS, count))
         self._update_pixmap()
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # type: ignore[override]
         if self._orig_image is None:
             return
         count, ok = QtWidgets.QInputDialog.getInt(
-            self, "Star Count", "Enter star count (0-6):", self.star_count, 0, 6
+            self,
+            "Star Count",
+            f"Enter star count (0-{self.MAX_STARS}):",
+            self.star_count,
+            0,
+            self.MAX_STARS,
         )
         if ok:
             self.set_star_count(count)
+
+    def _build_star_polygon(self, width: int, height: int) -> QtGui.QPolygonF:
+        """Return a five-point star polygon of ``width`` × ``height``.
+
+        The polygon is cached to avoid recomputing coordinates on repeated
+        calls with the same dimensions.
+        """
+
+        key = (width, height)
+        cached = self._star_polygon_cache.get(key)
+        if cached is not None:
+            return cached
+
+        # Geometry for a regular 5‑point star using outer/inner radii
+        cx, cy = width / 2, height / 2
+        outer_r = min(width, height) / 2
+        # ratio of inner to outer radius for a regular star
+        inner_r = outer_r * 0.38196601125  # sin(18°)/sin(54°)
+        points: list[QtCore.QPointF] = []
+        for i in range(10):
+            angle = math.radians(-90 + i * 36)
+            r = outer_r if i % 2 == 0 else inner_r
+            x = cx + r * math.cos(angle)
+            y = cy + r * math.sin(angle)
+            points.append(QtCore.QPointF(x, y))
+        polygon = QtGui.QPolygonF(points)
+        self._star_polygon_cache[key] = polygon
+        return polygon
 
     def _update_pixmap(self) -> None:
         if not self._orig_image:
             self.clear()
             return
-        image = self._orig_image.copy()
-        if self.star_count < 6:
-            arr = np.array(image)
-            h, w = arr.shape[0], arr.shape[1]
-            star_top = int(h * 0.8)
-            x_coords = np.arange(w)[None, :]
-            y_coords = np.arange(h)[:, None]
-            if self._is_hero_image:
-                slope = (h - star_top) / (w / 2)
-                y_limit = star_top + slope * np.abs(x_coords - w / 2)
-                base_mask = y_coords >= y_limit
-            else:
-                base_mask = y_coords >= star_top
-            for i in range(self.star_count, 6):
-                left = int(i * w / 6)
-                right = int((i + 1) * w / 6)
-                star_region = base_mask & (x_coords >= left) & (x_coords < right)
-                arr[star_region] = [100, 100, 100, 180]
-            image = Image.fromarray(arr, "RGBA")
-        qt_img = ImageQt.ImageQt(image)
+
+        qt_img = ImageQt.ImageQt(self._orig_image)
         pix = QtGui.QPixmap.fromImage(qt_img)
+
+        if self.star_count < self.MAX_STARS:
+            painter = QtGui.QPainter(pix)
+            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+            painter.setPen(QtCore.Qt.PenStyle.NoPen)
+            painter.setBrush(self.GREY_COLOR)
+
+            star_width = pix.width() / self.MAX_STARS
+            star_height = pix.height() * (1 - self.STAR_VERTICAL_RATIO)
+            polygon = self._build_star_polygon(int(star_width), int(star_height))
+            y_offset = pix.height() - star_height
+
+            for i in range(self.star_count, self.MAX_STARS):
+                painter.save()
+                painter.translate(int(i * star_width), int(y_offset))
+                painter.drawPolygon(polygon)
+                painter.restore()
+            painter.end()
+
         self.setPixmap(
             pix.scaled(self.width(), self.height(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
         )

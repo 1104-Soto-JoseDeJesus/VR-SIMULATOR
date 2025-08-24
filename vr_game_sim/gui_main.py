@@ -32,7 +32,7 @@ def get_pdf_layout_path() -> str:
     return os.path.join(os.path.dirname(__file__), "pdf_layout.json")
 
 
-def load_pdf_layout() -> list[list[str]]:
+def load_pdf_layout() -> list[dict]:
     """Load PDF layout from disk, returning default if missing or invalid."""
     path = get_pdf_layout_path()
     try:
@@ -40,18 +40,33 @@ def load_pdf_layout() -> list[list[str]]:
             data = json.load(fh)
         pages = data.get("pages")
         if isinstance(pages, list):
-            result: list[list[str]] = []
+            result: list[dict] = []
             for page in pages:
-                if isinstance(page, list):
-                    result.append([str(it) for it in page if isinstance(it, str)])
+                if not isinstance(page, dict):
+                    continue
+                items = []
+                for item in page.get("items", []):
+                    if not isinstance(item, dict):
+                        continue
+                    itype = item.get("type")
+                    x = item.get("x")
+                    y = item.get("y")
+                    if not isinstance(itype, str) or not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+                        continue
+                    entry = {"type": itype, "x": float(x), "y": float(y)}
+                    scale = item.get("scale")
+                    if isinstance(scale, (int, float)):
+                        entry["scale"] = float(scale)
+                    items.append(entry)
+                result.append({"items": items})
             if result:
                 return result
     except (OSError, json.JSONDecodeError):
         pass
-    return [["summary"]]
+    return [{"items": []}]
 
 
-def save_pdf_layout(pages: list[list[str]]) -> None:
+def save_pdf_layout(pages: list[dict]) -> None:
     """Persist PDF layout configuration to disk."""
     path = get_pdf_layout_path()
     try:
@@ -644,14 +659,115 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         self._apply_spins_from_label()
 
 
+class PaletteListWidget(QtWidgets.QListWidget):
+    """Palette providing drag sources for PDF layout items."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setViewMode(QtWidgets.QListView.ViewMode.IconMode)
+        self.setIconSize(QtCore.QSize(128, 128))
+        self.setDragEnabled(True)
+
+    def startDrag(self, supportedActions: QtCore.Qt.DropActions) -> None:  # type: ignore[override]
+        item = self.currentItem()
+        if item is None:
+            return
+        mime = QtCore.QMimeData()
+        item_type = str(item.data(QtCore.Qt.ItemDataRole.UserRole))
+        mime.setText(item_type)
+        drag = QtGui.QDrag(self)
+        drag.setMimeData(mime)
+        drag.setPixmap(item.icon().pixmap(self.iconSize()))
+        drag.exec(supportedActions)
+
+
+class PageLayoutWidget(QtWidgets.QGraphicsView):
+    """Graphics view representing a single PDF page for layout."""
+
+    def __init__(self, pixmap_getter, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._get_pixmap = pixmap_getter
+        self.setScene(QtWidgets.QGraphicsScene(self))
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event: QtGui.QDragEnterEvent) -> None:  # type: ignore[override]
+        if event.mimeData().hasText():
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event: QtGui.QDragMoveEvent) -> None:  # type: ignore[override]
+        if event.mimeData().hasText():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event: QtGui.QDropEvent) -> None:  # type: ignore[override]
+        item_type = event.mimeData().text()
+        pix = self._get_pixmap(item_type)
+        if pix is None or pix.isNull():
+            return
+        item = QtWidgets.QGraphicsPixmapItem(pix)
+        flags = QtWidgets.QGraphicsItem.GraphicsItemFlag
+        item.setFlags(flags.ItemIsMovable | flags.ItemIsSelectable)
+        pos = self.mapToScene(event.position().toPoint())
+        item.setPos(pos)
+        item.setData(0, item_type)
+        self.scene().addItem(item)
+        event.acceptProposedAction()
+
+    def add_item(self, item_type: str, x: float, y: float) -> None:
+        """Convenience helper to insert an item at coordinates (x, y)."""
+        pix = self._get_pixmap(item_type)
+        if pix is None or pix.isNull():
+            return
+        item = QtWidgets.QGraphicsPixmapItem(pix)
+        flags = QtWidgets.QGraphicsItem.GraphicsItemFlag
+        item.setFlags(flags.ItemIsMovable | flags.ItemIsSelectable)
+        item.setPos(x, y)
+        item.setData(0, item_type)
+        self.scene().addItem(item)
+
+    def serialize(self) -> dict:
+        data: list[dict] = []
+        for item in self.scene().items():
+            if isinstance(item, QtWidgets.QGraphicsPixmapItem):
+                entry = {
+                    "type": item.data(0),
+                    "x": float(item.x()),
+                    "y": float(item.y()),
+                }
+                if item.scale() != 1.0:
+                    entry["scale"] = float(item.scale())
+                data.append(entry)
+        return {"items": data}
+
+    def load(self, items: list[dict]) -> None:
+        self.scene().clear()
+        for entry in items:
+            itype = entry.get("type")
+            if not isinstance(itype, str):
+                continue
+            pix = self._get_pixmap(itype)
+            if pix is None or pix.isNull():
+                continue
+            item = QtWidgets.QGraphicsPixmapItem(pix)
+            flags = QtWidgets.QGraphicsItem.GraphicsItemFlag
+            item.setFlags(flags.ItemIsMovable | flags.ItemIsSelectable)
+            item.setPos(float(entry.get("x", 0)), float(entry.get("y", 0)))
+            if "scale" in entry:
+                try:
+                    item.setScale(float(entry["scale"]))
+                except (TypeError, ValueError):
+                    pass
+            item.setData(0, itype)
+            self.scene().addItem(item)
+
 class PDFLayoutDialog(QtWidgets.QDialog):
     """Dialog allowing configuration of multi-page PDF export layout."""
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("PDF Layout Tool")
+        self._main_window = parent  # type: ignore[assignment]
 
-        self.pages: list[list[str]] = load_pdf_layout()
+        self.pages: list[dict] = load_pdf_layout()
         layout = QtWidgets.QVBoxLayout(self)
 
         self._count_spin = QtWidgets.QSpinBox()
@@ -661,8 +777,14 @@ class PDFLayoutDialog(QtWidgets.QDialog):
         layout.addWidget(QtWidgets.QLabel("Number of pages:"))
         layout.addWidget(self._count_spin)
 
+        hbox = QtWidgets.QHBoxLayout()
+        layout.addLayout(hbox, 1)
+
+        self.palette = PaletteListWidget()
+        hbox.addWidget(self.palette)
+
         self.tab_widget = QtWidgets.QTabWidget()
-        layout.addWidget(self.tab_widget)
+        hbox.addWidget(self.tab_widget, 1)
 
         btn_box = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Save
@@ -672,43 +794,44 @@ class PDFLayoutDialog(QtWidgets.QDialog):
         btn_box.rejected.connect(self.reject)
         layout.addWidget(btn_box)
 
-        self._page_checks: dict[int, dict[str, QtWidgets.QCheckBox]] = {}
+        self._page_widgets: list[PageLayoutWidget] = []
+        self._populate_palette()
         self._populate_tabs()
+
+    def _populate_palette(self) -> None:
+        self.palette.clear()
+        if self._main_window is None:
+            return
+        items = self._main_window.get_histogram_pixmaps()
+        preview = self._main_window.render_preview_pixmap()
+        if preview is not None:
+            items = {"preview": preview, **items}
+        items["army_composition"] = self._main_window._render_army_composition_pixmap()
+        for key, pix in items.items():
+            icon = QtGui.QIcon(pix)
+            text = key.replace("_", " ").title()
+            lw_item = QtWidgets.QListWidgetItem(icon, text)
+            lw_item.setData(QtCore.Qt.ItemDataRole.UserRole, key)
+            self.palette.addItem(lw_item)
 
     def _adjust_pages(self, count: int) -> None:
         while len(self.pages) < count:
-            self.pages.append(["summary"])
+            self.pages.append({"items": []})
         while len(self.pages) > count:
             self.pages.pop()
         self._populate_tabs()
 
     def _populate_tabs(self) -> None:
         self.tab_widget.clear()
-        self._page_checks.clear()
-        for idx, items in enumerate(self.pages, start=1):
-            tab = QtWidgets.QWidget()
-            vbox = QtWidgets.QVBoxLayout(tab)
-            summary_cb = QtWidgets.QCheckBox("Summary (preview + figures)")
-            summary_cb.setObjectName("summary")
-            composition_cb = QtWidgets.QCheckBox("Army Composition")
-            composition_cb.setObjectName("army_composition")
-            summary_cb.setChecked("summary" in items)
-            composition_cb.setChecked("army_composition" in items)
-            vbox.addWidget(summary_cb)
-            vbox.addWidget(composition_cb)
-            vbox.addStretch(1)
-            self.tab_widget.addTab(tab, f"Page {idx}")
-            self._page_checks[idx - 1] = {
-                "summary": summary_cb,
-                "army_composition": composition_cb,
-            }
+        self._page_widgets.clear()
+        for idx, page in enumerate(self.pages, start=1):
+            widget = PageLayoutWidget(self._main_window.get_pdf_item_pixmap)  # type: ignore[arg-type]
+            widget.load(page.get("items", []))
+            self.tab_widget.addTab(widget, f"Page {idx}")
+            self._page_widgets.append(widget)
 
     def _save_layout(self) -> None:
-        pages: list[list[str]] = []
-        for i in range(self.tab_widget.count()):
-            checks = self._page_checks.get(i, {})
-            items = [key for key, cb in checks.items() if cb.isChecked()]
-            pages.append(items)
+        pages = [w.serialize() for w in self._page_widgets]
         save_pdf_layout(pages)
         self.accept()
 
@@ -1835,9 +1958,8 @@ class MainWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.information(
                 self, "Export Complete", f"Figures exported to {dest_dir}"
             )
-
-    def render_summary_pixmap(self, with_background: bool = True) -> QtGui.QPixmap | None:
-        """Render the summary image and return it as a pixmap."""
+    def _generate_preview_and_hist_pixmaps(self) -> tuple[QtGui.QPixmap | None, dict[str, QtGui.QPixmap]]:
+        """Return the army preview pixmap and histogram pixmaps."""
 
         def make_transparent(
             pix: QtGui.QPixmap, bg_color: QtGui.QColor | None = None
@@ -1873,15 +1995,15 @@ class MainWindow(QtWidgets.QMainWindow):
             "victory_distribution.png",
         ]
         base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
-        hist_pixmaps = []
+        hist_pixmaps: dict[str, QtGui.QPixmap] = {}
         for fname in image_files:
             path = os.path.join(base_hist_dir, fname)
             if os.path.exists(path):
                 pm = QtGui.QPixmap(path)
                 pm = make_transparent(pm)
-                hist_pixmaps.append(pm)
+                hist_pixmaps[os.path.splitext(fname)[0]] = pm
         if not hist_pixmaps:
-            return None
+            return None, {}
 
         scale = 5
         p1 = self.army1_frame.preview_widget.grab().scaled(
@@ -1971,8 +2093,35 @@ class MainWindow(QtWidgets.QMainWindow):
         painter.end()
         preview_pix = preview_with_key
 
-        final_width = max(preview_pix.width(), *(p.width() for p in hist_pixmaps))
-        final_height = preview_pix.height() + sum(p.height() for p in hist_pixmaps)
+        return preview_pix, hist_pixmaps
+
+    def render_preview_pixmap(self) -> QtGui.QPixmap | None:
+        """Render just the army preview section."""
+        preview, _ = self._generate_preview_and_hist_pixmaps()
+        return preview
+
+    def get_histogram_pixmaps(self) -> dict[str, QtGui.QPixmap]:
+        """Return histogram pixmaps keyed by identifier."""
+        _, hist = self._generate_preview_and_hist_pixmaps()
+        return hist
+
+    def get_pdf_item_pixmap(self, item_type: str) -> QtGui.QPixmap | None:
+        """Return pixmap for the given PDF layout item ``item_type``."""
+        if item_type == "preview":
+            return self.render_preview_pixmap()
+        if item_type == "army_composition":
+            return self._render_army_composition_pixmap()
+        return self.get_histogram_pixmaps().get(item_type)
+
+    def render_summary_pixmap(self, with_background: bool = True) -> QtGui.QPixmap | None:
+        """Render the summary image and return it as a pixmap."""
+
+        preview_pix, hist_pixmaps = self._generate_preview_and_hist_pixmaps()
+        if preview_pix is None or not hist_pixmaps:
+            return None
+
+        final_width = max(preview_pix.width(), *(p.width() for p in hist_pixmaps.values()))
+        final_height = preview_pix.height() + sum(p.height() for p in hist_pixmaps.values())
         final_pix = QtGui.QPixmap(final_width, final_height)
         if with_background:
             painter = QtGui.QPainter(final_pix)
@@ -1987,7 +2136,7 @@ class MainWindow(QtWidgets.QMainWindow):
         x = (final_width - preview_pix.width()) // 2
         painter.drawPixmap(x, 0, preview_pix)
         y = preview_pix.height()
-        for p in hist_pixmaps:
+        for p in hist_pixmaps.values():
             x = (final_width - p.width()) // 2
             painter.drawPixmap(x, y, p)
             y += p.height()
@@ -2310,33 +2459,28 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         writer = QtGui.QPdfWriter(file_path)
         painter = QtGui.QPainter(writer)
-        for page_idx, items in enumerate(self.pdf_layout):
+        for page_idx, page in enumerate(self.pdf_layout):
             page_width = writer.width()
             page_height = writer.height()
             gradient = QtGui.QLinearGradient(0, 0, 0, page_height)
             gradient.setColorAt(0, QtGui.QColor("#4a4a4a"))
             gradient.setColorAt(1, QtGui.QColor("#1e1e1e"))
             painter.fillRect(0, 0, page_width, page_height, gradient)
-            y = 0
-            for item in items:
-                if item == "summary":
-                    pix = self.render_summary_pixmap(with_background=False)
-                    if pix is None:
-                        continue
-                elif item == "army_composition":
-                    pix = self._render_army_composition_pixmap()
-                else:
+            for item in page.get("items", []):
+                pix = self.get_pdf_item_pixmap(item.get("type", ""))
+                if pix is None:
                     continue
-                if pix.width() > page_width:
+                scale = float(item.get("scale", 1.0))
+                if scale != 1.0:
                     pix = pix.scaled(
-                        page_width,
-                        pix.height(),
+                        int(pix.width() * scale),
+                        int(pix.height() * scale),
                         QtCore.Qt.AspectRatioMode.KeepAspectRatio,
                         QtCore.Qt.TransformationMode.SmoothTransformation,
                     )
-                x = (page_width - pix.width()) // 2
+                x = int(item.get("x", 0))
+                y = int(item.get("y", 0))
                 painter.drawPixmap(x, y, pix)
-                y += pix.height()
             if page_idx < len(self.pdf_layout) - 1:
                 writer.newPage()
         painter.end()

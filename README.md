@@ -91,3 +91,7 @@ name and a `.json` extension containing optional keys:
 Ratios are expressed as fractions of the full image dimensions.  They control
 the number of stars, how far from the top the star strip begins and any
 horizontal padding around the stars.
+
+For visual tuning, launch the GUI and choose **Debug → Star Overlay Tuner**.
+Load a hero or plugin image, adjust the ratios and offsets in the dialog and
+click **Save Layout** to write a JSON sidecar next to the image.

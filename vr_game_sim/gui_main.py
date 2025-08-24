@@ -6,6 +6,7 @@ import os
 from typing import Any
 import threading
 import math
+import json
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
@@ -55,18 +56,6 @@ class StarredImageLabel(QtWidgets.QLabel):
     entries.  Ratios are expressed as fractions of the full image dimensions.
     """
 
-    # Layout constants to avoid magic numbers sprinkled through the code
-    MAX_STARS = 6
-    # Portion of the image above the stars
-    STAR_VERTICAL_RATIO = 0.8
-    # Plugin skill images use a slimmer star strip
-    PLUGIN_STAR_VERTICAL_RATIO = 0.88
-    # Hero portraits use smaller stars with left/right padding
-    HERO_STAR_VERTICAL_RATIO = 0.88
-    HERO_STAR_SIDE_MARGIN_RATIO = 0.04
-    # V-shaped offsets for hero star overlays, expressed as fractions of
-    # ``star_height`` for each star index from left to right
-    HERO_STAR_V_OFFSETS = (-0.02, -0.01, 0.01, 0.01, -0.01, -0.02)
     # Colour used when greying out missing stars (matches previous behaviour)
     GREY_COLOR = QtGui.QColor(100, 100, 100, 180)
 
@@ -75,9 +64,25 @@ class StarredImageLabel(QtWidgets.QLabel):
         self.setScaledContents(True)
         self._image_path: str | None = None
         self._orig_image: Image.Image | None = None
+
+        # Default layout configuration
+        self.default_max_stars: int = 6
+        self.default_star_vertical_ratio: float = 0.8
+        self.plugin_star_vertical_ratio: float = 0.88
+        self.hero_star_vertical_ratio: float = 0.88
+        self.hero_star_side_margin_ratio: float = 0.04
+        self.hero_star_v_offsets: tuple[float, ...] = (
+            -0.02,
+            -0.01,
+            0.01,
+            0.01,
+            -0.01,
+            -0.02,
+        )
+
         # runtime layout configuration that may be overridden via metadata
-        self.max_stars: int = self.MAX_STARS
-        self.star_vertical_ratio: float = self.STAR_VERTICAL_RATIO
+        self.max_stars: int = self.default_max_stars
+        self.star_vertical_ratio: float = self.default_star_vertical_ratio
         self.star_side_margin_ratio: float = 0.0
         self.star_count: int = self.max_stars
         self._is_hero_image: bool = False
@@ -85,10 +90,27 @@ class StarredImageLabel(QtWidgets.QLabel):
         # cache of star polygons keyed by their (width, height)
         self._star_polygon_cache: dict[tuple[int, int], QtGui.QPolygonF] = {}
 
+    def set_layout(
+        self,
+        max_stars: int,
+        vertical_ratio: float,
+        side_margin: float,
+        offsets: list[float] | tuple[float, ...] | None = None,
+    ) -> None:
+        """Override star layout and refresh the image preview."""
+
+        self.max_stars = max_stars
+        self.star_vertical_ratio = vertical_ratio
+        self.star_side_margin_ratio = side_margin
+        if offsets is not None:
+            self.hero_star_v_offsets = tuple(offsets)
+        self.star_count = max(0, min(self.max_stars, self.star_count))
+        self._update_pixmap()
+
     def set_image(self, path: str | None) -> None:
         """Load image from ``path`` and reset star count."""
         self._image_path = path
-        self.star_count = self.MAX_STARS
+        self.star_count = self.max_stars
         if path and os.path.exists(path):
             self._orig_image = Image.open(path).convert("RGBA")
             # Determine if the image is a hero portrait or a skill image
@@ -96,23 +118,21 @@ class StarredImageLabel(QtWidgets.QLabel):
             self._is_plugin_image = "Plugin Skill Images" in path
 
             # Apply default layout for the image type
-            self.max_stars = self.MAX_STARS
+            self.max_stars = self.default_max_stars
             if self._is_hero_image:
-                self.star_vertical_ratio = self.HERO_STAR_VERTICAL_RATIO
-                self.star_side_margin_ratio = self.HERO_STAR_SIDE_MARGIN_RATIO
+                self.star_vertical_ratio = self.hero_star_vertical_ratio
+                self.star_side_margin_ratio = self.hero_star_side_margin_ratio
             elif self._is_plugin_image:
-                self.star_vertical_ratio = self.PLUGIN_STAR_VERTICAL_RATIO
+                self.star_vertical_ratio = self.plugin_star_vertical_ratio
                 self.star_side_margin_ratio = 0.0
             else:
-                self.star_vertical_ratio = self.STAR_VERTICAL_RATIO
+                self.star_vertical_ratio = self.default_star_vertical_ratio
                 self.star_side_margin_ratio = 0.0
 
             # Allow optional metadata to override layout assumptions
             meta_path = os.path.splitext(path)[0] + ".json"
             if os.path.exists(meta_path):
                 try:
-                    import json
-
                     with open(meta_path, "r", encoding="utf-8") as fh:
                         meta = json.load(fh)
                     self.max_stars = int(meta.get("max_stars", self.max_stars))
@@ -207,8 +227,8 @@ class StarredImageLabel(QtWidgets.QLabel):
             for i in range(self.star_count, self.max_stars):
                 painter.save()
                 y_off = y_offset
-                if self._is_hero_image and i < len(self.HERO_STAR_V_OFFSETS):
-                    y_off += star_height * self.HERO_STAR_V_OFFSETS[i]
+                if self._is_hero_image and i < len(self.hero_star_v_offsets):
+                    y_off += star_height * self.hero_star_v_offsets[i]
                 painter.translate(int(x_offset + i * star_width), int(y_off))
                 painter.drawPolygon(polygon)
                 painter.restore()
@@ -218,6 +238,131 @@ class StarredImageLabel(QtWidgets.QLabel):
             pix.scaled(self.width(), self.height(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
         )
 
+
+class StarOverlayDebugDialog(QtWidgets.QDialog):
+    """Dialog allowing live tweaking of star overlay layout."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Star Overlay Tuner")
+        layout = QtWidgets.QVBoxLayout(self)
+
+        self.preview = StarredImageLabel()
+        self.preview.setFixedSize(200, 200)
+        layout.addWidget(self.preview, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+
+        form = QtWidgets.QFormLayout()
+        self.max_spin = QtWidgets.QSpinBox()
+        self.max_spin.setRange(1, 12)
+        form.addRow("Max Stars", self.max_spin)
+
+        self.vert_spin = QtWidgets.QDoubleSpinBox()
+        self.vert_spin.setRange(0.0, 1.0)
+        self.vert_spin.setSingleStep(0.01)
+        self.vert_spin.setDecimals(3)
+        form.addRow("Vertical Ratio", self.vert_spin)
+
+        self.side_spin = QtWidgets.QDoubleSpinBox()
+        self.side_spin.setRange(0.0, 0.5)
+        self.side_spin.setSingleStep(0.01)
+        self.side_spin.setDecimals(3)
+        form.addRow("Side Margin Ratio", self.side_spin)
+
+        offsets_layout = QtWidgets.QHBoxLayout()
+        self.offset_spins: list[QtWidgets.QDoubleSpinBox] = []
+        for _ in range(6):
+            spin = QtWidgets.QDoubleSpinBox()
+            spin.setRange(-1.0, 1.0)
+            spin.setSingleStep(0.01)
+            spin.setDecimals(3)
+            offsets_layout.addWidget(spin)
+            self.offset_spins.append(spin)
+        form.addRow("Hero V Offsets", offsets_layout)
+        layout.addLayout(form)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        load_hero_btn = QtWidgets.QPushButton("Load Hero Image")
+        load_plugin_btn = QtWidgets.QPushButton("Load Plugin Image")
+        save_btn = QtWidgets.QPushButton("Save Layout")
+        btn_row.addWidget(load_hero_btn)
+        btn_row.addWidget(load_plugin_btn)
+        btn_row.addWidget(save_btn)
+        layout.addLayout(btn_row)
+
+        # signal wiring
+        self.max_spin.valueChanged.connect(self._update_from_spins)
+        self.vert_spin.valueChanged.connect(self._update_from_spins)
+        self.side_spin.valueChanged.connect(self._update_from_spins)
+        for spin in self.offset_spins:
+            spin.valueChanged.connect(self._update_from_spins)
+        load_hero_btn.clicked.connect(self._load_hero)
+        load_plugin_btn.clicked.connect(self._load_plugin)
+        save_btn.clicked.connect(self._save_layout)
+
+    # --- helpers -----------------------------------------------------
+    def _apply_spins_from_label(self) -> None:
+        self.max_spin.blockSignals(True)
+        self.vert_spin.blockSignals(True)
+        self.side_spin.blockSignals(True)
+        for spin in self.offset_spins:
+            spin.blockSignals(True)
+
+        self.max_spin.setValue(self.preview.max_stars)
+        self.vert_spin.setValue(self.preview.star_vertical_ratio)
+        self.side_spin.setValue(self.preview.star_side_margin_ratio)
+        for i, spin in enumerate(self.offset_spins):
+            val = 0.0
+            if i < len(self.preview.hero_star_v_offsets):
+                val = self.preview.hero_star_v_offsets[i]
+            spin.setValue(val)
+
+        self.max_spin.blockSignals(False)
+        self.vert_spin.blockSignals(False)
+        self.side_spin.blockSignals(False)
+        for spin in self.offset_spins:
+            spin.blockSignals(False)
+
+    def _update_from_spins(self) -> None:
+        offsets = [spin.value() for spin in self.offset_spins]
+        self.preview.set_layout(
+            self.max_spin.value(),
+            self.vert_spin.value(),
+            self.side_spin.value(),
+            offsets=offsets,
+        )
+
+    def _load_hero(self) -> None:
+        hero_dir = os.path.join(os.path.dirname(__file__), "Hero Images")
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Select Hero Image", hero_dir, "Images (*.png *.jpg *.jpeg)"
+        )
+        if path:
+            self.preview.set_image(path)
+            self._apply_spins_from_label()
+
+    def _load_plugin(self) -> None:
+        plugin_dir = os.path.join(os.path.dirname(__file__), "Plugin Skill Images")
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Select Plugin Image", plugin_dir, "Images (*.png *.jpg *.jpeg)"
+        )
+        if path:
+            self.preview.set_image(path)
+            self._apply_spins_from_label()
+
+    def _save_layout(self) -> None:
+        if not self.preview._image_path:
+            return
+        data = {
+            "max_stars": self.preview.max_stars,
+            "star_vertical_ratio": self.preview.star_vertical_ratio,
+            "star_side_margin_ratio": self.preview.star_side_margin_ratio,
+        }
+        meta_path = os.path.splitext(self.preview._image_path)[0] + ".json"
+        with open(meta_path, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2)
+        # Reload to confirm
+        self.preview.set_image(self.preview._image_path)
+        self._apply_spins_from_label()
 
 class SkillParamEditor(QtWidgets.QWidget):
     """Widget providing spin boxes for configurable skill parameters."""
@@ -997,6 +1142,11 @@ class MainWindow(QtWidgets.QMainWindow):
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
 
+    def open_star_overlay_tuner(self) -> None:
+        """Open the star overlay debug dialog."""
+        dlg = StarOverlayDebugDialog(self)
+        dlg.exec()
+
     def _init_menu_toolbar(self) -> QtWidgets.QToolBar:
         """Create the main toolbar."""
         toolbar = self.addToolBar("Actions")
@@ -1062,6 +1212,11 @@ class MainWindow(QtWidgets.QMainWindow):
         quit_action.setShortcut(QtGui.QKeySequence("Ctrl+Q"))
         quit_action.triggered.connect(self.close)
         toolbar.addAction(quit_action)
+
+        # Debug menu for developer tools
+        debug_menu = self.menuBar().addMenu("Debug")
+        star_action = debug_menu.addAction("Star Overlay Tuner")
+        star_action.triggered.connect(self.open_star_overlay_tuner)
 
         return toolbar
 

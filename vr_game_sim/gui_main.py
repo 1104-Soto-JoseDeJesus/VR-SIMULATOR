@@ -111,9 +111,11 @@ class StarredImageLabel(QtWidgets.QLabel):
 
         cx, cy = width / 2, height / 2
         outer_r = min(width, height) / 2
-        # Inner radius chosen so the inner points sit on the midpoints of the
-        # sides formed by the outer vertices.
-        inner_r = outer_r / math.sqrt(2)
+        # Pull the inner vertices toward the centre so the shape resembles a
+        # classic four-point star rather than a simple diamond.  A value around
+        # forty percent of the outer radius produces long, tapered arms similar
+        # to the reference image.
+        inner_r = outer_r * 0.4
 
         points: list[QtCore.QPointF] = []
         for i in range(8):

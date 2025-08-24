@@ -141,6 +141,10 @@ def list_saved_setups() -> List[str]:
 def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
     """Creates Army objects from loaded setup data."""
     armies: List[Army] = []
+    # Collect all overrides so ``GameSimulator`` can use a registry with the
+    # tweaked values when looking up skills by id (e.g. for rage skills).
+    combined_overrides: Dict[str, Dict[str, Any]] = {}
+
     for army_config in loaded_data:
         unit = UnitClass(
             army_config["unit_type"],
@@ -153,6 +157,11 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
         heroes_list: List[Hero] = []
         for hero_conf in army_config.get("heroes", []):
             overrides = hero_conf.get("skill_overrides")
+            if overrides:
+                # Merge into ``combined_overrides`` – last hero wins if the same
+                # skill id is tweaked multiple times.
+                for sid, params in overrides.items():
+                    combined_overrides[sid] = params
             registry = (
                 build_skill_registry_with_overrides(overrides)
                 if overrides
@@ -175,6 +184,13 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
             army_config.get("unrevivable_ratio", 0.5),
         )
         armies.append(army_obj)
+
+    # Ensure ``GameSimulator`` uses a registry with any overrides applied.
+    if combined_overrides:
+        GameSimulator.SKILL_REGISTRY_GLOBAL = build_skill_registry_with_overrides(combined_overrides)
+    else:
+        GameSimulator.SKILL_REGISTRY_GLOBAL = SKILL_REGISTRY_GLOBAL
+
     return armies
 
 

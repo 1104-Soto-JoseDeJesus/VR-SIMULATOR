@@ -183,6 +183,27 @@ class StarredImageLabel(QtWidgets.QLabel):
                     self.star_side_margin_ratio = float(
                         meta.get("star_side_margin_ratio", self.star_side_margin_ratio)
                     )
+                    v_off = meta.get("v_offsets")
+                    h_off = meta.get("h_offsets")
+                    size_fact = meta.get("size_factors")
+                    if self._is_hero_image:
+                        if v_off is not None:
+                            self.hero_star_v_offsets = tuple(float(x) for x in v_off)
+                        if h_off is not None:
+                            self.hero_star_h_offsets = tuple(float(x) for x in h_off)
+                        if size_fact is not None:
+                            self.hero_star_size_factors = tuple(
+                                float(x) for x in size_fact
+                            )
+                    elif self._is_plugin_image:
+                        if v_off is not None:
+                            self.plugin_star_v_offsets = tuple(float(x) for x in v_off)
+                        if h_off is not None:
+                            self.plugin_star_h_offsets = tuple(float(x) for x in h_off)
+                        if size_fact is not None:
+                            self.plugin_star_size_factors = tuple(
+                                float(x) for x in size_fact
+                            )
                 except Exception:
                     # Ignore malformed metadata files
                     pass
@@ -538,9 +559,41 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
             "star_vertical_ratio": self.preview.star_vertical_ratio,
             "star_side_margin_ratio": self.preview.star_side_margin_ratio,
         }
+        if self.preview._is_hero_image:
+            data.update(
+                {
+                    "v_offsets": list(self.preview.hero_star_v_offsets),
+                    "h_offsets": list(self.preview.hero_star_h_offsets),
+                    "size_factors": list(self.preview.hero_star_size_factors),
+                }
+            )
+        elif self.preview._is_plugin_image:
+            data.update(
+                {
+                    "v_offsets": list(self.preview.plugin_star_v_offsets),
+                    "h_offsets": list(self.preview.plugin_star_h_offsets),
+                    "size_factors": list(self.preview.plugin_star_size_factors),
+                }
+            )
         meta_path = os.path.splitext(self.preview._image_path)[0] + ".json"
         with open(meta_path, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2)
+
+        # Propagate settings to all images of the same type
+        base_dir = None
+        if self.preview._is_hero_image:
+            base_dir = os.path.join(os.path.dirname(__file__), "Hero Images")
+        elif self.preview._is_plugin_image:
+            base_dir = os.path.join(os.path.dirname(__file__), "Plugin Skill Images")
+        if base_dir and os.path.isdir(base_dir):
+            for fname in os.listdir(base_dir):
+                if fname.lower().endswith((".png", ".jpg", ".jpeg")):
+                    target = os.path.join(
+                        base_dir, os.path.splitext(fname)[0] + ".json"
+                    )
+                    with open(target, "w", encoding="utf-8") as fh:
+                        json.dump(data, fh, indent=2)
+
         # Reload to confirm
         self.preview.set_image(self.preview._image_path)
         self._apply_spins_from_label()

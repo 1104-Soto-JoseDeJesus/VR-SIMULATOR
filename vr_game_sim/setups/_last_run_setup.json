@@ -1,89 +1,113 @@
 [
     {
-        "army_name": "Army 1",
-        "unit_type": "archers",
-        "tier": 7,
+        "army_name": "Bjorn/Gregory",
+        "unit_type": "infantry",
+        "tier": 5,
         "count": 300000,
-        "atk_mod": 2.5,
-        "def_mod": 2.5,
-        "hp_mod": 1.0,
+        "atk_mod": 1.5,
+        "def_mod": 1.5,
+        "hp_mod": 0.5,
         "unrevivable_ratio": 0.5,
         "heroes": [
             {
-                "hero_name_or_preset": "Athelstan",
+                "hero_name_or_preset": "Bjorn",
                 "talent_ids": [
-                    "talent_erudite",
-                    "talent_strategize",
-                    "talent_adaptable_to_changes"
+                    "talent_trained_up",
+                    "",
+                    ""
                 ],
                 "base_skill_ids": [
-                    "base_skill_heart_of_tolerance",
-                    "base_skill_holy_enlightenment"
+                    "base_skill_crippling_pursuit",
+                    "base_skill_lethal_fracture"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_rage_leech",
-                    "plugin_fiery_rage"
-                ]
+                    "plugin_enrage",
+                    "plugin_breaking_free"
+                ],
+                "skill_overrides": {
+                    "base_skill_lethal_fracture": {
+                        "config": {
+                            "damage_factor": 1700.0,
+                            "attack_buff": 0.1
+                        }
+                    }
+                }
             },
             {
-                "hero_name_or_preset": "Olena",
+                "hero_name_or_preset": "Gregory",
                 "talent_ids": [
-                    "talent_scorching_arrow",
-                    "talent_multi_shot_arrow",
-                    "talent_poised_shot"
+                    "talent_great_morale",
+                    "talent_missing_beat",
+                    ""
                 ],
                 "base_skill_ids": [
-                    "base_skill_enchanted_arrow",
-                    "base_skill_concentration"
+                    "base_skill_drumming_disturbance",
+                    "base_skill_inspiring_dance"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_first_strike",
-                    "plugin_this_too_shall_pass"
-                ]
+                    "plugin_thors_determination",
+                    "plugin_divine_blessing"
+                ],
+                "skill_overrides": {
+                    "base_skill_inspiring_dance": {
+                        "config": {
+                            "bleed_factor": 300.0
+                        }
+                    }
+                }
             }
         ]
     },
     {
-        "army_name": "Army 2",
-        "unit_type": "archers",
-        "tier": 7,
+        "army_name": "Jens/Gregory",
+        "unit_type": "infantry",
+        "tier": 5,
         "count": 300000,
-        "atk_mod": 2.5,
-        "def_mod": 2.5,
-        "hp_mod": 1.0,
+        "atk_mod": 1.5,
+        "def_mod": 1.5,
+        "hp_mod": 0.5,
         "unrevivable_ratio": 0.5,
         "heroes": [
             {
-                "hero_name_or_preset": "Yulmi",
+                "hero_name_or_preset": "Jens",
                 "talent_ids": [
-                    "talent_dreadful_curse",
-                    "talent_high_fighting_spirit",
-                    "talent_low_whispers"
+                    "talent_godly_wrath",
+                    "talent_divine_blite",
+                    ""
                 ],
                 "base_skill_ids": [
-                    "base_skill_plague",
-                    "rage_skill_undead_harvest"
+                    "base_skill_divine_energize",
+                    "base_skill_heavenly_descent"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_blow_of_chaos",
-                    "plugin_joint_offense"
-                ]
+                    "plugin_enrage",
+                    "plugin_breaking_free"
+                ],
+                "skill_overrides": {
+                    "base_skill_heavenly_descent": {
+                        "config": {
+                            "damage_factor": 600.0,
+                            "vulnerability_magnitude": 0.075
+                        }
+                    }
+                }
             },
             {
-                "hero_name_or_preset": "Olena",
+                "hero_name_or_preset": "Gregory",
                 "talent_ids": [
-                    "talent_scorching_arrow",
-                    "talent_multi_shot_arrow",
-                    "talent_poised_shot"
+                    "talent_great_morale",
+                    "talent_missing_beat",
+                    "talent_excite"
                 ],
                 "base_skill_ids": [
-                    "base_skill_enchanted_arrow",
-                    "base_skill_concentration"
+                    "base_skill_drumming_disturbance",
+                    "base_skill_inspiring_dance"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_odins_asylum",
-                    "plugin_rage_leech"
-                ]
+                    "plugin_thors_determination",
+                    "plugin_divine_blessing"
+                ],
+                "skill_overrides": {}
             }
         ]
     }

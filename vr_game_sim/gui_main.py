@@ -59,9 +59,14 @@ class StarredImageLabel(QtWidgets.QLabel):
     MAX_STARS = 6
     # Portion of the image above the stars
     STAR_VERTICAL_RATIO = 0.8
+    # Plugin skill images use a slimmer star strip
+    PLUGIN_STAR_VERTICAL_RATIO = 0.88
     # Hero portraits use smaller stars with left/right padding
     HERO_STAR_VERTICAL_RATIO = 0.88
     HERO_STAR_SIDE_MARGIN_RATIO = 0.04
+    # V-shaped offsets for hero star overlays, expressed as fractions of
+    # ``star_height`` for each star index from left to right
+    HERO_STAR_V_OFFSETS = (-0.02, -0.01, 0.01, 0.01, -0.01, -0.02)
     # Colour used when greying out missing stars (matches previous behaviour)
     GREY_COLOR = QtGui.QColor(100, 100, 100, 180)
 
@@ -76,6 +81,7 @@ class StarredImageLabel(QtWidgets.QLabel):
         self.star_side_margin_ratio: float = 0.0
         self.star_count: int = self.max_stars
         self._is_hero_image: bool = False
+        self._is_plugin_image: bool = False
         # cache of star polygons keyed by their (width, height)
         self._star_polygon_cache: dict[tuple[int, int], QtGui.QPolygonF] = {}
 
@@ -87,12 +93,16 @@ class StarredImageLabel(QtWidgets.QLabel):
             self._orig_image = Image.open(path).convert("RGBA")
             # Determine if the image is a hero portrait or a skill image
             self._is_hero_image = "Hero Images" in path
+            self._is_plugin_image = "Plugin Skill Images" in path
 
             # Apply default layout for the image type
             self.max_stars = self.MAX_STARS
             if self._is_hero_image:
                 self.star_vertical_ratio = self.HERO_STAR_VERTICAL_RATIO
                 self.star_side_margin_ratio = self.HERO_STAR_SIDE_MARGIN_RATIO
+            elif self._is_plugin_image:
+                self.star_vertical_ratio = self.PLUGIN_STAR_VERTICAL_RATIO
+                self.star_side_margin_ratio = 0.0
             else:
                 self.star_vertical_ratio = self.STAR_VERTICAL_RATIO
                 self.star_side_margin_ratio = 0.0
@@ -196,7 +206,10 @@ class StarredImageLabel(QtWidgets.QLabel):
 
             for i in range(self.star_count, self.max_stars):
                 painter.save()
-                painter.translate(int(x_offset + i * star_width), int(y_offset))
+                y_off = y_offset
+                if self._is_hero_image and i < len(self.HERO_STAR_V_OFFSETS):
+                    y_off += star_height * self.HERO_STAR_V_OFFSETS[i]
+                painter.translate(int(x_offset + i * star_width), int(y_off))
                 painter.drawPolygon(polygon)
                 painter.restore()
             painter.end()

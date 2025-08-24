@@ -53,7 +53,10 @@ def _expected_mask(label: StarredImageLabel, missing: list[int]) -> np.ndarray:
     y_offset = h - star_height
     for idx in missing:
         painter.save()
-        painter.translate(int(x_offset + idx * star_width), int(y_offset))
+        offset = 0
+        if label._is_hero_image and idx < len(label.HERO_STAR_V_OFFSETS):
+            offset = label.HERO_STAR_V_OFFSETS[idx] * star_height
+        painter.translate(int(x_offset + idx * star_width), int(y_offset + offset))
         painter.drawPolygon(poly)
         painter.restore()
     painter.end()
@@ -95,6 +98,26 @@ def test_hero_star_alignment():
     label.set_image(os.path.normpath(hero_path))
     w, h = label._orig_image.size
     label.resize(w, h)
+
+    label.set_star_count(4)
+    mask = _grey_mask_from_label(label)
+    expected = _expected_mask(label, [4, 5])
+    assert not np.any(mask & ~expected)
+    assert mask.sum() > 0
+
+
+def test_plugin_star_alignment():
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    label = StarredImageLabel()
+    plugin_path = os.path.join(
+        os.path.dirname(__file__), "..", "Plugin Skill Images", "Awakening.png"
+    )
+    label.set_image(os.path.normpath(plugin_path))
+    w, h = label._orig_image.size
+    label.resize(w, h)
+
+    assert label.star_vertical_ratio == label.PLUGIN_STAR_VERTICAL_RATIO
 
     label.set_star_count(4)
     mask = _grey_mask_from_label(label)

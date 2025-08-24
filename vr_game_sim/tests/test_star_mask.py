@@ -60,6 +60,11 @@ def _expected_mask(label: StarredImageLabel, missing: list[int]) -> np.ndarray:
                 v_off = label.hero_star_v_offsets[idx] * star_height
             if idx < len(label.hero_star_h_offsets):
                 h_off = label.hero_star_h_offsets[idx] * star_width
+        elif label._is_plugin_image:
+            if idx < len(label.plugin_star_v_offsets):
+                v_off = label.plugin_star_v_offsets[idx] * star_height
+            if idx < len(label.plugin_star_h_offsets):
+                h_off = label.plugin_star_h_offsets[idx] * star_width
         painter.translate(int(x_offset + idx * star_width + h_off), int(y_offset + v_off))
         painter.drawPolygon(poly)
         painter.restore()
@@ -145,6 +150,30 @@ def test_horizontal_offsets():
         0.0,
         offsets=label.hero_star_v_offsets,
         h_offsets=[0.5, 0, 0, 0, 0, 0],
+    )
+    label.star_count = 5
+    label._update_pixmap()
+    mask = _grey_mask_from_label(label)
+    expected = _expected_mask(label, [5])
+    assert not np.any(mask & ~expected)
+    assert mask.sum() > 0
+
+
+def test_plugin_offsets():
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    label = StarredImageLabel()
+    w, h = 60, 40
+    label.resize(w, h)
+    label._orig_image = Image.new("RGBA", (w, h), (255, 255, 255, 255))
+    label._is_plugin_image = True
+
+    label.set_layout(
+        6,
+        label.DEFAULT_STAR_VERTICAL_RATIO,
+        0.0,
+        offsets=[0, 0, 0, 0, 0, 0.5],
+        h_offsets=[0, 0, 0, 0, 0, 0.5],
     )
     label.star_count = 5
     label._update_pixmap()

@@ -288,9 +288,20 @@ def run_additional_simulations(
             if progress_callback:
                 progress_callback(i + 1, runs)
 
-    avg_diff = sum(diff_results) / len(diff_results) if diff_results else 0
-    best_idx = min(range(runs), key=lambda i: abs(diff_results[i] - avg_diff)) if diff_results else 0
-    if diff_results:
+    avg_own = sum(own_remaining) / len(own_remaining) if own_remaining else 0
+    avg_enemy = (
+        sum(enemy_remaining) / len(enemy_remaining) if enemy_remaining else 0
+    )
+    best_idx = (
+        min(
+            range(runs),
+            key=lambda i: (own_remaining[i] - avg_own) ** 2
+            + (enemy_remaining[i] - avg_enemy) ** 2,
+        )
+        if own_remaining and enemy_remaining
+        else 0
+    )
+    if own_remaining and enemy_remaining:
         _, _, _, _, _, report_text = _run_single_battle(
             setup_data, seed=seeds[best_idx], return_report=True
         )
@@ -299,10 +310,6 @@ def run_additional_simulations(
     if generate_histograms:
         ensure_histogram_dir()
 
-        avg_own = sum(own_remaining) / len(own_remaining) if own_remaining else 0
-        avg_enemy = (
-            sum(enemy_remaining) / len(enemy_remaining) if enemy_remaining else 0
-        )
         avg_rounds = sum(rounds_taken) / len(rounds_taken) if rounds_taken else 0
 
         with plt.style.context("ggplot"):

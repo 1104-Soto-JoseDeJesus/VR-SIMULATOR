@@ -27,6 +27,40 @@ from vr_game_sim.main import (
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 
 
+def get_pdf_layout_path() -> str:
+    """Return path for persisted PDF layout configuration."""
+    return os.path.join(os.path.dirname(__file__), "pdf_layout.json")
+
+
+def load_pdf_layout() -> list[list[str]]:
+    """Load PDF layout from disk, returning default if missing or invalid."""
+    path = get_pdf_layout_path()
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        pages = data.get("pages")
+        if isinstance(pages, list):
+            result: list[list[str]] = []
+            for page in pages:
+                if isinstance(page, list):
+                    result.append([str(it) for it in page if isinstance(it, str)])
+            if result:
+                return result
+    except (OSError, json.JSONDecodeError):
+        pass
+    return [["summary"]]
+
+
+def save_pdf_layout(pages: list[list[str]]) -> None:
+    """Persist PDF layout configuration to disk."""
+    path = get_pdf_layout_path()
+    try:
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump({"pages": pages}, fh, indent=2)
+    except OSError:
+        pass
+
+
 class ThousandSepSpinBox(QtWidgets.QSpinBox):
     """QSpinBox that displays numbers with thousand separators."""
 
@@ -608,6 +642,75 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         # Reload to confirm
         self.preview.set_image(self.preview._image_path)
         self._apply_spins_from_label()
+
+
+class PDFLayoutDialog(QtWidgets.QDialog):
+    """Dialog allowing configuration of multi-page PDF export layout."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("PDF Layout Tool")
+
+        self.pages: list[list[str]] = load_pdf_layout()
+        layout = QtWidgets.QVBoxLayout(self)
+
+        self._count_spin = QtWidgets.QSpinBox()
+        self._count_spin.setRange(1, 20)
+        self._count_spin.setValue(len(self.pages))
+        self._count_spin.valueChanged.connect(self._adjust_pages)
+        layout.addWidget(QtWidgets.QLabel("Number of pages:"))
+        layout.addWidget(self._count_spin)
+
+        self.tab_widget = QtWidgets.QTabWidget()
+        layout.addWidget(self.tab_widget)
+
+        btn_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Save
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        btn_box.accepted.connect(self._save_layout)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+        self._page_checks: dict[int, dict[str, QtWidgets.QCheckBox]] = {}
+        self._populate_tabs()
+
+    def _adjust_pages(self, count: int) -> None:
+        while len(self.pages) < count:
+            self.pages.append(["summary"])
+        while len(self.pages) > count:
+            self.pages.pop()
+        self._populate_tabs()
+
+    def _populate_tabs(self) -> None:
+        self.tab_widget.clear()
+        self._page_checks.clear()
+        for idx, items in enumerate(self.pages, start=1):
+            tab = QtWidgets.QWidget()
+            vbox = QtWidgets.QVBoxLayout(tab)
+            summary_cb = QtWidgets.QCheckBox("Summary (preview + figures)")
+            summary_cb.setObjectName("summary")
+            composition_cb = QtWidgets.QCheckBox("Army Composition")
+            composition_cb.setObjectName("army_composition")
+            summary_cb.setChecked("summary" in items)
+            composition_cb.setChecked("army_composition" in items)
+            vbox.addWidget(summary_cb)
+            vbox.addWidget(composition_cb)
+            vbox.addStretch(1)
+            self.tab_widget.addTab(tab, f"Page {idx}")
+            self._page_checks[idx - 1] = {
+                "summary": summary_cb,
+                "army_composition": composition_cb,
+            }
+
+    def _save_layout(self) -> None:
+        pages: list[list[str]] = []
+        for i in range(self.tab_widget.count()):
+            checks = self._page_checks.get(i, {})
+            items = [key for key, cb in checks.items() if cb.isChecked()]
+            pages.append(items)
+        save_pdf_layout(pages)
+        self.accept()
 
 class SkillParamEditor(QtWidgets.QWidget):
     """Widget providing spin boxes for configurable skill parameters."""
@@ -1386,11 +1489,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.toolbar = self._init_menu_toolbar()
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
+        self.pdf_layout = load_pdf_layout()
 
     def open_star_overlay_tuner(self) -> None:
         """Open the star overlay debug dialog."""
         dlg = StarOverlayDebugDialog(self)
         dlg.exec()
+
+    def open_pdf_layout_tool(self) -> None:
+        """Open the PDF layout configuration dialog."""
+        dlg = PDFLayoutDialog(self)
+        if dlg.exec():
+            self.pdf_layout = load_pdf_layout()
 
     def _init_menu_toolbar(self) -> QtWidgets.QToolBar:
         """Create the main toolbar."""
@@ -1423,6 +1533,9 @@ class MainWindow(QtWidgets.QMainWindow):
         export_summary_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+E"))
         export_summary_action.triggered.connect(self.export_summary_image)
 
+        export_pdf_action = QtGui.QAction("Export PDF", self)
+        export_pdf_action.triggered.connect(self.export_pdf)
+
         swap_action = QtGui.QAction("Swap Armies", self)
         swap_action.setShortcut(QtGui.QKeySequence("Ctrl+W"))
         swap_action.triggered.connect(self.swap_armies)
@@ -1449,6 +1562,7 @@ class MainWindow(QtWidgets.QMainWindow):
         export_menu.addAction(export_report_action)
         export_menu.addAction(export_fig_action)
         export_menu.addAction(export_summary_action)
+        export_menu.addAction(export_pdf_action)
         export_btn.setMenu(export_menu)
         export_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
         toolbar.addWidget(export_btn)
@@ -1462,6 +1576,9 @@ class MainWindow(QtWidgets.QMainWindow):
         debug_menu = self.menuBar().addMenu("Debug")
         star_action = debug_menu.addAction("Star Overlay Tuner")
         star_action.triggered.connect(self.open_star_overlay_tuner)
+
+        pdf_layout_action = debug_menu.addAction("PDF Layout Tool")
+        pdf_layout_action.triggered.connect(self.open_pdf_layout_tool)
 
         return toolbar
 
@@ -1719,6 +1836,218 @@ class MainWindow(QtWidgets.QMainWindow):
                 self, "Export Complete", f"Figures exported to {dest_dir}"
             )
 
+    def render_summary_pixmap(self, with_background: bool = True) -> QtGui.QPixmap | None:
+        """Render the summary image and return it as a pixmap."""
+
+        def make_transparent(
+            pix: QtGui.QPixmap, bg_color: QtGui.QColor | None = None
+        ) -> QtGui.QPixmap:
+            fmt_obj = getattr(QtGui.QImage, "Format", None)
+            if fmt_obj is not None and hasattr(fmt_obj, "Format_ARGB32"):
+                fmt = fmt_obj.Format_ARGB32
+            else:
+                fmt = QtGui.QImage.Format_ARGB32
+            image = pix.toImage().convertToFormat(fmt)
+            ptr = image.bits()
+            ptr.setsize(image.width() * image.height() * 4)
+            arr = np.frombuffer(ptr, dtype=np.uint8).reshape(
+                image.height(), image.width(), 4
+            )
+            if bg_color is None:
+                bg_color = arr[0, 0, :3].copy()
+            else:
+                bg_color = np.array(
+                    [bg_color.red(), bg_color.green(), bg_color.blue()],
+                    dtype=np.uint8,
+                )
+            rgb = arr[:, :, :3].astype(np.int16)
+            diff = np.abs(rgb - bg_color.astype(np.int16))
+            mask = (diff <= 2).all(axis=-1)
+            arr[mask, 3] = 0
+            return QtGui.QPixmap.fromImage(image)
+
+        image_files = [
+            "own_remaining_troops.png",
+            "enemy_remaining_troops.png",
+            "rounds_to_battle_end.png",
+            "victory_distribution.png",
+        ]
+        base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+        hist_pixmaps = []
+        for fname in image_files:
+            path = os.path.join(base_hist_dir, fname)
+            if os.path.exists(path):
+                pm = QtGui.QPixmap(path)
+                pm = make_transparent(pm)
+                hist_pixmaps.append(pm)
+        if not hist_pixmaps:
+            return None
+
+        scale = 5
+        p1 = self.army1_frame.preview_widget.grab().scaled(
+            self.army1_frame.preview_widget.width() * scale,
+            self.army1_frame.preview_widget.height() * scale,
+            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+            QtCore.Qt.TransformationMode.SmoothTransformation,
+        )
+        p1 = make_transparent(p1)
+        p2 = self.army2_frame.preview_widget.grab().scaled(
+            self.army2_frame.preview_widget.width() * scale,
+            self.army2_frame.preview_widget.height() * scale,
+            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+            QtCore.Qt.TransformationMode.SmoothTransformation,
+        )
+        p2 = make_transparent(p2)
+        vs_pix = self.vs_label.pixmap()
+        if vs_pix is not None and not vs_pix.isNull():
+            vs_pix = vs_pix.scaled(
+                vs_pix.width() * scale,
+                vs_pix.height() * scale,
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+            vs_pix = make_transparent(vs_pix)
+            preview_parts = [p1, vs_pix, p2]
+        else:
+            preview_parts = [p1, p2]
+
+        if len(preview_parts) == 3:
+            padding = vs_pix.width() // 2
+            extra_after_vs = 300
+            left_space = p1.width() + padding
+            right_space = p2.width() + padding + extra_after_vs
+            half_width = max(left_space, right_space)
+            preview_width = vs_pix.width() + 2 * half_width
+            preview_height = max(p.height() for p in preview_parts)
+            preview_pix = QtGui.QPixmap(preview_width, preview_height)
+            preview_pix.fill(QtCore.Qt.GlobalColor.transparent)
+            painter = QtGui.QPainter(preview_pix)
+            vs_x = (preview_width - vs_pix.width()) // 2
+            vs_y = (preview_height - vs_pix.height()) // 2
+            p1_x = vs_x - p1.width() - padding
+            p1_y = (preview_height - p1.height()) // 2
+            p2_x = vs_x + vs_pix.width() + padding + extra_after_vs - p2.width()
+            p2_y = (preview_height - p2.height()) // 2
+            painter.drawPixmap(p1_x, p1_y, p1)
+            painter.drawPixmap(vs_x, vs_y, vs_pix)
+            painter.drawPixmap(p2_x, p2_y, p2)
+            painter.end()
+        else:
+            preview_width = sum(p.width() for p in preview_parts)
+            preview_height = max(p.height() for p in preview_parts)
+            preview_pix = QtGui.QPixmap(preview_width, preview_height)
+            preview_pix.fill(QtCore.Qt.GlobalColor.transparent)
+            painter = QtGui.QPainter(preview_pix)
+            x = 0
+            for p in preview_parts:
+                painter.drawPixmap(x, (preview_height - p.height()) // 2, p)
+                x += p.width()
+            painter.end()
+
+        legend_height = 400
+        preview_with_key = QtGui.QPixmap(
+            preview_pix.width(), preview_pix.height() + legend_height
+        )
+        preview_with_key.fill(QtCore.Qt.GlobalColor.transparent)
+        painter = QtGui.QPainter(preview_with_key)
+        painter.drawPixmap(0, 0, preview_pix)
+        painter.setPen(QtGui.QColor("white"))
+        small_font = QtGui.QFont("Times New Roman", 160)
+        painter.setFont(small_font)
+        fm = painter.fontMetrics()
+        margin = 100
+        names = [
+            self.army1_frame.name_edit.text() or "Army 1",
+            self.army2_frame.name_edit.text() or "Army 2",
+        ]
+        for i, name in enumerate(names):
+            text_y = preview_pix.height() + fm.ascent() + margin
+            text_x = (
+                margin
+                if i == 0
+                else preview_pix.width() - fm.horizontalAdvance(name) - margin
+            )
+            painter.drawText(text_x, text_y, name)
+        painter.end()
+        preview_pix = preview_with_key
+
+        final_width = max(preview_pix.width(), *(p.width() for p in hist_pixmaps))
+        final_height = preview_pix.height() + sum(p.height() for p in hist_pixmaps)
+        final_pix = QtGui.QPixmap(final_width, final_height)
+        if with_background:
+            painter = QtGui.QPainter(final_pix)
+            gradient = QtGui.QLinearGradient(0, 0, 0, final_height)
+            gradient.setColorAt(0, QtGui.QColor("#4a4a4a"))
+            gradient.setColorAt(1, QtGui.QColor("#1e1e1e"))
+            painter.fillRect(final_pix.rect(), gradient)
+        else:
+            final_pix.fill(QtCore.Qt.GlobalColor.transparent)
+
+        painter = QtGui.QPainter(final_pix)
+        x = (final_width - preview_pix.width()) // 2
+        painter.drawPixmap(x, 0, preview_pix)
+        y = preview_pix.height()
+        for p in hist_pixmaps:
+            x = (final_width - p.width()) // 2
+            painter.drawPixmap(x, y, p)
+            y += p.height()
+
+        if with_background:
+            painter.setPen(QtGui.QColor("white"))
+            weight_obj = getattr(QtGui.QFont, "Weight", None)
+            bold_weight = getattr(weight_obj, "Bold", None) if weight_obj is not None else None
+            if bold_weight is None:
+                bold_weight = getattr(QtGui.QFont, "Bold")
+            title_font = QtGui.QFont("Times New Roman", 240, bold_weight)
+            painter.setFont(title_font)
+            margin = 40
+            title_text = "Matchup Statistics"
+            fm = painter.fontMetrics()
+            title_width = fm.horizontalAdvance(title_text)
+            painter.save()
+            painter.translate(margin + fm.ascent(), (final_height + title_width) // 2)
+            painter.rotate(-90)
+            painter.drawText(0, 0, title_text)
+            painter.restore()
+            small_font = QtGui.QFont("Times New Roman", 160)
+            painter.setFont(small_font)
+            label = "OMNI"
+            fm = painter.fontMetrics()
+            x = final_width - fm.horizontalAdvance(label) - margin
+            y = final_height - fm.descent() - margin
+            painter.drawText(x, y, label)
+        painter.end()
+        return final_pix
+
+    def _render_army_composition_pixmap(self) -> QtGui.QPixmap:
+        cfgs = [self.army1_frame.build_config(), self.army2_frame.build_config()]
+        lines: list[str] = []
+        for idx, cfg in enumerate(cfgs, start=1):
+            lines.append(f"Army {idx}: {cfg['army_name']}")
+            lines.append(
+                f"  Unit: {cfg['unit_type']} T{cfg['tier']}  Count: {cfg['count']:,}")
+            lines.append(
+                f"  Atk/Def/HP mods: {cfg['atk_mod']:+.1f}/{cfg['def_mod']:+.1f}/{cfg['hp_mod']:+.1f}")
+            heroes = ", ".join(h.get("hero_name_or_preset", "") for h in cfg["heroes"]) or "None"
+            lines.append(f"  Heroes: {heroes}")
+            lines.append("")
+        font = QtGui.QFont("Times New Roman", 160)
+        fm = QtGui.QFontMetrics(font)
+        width = max(fm.horizontalAdvance(line) for line in lines)
+        height = fm.height() * len(lines)
+        margin = 80
+        pix = QtGui.QPixmap(width + margin * 2, height + margin * 2)
+        pix.fill(QtCore.Qt.GlobalColor.transparent)
+        painter = QtGui.QPainter(pix)
+        painter.setPen(QtGui.QColor("white"))
+        painter.setFont(font)
+        y = margin + fm.ascent()
+        for line in lines:
+            painter.drawText(margin, y, line)
+            y += fm.height()
+        painter.end()
+        return pix
+
     def export_summary_image(self) -> None:
         """Combine preview and histogram images into a single PNG."""
         def make_transparent(
@@ -1968,6 +2297,50 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         if save_path:
             final_pix.save(save_path, "PNG")
+
+    def export_pdf(self) -> None:
+        """Export a multi-page PDF using the configured layout."""
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Export PDF",
+            self.last_setup_dir,
+            "PDF Files (*.pdf)",
+        )
+        if not file_path:
+            return
+        writer = QtGui.QPdfWriter(file_path)
+        painter = QtGui.QPainter(writer)
+        for page_idx, items in enumerate(self.pdf_layout):
+            page_width = writer.width()
+            page_height = writer.height()
+            gradient = QtGui.QLinearGradient(0, 0, 0, page_height)
+            gradient.setColorAt(0, QtGui.QColor("#4a4a4a"))
+            gradient.setColorAt(1, QtGui.QColor("#1e1e1e"))
+            painter.fillRect(0, 0, page_width, page_height, gradient)
+            y = 0
+            for item in items:
+                if item == "summary":
+                    pix = self.render_summary_pixmap(with_background=False)
+                    if pix is None:
+                        continue
+                elif item == "army_composition":
+                    pix = self._render_army_composition_pixmap()
+                else:
+                    continue
+                if pix.width() > page_width:
+                    pix = pix.scaled(
+                        page_width,
+                        pix.height(),
+                        QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                        QtCore.Qt.TransformationMode.SmoothTransformation,
+                    )
+                x = (page_width - pix.width()) // 2
+                painter.drawPixmap(x, y, pix)
+                y += pix.height()
+            if page_idx < len(self.pdf_layout) - 1:
+                writer.newPage()
+        painter.end()
+        self.status.setText(f"PDF exported to {os.path.basename(file_path)}")
 
     # --- Simulation handling --------------------------------------------
     def run_simulation(self) -> None:

@@ -49,6 +49,33 @@ army preview along with all histograms.
 You will be prompted to create a new setup or load a saved one from the
 `vr_game_sim/setups` directory. Setups can be saved as JSON files for later use.
 
+## Multi-army battlefield
+
+Besides the traditional duel simulator, the project now offers a
+hex-grid battlefield where more than two armies can manoeuvre and clash.
+
+Use the simple text interface to experiment with movement and combat:
+
+```bash
+python -m vr_game_sim.multi_cli
+```
+
+Commands allow armies to move across the map, advance rounds and display the
+current field state. Attempting to enter a tile occupied by another army
+triggers the existing 1v1 combat simulator while both forces remain on adjacent
+hexes.
+
+Within the graphical interface a dedicated **Battlefield** tab renders a rectangular
+hexagonal grid that fills the tab without scrollbars. Each army is represented by its main
+hero portrait with a smaller secondary hero icon tucked into the bottom‑right; armies without
+heroes fall back to a simple initial letter. Armies march toward a dragged destination at one
+hex per second using the shortest hex path and battles also play out in real time – a 30‑round duel occupies the armies for
+30 seconds before the result is applied. Each army marker also shows a white bar indicating remaining troops that grows or shrinks with losses and reinforcements. Double‑click a marker to open a dedicated configuration
+dialog for that battlefield army so changes do not affect the duel tab. Use the mouse wheel to
+zoom the map. Dragging an army onto an occupied tile triggers combat but the units remain on
+adjacent cells while the duel resolves. A **Reset from Setup** button reloads a fresh copy of the
+armies defined in the **Army Setup** tab.
+
 ### Non-interactive mode
 
 You can bypass the interactive prompts by providing the `--setup` option with a

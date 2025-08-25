@@ -11,8 +11,9 @@ class ArenaSimulator:
 
     Both attackers and defenders can field armies on their own two column by
     four row grid.  Columns represent the front and back ranks while rows are
-    lanes from top to bottom.  Engagement order iterates lanes from front to
-    back and prioritises the front column within each lane.
+    lanes from top to bottom.  In contrast to the previous sequential
+    implementation, all available armies engage their targets **simultaneously**
+    each round.  A round therefore represents one wave of pairwise battles.
 
     Target selection favours enemies in the same lane as the attacker.  If the
     lane is empty, columns are inspected by proximity starting with the
@@ -57,29 +58,13 @@ class ArenaSimulator:
         self.round: int = 0
         self.winner: Optional[int] = None
 
-        # Internal index for cycling through grid positions in the desired
-        # attacker order (front lanes first).
-        self._order_index: int = 0
-
     def _position_order(self) -> List[Tuple[int, int]]:
-        """Return attacker positions in row-major order, front column first."""
+        """Return grid positions in row-major order, front column first."""
         order: List[Tuple[int, int]] = []
         for row in range(self.GRID_ROWS):
             for col in range(self.GRID_COLS):
                 order.append((col, row))
         return order
-
-    def _next_attacker_pos(self) -> Optional[Tuple[int, int]]:
-        """Return the next position from side1 that should initiate a battle."""
-        order = self._position_order()
-        searched = 0
-        while searched < len(order):
-            pos = order[self._order_index]
-            self._order_index = (self._order_index + 1) % len(order)
-            if pos in self.armies_side1:
-                return pos
-            searched += 1
-        return None
 
     def _select_target(
         self, pos: Tuple[int, int], enemies: Dict[Tuple[int, int], Army]
@@ -110,11 +95,13 @@ class ArenaSimulator:
         return None
 
     def simulate_battle(self) -> Dict[str, Dict[Tuple[int, int], float]]:
-        """Run sequential battles until one side runs out of armies.
+        """Run waves of simultaneous battles until one side runs out of armies.
 
-        Each fight is resolved using ``GameSimulator``. The winning army keeps its
-        remaining troops and may fight again if opponents remain. The function
-        returns a mapping of surviving troops per position for both sides.
+        Each round all available armies choose targets according to the arena
+        targeting rules.  Paired armies fight concurrently using
+        ``GameSimulator``. The winning army in each pair keeps its remaining
+        troops and may fight again in subsequent rounds. The function returns a
+        mapping of surviving troops per position for both sides.
         """
         # Ensure armies start fresh
         for army in list(self.armies_side1.values()) + list(self.armies_side2.values()):
@@ -122,28 +109,51 @@ class ArenaSimulator:
 
         while self.armies_side1 and self.armies_side2:
             self.round += 1
-            pos1 = self._next_attacker_pos()
-            if pos1 is None:
+
+            # Determine pairings for this round. Each army can participate at most
+            # once per round to model simultaneous engagements.
+            available1 = set(self.armies_side1.keys())
+            available2 = set(self.armies_side2.keys())
+            pairs: List[Tuple[Tuple[int, int], Tuple[int, int]]] = []
+
+            order = self._position_order()
+
+            for pos1 in order:
+                if pos1 not in available1:
+                    continue
+                target = self._select_target(pos1, {p: self.armies_side2[p] for p in available2})
+                if target is not None:
+                    pairs.append((pos1, target))
+                    available1.remove(pos1)
+                    available2.remove(target)
+
+            for pos2 in order:
+                if pos2 not in available2:
+                    continue
+                target = self._select_target(pos2, {p: self.armies_side1[p] for p in available1})
+                if target is not None:
+                    pairs.append((target, pos2))
+                    available1.remove(target)
+                    available2.remove(pos2)
+
+            if not pairs:
                 break
-            army1 = self.armies_side1[pos1]
-            if pos1 in self.armies_side2:
-                target_pos = pos1
-            else:
-                target_pos = self._select_target(pos1, self.armies_side2)
-            if target_pos is None:
-                break
-            army2 = self.armies_side2[target_pos]
-            sim = GameSimulator(army1, army2, track_stats=False)
-            sim.simulate_battle()
-            if army1.current_troop_count > 0 and army2.current_troop_count <= 0:
-                army1.unit.initial_count = army1.current_troop_count
-                del self.armies_side2[target_pos]
-            elif army2.current_troop_count > 0 and army1.current_troop_count <= 0:
-                army2.unit.initial_count = army2.current_troop_count
-                del self.armies_side1[pos1]
-            else:
-                del self.armies_side1[pos1]
-                del self.armies_side2[target_pos]
+
+            # Resolve all battles for the current round
+            for pos1, pos2 in pairs:
+                army1 = self.armies_side1[pos1]
+                army2 = self.armies_side2[pos2]
+                sim = GameSimulator(army1, army2, track_stats=False)
+                sim.simulate_battle()
+                if army1.current_troop_count > 0 and army2.current_troop_count <= 0:
+                    army1.unit.initial_count = army1.current_troop_count
+                    del self.armies_side2[pos2]
+                elif army2.current_troop_count > 0 and army1.current_troop_count <= 0:
+                    army2.unit.initial_count = army2.current_troop_count
+                    del self.armies_side1[pos1]
+                else:
+                    del self.armies_side1[pos1]
+                    del self.armies_side2[pos2]
 
         if self.armies_side1 and not self.armies_side2:
             self.winner = 1

@@ -109,3 +109,15 @@ def test_reactive_trigger_random_choice_when_no_target():
     random.seed(0)
     chosen = ArenaSimulator.choose_reactive_trigger([atk1, atk2], defender_target=None)
     assert chosen is atk2
+
+
+def test_battles_resolve_simultaneously():
+    """Armies on different lanes should engage in the same round."""
+    a1 = make_army("A1", (0, 0), count=100)
+    a2 = make_army("A2", (0, 1), count=100)
+    b1 = make_army("B1", (0, 0), count=100)
+    b2 = make_army("B2", (0, 1), count=100)
+    sim = ArenaSimulator([a1, a2], [b1, b2])
+    sim.simulate_battle()
+    # Both lane battles should resolve in a single round
+    assert sim.round == 1

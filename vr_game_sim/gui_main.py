@@ -1780,7 +1780,13 @@ class SlowSimTab(QtWidgets.QWidget):
             path = os.path.join(base_path, f"{name}.png")
             if os.path.exists(path):
                 return QtGui.QPixmap(path)
-            return QtGui.QPixmap(self.CELL_SIZE, self.CELL_SIZE)
+            # If an image is missing create a placeholder pixmap filled with a
+            # solid colour.  Without an explicit fill Qt may display
+            # uninitialised memory which appears as a "corrupted" texture in
+            # the view.
+            placeholder = QtGui.QPixmap(self.CELL_SIZE, self.CELL_SIZE)
+            placeholder.fill(QtGui.QColor("black"))
+            return placeholder
 
         pix1 = _load(hero1).scaled(
             self.CELL_SIZE,

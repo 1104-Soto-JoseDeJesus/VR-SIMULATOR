@@ -6,10 +6,16 @@ from .game_simulator import GameSimulator
 
 
 class ArenaSimulator:
-    """Simple arena simulator supporting up to 5 marches per side on a 2x4 grid."""
+    """Arena battles on a 2x4 grid with two rows per side.
 
-    GRID_COLS = 2
-    GRID_ROWS = 4
+    The grid is four columns wide and two rows deep (front and back).  Each
+    slot can hold one :class:`Army`.  Engagement order prioritises the front row
+    from left to right, then the back row.  After all slots have acted once, the
+    cycle repeats with any surviving armies, again starting from the front row.
+    """
+
+    GRID_COLS = 4
+    GRID_ROWS = 2
 
     def __init__(self, armies_side1: List[Army], armies_side2: List[Army]):
         # Store armies keyed by their (col, row) position
@@ -21,6 +27,31 @@ class ArenaSimulator:
         }
         self.round: int = 0
         self.winner: Optional[int] = None
+
+        # Internal index for cycling through grid positions in the desired
+        # targeting order (front row across, then back row).
+        self._order_index: int = 0
+
+    def _position_order(self) -> List[Tuple[int, int]]:
+        """Return positions in targeting order: front row left-to-right then back row."""
+        order: List[Tuple[int, int]] = []
+        for col in range(self.GRID_COLS):
+            order.append((col, 0))
+        for col in range(self.GRID_COLS):
+            order.append((col, 1))
+        return order
+
+    def _next_attacker_pos(self) -> Optional[Tuple[int, int]]:
+        """Return the next position from side1 that should initiate a battle."""
+        order = self._position_order()
+        searched = 0
+        while searched < len(order):
+            pos = order[self._order_index]
+            self._order_index = (self._order_index + 1) % len(order)
+            if pos in self.armies_side1:
+                return pos
+            searched += 1
+        return None
 
     def _find_nearest_enemy(
         self, pos: Tuple[int, int], enemies: Dict[Tuple[int, int], Army]
@@ -48,7 +79,10 @@ class ArenaSimulator:
 
         while self.armies_side1 and self.armies_side2:
             self.round += 1
-            pos1, army1 = next(iter(self.armies_side1.items()))
+            pos1 = self._next_attacker_pos()
+            if pos1 is None:
+                break
+            army1 = self.armies_side1[pos1]
             if pos1 in self.armies_side2:
                 target_pos = pos1
             else:

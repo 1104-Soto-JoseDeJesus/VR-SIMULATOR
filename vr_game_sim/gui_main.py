@@ -1770,7 +1770,6 @@ class SlowSimTab(QtWidgets.QWidget):
         self.events: list[dict] = []
         self.current_event = -1
         self.current_round = 0
-        self.anim_state = 0
         self.attacker_item = None
         self.defender_item = None
 
@@ -1893,14 +1892,7 @@ class SlowSimTab(QtWidgets.QWidget):
         def_pos = event["defender_pos"]
         self.attacker_item = self.army_items.get(("side1", atk_pos[0], atk_pos[1]))
         self.defender_item = self.army_items.get(("side2", def_pos[0], def_pos[1]))
-        self.atk_orig = self.attacker_item.pos()
-        self.def_orig = self.defender_item.pos()
-        self.meet_pos = QtCore.QPointF(
-            (self.atk_orig.x() + self.def_orig.x()) / 2,
-            (self.atk_orig.y() + self.def_orig.y()) / 2,
-        )
         self.current_round = 0
-        self.anim_state = 0
         self.timer.start(500)
 
     def _anim_step(self) -> None:
@@ -1908,28 +1900,21 @@ class SlowSimTab(QtWidgets.QWidget):
             self.timer.stop()
             return
         event = self.events[self.current_event]
-        if self.anim_state == 0:
-            self.attacker_item.setPos(self.meet_pos)
-            self.defender_item.setPos(self.meet_pos)
-            self.anim_state = 1
-        else:
-            self.attacker_item.setPos(self.atk_orig)
-            self.defender_item.setPos(self.def_orig)
-            self.anim_state = 0
-            self.current_round += 1
-            if self.current_round >= max(1, event["rounds"]):
-                self.timer.stop()
-                winner = event["winner"]
-                if winner == 1 and self.defender_item is not None:
-                    self.scene.removeItem(self.defender_item)
-                elif winner == 2 and self.attacker_item is not None:
+        # Animation temporarily disabled: advance rounds without moving items.
+        self.current_round += 1
+        if self.current_round >= max(1, event["rounds"]):
+            self.timer.stop()
+            winner = event["winner"]
+            if winner == 1 and self.defender_item is not None:
+                self.scene.removeItem(self.defender_item)
+            elif winner == 2 and self.attacker_item is not None:
+                self.scene.removeItem(self.attacker_item)
+            else:
+                if self.attacker_item is not None:
                     self.scene.removeItem(self.attacker_item)
-                else:
-                    if self.attacker_item is not None:
-                        self.scene.removeItem(self.attacker_item)
-                    if self.defender_item is not None:
-                        self.scene.removeItem(self.defender_item)
-                self._next_event()
+                if self.defender_item is not None:
+                    self.scene.removeItem(self.defender_item)
+            self._next_event()
 
 
 class MainWindow(QtWidgets.QMainWindow):

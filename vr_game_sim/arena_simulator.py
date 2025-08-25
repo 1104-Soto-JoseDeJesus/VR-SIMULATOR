@@ -115,11 +115,13 @@ class ArenaSimulator:
     def simulate_battle(self) -> Dict[str, Dict[Tuple[int, int], float]]:
         """Simulate the arena until one side is eliminated.
 
-        Armies attack in a deterministic row-major order.  Within a round each
-        surviving army may pick any enemy based on the targeting rules.  Several
-        armies can therefore concentrate on the same opponent during the same
-        round.  Battles are resolved immediately and the resulting troop counts
-        are committed before the next engagement of the round.
+        Each battle round is resolved concurrently: all surviving armies pick
+        their targets based on the starting snapshot of that round.  Every
+        attacker/defender pair is then simulated on deep copies and the losses
+        for both armies are recorded.  Only after all engagements have been
+        processed are the aggregated losses applied to the live armies.  This
+        models a fully open battlefield where damage from multiple attackers is
+        combined before any army is removed.
         """
 
         for army in list(self.armies_side1.values()) + list(self.armies_side2.values()):
@@ -127,61 +129,76 @@ class ArenaSimulator:
 
         while self.armies_side1 and self.armies_side2:
             self.round += 1
+
+            # Determine all attack plans for this round using a snapshot of the
+            # current battlefield.  No army state is modified until all
+            # engagements are processed.
+            plans: List[Tuple[int, Tuple[int, int], Tuple[int, int]]] = []
+            snapshot1 = self.armies_side1.copy()
+            snapshot2 = self.armies_side2.copy()
+
+            for pos in self._position_order():
+                if pos in snapshot1:
+                    target = self._select_target(pos, snapshot2)
+                    if target is not None:
+                        plans.append((1, pos, target))
+            for pos in self._position_order():
+                if pos in snapshot2:
+                    target = self._select_target(pos, snapshot1)
+                    if target is not None:
+                        plans.append((2, pos, target))
+
+            if not plans:
+                break
+
             round_buffer: List[Tuple[Tuple[int, int], Tuple[int, int], float, float]] = []
+            losses1: Dict[Tuple[int, int], float] = {}
+            losses2: Dict[Tuple[int, int], float] = {}
 
-            # Side 1 attacks in row-major order
-            for pos1 in self._position_order():
-                if pos1 not in self.armies_side1 or not self.armies_side2:
+            # Resolve each engagement on copies and accumulate troop losses.
+            for side, apos, dpos in plans:
+                if side == 1:
+                    atk = self.armies_side1.get(apos)
+                    defender = self.armies_side2.get(dpos)
+                else:
+                    atk = self.armies_side2.get(apos)
+                    defender = self.armies_side1.get(dpos)
+                if atk is None or defender is None:
                     continue
-                target_pos = self._select_target(pos1, self.armies_side2)
-                if target_pos is None:
-                    continue
-                army1 = self.armies_side1.get(pos1)
-                army2 = self.armies_side2.get(target_pos)
-                if army1 is None or army2 is None:
-                    continue
-                army1_copy = copy.deepcopy(army1)
-                army2_copy = copy.deepcopy(army2)
-                sim = GameSimulator(army1_copy, army2_copy, track_stats=False)
+                atk_copy = copy.deepcopy(atk)
+                def_copy = copy.deepcopy(defender)
+                sim = GameSimulator(atk_copy, def_copy, track_stats=False)
                 sim.simulate_battle()
-                army1.current_troop_count = army1_copy.current_troop_count
-                if army1.current_troop_count > 0:
-                    army1.unit.initial_count = army1.current_troop_count
-                else:
-                    del self.armies_side1[pos1]
-                army2.current_troop_count = army2_copy.current_troop_count
-                if army2.current_troop_count > 0:
-                    army2.unit.initial_count = army2.current_troop_count
-                else:
-                    del self.armies_side2[target_pos]
-                round_buffer.append((pos1, target_pos, army1_copy.current_troop_count, army2_copy.current_troop_count))
 
-            # Side 2 attacks in row-major order with updated army states
-            for pos2 in self._position_order():
-                if pos2 not in self.armies_side2 or not self.armies_side1:
-                    continue
-                target_pos = self._select_target(pos2, self.armies_side1)
-                if target_pos is None:
-                    continue
-                army2 = self.armies_side2.get(pos2)
-                army1 = self.armies_side1.get(target_pos)
-                if army2 is None or army1 is None:
-                    continue
-                army1_copy = copy.deepcopy(army1)
-                army2_copy = copy.deepcopy(army2)
-                sim = GameSimulator(army1_copy, army2_copy, track_stats=False)
-                sim.simulate_battle()
-                army2.current_troop_count = army2_copy.current_troop_count
-                if army2.current_troop_count > 0:
-                    army2.unit.initial_count = army2.current_troop_count
+                atk_loss = max(0.0, atk.current_troop_count - atk_copy.current_troop_count)
+                def_loss = max(0.0, defender.current_troop_count - def_copy.current_troop_count)
+                if side == 1:
+                    losses1[apos] = losses1.get(apos, 0.0) + atk_loss
+                    losses2[dpos] = losses2.get(dpos, 0.0) + def_loss
                 else:
-                    del self.armies_side2[pos2]
-                army1.current_troop_count = army1_copy.current_troop_count
-                if army1.current_troop_count > 0:
-                    army1.unit.initial_count = army1.current_troop_count
+                    losses2[apos] = losses2.get(apos, 0.0) + atk_loss
+                    losses1[dpos] = losses1.get(dpos, 0.0) + def_loss
+                round_buffer.append((apos, dpos, atk_copy.current_troop_count, def_copy.current_troop_count))
+
+            # Apply the accumulated losses to the live armies simultaneously.
+            for pos, loss in losses1.items():
+                army = self.armies_side1.get(pos)
+                if army is None:
+                    continue
+                army.current_troop_count = max(0.0, army.current_troop_count - loss)
+                if army.current_troop_count > 0:
+                    army.unit.initial_count = army.current_troop_count
                 else:
-                    del self.armies_side1[target_pos]
-                round_buffer.append((target_pos, pos2, army1_copy.current_troop_count, army2_copy.current_troop_count))
+                    del self.armies_side1[pos]
+            for pos, loss in losses2.items():
+                army = self.armies_side2.get(pos)
+                if army is None:
+                    continue
+                army.current_troop_count = max(0.0, army.current_troop_count - loss)
+                if army.current_troop_count > 0:
+                    army.unit.initial_count = army.current_troop_count
+                else:
+                    del self.armies_side2[pos]
 
             self.last_round_buffer = round_buffer
 

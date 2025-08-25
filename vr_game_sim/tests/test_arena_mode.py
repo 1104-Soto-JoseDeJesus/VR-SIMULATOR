@@ -71,3 +71,13 @@ def test_serialization_roundtrip(tmp_path):
     armies1, armies2 = create_armies_from_data(loaded)
     assert armies1[0].position == (0, 0)
     assert armies2[0].position == (1, 0)
+
+
+def test_front_row_prioritized_over_back_row():
+    front = make_army("Front", (0, 0), count=150)
+    back = make_army("Back", (1, 1), count=50)
+    enemy = make_army("Enemy", (0, 0), count=100)
+    sim = ArenaSimulator([front, back], [enemy])
+    sim.simulate_battle()
+    assert back.current_troop_count == 50
+    assert sim.winner == 1

@@ -101,11 +101,12 @@ def input_float(prompt: str, default: Optional[float] = None) -> float:
 def prompt_grid_position(used_positions: set[Tuple[int, int]]) -> Tuple[int, int]:
     """Prompt the user for a grid position within the 2x4 arena.
 
-    Ensures the chosen slot is not already occupied.
+    The arena has four columns (0-3) and two rows (0-1). Ensures the chosen slot
+    is not already occupied.
     """
     while True:
-        col = input_int("  Enter column (0-1)", 0, 1)
-        row = input_int("  Enter row (0-3)", 0, 3)
+        col = input_int("  Enter column (0-3)", 0, 3)
+        row = input_int("  Enter row (0-1)", 0, 1)
         pos = (col, row)
         if pos not in used_positions:
             used_positions.add(pos)

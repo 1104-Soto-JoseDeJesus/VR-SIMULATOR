@@ -1,0 +1,90 @@
+[
+    {
+        "army_name": "Laird/Helgar",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 300000,
+        "atk_mod": 2.5,
+        "def_mod": 2.5,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.6000000000000001,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Laird",
+                "talent_ids": [
+                    "talent_holy_shield",
+                    "talent_sacred_counter",
+                    "talent_divine_resistance"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flame_guardian",
+                    "base_skill_sacred_blade"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_shield_reflector",
+                    "plugin_retaliate"
+                ]
+            },
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_shield_support",
+                    "plugin_baldr_blessing"
+                ]
+            }
+        ]
+    },
+    {
+        "army_name": "Yvette/Helgar",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 300000,
+        "atk_mod": 2.5,
+        "def_mod": 2.5,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.6000000000000001,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Yvette",
+                "talent_ids": [
+                    "talent_healing_chords",
+                    "talent_healing_hymn",
+                    "talent_horn_of_countering"
+                ],
+                "base_skill_ids": [
+                    "base_skill_sanctity_of_life",
+                    "base_skill_vital_blessing"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_baldr_blessing",
+                    "plugin_awakening"
+                ]
+            },
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_hymn_of_life",
+                    "plugin_freyas_blessing"
+                ]
+            }
+        ]
+    }
+]

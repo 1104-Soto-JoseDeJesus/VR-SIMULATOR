@@ -1,113 +1,89 @@
 [
     {
-        "army_name": "Bjorn/Gregory",
-        "unit_type": "infantry",
-        "tier": 5,
+        "army_name": "Laird/Helgar",
+        "unit_type": "pikemen",
+        "tier": 7,
         "count": 300000,
-        "atk_mod": 1.5,
-        "def_mod": 1.5,
-        "hp_mod": 0.5,
-        "unrevivable_ratio": 0.5,
+        "atk_mod": 2.5,
+        "def_mod": 2.5,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.6000000000000001,
         "heroes": [
             {
-                "hero_name_or_preset": "Bjorn",
+                "hero_name_or_preset": "Laird",
                 "talent_ids": [
-                    "talent_trained_up",
-                    "",
-                    ""
+                    "talent_holy_shield",
+                    "talent_sacred_counter",
+                    "talent_divine_resistance"
                 ],
                 "base_skill_ids": [
-                    "base_skill_crippling_pursuit",
-                    "base_skill_lethal_fracture"
+                    "base_skill_flame_guardian",
+                    "base_skill_sacred_blade"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_enrage",
-                    "plugin_breaking_free"
-                ],
-                "skill_overrides": {
-                    "base_skill_lethal_fracture": {
-                        "config": {
-                            "damage_factor": 1700.0,
-                            "attack_buff": 0.1
-                        }
-                    }
-                }
+                    "plugin_shield_reflector",
+                    "plugin_retaliate"
+                ]
             },
             {
-                "hero_name_or_preset": "Gregory",
+                "hero_name_or_preset": "Helgar",
                 "talent_ids": [
-                    "talent_great_morale",
-                    "talent_missing_beat",
-                    ""
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
                 ],
                 "base_skill_ids": [
-                    "base_skill_drumming_disturbance",
-                    "base_skill_inspiring_dance"
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_thors_determination",
-                    "plugin_divine_blessing"
-                ],
-                "skill_overrides": {
-                    "base_skill_inspiring_dance": {
-                        "config": {
-                            "bleed_factor": 300.0
-                        }
-                    }
-                }
+                    "plugin_shield_support",
+                    "plugin_baldr_blessing"
+                ]
             }
         ]
     },
     {
-        "army_name": "Jens/Gregory",
-        "unit_type": "infantry",
-        "tier": 5,
+        "army_name": "Yvette/Helgar",
+        "unit_type": "pikemen",
+        "tier": 7,
         "count": 300000,
-        "atk_mod": 1.5,
-        "def_mod": 1.5,
-        "hp_mod": 0.5,
-        "unrevivable_ratio": 0.5,
+        "atk_mod": 2.5,
+        "def_mod": 2.5,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.6000000000000001,
         "heroes": [
             {
-                "hero_name_or_preset": "Jens",
+                "hero_name_or_preset": "Yvette",
                 "talent_ids": [
-                    "talent_godly_wrath",
-                    "talent_divine_blite",
-                    ""
+                    "talent_healing_chords",
+                    "talent_healing_hymn",
+                    "talent_horn_of_countering"
                 ],
                 "base_skill_ids": [
-                    "base_skill_divine_energize",
-                    "base_skill_heavenly_descent"
+                    "base_skill_sanctity_of_life",
+                    "base_skill_vital_blessing"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_enrage",
-                    "plugin_breaking_free"
-                ],
-                "skill_overrides": {
-                    "base_skill_heavenly_descent": {
-                        "config": {
-                            "damage_factor": 600.0,
-                            "vulnerability_magnitude": 0.075
-                        }
-                    }
-                }
+                    "plugin_baldr_blessing",
+                    "plugin_awakening"
+                ]
             },
             {
-                "hero_name_or_preset": "Gregory",
+                "hero_name_or_preset": "Helgar",
                 "talent_ids": [
-                    "talent_great_morale",
-                    "talent_missing_beat",
-                    "talent_excite"
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
                 ],
                 "base_skill_ids": [
-                    "base_skill_drumming_disturbance",
-                    "base_skill_inspiring_dance"
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_thors_determination",
-                    "plugin_divine_blessing"
-                ],
-                "skill_overrides": {}
+                    "plugin_hymn_of_life",
+                    "plugin_freyas_blessing"
+                ]
             }
         ]
     }

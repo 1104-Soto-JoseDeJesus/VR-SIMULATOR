@@ -1,4 +1,6 @@
 # === File: army_composition.py ===
+from __future__ import annotations
+
 import uuid
 import random
 from dataclasses import dataclass, field
@@ -34,6 +36,8 @@ from .constants import (
     EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
 )
 
+from .battlefield import Battlefield, step_towards
+
 GameSimulatorRef = "GameSimulator"  # Forward reference
 
 
@@ -44,6 +48,21 @@ class Army:
     heroes: List[Hero] = field(default_factory=list)
     unrevivable_ratio: float = 0.5
     simulator: Optional[GameSimulatorRef] = None
+
+    # Positioning and movement
+    x: int = 0
+    y: int = 0
+    movement_speed: int = 1
+    destination: Optional[Tuple[int, int]] = None
+
+    # Team affiliation and battle reporting
+    team: int = 0
+    battle_reports: List[str] = field(default_factory=list)
+    direct_target: Optional["Army"] = field(init=False, default=None)
+    attackers: List["Army"] = field(init=False, default_factory=list)
+
+    # Active duels reference for real-time battles (a defender may face multiple attackers)
+    active_duels: List["Duel"] = field(init=False, default_factory=list)
 
     current_troop_count: float = field(init=False, default=0.0)
     active_effects: List[EffectInstance] = field(init=False, default_factory=list)
@@ -84,6 +103,36 @@ class Army:
 
     def increment_skill_trigger_count(self, skill_id: str):
         self.skill_trigger_counts[skill_id] = self.skill_trigger_counts.get(skill_id, 0) + 1
+
+    # --- Movement helpers -------------------------------------------------
+    def set_destination(self, dest: Tuple[int, int]):
+        """Queue a destination for the army to march towards."""
+        self.destination = dest
+
+    def update_position(self, battlefield: "Battlefield"):
+        """Advance the army towards its destination within movement bounds."""
+        if not self.destination:
+            return
+
+        dest = self.destination
+        for _ in range(self.movement_speed):
+            if (self.x, self.y) == dest:
+                break
+            new_x, new_y = step_towards(battlefield, (self.x, self.y), dest)
+            if battlefield.within_bounds(new_x, new_y):
+                self.x, self.y = new_x, new_y
+            else:
+                break
+        if (self.x, self.y) == dest:
+            self.destination = None
+
+    # --- Battle result application ----------------------------------------
+    def apply_round_results(self, troop_delta: float, unrevivable_delta: float) -> None:
+        """Update troop counts using deltas from a duel round."""
+        self.current_troop_count += troop_delta
+        if self.current_troop_count < 0:
+            self.current_troop_count = 0
+        self.unrevivable_troops += unrevivable_delta
 
     def _identify_hero_rage_skills(self):
         self.hero1_rage_skill_id = None
@@ -815,6 +864,10 @@ class Army:
         self.rage_gained_history = []
         self.shield_hp_gained_this_round = 0.0
         self.rage_added_this_round = 0.0
+
+        self.direct_target = None
+        self.attackers.clear()
+        self.active_duels.clear()
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

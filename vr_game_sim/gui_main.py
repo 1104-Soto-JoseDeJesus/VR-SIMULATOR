@@ -1653,15 +1653,25 @@ def display_histograms(
     scroll.setWidget(frame)
 
 
-class ArenaSetupDialog(QtWidgets.QDialog):
-    """Dialog for configuring and simulating arena battles on two 2x4 grids."""
+class ArenaModeTab(QtWidgets.QWidget):
+    """Tab widget for configuring and simulating arena battles."""
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Arena Mode")
 
-        layout = QtWidgets.QVBoxLayout(self)
+        main_layout = QtWidgets.QVBoxLayout(self)
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        main_layout.addWidget(scroll)
+
+        frame = QtWidgets.QWidget()
+        scroll.setWidget(frame)
+        frame_layout = QtWidgets.QVBoxLayout(frame)
+
         grid_layout = QtWidgets.QGridLayout()
+        frame_layout.addLayout(grid_layout)
+
         self.side1_frames: list[list[ArmyFrame]] = []
         self.side2_frames: list[list[ArmyFrame]] = []
         idx = 1
@@ -1678,21 +1688,17 @@ class ArenaSetupDialog(QtWidgets.QDialog):
                 grid_layout.addWidget(f2, row, col + 2)
             self.side1_frames.append(row_frames1)
             self.side2_frames.append(row_frames2)
-        layout.addLayout(grid_layout)
 
         btn_layout = QtWidgets.QHBoxLayout()
+        frame_layout.addLayout(btn_layout)
         run_btn = QtWidgets.QPushButton("Simulate")
-        close_btn = QtWidgets.QPushButton("Close")
         run_btn.clicked.connect(self.run_simulation)
-        close_btn.clicked.connect(self.reject)
         btn_layout.addStretch(1)
         btn_layout.addWidget(run_btn)
-        btn_layout.addWidget(close_btn)
-        layout.addLayout(btn_layout)
 
         self.output = QtWidgets.QPlainTextEdit()
         self.output.setReadOnly(True)
-        layout.addWidget(self.output)
+        main_layout.addWidget(self.output)
 
     def _build_setup(self) -> dict:
         setup = {"side1": [], "side2": []}
@@ -1750,10 +1756,9 @@ class MainWindow(QtWidgets.QMainWindow):
         """Create the main toolbar."""
         toolbar = self.addToolBar("Actions")
 
-        # Toggle for Arena Mode for cleaner access
+        # Quick access to the Arena Mode tab
         self.arena_mode_action = QtGui.QAction("Arena Mode", self)
-        self.arena_mode_action.setCheckable(True)
-        self.arena_mode_action.triggered.connect(self._open_arena_dialog)
+        self.arena_mode_action.triggered.connect(self._open_arena_tab)
         toolbar.addAction(self.arena_mode_action)
 
         self.run_action = QtGui.QAction("Run Simulation", self)
@@ -1832,11 +1837,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         return toolbar
 
-    def _open_arena_dialog(self) -> None:
-        """Open the Arena Mode configuration dialog."""
-        dlg = ArenaSetupDialog(self)
-        dlg.exec()
-        self.arena_mode_action.setChecked(False)
+    def _open_arena_tab(self) -> None:
+        """Switch to the Arena Mode tab."""
+        self.tabs.setCurrentWidget(self.arena_tab)
 
     def _init_tabs(self) -> QtWidgets.QVBoxLayout:
         """Create the central widget and all tabs."""
@@ -1934,6 +1937,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hist_scroll.setWidgetResizable(True)
         self.hist_scroll.setWidget(self.hist_container)
         self.tabs.addTab(self.hist_scroll, "Figures")
+
+        # --- Arena Mode tab ---
+        self.arena_tab = ArenaModeTab()
+        self.tabs.addTab(self.arena_tab, "Arena Mode")
 
         return main_layout
 

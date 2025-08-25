@@ -713,8 +713,8 @@ def run_interactive_setup() -> List[Army]:
 def run_arena_setup_interactive() -> Dict[str, Any]:
     """Interactively build an arena setup for both sides."""
     print("\n=== Arena Setup ===")
-    march_count_side1 = input_int("Number of marches for Side 1", 1, 5, 1)
-    march_count_side2 = input_int("Number of marches for Side 2", 1, 5, 1)
+    march_count_side1 = input_int("Number of marches for Side 1", 1, 8, 1)
+    march_count_side2 = input_int("Number of marches for Side 2", 1, 8, 1)
     side1 = setup_armies_arena_interactive("Side1", march_count_side1)
     side2 = setup_armies_arena_interactive("Side2", march_count_side2)
     return {"side1": side1, "side2": side2}

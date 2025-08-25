@@ -1790,13 +1790,15 @@ class SlowSimTab(QtWidgets.QWidget):
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self._anim_step)
 
-        self.events: list[dict] = []
-        self.current_event = -1
-        self.current_round = 0
-        self.attacker_item = None
-        self.defender_item = None
-        self.attacker_bar = None
-        self.defender_bar = None
+        # ``rounds`` stores the list of simultaneous engagements for each
+        # battle round.  Each element is a list of event dicts describing the
+        # attacker, defender and their troop history.  During animation the
+        # events of a round are progressed concurrently so the entire battlefield
+        # updates in the same frame of time.
+        self.rounds: list[list[dict]] = []
+        self.current_round_index = -1
+        self.round_step = 0
+        self.current_round_events: list[dict] | None = None
 
     def clear(self) -> None:
         """Reset the scene and internal state."""
@@ -1804,13 +1806,10 @@ class SlowSimTab(QtWidgets.QWidget):
         self.scene.clear()
         self.army_items = {}
         self.army_bars = {}
-        self.events = []
-        self.current_event = -1
-        self.current_round = 0
-        self.attacker_item = None
-        self.defender_item = None
-        self.attacker_bar = None
-        self.defender_bar = None
+        self.rounds = []
+        self.current_round_index = -1
+        self.round_step = 0
+        self.current_round_events = None
 
     def _make_army_pixmap(self, hero1: str, hero2: str) -> QtGui.QPixmap:
         base_path = os.path.join(os.path.dirname(__file__), "Hero Images")
@@ -1894,7 +1893,7 @@ class SlowSimTab(QtWidgets.QWidget):
 
         armies1, armies2 = create_armies_from_data(setup)
         sim = ArenaSimulator(armies1, armies2)
-        self.events = []
+        self.rounds = []
 
         while sim.armies_side1 and sim.armies_side2:
             available1 = set(sim.armies_side1.keys())
@@ -1967,72 +1966,81 @@ class SlowSimTab(QtWidgets.QWidget):
                     else:
                         del sim.armies_side2[pos2]
 
-            self.events.extend(round_events)
+            self.rounds.append(round_events)
 
-        self.current_event = -1
-        self._next_event()
+        self.current_round_index = -1
+        self._next_round()
 
-    def _next_event(self) -> None:
-        self.current_event += 1
-        if self.current_event >= len(self.events):
+    def _next_round(self) -> None:
+        """Advance to the next round of simultaneous battles."""
+        self.current_round_index += 1
+        if self.current_round_index >= len(self.rounds):
             return
-        event = self.events[self.current_event]
-        atk_pos = event["attacker_pos"]
-        def_pos = event["defender_pos"]
-        self.attacker_item = self.army_items.get(("side1", atk_pos[0], atk_pos[1]))
-        self.defender_item = self.army_items.get(("side2", def_pos[0], def_pos[1]))
-        self.attacker_bar = self.army_bars.get(("side1", atk_pos[0], atk_pos[1]))
-        self.defender_bar = self.army_bars.get(("side2", def_pos[0], def_pos[1]))
-        self.current_round = 0
+        self.current_round_events = self.rounds[self.current_round_index]
+        self.round_step = 0
         self.timer.start(500)
 
     def _anim_step(self) -> None:
-        if self.attacker_item is None or self.defender_item is None:
+        if not self.current_round_events:
             self.timer.stop()
             return
-        event = self.events[self.current_event]
-        atk_pos = event["attacker_pos"]
-        def_pos = event["defender_pos"]
-        self.current_round += 1
 
-        atk_hist = event.get("atk_history", [])
-        def_hist = event.get("def_history", [])
-        if self.attacker_bar and atk_hist:
-            atk_max = max(atk_hist) or 1
-            idx = min(self.current_round, len(atk_hist) - 1)
-            self._set_bar(self.attacker_bar, atk_hist[idx], atk_max)
-        if self.defender_bar and def_hist:
-            def_max = max(def_hist) or 1
-            idx = min(self.current_round, len(def_hist) - 1)
-            self._set_bar(self.defender_bar, def_hist[idx], def_max)
+        self.round_step += 1
+        max_rounds = 0
+        for event in self.current_round_events:
+            atk_pos = event["attacker_pos"]
+            def_pos = event["defender_pos"]
+            atk_hist = event.get("atk_history", [])
+            def_hist = event.get("def_history", [])
+            max_rounds = max(max_rounds, event["rounds"])
 
-        if self.current_round >= max(1, event["rounds"]):
+            if atk_hist:
+                bar = self.army_bars.get(("side1", atk_pos[0], atk_pos[1]))
+                if bar is not None:
+                    atk_max = max(atk_hist) or 1
+                    idx = min(self.round_step, len(atk_hist) - 1)
+                    self._set_bar(bar, atk_hist[idx], atk_max)
+            if def_hist:
+                bar = self.army_bars.get(("side2", def_pos[0], def_pos[1]))
+                if bar is not None:
+                    def_max = max(def_hist) or 1
+                    idx = min(self.round_step, len(def_hist) - 1)
+                    self._set_bar(bar, def_hist[idx], def_max)
+
+        if self.round_step >= max(1, max_rounds):
             self.timer.stop()
-            winner = event["winner"]
-            if winner == 1:
-                if self.defender_item is not None:
-                    self.scene.removeItem(self.defender_item)
-                if self.defender_bar is not None:
-                    self.scene.removeItem(self.defender_bar)
-                    self.army_bars.pop(("side2", def_pos[0], def_pos[1]), None)
-            elif winner == 2:
-                if self.attacker_item is not None:
-                    self.scene.removeItem(self.attacker_item)
-                if self.attacker_bar is not None:
-                    self.scene.removeItem(self.attacker_bar)
-                    self.army_bars.pop(("side1", atk_pos[0], atk_pos[1]), None)
-            else:
-                if self.attacker_item is not None:
-                    self.scene.removeItem(self.attacker_item)
-                if self.defender_item is not None:
-                    self.scene.removeItem(self.defender_item)
-                if self.attacker_bar is not None:
-                    self.scene.removeItem(self.attacker_bar)
-                    self.army_bars.pop(("side1", atk_pos[0], atk_pos[1]), None)
-                if self.defender_bar is not None:
-                    self.scene.removeItem(self.defender_bar)
-                    self.army_bars.pop(("side2", def_pos[0], def_pos[1]), None)
-            self._next_event()
+            for event in self.current_round_events:
+                atk_pos = event["attacker_pos"]
+                def_pos = event["defender_pos"]
+                winner = event["winner"]
+                if winner == 1:
+                    def_item = self.army_items.pop(("side2", def_pos[0], def_pos[1]), None)
+                    if def_item is not None:
+                        self.scene.removeItem(def_item)
+                    def_bar = self.army_bars.pop(("side2", def_pos[0], def_pos[1]), None)
+                    if def_bar is not None:
+                        self.scene.removeItem(def_bar)
+                elif winner == 2:
+                    atk_item = self.army_items.pop(("side1", atk_pos[0], atk_pos[1]), None)
+                    if atk_item is not None:
+                        self.scene.removeItem(atk_item)
+                    atk_bar = self.army_bars.pop(("side1", atk_pos[0], atk_pos[1]), None)
+                    if atk_bar is not None:
+                        self.scene.removeItem(atk_bar)
+                else:
+                    atk_item = self.army_items.pop(("side1", atk_pos[0], atk_pos[1]), None)
+                    if atk_item is not None:
+                        self.scene.removeItem(atk_item)
+                    atk_bar = self.army_bars.pop(("side1", atk_pos[0], atk_pos[1]), None)
+                    if atk_bar is not None:
+                        self.scene.removeItem(atk_bar)
+                    def_item = self.army_items.pop(("side2", def_pos[0], def_pos[1]), None)
+                    if def_item is not None:
+                        self.scene.removeItem(def_item)
+                    def_bar = self.army_bars.pop(("side2", def_pos[0], def_pos[1]), None)
+                    if def_bar is not None:
+                        self.scene.removeItem(def_bar)
+            self._next_round()
 
     def _set_bar(self, bar: QtWidgets.QGraphicsRectItem, current: float, maximum: float) -> None:
         height = 0.0

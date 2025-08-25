@@ -1899,19 +1899,7 @@ class SlowSimTab(QtWidgets.QWidget):
             round_events: list[dict] = []
 
             # Build attack plans for the round using current snapshots
-            plans: list[tuple[int, tuple[int, int], tuple[int, int]]] = []
-            snapshot1 = sim.armies_side1.copy()
-            snapshot2 = sim.armies_side2.copy()
-            for pos in sim._position_order():
-                if pos in snapshot1:
-                    target = sim._select_target(1, pos, snapshot2)
-                    if target is not None:
-                        plans.append((1, pos, target))
-            for pos in sim._position_order():
-                if pos in snapshot2:
-                    target = sim._select_target(2, pos, snapshot1)
-                    if target is not None:
-                        plans.append((2, pos, target))
+            plans: list[tuple[int, tuple[int, int], tuple[int, int]]] = sim._compute_round_plans()
 
             if not plans:
                 break

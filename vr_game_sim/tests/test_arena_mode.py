@@ -178,6 +178,27 @@ def test_multiple_attackers_focus_single_enemy():
     assert b1.current_troop_count <= 0
 
 
+def test_coordinate_alignment_matches_diagram():
+    """Slot numbers should map to grid coordinates as shown in the arena layout."""
+    # Right side counts left-to-right
+    assert ArenaSimulator.RIGHT_SLOT_TO_POS[1] == (0, 0)
+    assert ArenaSimulator.RIGHT_SLOT_TO_POS[8] == (1, 3)
+    # Left side is mirrored horizontally
+    assert ArenaSimulator.LEFT_SLOT_TO_POS[1] == (1, 0)
+    assert ArenaSimulator.LEFT_SLOT_TO_POS[8] == (0, 3)
+
+
+def test_slot_attacks_only_one_target_per_round():
+    attacker = make_army("Atk", ArenaSimulator.LEFT_SLOT_TO_POS[1], count=100)
+    enemy_primary = make_army("E1", ArenaSimulator.RIGHT_SLOT_TO_POS[1], count=100)
+    enemy_secondary = make_army("E2", ArenaSimulator.RIGHT_SLOT_TO_POS[2], count=100)
+    sim = ArenaSimulator([attacker], [enemy_primary, enemy_secondary])
+    plans = sim._compute_round_plans()
+    attacks_from_attacker = [p for p in plans if p[0] == 1 and p[1] == attacker.position]
+    assert len(attacks_from_attacker) == 1
+    assert attacks_from_attacker[0][2] == enemy_primary.position
+
+
 def test_left_slot5_target_priority():
     attacker = make_army("Atk", ArenaSimulator.LEFT_SLOT_TO_POS[5])
     enemy5 = make_army("E5", ArenaSimulator.RIGHT_SLOT_TO_POS[5])

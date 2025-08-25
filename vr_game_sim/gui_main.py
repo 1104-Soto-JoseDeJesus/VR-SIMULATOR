@@ -25,6 +25,7 @@ from vr_game_sim.main import (
     load_setup_from_file,
 )
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
+from vr_game_sim.battlefield_tab import BattlefieldTab
 
 
 def get_pdf_layout_path() -> str:
@@ -1843,6 +1844,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         report_layout.addWidget(self.report_stack)
         self.tabs.addTab(report_tab, "Report")
+        
+        # --- Battlefield tab ---
+        self.battlefield_tab = BattlefieldTab(self)
+        self.tabs.addTab(self.battlefield_tab, "Battlefield")
 
         # --- Figures tab ---
         self.hist_container = QtWidgets.QWidget()

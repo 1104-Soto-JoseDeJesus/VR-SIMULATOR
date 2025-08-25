@@ -248,3 +248,17 @@ def test_slots_move_on_after_kill():
     assert ArenaSimulator.RIGHT_SLOT_TO_POS[1] not in sim.armies_side2
     # Second defender should have taken damage after the first was destroyed
     assert def2.current_troop_count < 100
+
+
+def test_reactive_skill_trigger_limited_to_single_attacker():
+    """Defender attacked by multiple enemies should allow reactive skills for only one."""
+    defender = make_army("Def", ArenaSimulator.LEFT_SLOT_TO_POS[1])
+    atk1 = make_army("Atk1", ArenaSimulator.RIGHT_SLOT_TO_POS[1])
+    atk2 = make_army("Atk2", ArenaSimulator.RIGHT_SLOT_TO_POS[2])
+    sim = ArenaSimulator([defender], [atk1, atk2])
+    plans = sim._compute_round_plans()
+    reactive_map = sim._determine_reactive_choices(plans)
+    key = (1, defender.position)
+    assert reactive_map[key] == (2, atk1.position)
+    # Ensure the second attacker is not chosen for the defender
+    assert reactive_map[key] != (2, atk2.position)

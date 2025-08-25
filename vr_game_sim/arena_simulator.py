@@ -2,7 +2,7 @@ from __future__ import annotations
 import random
 import copy
 import math
-from typing import Dict, Tuple, List, Optional
+from typing import Dict, Tuple, List, Optional, Set
 
 from .army_composition import Army
 from .game_simulator import GameSimulator
@@ -122,6 +122,75 @@ class ArenaSimulator:
             Tuple[Tuple[int, int], Tuple[int, int], float, float]
         ] = []
 
+    def _determine_reactive_choices(
+        self, plans: List[Tuple[int, Tuple[int, int], Tuple[int, int]]]
+    ) -> Dict[Tuple[int, Tuple[int, int]], Tuple[int, Tuple[int, int]]]:
+        """Select which attacker may trigger reactive skills for each defender.
+
+        Parameters
+        ----------
+        plans:
+            List of ``(side, attacker_pos, defender_pos)`` tuples for the round.
+
+        Returns
+        -------
+        Mapping from ``(defender_side, defender_pos)`` to the chosen attacker
+        tuple ``(attacker_side, attacker_pos)``.  Attackers not returned in this
+        mapping will have the defender's reactive skills suppressed for that
+        engagement.
+        """
+
+        attack_target_map: Dict[Tuple[int, Tuple[int, int]], Tuple[int, int]] = {
+            (side, apos): dpos for side, apos, dpos in plans
+        }
+        attackers_by_defender: Dict[
+            Tuple[int, Tuple[int, int]], List[Tuple[int, Tuple[int, int]]]
+        ] = {}
+        for side, apos, dpos in plans:
+            def_side = 2 if side == 1 else 1
+            attackers_by_defender.setdefault((def_side, dpos), []).append((side, apos))
+
+        reactive_choice: Dict[Tuple[int, Tuple[int, int]], Tuple[int, Tuple[int, int]]] = {}
+        for (def_side, dpos), attackers in attackers_by_defender.items():
+            defender_army = (
+                self.armies_side1.get(dpos)
+                if def_side == 1
+                else self.armies_side2.get(dpos)
+            )
+            if defender_army is None:
+                continue
+            defender_target_pos = attack_target_map.get((def_side, dpos))
+            defender_target_army = None
+            if defender_target_pos is not None:
+                defender_target_army = (
+                    self.armies_side2.get(defender_target_pos)
+                    if def_side == 1
+                    else self.armies_side1.get(defender_target_pos)
+                )
+            attacker_armies: List[Army] = []
+            for att_side, apos in attackers:
+                army = (
+                    self.armies_side1.get(apos)
+                    if att_side == 1
+                    else self.armies_side2.get(apos)
+                )
+                if army is not None:
+                    attacker_armies.append(army)
+            if not attacker_armies:
+                continue
+            chosen = self.choose_reactive_trigger(attacker_armies, defender_target_army)
+            for att_side, apos in attackers:
+                army = (
+                    self.armies_side1.get(apos)
+                    if att_side == 1
+                    else self.armies_side2.get(apos)
+                )
+                if army is chosen:
+                    reactive_choice[(def_side, dpos)] = (att_side, apos)
+                    break
+
+        return reactive_choice
+
     def _position_order(self, side: int) -> List[Tuple[int, int]]:
         """Return positions in slot-number order for the given ``side``.
 
@@ -217,6 +286,10 @@ class ArenaSimulator:
                 pos: army.current_troop_count for pos, army in self.armies_side2.items()
             }
 
+            plans = self._compute_round_plans()
+            reactive_choice = self._determine_reactive_choices(plans)
+            reactive_triggered: Set[Tuple[int, Tuple[int, int]]] = set()
+
             # Side 1 attacks in slot order
             for apos in self._position_order(1):
                 if apos not in snapshot1:
@@ -231,6 +304,10 @@ class ArenaSimulator:
 
                 atk_copy = copy.deepcopy(atk)
                 def_copy = copy.deepcopy(defender)
+                key = (2, target_pos)
+                allow_reactive = reactive_choice.get(key) == (1, apos) and key not in reactive_triggered
+                if not allow_reactive:
+                    def_copy.reactive_triggers_blocked = True
                 sim = GameSimulator(atk_copy, def_copy, track_stats=False)
                 sim.simulate_battle()
 
@@ -240,6 +317,8 @@ class ArenaSimulator:
                 losses1[apos] = losses1.get(apos, 0.0) + atk_loss
                 losses2[target_pos] = losses2.get(target_pos, 0.0) + def_loss
                 round_buffer.append((apos, target_pos, atk_copy.current_troop_count, def_copy.current_troop_count))
+                if allow_reactive:
+                    reactive_triggered.add(key)
 
                 # Update snapshots so later attackers see the casualties
                 remaining_atk = snapshot1.get(apos, 0.0) - atk_loss
@@ -267,6 +346,10 @@ class ArenaSimulator:
 
                 atk_copy = copy.deepcopy(atk)
                 def_copy = copy.deepcopy(defender)
+                key = (1, target_pos)
+                allow_reactive = reactive_choice.get(key) == (2, apos) and key not in reactive_triggered
+                if not allow_reactive:
+                    def_copy.reactive_triggers_blocked = True
                 sim = GameSimulator(atk_copy, def_copy, track_stats=False)
                 sim.simulate_battle()
 
@@ -276,6 +359,8 @@ class ArenaSimulator:
                 losses2[apos] = losses2.get(apos, 0.0) + atk_loss
                 losses1[target_pos] = losses1.get(target_pos, 0.0) + def_loss
                 round_buffer.append((apos, target_pos, atk_copy.current_troop_count, def_copy.current_troop_count))
+                if allow_reactive:
+                    reactive_triggered.add(key)
 
                 remaining_atk = snapshot2.get(apos, 0.0) - atk_loss
                 if remaining_atk > 0:

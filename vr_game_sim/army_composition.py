@@ -80,6 +80,10 @@ class Army:
     rage_gained_history: List[float] = field(init=False, default_factory=list)
     shield_hp_gained_this_round: float = field(init=False, default=0.0)
     rage_added_this_round: float = field(init=False, default=0.0)
+    # Flag used by Arena mode to suppress reactive skill triggers when multiple
+    # enemies strike the same slot in a single round.  Not intended for direct
+    # use by regular duel simulations.
+    reactive_triggers_blocked: bool = field(init=False, default=False)
 
     def __post_init__(self):
         self.reset_for_new_battle()
@@ -810,6 +814,7 @@ class Army:
         self.started_last_round_with_active_shield = False
         self.healing_hymn_triggered_this_round = False
         self.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+        self.reactive_triggers_blocked = False
 
         self.damage_dealt_history = []
         self.heal_received_history = []

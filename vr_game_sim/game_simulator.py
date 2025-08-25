@@ -202,6 +202,18 @@ class GameSimulator:
         if event_data and 'opponent_for_shield_calc' in event_data:
             actual_opponent_for_calc = event_data['opponent_for_shield_calc']
 
+        # In arena mode a defender struck by multiple attackers should only be
+        # able to trigger its reactive skills once per round.  When
+        # ``reactive_triggers_blocked`` is set on the army, suppress any further
+        # reactive-trigger checks for the remainder of that round.
+        if getattr(triggering_army, "reactive_triggers_blocked", False) and trigger_type in (
+            SkillTriggerType.ON_COUNTER_ATTACK,
+            SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+            SkillTriggerType.ON_RECEIVING_HEALING,
+            SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE,
+        ):
+            return
+
         for hero in triggering_army.heroes:
             for skill_def in hero.skills:
                 if skill_def["id"] == "dummy_talent_empty": continue

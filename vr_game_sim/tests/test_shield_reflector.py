@@ -1,4 +1,3 @@
-import uuid
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.army_composition import Army
 from vr_game_sim.unit_definition import Unit
@@ -17,7 +16,7 @@ def test_shield_reflector_triggers_next_round_only():
     skill_def = SKILL_REGISTRY_GLOBAL['plugin_shield_reflector']
 
     # Round 1 setup: army starts with a shield
-    shield = EffectInstance(uuid.uuid4(), 'test_shield', EffectType.SHIELD, 1, 50)
+    shield = EffectInstance('test_shield', EffectType.SHIELD, 1, 50)
     army.active_effects.append(shield)
     army.started_round_with_active_shield = True
     army.started_last_round_with_active_shield = False

@@ -16,7 +16,8 @@ def test_pdf_layout_persistence(tmp_path):
         page.add_item("army_composition", 10, 20)
         page.add_item("army_composition", 30, 40)
         dlg._save_layout()
-        data = json.load(open(tmp_path / "pdf_layout.json"))
+        with open(tmp_path / "pdf_layout.json", "r", encoding="utf-8") as fh:
+            data = json.load(fh)
         items = data["pages"][0]["items"]
         coords = {(int(it["x"]), int(it["y"])) for it in items}
         assert coords == {(10, 20), (30, 40)}

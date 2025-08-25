@@ -1,4 +1,3 @@
-import uuid
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.army_composition import Army
 from vr_game_sim.unit_definition import Unit
@@ -69,7 +68,7 @@ def test_base_rage_blocked_when_silenced():
 
     army1.current_rage = 1000
     army1.hero1_rage_skill_queued_this_round = True
-    silence = EffectInstance(uuid.uuid4(), "s", EffectType.DEBUFF, 1,
+    silence = EffectInstance("s", EffectType.DEBUFF, 1,
                              config={"prevents_rage_skill_cast": True},
                              name=EFFECT_NAME_SILENCE_DEBUFF)
     army1.active_effects.append(silence)
@@ -93,7 +92,7 @@ def test_base_rage_granted_when_hero2_silenced():
 
     army1.current_rage = 1000
     army1.hero2_rage_skill_primed_for_round = sim.round
-    silence = EffectInstance(uuid.uuid4(), "s", EffectType.DEBUFF, 1,
+    silence = EffectInstance("s", EffectType.DEBUFF, 1,
                              config={"prevents_rage_skill_cast": True},
                              name=EFFECT_NAME_SILENCE_DEBUFF)
     army1.active_effects.append(silence)

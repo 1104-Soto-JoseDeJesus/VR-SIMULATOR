@@ -6,16 +6,20 @@ from .game_simulator import GameSimulator
 
 
 class ArenaSimulator:
-    """Arena battles on a 2x4 grid with two rows per side.
+    """Arena battles on a 2x4 grid for *each* side.
 
-    The grid is four columns wide and two rows deep (front and back).  Each
-    slot can hold one :class:`Army`.  Engagement order prioritises the front row
-    from left to right, then the back row.  After all slots have acted once, the
-    cycle repeats with any surviving armies, again starting from the front row.
+    Both attackers and defenders can field armies on their own two column by
+    four row grid.  Columns represent the front and back ranks while rows are
+    lanes from top to bottom.  Engagement order iterates lanes from front to
+    back and prioritises the front column within each lane.
+
+    Target selection favours enemies in the same lane as the attacker.  If the
+    lane is empty, columns are inspected by proximity starting with the
+    attacker's column and scanning lanes from the front towards the back.
     """
 
-    GRID_COLS = 4
-    GRID_ROWS = 2
+    GRID_COLS = 2
+    GRID_ROWS = 4
 
     def __init__(self, armies_side1: List[Army], armies_side2: List[Army]):
         # Store armies keyed by their (col, row) position
@@ -29,16 +33,15 @@ class ArenaSimulator:
         self.winner: Optional[int] = None
 
         # Internal index for cycling through grid positions in the desired
-        # targeting order (front row across, then back row).
+        # attacker order (front lanes first).
         self._order_index: int = 0
 
     def _position_order(self) -> List[Tuple[int, int]]:
-        """Return positions in targeting order: front row left-to-right then back row."""
+        """Return attacker positions in row-major order, front column first."""
         order: List[Tuple[int, int]] = []
-        for col in range(self.GRID_COLS):
-            order.append((col, 0))
-        for col in range(self.GRID_COLS):
-            order.append((col, 1))
+        for row in range(self.GRID_ROWS):
+            for col in range(self.GRID_COLS):
+                order.append((col, row))
         return order
 
     def _next_attacker_pos(self) -> Optional[Tuple[int, int]]:
@@ -53,18 +56,33 @@ class ArenaSimulator:
             searched += 1
         return None
 
-    def _find_nearest_enemy(
+    def _select_target(
         self, pos: Tuple[int, int], enemies: Dict[Tuple[int, int], Army]
     ) -> Optional[Tuple[int, int]]:
-        """Return the position of the nearest enemy army using Manhattan distance."""
-        best_pos: Optional[Tuple[int, int]] = None
-        best_dist: Optional[int] = None
-        for epos in enemies:
-            dist = abs(epos[0] - pos[0]) + abs(epos[1] - pos[1])
-            if best_dist is None or dist < best_dist:
-                best_dist = dist
-                best_pos = epos
-        return best_pos
+        """Return the target position following arena targeting priorities.
+
+        Enemies in the same lane (row) are preferred, inspecting columns by
+        proximity to the attacker.  If the lane holds no enemies the remaining
+        columns are checked, scanning rows from the front towards the back.
+        """
+        col, row = pos
+        column_order = sorted(range(self.GRID_COLS), key=lambda c: abs(c - col))
+
+        # First inspect enemies within the same row starting with the nearest column
+        for c in column_order:
+            candidate = (c, row)
+            if candidate in enemies:
+                return candidate
+
+        # No enemy in the same row, search other rows
+        for c in column_order:
+            for r in range(self.GRID_ROWS):  # front to back
+                if r == row:
+                    continue
+                candidate = (c, r)
+                if candidate in enemies:
+                    return candidate
+        return None
 
     def simulate_battle(self) -> Dict[str, Dict[Tuple[int, int], float]]:
         """Run sequential battles until one side runs out of armies.
@@ -86,7 +104,7 @@ class ArenaSimulator:
             if pos1 in self.armies_side2:
                 target_pos = pos1
             else:
-                target_pos = self._find_nearest_enemy(pos1, self.armies_side2)
+                target_pos = self._select_target(pos1, self.armies_side2)
             if target_pos is None:
                 break
             army2 = self.armies_side2[target_pos]

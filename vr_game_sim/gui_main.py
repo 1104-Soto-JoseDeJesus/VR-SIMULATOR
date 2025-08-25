@@ -1068,6 +1068,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.hero_options = ["None", "Custom"] + sorted(name.capitalize() for name in HERO_PRESETS.keys())
 
         self.name_edit = QtWidgets.QLineEdit(f"Army {index}")
+        self.disable_btn = QtWidgets.QPushButton("Disable")
+        self.disable_btn.setCheckable(True)
+        self.disable_btn.toggled.connect(self._toggle_disabled)
         self.unit_combo = QtWidgets.QComboBox()
         for u in sorted(Unit.ALLOWED_TYPES):
             self.unit_combo.addItem(u)
@@ -1129,6 +1132,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         row = 0
         layout.addWidget(QtWidgets.QLabel("Name:"), row, 0)
         layout.addWidget(self.name_edit, row, 1)
+        layout.addWidget(self.disable_btn, row, 2)
         row += 1
 
         layout.addWidget(QtWidgets.QLabel("Unit type:"), row, 0)
@@ -1395,7 +1399,16 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.unit_icon.setText(unit)
             self.unit_icon.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
+    def _toggle_disabled(self, disabled: bool) -> None:
+        """Enable/disable all input widgets for this army."""
+        self.disable_btn.setText("Enable" if disabled else "Disable")
+        for widget in self.findChildren(QtWidgets.QWidget):
+            if widget is self.disable_btn:
+                continue
+            widget.setDisabled(disabled)
+
     def populate_from_config(self, cfg: dict) -> None:
+        self.disable_btn.setChecked(int(cfg.get("count", 0)) <= 0)
         self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))
         self.unit_combo.setCurrentText(cfg.get("unit_type", "pikemen"))
         self._unit_changed(self.unit_combo.currentText())
@@ -1463,7 +1476,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     cfg["skill_overrides"] = overrides
                 heroes_cfg.append(cfg)
 
-        return {
+        cfg = {
             "army_name": self.name_edit.text() or f"Army {self.index}",
             "unit_type": self.unit_combo.currentText(),
             "tier": int(self.tier_spin.value()),
@@ -1474,6 +1487,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
             "unrevivable_ratio": float(self.unrevivable_spin.value()),
             "heroes": heroes_cfg,
         }
+        if self.disable_btn.isChecked():
+            cfg["count"] = 0
+        return cfg
 
 
 class SimulationWorker(QtCore.QThread):
@@ -1754,6 +1770,7 @@ class SlowSimTab(QtWidgets.QWidget):
     """Visualise arena battles in a slow, round-by-round manner."""
 
     CELL_SIZE = 80
+    CELL_SPACING = 6
     GAP = 80
     BAR_WIDTH = 6
 
@@ -1844,7 +1861,8 @@ class SlowSimTab(QtWidgets.QWidget):
 
         self.clear()
 
-        for side, xoff in (("side1", 0), ("side2", self.CELL_SIZE * 2 + self.GAP)):
+        side_width = self.CELL_SIZE * 2 + self.CELL_SPACING
+        for side, xoff in (("side1", 0), ("side2", side_width + self.GAP)):
             for cfg in setup[side]:
                 col, row = cfg["grid_pos"]
                 heroes = cfg.get("heroes", [])
@@ -1852,19 +1870,27 @@ class SlowSimTab(QtWidgets.QWidget):
                 hero2 = heroes[1]["hero_name_or_preset"] if len(heroes) > 1 else "None"
                 pix = self._make_army_pixmap(hero1, hero2)
                 item = QtWidgets.QGraphicsPixmapItem(pix)
-                item.setPos(xoff + col * self.CELL_SIZE, row * self.CELL_SIZE)
+                item.setPos(
+                    xoff + col * (self.CELL_SIZE + self.CELL_SPACING),
+                    row * (self.CELL_SIZE + self.CELL_SPACING),
+                )
                 self.scene.addItem(item)
                 self.army_items[(side, col, row)] = item
 
                 bar = QtWidgets.QGraphicsRectItem(0, 0, self.BAR_WIDTH, self.CELL_SIZE)
                 bar.setBrush(QtGui.QBrush(QtGui.QColor("white")))
                 bar.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
-                bar.setPos(xoff + col * self.CELL_SIZE + self.CELL_SIZE + 2, row * self.CELL_SIZE)
+                bar.setPos(
+                    xoff + col * (self.CELL_SIZE + self.CELL_SPACING) + self.CELL_SIZE + 2,
+                    row * (self.CELL_SIZE + self.CELL_SPACING),
+                )
                 bar.setZValue(1)
                 self.scene.addItem(bar)
                 self.army_bars[(side, col, row)] = bar
 
-        self.view.setSceneRect(0, 0, self.CELL_SIZE * 4 + self.GAP + self.BAR_WIDTH + 4, self.CELL_SIZE * 4)
+        total_width = side_width * 2 + self.GAP + self.BAR_WIDTH + 4
+        total_height = self.CELL_SIZE * 4 + self.CELL_SPACING * 3
+        self.view.setSceneRect(0, 0, total_width, total_height)
 
         armies1, armies2 = create_armies_from_data(setup)
         sim = ArenaSimulator(armies1, armies2)

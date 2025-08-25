@@ -1824,9 +1824,10 @@ class SlowSimTab(QtWidgets.QWidget):
         for side, xoff in (("side1", 0), ("side2", self.CELL_SIZE * 2 + self.GAP)):
             for cfg in setup[side]:
                 col, row = cfg["grid_pos"]
-                pix = self._make_army_pixmap(
-                    cfg.get("hero1", "None"), cfg.get("hero2", "None")
-                )
+                heroes = cfg.get("heroes", [])
+                hero1 = heroes[0]["hero_name_or_preset"] if len(heroes) > 0 else "None"
+                hero2 = heroes[1]["hero_name_or_preset"] if len(heroes) > 1 else "None"
+                pix = self._make_army_pixmap(hero1, hero2)
                 item = QtWidgets.QGraphicsPixmapItem(pix)
                 item.setPos(xoff + col * self.CELL_SIZE, row * self.CELL_SIZE)
                 self.scene.addItem(item)

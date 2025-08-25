@@ -2,7 +2,7 @@
 import uuid
 import random
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any, Tuple, TYPE_CHECKING
 
 from .enums import EffectType, SkillTriggerType, StatType, DoTType
 from .unit_definition import Unit
@@ -34,6 +34,9 @@ from .constants import (
     EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
 )
 
+if TYPE_CHECKING:
+    from .battlefield import Battlefield
+
 GameSimulatorRef = "GameSimulator"  # Forward reference
 
 
@@ -44,6 +47,12 @@ class Army:
     heroes: List[Hero] = field(default_factory=list)
     unrevivable_ratio: float = 0.5
     simulator: Optional[GameSimulatorRef] = None
+
+    # Positioning and movement
+    x: int = 0
+    y: int = 0
+    movement_speed: int = 1
+    destination: Optional[Tuple[int, int]] = None
 
     current_troop_count: float = field(init=False, default=0.0)
     active_effects: List[EffectInstance] = field(init=False, default_factory=list)
@@ -84,6 +93,34 @@ class Army:
 
     def increment_skill_trigger_count(self, skill_id: str):
         self.skill_trigger_counts[skill_id] = self.skill_trigger_counts.get(skill_id, 0) + 1
+
+    # --- Movement helpers -------------------------------------------------
+    def set_destination(self, dest: Tuple[int, int]):
+        """Queue a destination for the army to march towards."""
+        self.destination = dest
+
+    def update_position(self, battlefield: "Battlefield"):
+        """Advance the army towards its destination within movement bounds."""
+        if not self.destination:
+            return
+        dest_x, dest_y = self.destination
+        for _ in range(self.movement_speed):
+            if self.x == dest_x and self.y == dest_y:
+                break
+            step_x = 0
+            step_y = 0
+            if self.x != dest_x:
+                step_x = 1 if dest_x > self.x else -1
+            elif self.y != dest_y:
+                step_y = 1 if dest_y > self.y else -1
+            new_x = self.x + step_x
+            new_y = self.y + step_y
+            if battlefield.within_bounds(new_x, new_y):
+                self.x, self.y = new_x, new_y
+            else:
+                break
+        if self.x == dest_x and self.y == dest_y:
+            self.destination = None
 
     def _identify_hero_rage_skills(self):
         self.hero1_rage_skill_id = None

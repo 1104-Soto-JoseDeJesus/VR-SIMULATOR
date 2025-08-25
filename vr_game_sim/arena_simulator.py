@@ -1,4 +1,5 @@
 from __future__ import annotations
+import random
 from typing import Dict, Tuple, List, Optional
 
 from .army_composition import Army
@@ -20,6 +21,30 @@ class ArenaSimulator:
 
     GRID_COLS = 2
     GRID_ROWS = 4
+
+    @staticmethod
+    def choose_reactive_trigger(
+        attackers: List[Army],
+        defender_target: Optional[Army],
+    ) -> Army:
+        """Select which attacking army's reactive trigger should resolve.
+
+        If the defender is directly attacking one of the armies that hit it in the
+        current round, that army's trigger takes priority. Otherwise one of the
+        attackers is chosen at random.
+
+        Parameters
+        ----------
+        attackers:
+            List of armies that successfully hit the defender this round.
+        defender_target:
+            The army the defender is directly attacking this round, or ``None`` if
+            the defender is not currently attacking any of the attackers.
+        """
+
+        if defender_target and defender_target in attackers:
+            return defender_target
+        return random.choice(attackers)
 
     def __init__(self, armies_side1: List[Army], armies_side2: List[Army]):
         # Store armies keyed by their (col, row) position

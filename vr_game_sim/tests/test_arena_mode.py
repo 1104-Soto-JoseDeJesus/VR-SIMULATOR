@@ -1,4 +1,5 @@
 import os
+import random
 
 from vr_game_sim.arena_simulator import ArenaSimulator
 from vr_game_sim.army_composition import Army
@@ -91,3 +92,20 @@ def test_same_row_targeting_preferred():
     sim.simulate_battle()
     assert same_row_enemy.current_troop_count <= 0
     assert other_enemy.current_troop_count == 100
+
+
+def test_reactive_trigger_prefers_direct_target():
+    defender = make_army("Def", (0, 0))
+    atk1 = make_army("Atk1", (1, 0))
+    atk2 = make_army("Atk2", (1, 1))
+    chosen = ArenaSimulator.choose_reactive_trigger([atk1, atk2], defender_target=atk1)
+    assert chosen is atk1
+
+
+def test_reactive_trigger_random_choice_when_no_target():
+    defender = make_army("Def", (0, 0))
+    atk1 = make_army("Atk1", (1, 0))
+    atk2 = make_army("Atk2", (1, 1))
+    random.seed(0)
+    chosen = ArenaSimulator.choose_reactive_trigger([atk1, atk2], defender_target=None)
+    assert chosen is atk2

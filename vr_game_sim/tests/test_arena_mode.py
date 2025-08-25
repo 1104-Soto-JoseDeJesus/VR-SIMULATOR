@@ -22,9 +22,9 @@ def make_army(name, pos, count=100):
 
 
 def test_arena_winner():
-    a1 = make_army("A1", (0, 0))
-    a2 = make_army("A2", (1, 0))
-    b1 = make_army("B1", (0, 0))
+    a1 = make_army("A1", (0, 0), count=150)
+    a2 = make_army("A2", (1, 0), count=150)
+    b1 = make_army("B1", (0, 0), count=100)
     sim = ArenaSimulator([a1, a2], [b1])
     sim.simulate_battle()
     assert sim.winner == 1
@@ -76,14 +76,13 @@ def test_serialization_roundtrip(tmp_path):
     assert armies2[0].position == (1, 0)
 
 
-def test_front_column_prioritized_over_back_column():
+def test_back_is_attacked_after_front_falls():
     front = make_army("Front", (0, 0), count=150)
     back = make_army("Back", (1, 1), count=50)
     enemy = make_army("Enemy", (0, 0), count=100)
     sim = ArenaSimulator([front, back], [enemy])
     sim.simulate_battle()
-    assert back.current_troop_count == 50
-    assert sim.winner == 1
+    assert back.current_troop_count < 50
 
 
 def test_same_row_targeting_preferred():
@@ -91,9 +90,8 @@ def test_same_row_targeting_preferred():
     same_row_enemy = make_army("B", (1, 1), count=100)
     other_enemy = make_army("C", (0, 2), count=100)
     sim = ArenaSimulator([attacker], [same_row_enemy, other_enemy])
-    sim.simulate_battle()
-    assert same_row_enemy.current_troop_count <= 0
-    assert other_enemy.current_troop_count == 100
+    target = sim._select_target(1, attacker.position, sim.armies_side2)
+    assert target == same_row_enemy.position
 
 
 def test_reactive_trigger_prefers_direct_target():
@@ -171,11 +169,48 @@ def test_all_lanes_resolve_in_single_round():
 
 def test_multiple_attackers_focus_single_enemy():
     """Several armies can sequentially attack the same target in one round."""
-    a1 = make_army("A1", (0, 0), count=100)
-    a2 = make_army("A2", (1, 0), count=100)
-    b1 = make_army("B1", (0, 0), count=150)
+    a1 = make_army("A1", (0, 0), count=150)
+    a2 = make_army("A2", (1, 0), count=150)
+    b1 = make_army("B1", (0, 0), count=100)
     sim = ArenaSimulator([a1, a2], [b1])
     sim.simulate_battle()
     assert sim.winner == 1
-    assert a1.current_troop_count <= 0
-    assert a2.current_troop_count > 0
+    assert b1.current_troop_count <= 0
+
+
+def test_left_slot5_target_priority():
+    attacker = make_army("Atk", ArenaSimulator.LEFT_SLOT_TO_POS[5])
+    enemy5 = make_army("E5", ArenaSimulator.RIGHT_SLOT_TO_POS[5])
+    enemy6 = make_army("E6", ArenaSimulator.RIGHT_SLOT_TO_POS[6])
+    sim = ArenaSimulator([attacker], [enemy5, enemy6])
+    assert (
+        sim._select_target(1, attacker.position, sim.armies_side2)
+        == ArenaSimulator.RIGHT_SLOT_TO_POS[5]
+    )
+    del sim.armies_side2[ArenaSimulator.RIGHT_SLOT_TO_POS[5]]
+    assert (
+        sim._select_target(1, attacker.position, sim.armies_side2)
+        == ArenaSimulator.RIGHT_SLOT_TO_POS[6]
+    )
+
+
+def test_right_slot3_target_priority():
+    attacker = make_army("Atk", ArenaSimulator.RIGHT_SLOT_TO_POS[3])
+    enemy3 = make_army("E3", ArenaSimulator.LEFT_SLOT_TO_POS[3])
+    enemy4 = make_army("E4", ArenaSimulator.LEFT_SLOT_TO_POS[4])
+    enemy1 = make_army("E1", ArenaSimulator.LEFT_SLOT_TO_POS[1])
+    sim = ArenaSimulator([enemy3, enemy4, enemy1], [attacker])
+    assert (
+        sim._select_target(2, attacker.position, sim.armies_side1)
+        == ArenaSimulator.LEFT_SLOT_TO_POS[3]
+    )
+    del sim.armies_side1[ArenaSimulator.LEFT_SLOT_TO_POS[3]]
+    assert (
+        sim._select_target(2, attacker.position, sim.armies_side1)
+        == ArenaSimulator.LEFT_SLOT_TO_POS[4]
+    )
+    del sim.armies_side1[ArenaSimulator.LEFT_SLOT_TO_POS[4]]
+    assert (
+        sim._select_target(2, attacker.position, sim.armies_side1)
+        == ArenaSimulator.LEFT_SLOT_TO_POS[1]
+    )

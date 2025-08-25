@@ -34,6 +34,8 @@ from .constants import (
     EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
 )
 
+from .battlefield import Battlefield, step_towards
+
 GameSimulatorRef = "GameSimulator"  # Forward reference
 
 
@@ -44,6 +46,23 @@ class Army:
     heroes: List[Hero] = field(default_factory=list)
     unrevivable_ratio: float = 0.5
     simulator: Optional[GameSimulatorRef] = None
+
+    # Positioning and movement
+    x: int = 0
+    y: int = 0
+    movement_speed: int = 1
+    destination: Optional[Tuple[int, int]] = None
+
+    # Team affiliation and battle reporting
+    team: int = 0
+    battle_reports: List[str] = field(default_factory=list)
+
+    # Battle resolution timing
+    battle_time_remaining: int = 0
+    post_battle_troop_count: float = 0.0
+    post_battle_unrevivable: float = 0.0
+    troop_delta_per_second: float = 0.0
+    unrevivable_delta_per_second: float = 0.0
 
     current_troop_count: float = field(init=False, default=0.0)
     active_effects: List[EffectInstance] = field(init=False, default_factory=list)
@@ -84,6 +103,57 @@ class Army:
 
     def increment_skill_trigger_count(self, skill_id: str):
         self.skill_trigger_counts[skill_id] = self.skill_trigger_counts.get(skill_id, 0) + 1
+
+    # --- Movement helpers -------------------------------------------------
+    def set_destination(self, dest: Tuple[int, int]):
+        """Queue a destination for the army to march towards."""
+        self.destination = dest
+
+    def update_position(self, battlefield: "Battlefield"):
+        """Advance the army towards its destination within movement bounds."""
+        if not self.destination:
+            return
+
+        dest = self.destination
+        for _ in range(self.movement_speed):
+            if (self.x, self.y) == dest:
+                break
+            new_x, new_y = step_towards(battlefield, (self.x, self.y), dest)
+            if battlefield.within_bounds(new_x, new_y):
+                self.x, self.y = new_x, new_y
+            else:
+                break
+        if (self.x, self.y) == dest:
+            self.destination = None
+
+    # --- Battle timing helpers --------------------------------------------
+    def engage(self, result_troops: float, unrevivable: float, duration: int) -> None:
+        """Put the army into battle for ``duration`` seconds."""
+        self.battle_time_remaining = max(0, duration)
+        self.post_battle_troop_count = result_troops
+        self.post_battle_unrevivable = unrevivable
+        if duration > 0:
+            self.troop_delta_per_second = (result_troops - self.current_troop_count) / duration
+            self.unrevivable_delta_per_second = unrevivable / duration
+        else:
+            self.troop_delta_per_second = 0.0
+            self.unrevivable_delta_per_second = 0.0
+            self.current_troop_count = result_troops
+            self.unrevivable_troops += unrevivable
+        self.destination = None
+
+    def progress_battle(self) -> None:
+        """Advance any ongoing battle timer and apply results when finished."""
+        if self.battle_time_remaining > 0:
+            self.current_troop_count += self.troop_delta_per_second
+            self.unrevivable_troops += self.unrevivable_delta_per_second
+            self.battle_time_remaining -= 1
+            if self.battle_time_remaining <= 0:
+                self.current_troop_count = self.post_battle_troop_count
+                self.post_battle_unrevivable = 0.0
+                self.post_battle_troop_count = 0.0
+                self.troop_delta_per_second = 0.0
+                self.unrevivable_delta_per_second = 0.0
 
     def _identify_hero_rage_skills(self):
         self.hero1_rage_skill_id = None
@@ -815,6 +885,10 @@ class Army:
         self.rage_gained_history = []
         self.shield_hp_gained_this_round = 0.0
         self.rage_added_this_round = 0.0
+
+        self.battle_time_remaining = 0
+        self.post_battle_troop_count = 0.0
+        self.post_battle_unrevivable = 0.0
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

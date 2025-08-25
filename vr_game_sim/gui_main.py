@@ -7,6 +7,7 @@ from typing import Any
 import threading
 import math
 import json
+import copy
 from functools import partial
 
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -1744,6 +1745,10 @@ class ArenaResultsTab(QtWidgets.QWidget):
     def set_results(self, text: str) -> None:
         self.output.setPlainText(text)
 
+    def clear(self) -> None:
+        """Clear any displayed results."""
+        self.output.clear()
+
 
 class SlowSimTab(QtWidgets.QWidget):
     """Visualise arena battles in a slow, round-by-round manner."""
@@ -1769,6 +1774,20 @@ class SlowSimTab(QtWidgets.QWidget):
         self.timer.timeout.connect(self._anim_step)
 
         self.events: list[dict] = []
+        self.current_event = -1
+        self.current_round = 0
+        self.attacker_item = None
+        self.defender_item = None
+        self.attacker_bar = None
+        self.defender_bar = None
+
+    def clear(self) -> None:
+        """Reset the scene and internal state."""
+        self.timer.stop()
+        self.scene.clear()
+        self.army_items = {}
+        self.army_bars = {}
+        self.events = []
         self.current_event = -1
         self.current_round = 0
         self.attacker_item = None
@@ -1823,9 +1842,7 @@ class SlowSimTab(QtWidgets.QWidget):
             )
             return
 
-        self.scene.clear()
-        self.army_items: dict[tuple[str, int, int], QtWidgets.QGraphicsPixmapItem] = {}
-        self.army_bars: dict[tuple[str, int, int], QtWidgets.QGraphicsRectItem] = {}
+        self.clear()
 
         for side, xoff in (("side1", 0), ("side2", self.CELL_SIZE * 2 + self.GAP)):
             for cfg in setup[side]:
@@ -1853,49 +1870,78 @@ class SlowSimTab(QtWidgets.QWidget):
         sim = ArenaSimulator(armies1, armies2)
         self.events = []
 
-        def _next_attacker_pos() -> tuple[int, int] | None:
-            """Return the next attacking position in row-major order."""
-            for pos in sim._position_order():
-                if pos in sim.armies_side1:
-                    return pos
-            return None
-
         while sim.armies_side1 and sim.armies_side2:
-            pos1 = _next_attacker_pos()
-            if pos1 is None:
+            available1 = set(sim.armies_side1.keys())
+            available2 = set(sim.armies_side2.keys())
+            order = sim._position_order()
+            pairs: list[tuple[tuple[int, int], tuple[int, int]]] = []
+
+            for pos1 in order:
+                if pos1 not in available1:
+                    continue
+                target = sim._select_target(pos1, {p: sim.armies_side2[p] for p in available2})
+                if target is not None:
+                    pairs.append((pos1, target))
+                    available1.remove(pos1)
+                    available2.remove(target)
+
+            for pos2 in order:
+                if pos2 not in available2:
+                    continue
+                target = sim._select_target(pos2, {p: sim.armies_side1[p] for p in available1})
+                if target is not None:
+                    pairs.append((target, pos2))
+                    available1.remove(target)
+                    available2.remove(pos2)
+
+            if not pairs:
                 break
-            army1 = sim.armies_side1[pos1]
-            if pos1 in sim.armies_side2:
-                target_pos = pos1
-            else:
-                target_pos = sim._select_target(pos1, sim.armies_side2)
-            if target_pos is None:
-                break
-            army2 = sim.armies_side2[target_pos]
-            gs = GameSimulator(army1, army2, track_stats=False)
-            gs.simulate_battle()
-            winner = 0
-            if army1.current_troop_count > 0 and army2.current_troop_count <= 0:
-                winner = 1
-                army1.unit.initial_count = army1.current_troop_count
-                del sim.armies_side2[target_pos]
-            elif army2.current_troop_count > 0 and army1.current_troop_count <= 0:
-                winner = 2
-                army2.unit.initial_count = army2.current_troop_count
-                del sim.armies_side1[pos1]
-            else:
-                del sim.armies_side1[pos1]
-                del sim.armies_side2[target_pos]
-            self.events.append(
-                {
-                    "attacker_pos": pos1,
-                    "defender_pos": target_pos,
-                    "rounds": gs.round,
-                    "winner": winner,
-                    "atk_history": gs.army1_troop_history,
-                    "def_history": gs.army2_troop_history,
-                }
-            )
+
+            round_events: list[dict] = []
+            for pos1, pos2 in pairs:
+                army1_copy = copy.deepcopy(sim.armies_side1[pos1])
+                army2_copy = copy.deepcopy(sim.armies_side2[pos2])
+                gs = GameSimulator(army1_copy, army2_copy, track_stats=False)
+                gs.simulate_battle()
+                winner = 0
+                if army1_copy.current_troop_count > 0 and army2_copy.current_troop_count <= 0:
+                    winner = 1
+                elif army2_copy.current_troop_count > 0 and army1_copy.current_troop_count <= 0:
+                    winner = 2
+                round_events.append(
+                    {
+                        "attacker_pos": pos1,
+                        "defender_pos": pos2,
+                        "rounds": gs.round,
+                        "winner": winner,
+                        "atk_history": gs.army1_troop_history,
+                        "def_history": gs.army2_troop_history,
+                        "atk_remaining": army1_copy.current_troop_count,
+                        "def_remaining": army2_copy.current_troop_count,
+                    }
+                )
+
+            for ev in round_events:
+                pos1 = ev["attacker_pos"]
+                pos2 = ev["defender_pos"]
+                res1 = ev["atk_remaining"]
+                res2 = ev["def_remaining"]
+                army1 = sim.armies_side1.get(pos1)
+                army2 = sim.armies_side2.get(pos2)
+                if army1:
+                    army1.current_troop_count = res1
+                    if res1 > 0:
+                        army1.unit.initial_count = res1
+                    else:
+                        del sim.armies_side1[pos1]
+                if army2:
+                    army2.current_troop_count = res2
+                    if res2 > 0:
+                        army2.unit.initial_count = res2
+                    else:
+                        del sim.armies_side2[pos2]
+
+            self.events.extend(round_events)
 
         self.current_event = -1
         self._next_event()
@@ -2267,6 +2313,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def _clear_report(self) -> None:
         self.output_text.clear()
         self.output_tree.clear()
+        self.arena_results_tab.clear()
+        self.slow_sim_tab.clear()
 
     def _toggle_report_view(self, checked: bool) -> None:
         if checked:

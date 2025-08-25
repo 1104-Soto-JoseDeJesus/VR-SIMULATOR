@@ -1676,6 +1676,12 @@ class MainWindow(QtWidgets.QMainWindow):
         """Create the main toolbar."""
         toolbar = self.addToolBar("Actions")
 
+        # Toggle for Arena Mode for cleaner access
+        self.arena_mode_action = QtGui.QAction("Arena Mode", self)
+        self.arena_mode_action.setCheckable(True)
+        self.arena_mode_action.triggered.connect(self._open_arena_dialog)
+        toolbar.addAction(self.arena_mode_action)
+
         self.run_action = QtGui.QAction("Run Simulation", self)
         self.run_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
         self.run_action.triggered.connect(self.run_simulation)
@@ -1690,11 +1696,6 @@ class MainWindow(QtWidgets.QMainWindow):
         load_action.setShortcut(QtGui.QKeySequence("Ctrl+O"))
         load_action.triggered.connect(self.load_setup)
         toolbar.addAction(load_action)
-
-        # Toggle for Arena Mode for cleaner access
-        self.arena_mode_action = QtGui.QAction("Arena Mode", self)
-        self.arena_mode_action.setCheckable(True)
-        toolbar.addAction(self.arena_mode_action)
 
         export_report_action = QtGui.QAction("Export Report", self)
         export_report_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+R"))
@@ -1756,6 +1757,15 @@ class MainWindow(QtWidgets.QMainWindow):
         pdf_layout_action.triggered.connect(self.open_pdf_layout_tool)
 
         return toolbar
+
+    def _open_arena_dialog(self) -> None:
+        """Display a placeholder dialog for Arena Mode."""
+        QtWidgets.QMessageBox.information(
+            self,
+            "Arena Mode",
+            "Arena mode configuration is not yet available.",
+        )
+        self.arena_mode_action.setChecked(False)
 
     def _init_tabs(self) -> QtWidgets.QVBoxLayout:
         """Create the central widget and all tabs."""

@@ -44,6 +44,7 @@ class SkillTriggerLog:
     damage_done_hp: Optional[float] = None
     shield_hp_gained: Optional[float] = None
     potential_kills: Optional[int] = None
+    absorbed_hp: Optional[float] = None
 
 
 class GameSimulator:

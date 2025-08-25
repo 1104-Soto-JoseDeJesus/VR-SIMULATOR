@@ -88,11 +88,13 @@ class ReportBuilder:
                 rows = []
                 for tr in triggers:
                     detail_parts: List[str] = []
-                    if 'damage_done_hp' in tr:
-                        detail_parts.append(self._c(f"DMG {tr['damage_done_hp']:.0f}", Fore.RED))
-                    elif 'shield_hp_gained' in tr:
+                    dmg = tr.get('damage_done_hp')
+                    shield = tr.get('shield_hp_gained')
+                    if dmg is not None:
+                        detail_parts.append(self._c(f"DMG {dmg:.0f}", Fore.RED))
+                    elif shield is not None:
                         detail_parts.append(
-                            self._c(f"Shield {tr['shield_hp_gained']:.0f}", Fore.GREEN)
+                            self._c(f"Shield {shield:.0f}", Fore.GREEN)
                         )
                     kills = tr.get('potential_kills')
                     if kills:

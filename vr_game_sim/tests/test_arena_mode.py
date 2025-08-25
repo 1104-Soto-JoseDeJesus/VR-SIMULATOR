@@ -167,3 +167,15 @@ def test_all_lanes_resolve_in_single_round():
     sim = ArenaSimulator(side1, side2)
     sim.simulate_battle()
     assert sim.round == 1
+
+
+def test_multiple_attackers_focus_single_enemy():
+    """Several armies can sequentially attack the same target in one round."""
+    a1 = make_army("A1", (0, 0), count=100)
+    a2 = make_army("A2", (1, 0), count=100)
+    b1 = make_army("B1", (0, 0), count=150)
+    sim = ArenaSimulator([a1, a2], [b1])
+    sim.simulate_battle()
+    assert sim.winner == 1
+    assert a1.current_troop_count <= 0
+    assert a2.current_troop_count > 0

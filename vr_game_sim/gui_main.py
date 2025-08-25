@@ -18,6 +18,7 @@ from vr_game_sim.hero_definition import HERO_PRESETS
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.report_builder import ReportBuilder
+from vr_game_sim.arena_simulator import ArenaSimulator
 from vr_game_sim.main import (
     create_armies_from_data,
     run_additional_simulations,
@@ -1656,6 +1657,8 @@ def display_histograms(
 class ArenaModeTab(QtWidgets.QWidget):
     """Tab widget for configuring and simulating arena battles."""
 
+    results_ready = QtCore.pyqtSignal(str)
+
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
 
@@ -1696,10 +1699,6 @@ class ArenaModeTab(QtWidgets.QWidget):
         btn_layout.addStretch(1)
         btn_layout.addWidget(run_btn)
 
-        self.output = QtWidgets.QPlainTextEdit()
-        self.output.setReadOnly(True)
-        main_layout.addWidget(self.output)
-
     def _build_setup(self) -> dict:
         setup = {"side1": [], "side2": []}
         for row, frames in enumerate(self.side1_frames):
@@ -1729,7 +1728,193 @@ class ArenaModeTab(QtWidgets.QWidget):
             lines.append(f"{side} survivors:")
             for pos, troops in result["result"][side].items():
                 lines.append(f"  {pos}: {troops}")
-        self.output.setPlainText("\n".join(lines))
+        self.results_ready.emit("\n".join(lines))
+
+
+class ArenaResultsTab(QtWidgets.QWidget):
+    """Display results of the last arena simulation."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        layout = QtWidgets.QVBoxLayout(self)
+        self.output = QtWidgets.QPlainTextEdit()
+        self.output.setReadOnly(True)
+        layout.addWidget(self.output)
+
+    def set_results(self, text: str) -> None:
+        self.output.setPlainText(text)
+
+
+class SlowSimTab(QtWidgets.QWidget):
+    """Visualise arena battles in a slow, round-by-round manner."""
+
+    CELL_SIZE = 80
+    GAP = 80
+
+    def __init__(self, arena_tab: ArenaModeTab, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.arena_tab = arena_tab
+        layout = QtWidgets.QVBoxLayout(self)
+        self.start_btn = QtWidgets.QPushButton("Start Slow Simulation")
+        self.start_btn.clicked.connect(self.start_simulation)
+        layout.addWidget(self.start_btn)
+
+        self.view = QtWidgets.QGraphicsView()
+        self.scene = QtWidgets.QGraphicsScene(self.view)
+        self.view.setScene(self.scene)
+        layout.addWidget(self.view)
+
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self._anim_step)
+
+        self.events: list[dict] = []
+        self.current_event = -1
+        self.current_round = 0
+        self.anim_state = 0
+        self.attacker_item = None
+        self.defender_item = None
+
+    def _make_army_pixmap(self, hero1: str, hero2: str) -> QtGui.QPixmap:
+        base_path = os.path.join(os.path.dirname(__file__), "Hero Images")
+        def _load(name: str) -> QtGui.QPixmap:
+            path = os.path.join(base_path, f"{name}.png")
+            if os.path.exists(path):
+                return QtGui.QPixmap(path)
+            return QtGui.QPixmap(self.CELL_SIZE, self.CELL_SIZE)
+
+        pix1 = _load(hero1).scaled(
+            self.CELL_SIZE,
+            self.CELL_SIZE,
+            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+            QtCore.Qt.TransformationMode.SmoothTransformation,
+        )
+        painter = QtGui.QPainter(pix1)
+        if hero2 and hero2 != "None":
+            pix2 = _load(hero2).scaled(
+                int(self.CELL_SIZE / 2),
+                int(self.CELL_SIZE / 2),
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+            painter.drawPixmap(
+                self.CELL_SIZE - pix2.width(),
+                self.CELL_SIZE - pix2.height(),
+                pix2,
+            )
+        painter.end()
+        return pix1
+
+    def start_simulation(self) -> None:
+        setup = self.arena_tab._build_setup()
+        if not setup["side1"] or not setup["side2"]:
+            QtWidgets.QMessageBox.warning(
+                self, "Slow Sim", "Both sides need at least one army."
+            )
+            return
+
+        self.scene.clear()
+        self.army_items: dict[tuple[str, int, int], QtWidgets.QGraphicsPixmapItem] = {}
+
+        for side, xoff in (("side1", 0), ("side2", self.CELL_SIZE * 2 + self.GAP)):
+            for cfg in setup[side]:
+                col, row = cfg["grid_pos"]
+                pix = self._make_army_pixmap(
+                    cfg.get("hero1", "None"), cfg.get("hero2", "None")
+                )
+                item = QtWidgets.QGraphicsPixmapItem(pix)
+                item.setPos(xoff + col * self.CELL_SIZE, row * self.CELL_SIZE)
+                self.scene.addItem(item)
+                self.army_items[(side, col, row)] = item
+
+        self.view.setSceneRect(0, 0, self.CELL_SIZE * 4 + self.GAP, self.CELL_SIZE * 4)
+
+        armies1, armies2 = create_armies_from_data(setup)
+        sim = ArenaSimulator(armies1, armies2)
+        self.events = []
+        while sim.armies_side1 and sim.armies_side2:
+            pos1 = sim._next_attacker_pos()
+            if pos1 is None:
+                break
+            army1 = sim.armies_side1[pos1]
+            if pos1 in sim.armies_side2:
+                target_pos = pos1
+            else:
+                target_pos = sim._select_target(pos1, sim.armies_side2)
+            if target_pos is None:
+                break
+            army2 = sim.armies_side2[target_pos]
+            gs = GameSimulator(army1, army2, track_stats=False)
+            gs.simulate_battle()
+            winner = 0
+            if army1.current_troop_count > 0 and army2.current_troop_count <= 0:
+                winner = 1
+                army1.unit.initial_count = army1.current_troop_count
+                del sim.armies_side2[target_pos]
+            elif army2.current_troop_count > 0 and army1.current_troop_count <= 0:
+                winner = 2
+                army2.unit.initial_count = army2.current_troop_count
+                del sim.armies_side1[pos1]
+            else:
+                del sim.armies_side1[pos1]
+                del sim.armies_side2[target_pos]
+            self.events.append(
+                {
+                    "attacker_pos": pos1,
+                    "defender_pos": target_pos,
+                    "rounds": gs.round,
+                    "winner": winner,
+                }
+            )
+
+        self.current_event = -1
+        self._next_event()
+
+    def _next_event(self) -> None:
+        self.current_event += 1
+        if self.current_event >= len(self.events):
+            return
+        event = self.events[self.current_event]
+        atk_pos = event["attacker_pos"]
+        def_pos = event["defender_pos"]
+        self.attacker_item = self.army_items.get(("side1", atk_pos[0], atk_pos[1]))
+        self.defender_item = self.army_items.get(("side2", def_pos[0], def_pos[1]))
+        self.atk_orig = self.attacker_item.pos()
+        self.def_orig = self.defender_item.pos()
+        self.meet_pos = QtCore.QPointF(
+            (self.atk_orig.x() + self.def_orig.x()) / 2,
+            (self.atk_orig.y() + self.def_orig.y()) / 2,
+        )
+        self.current_round = 0
+        self.anim_state = 0
+        self.timer.start(500)
+
+    def _anim_step(self) -> None:
+        if self.attacker_item is None or self.defender_item is None:
+            self.timer.stop()
+            return
+        event = self.events[self.current_event]
+        if self.anim_state == 0:
+            self.attacker_item.setPos(self.meet_pos)
+            self.defender_item.setPos(self.meet_pos)
+            self.anim_state = 1
+        else:
+            self.attacker_item.setPos(self.atk_orig)
+            self.defender_item.setPos(self.def_orig)
+            self.anim_state = 0
+            self.current_round += 1
+            if self.current_round >= max(1, event["rounds"]):
+                self.timer.stop()
+                winner = event["winner"]
+                if winner == 1 and self.defender_item is not None:
+                    self.scene.removeItem(self.defender_item)
+                elif winner == 2 and self.attacker_item is not None:
+                    self.scene.removeItem(self.attacker_item)
+                else:
+                    if self.attacker_item is not None:
+                        self.scene.removeItem(self.attacker_item)
+                    if self.defender_item is not None:
+                        self.scene.removeItem(self.defender_item)
+                self._next_event()
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -1755,11 +1940,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def _init_menu_toolbar(self) -> QtWidgets.QToolBar:
         """Create the main toolbar."""
         toolbar = self.addToolBar("Actions")
-
-        # Quick access to the Arena Mode tab
-        self.arena_mode_action = QtGui.QAction("Arena Mode", self)
-        self.arena_mode_action.triggered.connect(self._open_arena_tab)
-        toolbar.addAction(self.arena_mode_action)
 
         self.run_action = QtGui.QAction("Run Simulation", self)
         self.run_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
@@ -1836,10 +2016,6 @@ class MainWindow(QtWidgets.QMainWindow):
         pdf_layout_action.triggered.connect(self.open_pdf_layout_tool)
 
         return toolbar
-
-    def _open_arena_tab(self) -> None:
-        """Switch to the Arena Mode tab."""
-        self.tabs.setCurrentWidget(self.arena_tab)
 
     def _init_tabs(self) -> QtWidgets.QVBoxLayout:
         """Create the central widget and all tabs."""
@@ -1941,6 +2117,16 @@ class MainWindow(QtWidgets.QMainWindow):
         # --- Arena Mode tab ---
         self.arena_tab = ArenaModeTab()
         self.tabs.addTab(self.arena_tab, "Arena Mode")
+
+        # --- Arena Results tab ---
+        self.arena_results_tab = ArenaResultsTab()
+        self.tabs.addTab(self.arena_results_tab, "Arena Results")
+
+        # --- Slow Simulation tab ---
+        self.slow_sim_tab = SlowSimTab(self.arena_tab)
+        self.tabs.addTab(self.slow_sim_tab, "Slow Simulate")
+
+        self.arena_tab.results_ready.connect(self.arena_results_tab.set_results)
 
         return main_layout
 

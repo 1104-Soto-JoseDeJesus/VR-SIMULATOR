@@ -49,6 +49,23 @@ army preview along with all histograms.
 You will be prompted to create a new setup or load a saved one from the
 `vr_game_sim/setups` directory. Setups can be saved as JSON files for later use.
 
+### Viking Rise Arena Mode
+
+The simulator includes a Viking Rise style arena where each side fields up to
+eight "marches" on a 2×4 grid (two columns and four rows). Columns represent
+front and back ranks, while rows are lanes from top to bottom.
+
+To run an arena battle programmatically:
+
+```python
+from vr_game_sim.main import run_viking_arena_battle
+
+result = run_viking_arena_battle(side1_marches, side2_marches)
+```
+
+Each march configuration follows the same structure as the interactive setup
+and must include a `grid_pos` like `[column, row]`.
+
 ### Non-interactive mode
 
 You can bypass the interactive prompts by providing the `--setup` option with a

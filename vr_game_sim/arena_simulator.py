@@ -48,6 +48,12 @@ class ArenaSimulator:
         return random.choice(attackers)
 
     def __init__(self, armies_side1: List[Army], armies_side2: List[Army]):
+        max_slots = self.GRID_COLS * self.GRID_ROWS
+        if len(armies_side1) > max_slots or len(armies_side2) > max_slots:
+            raise ValueError(
+                f"ArenaSimulator supports at most {max_slots} armies per side"
+            )
+
         # Store armies keyed by their (col, row) position
         self.armies_side1: Dict[Tuple[int, int], Army] = {
             army.position: army for army in armies_side1 if army.position is not None

@@ -218,6 +218,23 @@ def run_arena_battle(setup_data: Dict[str, Any]):
     return {"winner": sim.winner, "result": result}
 
 
+def run_viking_arena_battle(
+    side1: List[Dict[str, Any]], side2: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """Run a Viking Rise style arena battle.
+
+    Parameters
+    ----------
+    side1, side2:
+        Lists of march configurations for each side. Each march should include
+        a ``grid_pos`` specifying its column and row on the 2x4 arena grid. Up to
+        eight marches per side are supported.
+    """
+
+    setup = {"side1": side1, "side2": side2}
+    return run_arena_battle(setup)
+
+
 def _run_single_battle(
     setup_data: List[Dict[str, Any]],
     seed: int | None = None,

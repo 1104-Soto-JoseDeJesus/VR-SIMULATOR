@@ -1,6 +1,8 @@
 import os
 import random
 
+import pytest
+
 from vr_game_sim.arena_simulator import ArenaSimulator
 from vr_game_sim.army_composition import Army
 from vr_game_sim.unit_definition import Unit
@@ -120,4 +122,48 @@ def test_battles_resolve_simultaneously():
     sim = ArenaSimulator([a1, a2], [b1, b2])
     sim.simulate_battle()
     # Both lane battles should resolve in a single round
+    assert sim.round == 1
+
+
+def test_rejects_more_than_eight_armies():
+    armies = [make_army(f"A{i}", (0, 0)) for i in range(9)]
+    with pytest.raises(ValueError):
+        ArenaSimulator(armies, [])
+    with pytest.raises(ValueError):
+        ArenaSimulator([], armies)
+
+
+def test_serialization_roundtrip_all_positions(tmp_path):
+    positions = [(c, r) for r in range(4) for c in range(2)]
+    side1 = []
+    side2 = []
+    for idx, pos in enumerate(positions):
+        base = {
+            "army_name": f"A{idx}",
+            "unit_type": "infantry",
+            "tier": 5,
+            "count": 100,
+            "atk_mod": 0.0,
+            "def_mod": 0.0,
+            "hp_mod": 0.0,
+            "heroes": [],
+            "grid_pos": list(pos),
+        }
+        side1.append(base)
+        side2.append({**base, "army_name": f"B{idx}"})
+    setup = {"side1": side1, "side2": side2}
+    filename = "arena_all_slots.json"
+    save_setup_to_file(setup, filename)
+    loaded = load_setup_from_file(filename)
+    os.remove(os.path.join(SETUPS_DIR, filename))
+    armies1, armies2 = create_armies_from_data(loaded)
+    assert {army.position for army in armies1} == set(positions)
+    assert {army.position for army in armies2} == set(positions)
+
+
+def test_all_lanes_resolve_in_single_round():
+    side1 = [make_army(f"A{i}", (0, i), count=100) for i in range(4)]
+    side2 = [make_army(f"B{i}", (0, i), count=100) for i in range(4)]
+    sim = ArenaSimulator(side1, side2)
+    sim.simulate_battle()
     assert sim.round == 1

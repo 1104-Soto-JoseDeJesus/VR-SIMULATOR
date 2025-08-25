@@ -5,6 +5,7 @@ from .enums import SkillType
 from .unit_definition import Unit
 from .hero_definition import Hero, HERO_PRESETS  # HERO_PRESETS is imported here
 from .skill_system import SkillDefinition
+from .arena_simulator import ArenaSimulator
 
 
 def input_choice_numbered(prompt: str, choices_ordered: List[str], default: Optional[str] = None) -> str:
@@ -101,12 +102,15 @@ def input_float(prompt: str, default: Optional[float] = None) -> float:
 def prompt_grid_position(used_positions: set[Tuple[int, int]]) -> Tuple[int, int]:
     """Prompt the user for a grid position within the 2x4 arena.
 
-    The arena has four columns (0-3) and two rows (0-1). Ensures the chosen slot
-    is not already occupied.
+    The arena has two columns (0-1) and four rows (0-3). Ensures the chosen
+    slot is not already occupied. Values are derived from
+    :class:`ArenaSimulator` to avoid drifting from the simulation grid size.
     """
+    max_col = ArenaSimulator.GRID_COLS - 1
+    max_row = ArenaSimulator.GRID_ROWS - 1
     while True:
-        col = input_int("  Enter column (0-3)", 0, 3)
-        row = input_int("  Enter row (0-1)", 0, 1)
+        col = input_int(f"  Enter column (0-{max_col})", 0, max_col)
+        row = input_int(f"  Enter row (0-{max_row})", 0, max_row)
         pos = (col, row)
         if pos not in used_positions:
             used_positions.add(pos)

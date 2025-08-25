@@ -23,6 +23,7 @@ from vr_game_sim.main import (
     run_additional_simulations,
     save_setup_to_file,
     load_setup_from_file,
+    run_arena_battle,
 )
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 
@@ -1652,6 +1653,70 @@ def display_histograms(
     scroll.setWidget(frame)
 
 
+class ArenaSetupDialog(QtWidgets.QDialog):
+    """Dialog for configuring and simulating arena battles on a 2x4 grid."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Arena Mode")
+
+        layout = QtWidgets.QVBoxLayout(self)
+        grid_layout = QtWidgets.QGridLayout()
+        self.side1_frames: list[ArmyFrame] = []
+        self.side2_frames: list[ArmyFrame] = []
+        for row in range(4):
+            f1 = ArmyFrame(row + 1, self)
+            f2 = ArmyFrame(row + 1, self)
+            self.side1_frames.append(f1)
+            self.side2_frames.append(f2)
+            grid_layout.addWidget(f1, row, 0)
+            grid_layout.addWidget(f2, row, 1)
+        layout.addLayout(grid_layout)
+
+        btn_layout = QtWidgets.QHBoxLayout()
+        run_btn = QtWidgets.QPushButton("Simulate")
+        close_btn = QtWidgets.QPushButton("Close")
+        run_btn.clicked.connect(self.run_simulation)
+        close_btn.clicked.connect(self.reject)
+        btn_layout.addStretch(1)
+        btn_layout.addWidget(run_btn)
+        btn_layout.addWidget(close_btn)
+        layout.addLayout(btn_layout)
+
+        self.output = QtWidgets.QPlainTextEdit()
+        self.output.setReadOnly(True)
+        layout.addWidget(self.output)
+
+    def _build_setup(self) -> dict:
+        setup = {"side1": [], "side2": []}
+        for row, frame in enumerate(self.side1_frames):
+            cfg = frame.build_config()
+            if cfg.get("count", 0) > 0:
+                cfg["grid_pos"] = [0, row]
+                setup["side1"].append(cfg)
+        for row, frame in enumerate(self.side2_frames):
+            cfg = frame.build_config()
+            if cfg.get("count", 0) > 0:
+                cfg["grid_pos"] = [1, row]
+                setup["side2"].append(cfg)
+        return setup
+
+    def run_simulation(self) -> None:
+        setup = self._build_setup()
+        if not setup["side1"] or not setup["side2"]:
+            QtWidgets.QMessageBox.warning(
+                self, "Arena Mode", "Both sides need at least one army."
+            )
+            return
+        result = run_arena_battle(setup)
+        lines = [f"Arena winner: Side {result['winner']}"]
+        for side in ("side1", "side2"):
+            lines.append(f"{side} survivors:")
+            for pos, troops in result["result"][side].items():
+                lines.append(f"  {pos}: {troops}")
+        self.output.setPlainText("\n".join(lines))
+
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -1759,12 +1824,9 @@ class MainWindow(QtWidgets.QMainWindow):
         return toolbar
 
     def _open_arena_dialog(self) -> None:
-        """Display a placeholder dialog for Arena Mode."""
-        QtWidgets.QMessageBox.information(
-            self,
-            "Arena Mode",
-            "Arena mode configuration is not yet available.",
-        )
+        """Open the Arena Mode configuration dialog."""
+        dlg = ArenaSetupDialog(self)
+        dlg.exec()
         self.arena_mode_action.setChecked(False)
 
     def _init_tabs(self) -> QtWidgets.QVBoxLayout:

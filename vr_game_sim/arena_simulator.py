@@ -11,11 +11,12 @@ from .game_simulator import GameSimulator
 class ArenaSimulator:
     """Arena battles on a 2x4 grid for *each* side.
 
-    Both attackers and defenders can field armies on their own two column by
-    four row grid.  Columns represent the front and back ranks while rows are
-    lanes from top to bottom.  In contrast to the previous sequential
-    implementation, all available armies engage their targets **simultaneously**
-    each round.  A round therefore represents one wave of pairwise battles.
+    Armies are placed on a two column by four row grid representing front/back
+    ranks across four lanes.  An arena round is a wave of engagements where
+    each surviving army may attack **any** enemy following the targeting
+    priorities.  Multiple armies can focus the same target within the same
+    round; battles are resolved in a deterministic row-major order to model a
+    fully open battlefield with dynamic targeting.
 
     Target selection favours enemies in the same lane as the attacker.  If the
     lane is empty, columns are inspected by proximity starting with the
@@ -112,96 +113,75 @@ class ArenaSimulator:
         return None
 
     def simulate_battle(self) -> Dict[str, Dict[Tuple[int, int], float]]:
-        """Run waves of simultaneous battles until one side runs out of armies.
+        """Simulate the arena until one side is eliminated.
 
-        Each round all available armies choose targets according to the arena
-        targeting rules.  Paired armies fight concurrently using
-        ``GameSimulator``. The winning army in each pair keeps its remaining
-        troops and may fight again in subsequent rounds. The function returns a
-        mapping of surviving troops per position for both sides.
+        Armies attack in a deterministic row-major order.  Within a round each
+        surviving army may pick any enemy based on the targeting rules.  Several
+        armies can therefore concentrate on the same opponent during the same
+        round.  Battles are resolved immediately and the resulting troop counts
+        are committed before the next engagement of the round.
         """
-        # Ensure armies start fresh
+
         for army in list(self.armies_side1.values()) + list(self.armies_side2.values()):
             army.reset_for_new_battle()
 
         while self.armies_side1 and self.armies_side2:
             self.round += 1
+            round_buffer: List[Tuple[Tuple[int, int], Tuple[int, int], float, float]] = []
 
-            # Determine pairings for this round. Each army can participate at most
-            # once per round to model simultaneous engagements.
-            available1 = set(self.armies_side1.keys())
-            available2 = set(self.armies_side2.keys())
-            pairs: List[Tuple[Tuple[int, int], Tuple[int, int]]] = []
-
-            order = self._position_order()
-
-            for pos1 in order:
-                if pos1 not in available1:
+            # Side 1 attacks in row-major order
+            for pos1 in self._position_order():
+                if pos1 not in self.armies_side1 or not self.armies_side2:
                     continue
-                target = self._select_target(pos1, {p: self.armies_side2[p] for p in available2})
-                if target is not None:
-                    pairs.append((pos1, target))
-                    available1.remove(pos1)
-                    available2.remove(target)
-
-            for pos2 in order:
-                if pos2 not in available2:
+                target_pos = self._select_target(pos1, self.armies_side2)
+                if target_pos is None:
                     continue
-                target = self._select_target(pos2, {p: self.armies_side1[p] for p in available1})
-                if target is not None:
-                    pairs.append((target, pos2))
-                    available1.remove(target)
-                    available2.remove(pos2)
-
-            if not pairs:
-                break
-
-            # First pass: resolve battles on copies and buffer the outcomes
-            round_buffer: List[
-                Tuple[Tuple[int, int], Tuple[int, int], float, float]
-            ] = []
-            for pos1, pos2 in pairs:
-                army1_copy = copy.deepcopy(self.armies_side1[pos1])
-                army2_copy = copy.deepcopy(self.armies_side2[pos2])
+                army1 = self.armies_side1.get(pos1)
+                army2 = self.armies_side2.get(target_pos)
+                if army1 is None or army2 is None:
+                    continue
+                army1_copy = copy.deepcopy(army1)
+                army2_copy = copy.deepcopy(army2)
                 sim = GameSimulator(army1_copy, army2_copy, track_stats=False)
                 sim.simulate_battle()
-                round_buffer.append(
-                    (pos1, pos2, army1_copy.current_troop_count, army2_copy.current_troop_count)
-                )
+                army1.current_troop_count = army1_copy.current_troop_count
+                if army1.current_troop_count > 0:
+                    army1.unit.initial_count = army1.current_troop_count
+                else:
+                    del self.armies_side1[pos1]
+                army2.current_troop_count = army2_copy.current_troop_count
+                if army2.current_troop_count > 0:
+                    army2.unit.initial_count = army2.current_troop_count
+                else:
+                    del self.armies_side2[target_pos]
+                round_buffer.append((pos1, target_pos, army1_copy.current_troop_count, army2_copy.current_troop_count))
 
-            # Optional debug check against sequential resolution
-            if self.debug:
-                seq_side1 = {
-                    pos: copy.deepcopy(self.armies_side1[pos]) for pos, _ in pairs
-                }
-                seq_side2 = {
-                    pos: copy.deepcopy(self.armies_side2[pos]) for _, pos in pairs
-                }
-                for pos1, pos2 in pairs:
-                    seq_sim = GameSimulator(seq_side1[pos1], seq_side2[pos2], track_stats=False)
-                    seq_sim.simulate_battle()
-                for pos1, pos2, res1, res2 in round_buffer:
-                    if not math.isclose(res1, seq_side1[pos1].current_troop_count, rel_tol=1e-9):
-                        raise AssertionError("Buffered result mismatch for attacker")
-                    if not math.isclose(res2, seq_side2[pos2].current_troop_count, rel_tol=1e-9):
-                        raise AssertionError("Buffered result mismatch for defender")
-
-            # Second pass: commit buffered results and dispatch animations
-            for pos1, pos2, res1, res2 in round_buffer:
-                army1 = self.armies_side1.get(pos1)
+            # Side 2 attacks in row-major order with updated army states
+            for pos2 in self._position_order():
+                if pos2 not in self.armies_side2 or not self.armies_side1:
+                    continue
+                target_pos = self._select_target(pos2, self.armies_side1)
+                if target_pos is None:
+                    continue
                 army2 = self.armies_side2.get(pos2)
-                if army1:
-                    army1.current_troop_count = res1
-                    if res1 > 0:
-                        army1.unit.initial_count = res1
-                    else:
-                        del self.armies_side1[pos1]
-                if army2:
-                    army2.current_troop_count = res2
-                    if res2 > 0:
-                        army2.unit.initial_count = res2
-                    else:
-                        del self.armies_side2[pos2]
+                army1 = self.armies_side1.get(target_pos)
+                if army2 is None or army1 is None:
+                    continue
+                army1_copy = copy.deepcopy(army1)
+                army2_copy = copy.deepcopy(army2)
+                sim = GameSimulator(army1_copy, army2_copy, track_stats=False)
+                sim.simulate_battle()
+                army2.current_troop_count = army2_copy.current_troop_count
+                if army2.current_troop_count > 0:
+                    army2.unit.initial_count = army2.current_troop_count
+                else:
+                    del self.armies_side2[pos2]
+                army1.current_troop_count = army1_copy.current_troop_count
+                if army1.current_troop_count > 0:
+                    army1.unit.initial_count = army1.current_troop_count
+                else:
+                    del self.armies_side1[target_pos]
+                round_buffer.append((target_pos, pos2, army1_copy.current_troop_count, army2_copy.current_troop_count))
 
             self.last_round_buffer = round_buffer
 

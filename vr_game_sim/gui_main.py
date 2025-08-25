@@ -1896,35 +1896,58 @@ class SlowSimTab(QtWidgets.QWidget):
         self.rounds = []
 
         while sim.armies_side1 and sim.armies_side2:
-            available1 = set(sim.armies_side1.keys())
-            available2 = set(sim.armies_side2.keys())
-            order = sim._position_order()
-            pairs: list[tuple[tuple[int, int], tuple[int, int]]] = []
+            progressed = False
 
-            for pos1 in order:
-                if pos1 not in available1:
+            for pos1 in sim._position_order():
+                if pos1 not in sim.armies_side1 or not sim.armies_side2:
                     continue
-                target = sim._select_target(pos1, {p: sim.armies_side2[p] for p in available2})
-                if target is not None:
-                    pairs.append((pos1, target))
-                    available1.remove(pos1)
-                    available2.remove(target)
-
-            for pos2 in order:
-                if pos2 not in available2:
+                target = sim._select_target(pos1, sim.armies_side2)
+                if target is None:
                     continue
-                target = sim._select_target(pos2, {p: sim.armies_side1[p] for p in available1})
-                if target is not None:
-                    pairs.append((target, pos2))
-                    available1.remove(target)
-                    available2.remove(pos2)
-
-            if not pairs:
-                break
-
-            round_events: list[dict] = []
-            for pos1, pos2 in pairs:
                 army1_copy = copy.deepcopy(sim.armies_side1[pos1])
+                army2_copy = copy.deepcopy(sim.armies_side2[target])
+                gs = GameSimulator(army1_copy, army2_copy, track_stats=False)
+                gs.simulate_battle()
+                winner = 0
+                if army1_copy.current_troop_count > 0 and army2_copy.current_troop_count <= 0:
+                    winner = 1
+                elif army2_copy.current_troop_count > 0 and army1_copy.current_troop_count <= 0:
+                    winner = 2
+                event = {
+                    "attacker_pos": pos1,
+                    "defender_pos": target,
+                    "rounds": gs.round,
+                    "winner": winner,
+                    "atk_history": gs.army1_troop_history,
+                    "def_history": gs.army2_troop_history,
+                    "atk_remaining": army1_copy.current_troop_count,
+                    "def_remaining": army2_copy.current_troop_count,
+                }
+                self.rounds.append([event])
+
+                army1 = sim.armies_side1.get(pos1)
+                army2 = sim.armies_side2.get(target)
+                if army1:
+                    army1.current_troop_count = army1_copy.current_troop_count
+                    if army1.current_troop_count > 0:
+                        army1.unit.initial_count = army1.current_troop_count
+                    else:
+                        del sim.armies_side1[pos1]
+                if army2:
+                    army2.current_troop_count = army2_copy.current_troop_count
+                    if army2.current_troop_count > 0:
+                        army2.unit.initial_count = army2.current_troop_count
+                    else:
+                        del sim.armies_side2[target]
+                progressed = True
+
+            for pos2 in sim._position_order():
+                if pos2 not in sim.armies_side2 or not sim.armies_side1:
+                    continue
+                target = sim._select_target(pos2, sim.armies_side1)
+                if target is None:
+                    continue
+                army1_copy = copy.deepcopy(sim.armies_side1[target])
                 army2_copy = copy.deepcopy(sim.armies_side2[pos2])
                 gs = GameSimulator(army1_copy, army2_copy, track_stats=False)
                 gs.simulate_battle()
@@ -1933,40 +1956,36 @@ class SlowSimTab(QtWidgets.QWidget):
                     winner = 1
                 elif army2_copy.current_troop_count > 0 and army1_copy.current_troop_count <= 0:
                     winner = 2
-                round_events.append(
-                    {
-                        "attacker_pos": pos1,
-                        "defender_pos": pos2,
-                        "rounds": gs.round,
-                        "winner": winner,
-                        "atk_history": gs.army1_troop_history,
-                        "def_history": gs.army2_troop_history,
-                        "atk_remaining": army1_copy.current_troop_count,
-                        "def_remaining": army2_copy.current_troop_count,
-                    }
-                )
+                event = {
+                    "attacker_pos": target,
+                    "defender_pos": pos2,
+                    "rounds": gs.round,
+                    "winner": winner,
+                    "atk_history": gs.army1_troop_history,
+                    "def_history": gs.army2_troop_history,
+                    "atk_remaining": army1_copy.current_troop_count,
+                    "def_remaining": army2_copy.current_troop_count,
+                }
+                self.rounds.append([event])
 
-            for ev in round_events:
-                pos1 = ev["attacker_pos"]
-                pos2 = ev["defender_pos"]
-                res1 = ev["atk_remaining"]
-                res2 = ev["def_remaining"]
-                army1 = sim.armies_side1.get(pos1)
+                army1 = sim.armies_side1.get(target)
                 army2 = sim.armies_side2.get(pos2)
-                if army1:
-                    army1.current_troop_count = res1
-                    if res1 > 0:
-                        army1.unit.initial_count = res1
-                    else:
-                        del sim.armies_side1[pos1]
                 if army2:
-                    army2.current_troop_count = res2
-                    if res2 > 0:
-                        army2.unit.initial_count = res2
+                    army2.current_troop_count = army2_copy.current_troop_count
+                    if army2.current_troop_count > 0:
+                        army2.unit.initial_count = army2.current_troop_count
                     else:
                         del sim.armies_side2[pos2]
+                if army1:
+                    army1.current_troop_count = army1_copy.current_troop_count
+                    if army1.current_troop_count > 0:
+                        army1.unit.initial_count = army1.current_troop_count
+                    else:
+                        del sim.armies_side1[target]
+                progressed = True
 
-            self.rounds.append(round_events)
+            if not progressed:
+                break
 
         self.current_round_index = -1
         self._next_round()

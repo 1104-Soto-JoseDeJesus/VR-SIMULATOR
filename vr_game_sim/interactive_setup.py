@@ -98,6 +98,55 @@ def input_float(prompt: str, default: Optional[float] = None) -> float:
             print("Invalid input. Please enter a decimal number (e.g., 0.05).")
 
 
+def prompt_grid_position(used_positions: set[Tuple[int, int]]) -> Tuple[int, int]:
+    """Prompt the user for a grid position within the 2x4 arena.
+
+    Ensures the chosen slot is not already occupied.
+    """
+    while True:
+        col = input_int("  Enter column (0-1)", 0, 1)
+        row = input_int("  Enter row (0-3)", 0, 3)
+        pos = (col, row)
+        if pos not in used_positions:
+            used_positions.add(pos)
+            return pos
+        print("  Slot already occupied. Choose another.")
+
+
+def setup_simple_army(army_name: str) -> Dict[str, Any]:
+    """Minimal interactive setup for an army without heroes."""
+    unit_type = input_choice_numbered("  Unit type", ["infantry", "archers", "pikemen"], "infantry")
+    tier = input_int("  Tier", 1, 10, 5)
+    count = input_int("  Troop count", 1)
+    atk = input_float("  Attack modifier", 0.0)
+    defense = input_float("  Defense modifier", 0.0)
+    hp = input_float("  HP modifier", 0.0)
+    return {
+        "army_name": army_name,
+        "unit_type": unit_type,
+        "tier": tier,
+        "count": count,
+        "atk_mod": atk,
+        "def_mod": defense,
+        "hp_mod": hp,
+        "heroes": [],
+    }
+
+
+def setup_armies_arena_interactive(side_label: str, march_count: int) -> List[Dict[str, Any]]:
+    """Interactive helper to build multiple marches for arena mode."""
+    marches: List[Dict[str, Any]] = []
+    used: set[Tuple[int, int]] = set()
+    for i in range(march_count):
+        print(f"\nConfiguring {side_label} march {i + 1}")
+        name = input(f"  Enter march name (default: {side_label}_{i + 1}): ").strip() or f"{side_label}_{i + 1}"
+        army_conf = setup_simple_army(name)
+        pos = prompt_grid_position(used)
+        army_conf["grid_pos"] = list(pos)
+        marches.append(army_conf)
+    return marches
+
+
 def _select_skill_interactive(
         prompt_message: str,
         skill_type_filter: SkillType,

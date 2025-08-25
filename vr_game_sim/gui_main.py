@@ -332,9 +332,9 @@ class StarredImageLabel(QtWidgets.QLabel):
 
         if self.star_count < self.max_stars:
             painter = QtGui.QPainter(pix)
-            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
             painter.setPen(QtCore.Qt.PenStyle.NoPen)
             painter.setBrush(self.star_color)
+            painter.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_Source)
 
             usable_width = pix.width() * (1 - 2 * self.star_side_margin_ratio)
             cell_width = usable_width / self.max_stars
@@ -343,9 +343,7 @@ class StarredImageLabel(QtWidgets.QLabel):
 
             for i in range(self.star_count, self.max_stars):
                 scale = 1.0
-                if self._is_hero_image and i < len(self.hero_star_size_factors):
-                    scale = self.hero_star_size_factors[i]
-                elif self._is_plugin_image and i < len(self.plugin_star_size_factors):
+                if self._is_plugin_image and i < len(self.plugin_star_size_factors):
                     scale = self.plugin_star_size_factors[i]
                 star_w = cell_width * scale
                 star_h = base_height * scale
@@ -1692,6 +1690,11 @@ class MainWindow(QtWidgets.QMainWindow):
         load_action.setShortcut(QtGui.QKeySequence("Ctrl+O"))
         load_action.triggered.connect(self.load_setup)
         toolbar.addAction(load_action)
+
+        # Toggle for Arena Mode for cleaner access
+        self.arena_mode_action = QtGui.QAction("Arena Mode", self)
+        self.arena_mode_action.setCheckable(True)
+        toolbar.addAction(self.arena_mode_action)
 
         export_report_action = QtGui.QAction("Export Report", self)
         export_report_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+R"))

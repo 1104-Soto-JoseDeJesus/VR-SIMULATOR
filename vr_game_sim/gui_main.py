@@ -1837,8 +1837,16 @@ class SlowSimTab(QtWidgets.QWidget):
         armies1, armies2 = create_armies_from_data(setup)
         sim = ArenaSimulator(armies1, armies2)
         self.events = []
+
+        def _next_attacker_pos() -> tuple[int, int] | None:
+            """Return the next attacking position in row-major order."""
+            for pos in sim._position_order():
+                if pos in sim.armies_side1:
+                    return pos
+            return None
+
         while sim.armies_side1 and sim.armies_side2:
-            pos1 = sim._next_attacker_pos()
+            pos1 = _next_attacker_pos()
             if pos1 is None:
                 break
             army1 = sim.armies_side1[pos1]

@@ -49,6 +49,21 @@ army preview along with all histograms.
 You will be prompted to create a new setup or load a saved one from the
 `vr_game_sim/setups` directory. Setups can be saved as JSON files for later use.
 
+## Multi-army battlefield
+
+Besides the traditional duel simulator, the project now offers a
+grid-based battlefield where more than two armies can manoeuvre and clash.
+
+Use the simple text interface to experiment with movement and combat:
+
+```bash
+python -m vr_game_sim.multi_cli
+```
+
+Commands allow armies to move across the map, advance rounds and display the
+current field state. When two armies meet on the same tile the existing 1v1
+combat simulator resolves the engagement.
+
 ### Non-interactive mode
 
 You can bypass the interactive prompts by providing the `--setup` option with a

@@ -1,7 +1,10 @@
 # === File: army_composition.py ===
 import random
+import ast
+import operator as op
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Tuple
+import logging
 
 from .enums import EffectType, SkillTriggerType, StatType, DoTType
 from .unit_definition import Unit
@@ -34,6 +37,39 @@ from .constants import (
 )
 
 GameSimulatorRef = "GameSimulator"  # Forward reference
+
+
+logger = logging.getLogger(__name__)
+
+
+_SAFE_OPERATORS: Dict[type, Any] = {
+    ast.Add: op.add,
+    ast.Sub: op.sub,
+    ast.Mult: op.mul,
+    ast.Div: op.truediv,
+    ast.Pow: op.pow,
+    ast.USub: op.neg,
+}
+
+
+def _safe_eval(expr: str, variables: Dict[str, float]) -> float:
+    """Safely evaluate a simple math expression with given variables."""
+    node = ast.parse(expr, mode="eval").body
+
+    def _eval(n: ast.AST) -> float:
+        if isinstance(n, ast.Num):
+            return n.n  # type: ignore[attr-defined]
+        if isinstance(n, ast.BinOp) and type(n.op) in _SAFE_OPERATORS:
+            return _SAFE_OPERATORS[type(n.op)](_eval(n.left), _eval(n.right))
+        if isinstance(n, ast.UnaryOp) and type(n.op) in _SAFE_OPERATORS:
+            return _SAFE_OPERATORS[type(n.op)](_eval(n.operand))
+        if isinstance(n, ast.Name):
+            if n.id in variables:
+                return variables[n.id]
+            raise ValueError(f"Unknown variable '{n.id}'")
+        raise ValueError(f"Unsupported expression: {expr}")
+
+    return _eval(node)
 
 
 @dataclass(slots=True)
@@ -251,7 +287,7 @@ class Army:
                                       opponent_of_owner_for_calc: Optional['Army'] = None) -> Optional[EffectInstance]:
         canonical_effect_name = effect_data.get("name")
         if not canonical_effect_name:
-            print(f"Warning: Effect from {source_skill_id} is missing a 'name'. Skipping effect.")
+            logger.warning("Effect from %s is missing a 'name'. Skipping effect.", source_skill_id)
             return None
 
         for active_immunity_effect in target_army.active_effects:
@@ -343,24 +379,46 @@ class Army:
 
         elif "magnitude_calc" in effect_data:
             try:
-                magnitude = float(eval(effect_data["magnitude_calc"], {
-                    "self_army_max_hp": target_army.unit.initial_count * target_army.unit.effective_hp_per_troop(
-                        target_army.active_effects)
-                }))
+                magnitude = float(
+                    _safe_eval(
+                        effect_data["magnitude_calc"],
+                        {
+                            "self_army_max_hp": target_army.unit.initial_count
+                            * target_army.unit.effective_hp_per_troop(target_army.active_effects)
+                        },
+                    )
+                )
             except Exception as e:
-                print(f"Error in magnitude_calc for {canonical_effect_name} from {source_skill_id}: {e}");
+                logger.error(
+                    "Error in magnitude_calc for %s from %s: %s",
+                    canonical_effect_name,
+                    source_skill_id,
+                    e,
+                )
                 magnitude = 0.0
 
         if effect_data.get("effect_type") == EffectType.DAMAGE_OVER_TIME and not is_special_dot:
             dot_damage = 0.0
             if "dot_damage_calc" in effect_data and self.simulator and owner_army:
                 try:
-                    dot_damage = float(eval(effect_data["dot_damage_calc"], {
-                        "attacker_total_attack": owner_army.unit.effective_attack(
-                            owner_army.active_effects) * self.simulator.troop_scalar(owner_army.current_troop_count)
-                    }))
+                    dot_damage = float(
+                        _safe_eval(
+                            effect_data["dot_damage_calc"],
+                            {
+                                "attacker_total_attack": owner_army.unit.effective_attack(
+                                    owner_army.active_effects
+                                )
+                                * self.simulator.troop_scalar(owner_army.current_troop_count)
+                            },
+                        )
+                    )
                 except Exception as e:
-                    print(f"Error in dot_damage_calc for {canonical_effect_name} from {source_skill_id}: {e}");
+                    logger.error(
+                        "Error in dot_damage_calc for %s from %s: %s",
+                        canonical_effect_name,
+                        source_skill_id,
+                        e,
+                    )
                     dot_damage = 0.0
             final_config["dot_damage_per_round"] = dot_damage
             final_config['dot_type'] = DoTType.GENERIC

@@ -1,6 +1,7 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Iterable
 from tabulate import tabulate
 from colorama import Fore, Style, init
+from dataclasses import asdict, is_dataclass
 import sys
 import copy
 
@@ -28,15 +29,21 @@ class ReportBuilder:
     def emit_round(
         self,
         round_num: int,
-        combat_actions: List[Dict[str, Any]],
-        skill_triggers: Dict[str, List[Dict[str, Any]]],
+        combat_actions: List[Any],
+        skill_triggers: Dict[str, List[Any]],
         active_effects: List[str] | None = None,
     ) -> None:
+        combat_actions_dicts = [asdict(a) if is_dataclass(a) else dict(a) for a in combat_actions]
+        skill_triggers_dicts = {
+            army: [asdict(t) if is_dataclass(t) else dict(t) for t in triggers]
+            for army, triggers in skill_triggers.items()
+        }
+
         self.rounds.append(
             {
                 "round": round_num,
-                "combat_actions": copy.deepcopy(combat_actions),
-                "skill_triggers": copy.deepcopy(skill_triggers),
+                "combat_actions": copy.deepcopy(combat_actions_dicts),
+                "skill_triggers": copy.deepcopy(skill_triggers_dicts),
                 "active_effects": list(active_effects) if active_effects else [],
             }
         )
@@ -44,7 +51,7 @@ class ReportBuilder:
         self.lines.append(self._c(f"Round {round_num}", Fore.CYAN))
         if active_effects:
             self.lines.extend(active_effects)
-        if combat_actions:
+        if combat_actions_dicts:
             table = tabulate(
                 [
                     [
@@ -56,7 +63,7 @@ class ReportBuilder:
                         f"{a['final_hp_damage']:.0f}",
                         a['potential_kills'],
                     ]
-                    for a in combat_actions
+                    for a in combat_actions_dicts
                 ],
                 headers=[
                     "Attacker",
@@ -73,7 +80,7 @@ class ReportBuilder:
         else:
             self.lines.append("No combat actions.")
 
-        for army_name, triggers in skill_triggers.items():
+        for army_name, triggers in skill_triggers_dicts.items():
             self.lines.append(self._c(f"{army_name} Skill Triggers:", Fore.MAGENTA))
             if not triggers:
                 self.lines.append("  None")

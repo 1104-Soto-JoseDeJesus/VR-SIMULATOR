@@ -59,6 +59,8 @@ class GameSimulator:
         }
         self.report_builder = report_builder or ReportBuilder()
         self.track_stats = track_stats
+        self.army1_troop_history: List[float] = []
+        self.army2_troop_history: List[float] = []
 
     def _log_active_effects_for_report(self) -> List[str]:
         lines: List[str] = []
@@ -512,6 +514,8 @@ class GameSimulator:
         self.army1.reset_for_new_battle()
         self.army2.reset_for_new_battle()
         self.round = 0
+        self.army1_troop_history = [self.army1.current_troop_count]
+        self.army2_troop_history = [self.army2.current_troop_count]
 
         while self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
             self.round += 1
@@ -669,8 +673,11 @@ class GameSimulator:
                     if skill_def_h1_rage and army.current_rage >= skill_def_h1_rage.get("rage_cost", 1001):
                         army.hero1_rage_skill_queued_this_round = True
 
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
+            self.army1_troop_history.append(self.army1.current_troop_count)
+            self.army2_troop_history.append(self.army2.current_troop_count)
 
+            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+                break
 
             self.report_builder.lines.append(
                 f"\nEnd of Round {self.round} Status -> "

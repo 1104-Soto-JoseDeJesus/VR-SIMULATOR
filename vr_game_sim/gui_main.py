@@ -1750,6 +1750,7 @@ class SlowSimTab(QtWidgets.QWidget):
 
     CELL_SIZE = 80
     GAP = 80
+    BAR_WIDTH = 6
 
     def __init__(self, arena_tab: ArenaModeTab, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -1772,6 +1773,8 @@ class SlowSimTab(QtWidgets.QWidget):
         self.current_round = 0
         self.attacker_item = None
         self.defender_item = None
+        self.attacker_bar = None
+        self.defender_bar = None
 
     def _make_army_pixmap(self, hero1: str, hero2: str) -> QtGui.QPixmap:
         base_path = os.path.join(os.path.dirname(__file__), "Hero Images")
@@ -1787,13 +1790,16 @@ class SlowSimTab(QtWidgets.QWidget):
             placeholder.fill(QtGui.QColor("black"))
             return placeholder
 
+        base = QtGui.QPixmap(self.CELL_SIZE, self.CELL_SIZE)
+        base.fill(QtCore.Qt.GlobalColor.transparent)
         pix1 = _load(hero1).scaled(
             self.CELL_SIZE,
             self.CELL_SIZE,
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
-        painter = QtGui.QPainter(pix1)
+        painter = QtGui.QPainter(base)
+        painter.drawPixmap(0, 0, pix1)
         if hero2 and hero2 != "None":
             pix2 = _load(hero2).scaled(
                 int(self.CELL_SIZE / 2),
@@ -1807,7 +1813,7 @@ class SlowSimTab(QtWidgets.QWidget):
                 pix2,
             )
         painter.end()
-        return pix1
+        return base
 
     def start_simulation(self) -> None:
         setup = self.arena_tab._build_setup()
@@ -1819,6 +1825,7 @@ class SlowSimTab(QtWidgets.QWidget):
 
         self.scene.clear()
         self.army_items: dict[tuple[str, int, int], QtWidgets.QGraphicsPixmapItem] = {}
+        self.army_bars: dict[tuple[str, int, int], QtWidgets.QGraphicsRectItem] = {}
 
         for side, xoff in (("side1", 0), ("side2", self.CELL_SIZE * 2 + self.GAP)):
             for cfg in setup[side]:
@@ -1832,7 +1839,15 @@ class SlowSimTab(QtWidgets.QWidget):
                 self.scene.addItem(item)
                 self.army_items[(side, col, row)] = item
 
-        self.view.setSceneRect(0, 0, self.CELL_SIZE * 4 + self.GAP, self.CELL_SIZE * 4)
+                bar = QtWidgets.QGraphicsRectItem(0, 0, self.BAR_WIDTH, self.CELL_SIZE)
+                bar.setBrush(QtGui.QBrush(QtGui.QColor("white")))
+                bar.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
+                bar.setPos(xoff + col * self.CELL_SIZE + self.CELL_SIZE + 2, row * self.CELL_SIZE)
+                bar.setZValue(1)
+                self.scene.addItem(bar)
+                self.army_bars[(side, col, row)] = bar
+
+        self.view.setSceneRect(0, 0, self.CELL_SIZE * 4 + self.GAP + self.BAR_WIDTH + 4, self.CELL_SIZE * 4)
 
         armies1, armies2 = create_armies_from_data(setup)
         sim = ArenaSimulator(armies1, armies2)
@@ -1877,6 +1892,8 @@ class SlowSimTab(QtWidgets.QWidget):
                     "defender_pos": target_pos,
                     "rounds": gs.round,
                     "winner": winner,
+                    "atk_history": gs.army1_troop_history,
+                    "def_history": gs.army2_troop_history,
                 }
             )
 
@@ -1892,6 +1909,8 @@ class SlowSimTab(QtWidgets.QWidget):
         def_pos = event["defender_pos"]
         self.attacker_item = self.army_items.get(("side1", atk_pos[0], atk_pos[1]))
         self.defender_item = self.army_items.get(("side2", def_pos[0], def_pos[1]))
+        self.attacker_bar = self.army_bars.get(("side1", atk_pos[0], atk_pos[1]))
+        self.defender_bar = self.army_bars.get(("side2", def_pos[0], def_pos[1]))
         self.current_round = 0
         self.timer.start(500)
 
@@ -1900,21 +1919,54 @@ class SlowSimTab(QtWidgets.QWidget):
             self.timer.stop()
             return
         event = self.events[self.current_event]
-        # Animation temporarily disabled: advance rounds without moving items.
+        atk_pos = event["attacker_pos"]
+        def_pos = event["defender_pos"]
         self.current_round += 1
+
+        atk_hist = event.get("atk_history", [])
+        def_hist = event.get("def_history", [])
+        if self.attacker_bar and atk_hist:
+            atk_max = max(atk_hist) or 1
+            idx = min(self.current_round, len(atk_hist) - 1)
+            self._set_bar(self.attacker_bar, atk_hist[idx], atk_max)
+        if self.defender_bar and def_hist:
+            def_max = max(def_hist) or 1
+            idx = min(self.current_round, len(def_hist) - 1)
+            self._set_bar(self.defender_bar, def_hist[idx], def_max)
+
         if self.current_round >= max(1, event["rounds"]):
             self.timer.stop()
             winner = event["winner"]
-            if winner == 1 and self.defender_item is not None:
-                self.scene.removeItem(self.defender_item)
-            elif winner == 2 and self.attacker_item is not None:
-                self.scene.removeItem(self.attacker_item)
+            if winner == 1:
+                if self.defender_item is not None:
+                    self.scene.removeItem(self.defender_item)
+                if self.defender_bar is not None:
+                    self.scene.removeItem(self.defender_bar)
+                    self.army_bars.pop(("side2", def_pos[0], def_pos[1]), None)
+            elif winner == 2:
+                if self.attacker_item is not None:
+                    self.scene.removeItem(self.attacker_item)
+                if self.attacker_bar is not None:
+                    self.scene.removeItem(self.attacker_bar)
+                    self.army_bars.pop(("side1", atk_pos[0], atk_pos[1]), None)
             else:
                 if self.attacker_item is not None:
                     self.scene.removeItem(self.attacker_item)
                 if self.defender_item is not None:
                     self.scene.removeItem(self.defender_item)
+                if self.attacker_bar is not None:
+                    self.scene.removeItem(self.attacker_bar)
+                    self.army_bars.pop(("side1", atk_pos[0], atk_pos[1]), None)
+                if self.defender_bar is not None:
+                    self.scene.removeItem(self.defender_bar)
+                    self.army_bars.pop(("side2", def_pos[0], def_pos[1]), None)
             self._next_event()
+
+    def _set_bar(self, bar: QtWidgets.QGraphicsRectItem, current: float, maximum: float) -> None:
+        height = 0.0
+        if maximum > 0:
+            height = self.CELL_SIZE * (current / maximum)
+        bar.setRect(0, self.CELL_SIZE - height, self.BAR_WIDTH, height)
 
 
 class MainWindow(QtWidgets.QMainWindow):

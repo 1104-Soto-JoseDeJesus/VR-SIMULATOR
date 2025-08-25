@@ -77,9 +77,9 @@ def test_serialization_roundtrip(tmp_path):
 
 
 def test_back_is_attacked_after_front_falls():
-    front = make_army("Front", (0, 0), count=150)
+    front = make_army("Front", (0, 0), count=100)
     back = make_army("Back", (1, 1), count=50)
-    enemy = make_army("Enemy", (0, 0), count=100)
+    enemy = make_army("Enemy", (0, 0), count=150)
     sim = ArenaSimulator([front, back], [enemy])
     sim.simulate_battle()
     assert back.current_troop_count < 50
@@ -235,3 +235,16 @@ def test_right_slot3_target_priority():
         sim._select_target(2, attacker.position, sim.armies_side1)
         == ArenaSimulator.LEFT_SLOT_TO_POS[1]
     )
+
+
+def test_slots_move_on_after_kill():
+    atk1 = make_army("A1", ArenaSimulator.LEFT_SLOT_TO_POS[1], count=200)
+    atk2 = make_army("A2", ArenaSimulator.LEFT_SLOT_TO_POS[2], count=100)
+    def1 = make_army("D1", ArenaSimulator.RIGHT_SLOT_TO_POS[1], count=50)
+    def2 = make_army("D2", ArenaSimulator.RIGHT_SLOT_TO_POS[2], count=100)
+    sim = ArenaSimulator([atk1, atk2], [def1, def2])
+    sim.simulate_battle()
+    # First defender should be eliminated and removed from the board
+    assert ArenaSimulator.RIGHT_SLOT_TO_POS[1] not in sim.armies_side2
+    # Second defender should have taken damage after the first was destroyed
+    assert def2.current_troop_count < 100

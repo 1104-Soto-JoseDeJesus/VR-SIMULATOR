@@ -96,13 +96,13 @@ class ReportBuilder:
                     tabulate(rows, headers=["Skill", "Effect", "Details"], tablefmt="grid")
                 )
 
-    def emit_final(self, winner: str, rounds: int, army1_state: str, army2_state: str):
+    def emit_final(self, winner: str, rounds: int, *army_states: str):
         self.lines.append("\n" + "=" * 40)
         self.lines.append(self._c("Battle Over", Fore.YELLOW))
         self.lines.append(self._c(f"Winner: {winner}", Fore.GREEN))
         self.lines.append(f"Total Rounds: {rounds}")
-        self.lines.append(army1_state)
-        self.lines.append(army2_state)
+        for state in army_states:
+            self.lines.append(state)
 
     def print_report(self):
         print(self.get_report_text())

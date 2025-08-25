@@ -44,6 +44,8 @@ class Army:
     heroes: List[Hero] = field(default_factory=list)
     unrevivable_ratio: float = 0.5
     simulator: Optional[GameSimulatorRef] = None
+    # Optional grid position for Arena mode (col, row)
+    position: Optional[Tuple[int, int]] = None
 
     current_troop_count: float = field(init=False, default=0.0)
     active_effects: List[EffectInstance] = field(init=False, default_factory=list)

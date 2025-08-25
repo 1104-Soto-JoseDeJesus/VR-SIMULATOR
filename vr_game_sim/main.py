@@ -31,6 +31,7 @@ from vr_game_sim.unit_definition import Unit as UnitClass
 from vr_game_sim.hero_definition import Hero, HERO_PRESETS
 from vr_game_sim.army_composition import Army
 from vr_game_sim.game_simulator import GameSimulator
+from vr_game_sim.arena_simulator import ArenaSimulator
 from vr_game_sim.interactive_setup import (
     input_choice_numbered,
     input_int,
@@ -138,14 +139,10 @@ def list_saved_setups() -> List[str]:
         return []
 
 
-def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
-    """Creates Army objects from loaded setup data."""
+def _build_armies_from_configs(configs: List[Dict[str, Any]], with_positions: bool) -> tuple[List[Army], Dict[str, Dict[str, Any]]]:
     armies: List[Army] = []
-    # Collect all overrides so ``GameSimulator`` can use a registry with the
-    # tweaked values when looking up skills by id (e.g. for rage skills).
     combined_overrides: Dict[str, Dict[str, Any]] = {}
-
-    for army_config in loaded_data:
+    for army_config in configs:
         unit = UnitClass(
             army_config["unit_type"],
             army_config["tier"],
@@ -158,8 +155,6 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
         for hero_conf in army_config.get("heroes", []):
             overrides = hero_conf.get("skill_overrides")
             if overrides:
-                # Merge into ``combined_overrides`` – last hero wins if the same
-                # skill id is tweaked multiple times.
                 for sid, params in overrides.items():
                     combined_overrides[sid] = params
             registry = (
@@ -175,23 +170,51 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
                 skill_registry=registry,
             )
             heroes_list.append(hero)
-
-        # Create Army instance. The simulator instance will be injected later by GameSimulator.
         army_obj = Army(
             army_config["army_name"],
             unit,
             heroes_list,
             army_config.get("unrevivable_ratio", 0.5),
         )
+        if with_positions:
+            pos = army_config.get("grid_pos")
+            if isinstance(pos, list) and len(pos) == 2:
+                army_obj.position = (int(pos[0]), int(pos[1]))
         armies.append(army_obj)
+    return armies, combined_overrides
 
-    # Ensure ``GameSimulator`` uses a registry with any overrides applied.
-    if combined_overrides:
-        GameSimulator.SKILL_REGISTRY_GLOBAL = build_skill_registry_with_overrides(combined_overrides)
+
+def create_armies_from_data(loaded_data):
+    """Creates Army objects from loaded setup data.
+
+    Returns a list of ``Army`` for duel mode or a tuple of two lists for arena
+    mode when the loaded data contains ``side1``/``side2`` keys.
+    """
+    if isinstance(loaded_data, dict) and "side1" in loaded_data and "side2" in loaded_data:
+        armies1, overrides1 = _build_armies_from_configs(loaded_data["side1"], True)
+        armies2, overrides2 = _build_armies_from_configs(loaded_data["side2"], True)
+        combined_overrides = {**overrides1, **overrides2}
+        if combined_overrides:
+            GameSimulator.SKILL_REGISTRY_GLOBAL = build_skill_registry_with_overrides(combined_overrides)
+        else:
+            GameSimulator.SKILL_REGISTRY_GLOBAL = SKILL_REGISTRY_GLOBAL
+        return armies1, armies2
+
+    armies, overrides = _build_armies_from_configs(loaded_data, False)
+    if overrides:
+        GameSimulator.SKILL_REGISTRY_GLOBAL = build_skill_registry_with_overrides(overrides)
     else:
         GameSimulator.SKILL_REGISTRY_GLOBAL = SKILL_REGISTRY_GLOBAL
-
     return armies
+
+
+def run_arena_battle(setup_data: Dict[str, Any]):
+    """Run an arena battle and return the simulator result."""
+    armies1, armies2 = create_armies_from_data(setup_data)
+    sim = ArenaSimulator(armies1, armies2)
+    with contextlib.redirect_stdout(io.StringIO()):
+        result = sim.simulate_battle()
+    return {"winner": sim.winner, "result": result}
 
 
 def _run_single_battle(

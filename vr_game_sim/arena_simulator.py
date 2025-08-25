@@ -204,28 +204,31 @@ class ArenaSimulator:
         while self.armies_side1 and self.armies_side2:
             self.round += 1
 
-            # Determine all attack plans for this round using a snapshot of the
-            # current battlefield.  No army state is modified until all
-            # engagements are processed.
-            plans = self._compute_round_plans()
-
-            if not plans:
-                break
-
             round_buffer: List[Tuple[Tuple[int, int], Tuple[int, int], float, float]] = []
             losses1: Dict[Tuple[int, int], float] = {}
             losses2: Dict[Tuple[int, int], float] = {}
 
-            # Resolve each engagement on copies and accumulate troop losses.
-            for side, apos, dpos in plans:
-                if side == 1:
-                    atk = self.armies_side1.get(apos)
-                    defender = self.armies_side2.get(dpos)
-                else:
-                    atk = self.armies_side2.get(apos)
-                    defender = self.armies_side1.get(dpos)
+            # Snapshots track remaining troops mid-round so attackers can
+            # retarget if a slot is wiped out before their turn.
+            snapshot1: Dict[Tuple[int, int], float] = {
+                pos: army.current_troop_count for pos, army in self.armies_side1.items()
+            }
+            snapshot2: Dict[Tuple[int, int], float] = {
+                pos: army.current_troop_count for pos, army in self.armies_side2.items()
+            }
+
+            # Side 1 attacks in slot order
+            for apos in self._position_order(1):
+                if apos not in snapshot1:
+                    continue
+                target_pos = self._select_target(1, apos, dict.fromkeys(snapshot2.keys()))
+                if target_pos is None:
+                    continue
+                atk = self.armies_side1.get(apos)
+                defender = self.armies_side2.get(target_pos)
                 if atk is None or defender is None:
                     continue
+
                 atk_copy = copy.deepcopy(atk)
                 def_copy = copy.deepcopy(defender)
                 sim = GameSimulator(atk_copy, def_copy, track_stats=False)
@@ -233,13 +236,60 @@ class ArenaSimulator:
 
                 atk_loss = max(0.0, atk.current_troop_count - atk_copy.current_troop_count)
                 def_loss = max(0.0, defender.current_troop_count - def_copy.current_troop_count)
-                if side == 1:
-                    losses1[apos] = losses1.get(apos, 0.0) + atk_loss
-                    losses2[dpos] = losses2.get(dpos, 0.0) + def_loss
+
+                losses1[apos] = losses1.get(apos, 0.0) + atk_loss
+                losses2[target_pos] = losses2.get(target_pos, 0.0) + def_loss
+                round_buffer.append((apos, target_pos, atk_copy.current_troop_count, def_copy.current_troop_count))
+
+                # Update snapshots so later attackers see the casualties
+                remaining_atk = snapshot1.get(apos, 0.0) - atk_loss
+                if remaining_atk > 0:
+                    snapshot1[apos] = remaining_atk
                 else:
-                    losses2[apos] = losses2.get(apos, 0.0) + atk_loss
-                    losses1[dpos] = losses1.get(dpos, 0.0) + def_loss
-                round_buffer.append((apos, dpos, atk_copy.current_troop_count, def_copy.current_troop_count))
+                    snapshot1.pop(apos, None)
+                remaining_def = snapshot2.get(target_pos, 0.0) - def_loss
+                if remaining_def > 0:
+                    snapshot2[target_pos] = remaining_def
+                else:
+                    snapshot2.pop(target_pos, None)
+
+            # Side 2 attacks using the updated snapshots
+            for apos in self._position_order(2):
+                if apos not in snapshot2:
+                    continue
+                target_pos = self._select_target(2, apos, dict.fromkeys(snapshot1.keys()))
+                if target_pos is None:
+                    continue
+                atk = self.armies_side2.get(apos)
+                defender = self.armies_side1.get(target_pos)
+                if atk is None or defender is None:
+                    continue
+
+                atk_copy = copy.deepcopy(atk)
+                def_copy = copy.deepcopy(defender)
+                sim = GameSimulator(atk_copy, def_copy, track_stats=False)
+                sim.simulate_battle()
+
+                atk_loss = max(0.0, atk.current_troop_count - atk_copy.current_troop_count)
+                def_loss = max(0.0, defender.current_troop_count - def_copy.current_troop_count)
+
+                losses2[apos] = losses2.get(apos, 0.0) + atk_loss
+                losses1[target_pos] = losses1.get(target_pos, 0.0) + def_loss
+                round_buffer.append((apos, target_pos, atk_copy.current_troop_count, def_copy.current_troop_count))
+
+                remaining_atk = snapshot2.get(apos, 0.0) - atk_loss
+                if remaining_atk > 0:
+                    snapshot2[apos] = remaining_atk
+                else:
+                    snapshot2.pop(apos, None)
+                remaining_def = snapshot1.get(target_pos, 0.0) - def_loss
+                if remaining_def > 0:
+                    snapshot1[target_pos] = remaining_def
+                else:
+                    snapshot1.pop(target_pos, None)
+
+            if not round_buffer:
+                break
 
             # Apply the accumulated losses to the live armies simultaneously.
             for pos, loss in losses1.items():

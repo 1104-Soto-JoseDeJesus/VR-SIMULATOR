@@ -38,6 +38,7 @@ from vr_game_sim.interactive_setup import (
     input_float,
     setup_hero_interactive,
     input_multi_choice_numbered,
+    setup_armies_arena_interactive,
 )
 from vr_game_sim.skill_definitions import (
     SKILL_REGISTRY_GLOBAL,
@@ -709,6 +710,16 @@ def run_interactive_setup() -> List[Army]:
     return armies_setup_interactive
 
 
+def run_arena_setup_interactive() -> Dict[str, Any]:
+    """Interactively build an arena setup for both sides."""
+    print("\n=== Arena Setup ===")
+    march_count_side1 = input_int("Number of marches for Side 1", 1, 5, 1)
+    march_count_side2 = input_int("Number of marches for Side 2", 1, 5, 1)
+    side1 = setup_armies_arena_interactive("Side1", march_count_side1)
+    side2 = setup_armies_arena_interactive("Side2", march_count_side2)
+    return {"side1": side1, "side2": side2}
+
+
 def get_setup_data_for_saving(armies: List[Army]) -> List[Dict[str, Any]]:
     """Prepares the data from Army objects for saving."""
     save_data_list: List[Dict[str, Any]] = []
@@ -741,6 +752,11 @@ if __name__ == "__main__":
         "--setup",
         help="Path to JSON setup file to load and run non-interactively",
     )
+    parser.add_argument(
+        "--arena",
+        action="store_true",
+        help="Run in arena mode instead of standard duel",
+    )
     args = parser.parse_args()
 
     print("=== Battle Simulator ===")
@@ -749,8 +765,32 @@ if __name__ == "__main__":
         loaded = load_setup_from_file(args.setup)
         if not loaded:
             sys.exit(1)
-        run_additional_simulations(loaded, num_workers=os.cpu_count())
-        plt.close("all")
+        if args.arena:
+            result = run_arena_battle(loaded)
+            print(f"Arena winner: Side {result['winner']}")
+        else:
+            run_additional_simulations(loaded, num_workers=os.cpu_count())
+            plt.close("all")
+        sys.exit(0)
+
+    if args.arena:
+        setup_data = run_arena_setup_interactive()
+        save_choice = input("Save this setup? (y/N): ").strip().lower()
+        if save_choice == "y":
+            file_name_base = input(
+                "Enter filename for setup (e.g., my_arena_setup, .json will be added): "
+            ).strip()
+            if file_name_base:
+                save_setup_to_file(setup_data, f"{file_name_base}.json")
+            else:
+                print(
+                    "No filename entered, setup not saved by custom name (but saved as last run)."
+                )
+                save_setup_to_file(setup_data, os.path.basename(LAST_SETUP_FILENAME))
+        else:
+            save_setup_to_file(setup_data, os.path.basename(LAST_SETUP_FILENAME))
+        result = run_arena_battle(setup_data)
+        print(f"Arena winner: Side {result['winner']}")
         sys.exit(0)
 
     armies_to_simulate: List[Army] = []

@@ -1,9 +1,10 @@
-"""
-Defines the Hero class and hero presets.
-"""
+"""Defines the Hero class and hero presets."""
 from dataclasses import dataclass, field, InitVar
 from typing import List, Dict, Optional
+import logging
 from .skill_system import SkillDefinition
+
+logger = logging.getLogger(__name__)
 
 _SKILL_REGISTRY_TYPE_HINT: Dict[str, SkillDefinition] = {}
 
@@ -36,7 +37,8 @@ class Hero:
                         self.skills.append(skill_registry[skill_id])
                     else:
                         if skill_id != "dummy_talent_empty":
-                            print(f"Warning: Skill ID '{skill_id}' for hero '{self.name}' not found in SKILL_REGISTRY.")
+                            logger.warning("Skill ID '%s' for hero '%s' not found in SKILL_REGISTRY.",
+                                           skill_id, self.name)
                         elif "dummy_talent_empty" in skill_registry:
                             self.skills.append(skill_registry["dummy_talent_empty"])
 

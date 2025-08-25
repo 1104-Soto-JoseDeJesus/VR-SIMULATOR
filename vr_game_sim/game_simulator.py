@@ -4,6 +4,8 @@ import random
 import os
 from functools import lru_cache
 from typing import List, Optional, Dict, Any, Tuple
+from dataclasses import dataclass
+import logging
 
 import matplotlib.pyplot as plt
 
@@ -20,6 +22,28 @@ from .constants import (
 )
 from .report_builder import ReportBuilder
 from colorama import Fore
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CombatActionLog:
+    attacker_name: str
+    defender_name: str
+    action_type: str
+    damage_potential_hp: float
+    absorbed_hp: float
+    final_hp_damage: float
+    potential_kills: int
+
+
+@dataclass
+class SkillTriggerLog:
+    skill_name: str
+    effect_description: str
+    damage_done_hp: Optional[float] = None
+    shield_hp_gained: Optional[float] = None
+    potential_kills: Optional[int] = None
 
 
 class GameSimulator:
@@ -53,8 +77,8 @@ class GameSimulator:
         self.army1.simulator = self
         self.army2.simulator = self
         self.round: int = 0
-        self.round_combat_actions_log: List[Dict[str, Any]] = []
-        self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
+        self.round_combat_actions_log: List[CombatActionLog] = []
+        self.round_skill_triggers_log: Dict[str, List[SkillTriggerLog]] = {
             self.army1.name: [], self.army2.name: []
         }
         self.report_builder = report_builder or ReportBuilder()
@@ -87,17 +111,24 @@ class GameSimulator:
                            damage_potential_hp: float, absorbed_hp: float,
                            final_hp_damage: float, potential_kills: int, is_counter: bool):
         action_type = "Counter Attack" if is_counter else "Basic Attack"
-        log_entry = {
-            "attacker_name": attacker.name, "defender_name": defender.name, "action_type": action_type,
-            "damage_potential_hp": damage_potential_hp, "absorbed_hp": absorbed_hp,
-            "final_hp_damage": final_hp_damage, "potential_kills": potential_kills
-        }
+        log_entry = CombatActionLog(
+            attacker_name=attacker.name,
+            defender_name=defender.name,
+            action_type=action_type,
+            damage_potential_hp=damage_potential_hp,
+            absorbed_hp=absorbed_hp,
+            final_hp_damage=final_hp_damage,
+            potential_kills=potential_kills,
+        )
         self.round_combat_actions_log.append(log_entry)
 
     def _log_skill_trigger(self, triggered_army: Army, skill_name: str, effect_description: str,
                            damage_details: Optional[Dict[str, Any]] = None):
-        log_entry = {"skill_name": skill_name, "effect_description": effect_description}
-        if damage_details: log_entry.update(damage_details)
+        log_entry = SkillTriggerLog(
+            skill_name=skill_name,
+            effect_description=effect_description,
+            **(damage_details or {}),
+        )
         self.round_skill_triggers_log[triggered_army.name].append(log_entry)
 
     def _calculate_generic_skill_damage(self, source_army: Army, target_army: Army,
@@ -309,7 +340,11 @@ class GameSimulator:
             return
         skill_def = self.SKILL_REGISTRY_GLOBAL.get(skill_to_execute_id)
         if not skill_def:
-            print(f"Warning: Rage skill ID '{skill_to_execute_id}' not found in registry for {army.name}.")
+            logger.warning(
+                "Rage skill ID '%s' not found in registry for %s.",
+                skill_to_execute_id,
+                army.name,
+            )
             return
 
         is_silenced = False

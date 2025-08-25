@@ -5,6 +5,7 @@ import json
 import os
 import argparse
 import sys
+import logging
 from typing import List, Optional, Dict, Any, Callable
 import contextlib
 import io
@@ -25,6 +26,8 @@ plt.close("all")
 # Use the default matplotlib style globally. Specific figures can
 # override this using ``plt.style.context`` when needed.
 plt.style.use("default")
+
+logging.basicConfig(level=logging.INFO)
 
 from vr_game_sim.enums import SkillType
 from vr_game_sim.unit_definition import Unit as UnitClass

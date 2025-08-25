@@ -13,18 +13,64 @@ class ArenaSimulator:
 
     Armies are placed on a two column by four row grid representing front/back
     ranks across four lanes.  An arena round is a wave of engagements where
-    each surviving army may attack **any** enemy following the targeting
+    each surviving army may attack **any** enemy following slot specific target
     priorities.  Multiple armies can focus the same target within the same
     round; battles are resolved in a deterministic row-major order to model a
     fully open battlefield with dynamic targeting.
 
-    Target selection favours enemies in the same lane as the attacker.  If the
-    lane is empty, columns are inspected by proximity starting with the
-    attacker's column and scanning lanes from the front towards the back.
+    Targeting does not consider geometric proximity.  Instead each slot has a
+    predefined list of opposing slots it will attempt to strike, skipping any
+    positions that are empty or contain defeated armies.
     """
 
     GRID_COLS = 2
     GRID_ROWS = 4
+
+    # Mapping between slot numbers and grid positions for both sides.  The
+    # "left" side is mirrored horizontally compared to the "right" side.
+    LEFT_SLOT_TO_POS = {
+        1: (1, 0),
+        2: (0, 0),
+        3: (1, 1),
+        4: (0, 1),
+        5: (1, 2),
+        6: (0, 2),
+        7: (1, 3),
+        8: (0, 3),
+    }
+    RIGHT_SLOT_TO_POS = {
+        1: (0, 0),
+        2: (1, 0),
+        3: (0, 1),
+        4: (1, 1),
+        5: (0, 2),
+        6: (1, 2),
+        7: (0, 3),
+        8: (1, 3),
+    }
+    LEFT_POS_TO_SLOT = {v: k for k, v in LEFT_SLOT_TO_POS.items()}
+    RIGHT_POS_TO_SLOT = {v: k for k, v in RIGHT_SLOT_TO_POS.items()}
+
+    LEFT_TARGET_PRIORITY = {
+        1: [1, 2, 3, 4, 5, 6, 7, 8],
+        2: [1, 2, 3, 4, 5, 6, 7, 8],
+        3: [3, 4, 5, 6, 7, 8, 1, 2],
+        4: [3, 4, 5, 6, 7, 8, 1, 2],
+        5: [5, 6, 7, 8, 3, 4, 1, 2],
+        6: [5, 6, 7, 8, 3, 4, 1, 2],
+        7: [7, 8, 5, 6, 3, 4, 1, 2],
+        8: [7, 8, 5, 6, 3, 4, 1, 2],
+    }
+    RIGHT_TARGET_PRIORITY = {
+        1: [1, 2, 3, 4, 5, 6, 7, 8],
+        2: [1, 2, 3, 4, 5, 6, 7, 8],
+        3: [3, 4, 1, 2, 5, 6, 7, 8],
+        4: [3, 4, 1, 2, 5, 6, 7, 8],
+        5: [5, 6, 3, 4, 1, 2, 7, 8],
+        6: [5, 6, 3, 4, 1, 2, 7, 8],
+        7: [7, 8, 5, 6, 3, 4, 1, 2],
+        8: [7, 8, 5, 6, 3, 4, 1, 2],
+    }
 
     @staticmethod
     def choose_reactive_trigger(
@@ -85,31 +131,30 @@ class ArenaSimulator:
         return order
 
     def _select_target(
-        self, pos: Tuple[int, int], enemies: Dict[Tuple[int, int], Army]
+        self,
+        side: int,
+        pos: Tuple[int, int],
+        enemies: Dict[Tuple[int, int], Army],
     ) -> Optional[Tuple[int, int]]:
-        """Return the target position following arena targeting priorities.
+        """Return the target position following predefined slot priorities."""
 
-        Enemies in the same lane (row) are preferred, inspecting columns by
-        proximity to the attacker.  If the lane holds no enemies the remaining
-        columns are checked, scanning rows from the front towards the back.
-        """
-        col, row = pos
-        column_order = sorted(range(self.GRID_COLS), key=lambda c: abs(c - col))
+        if side == 1:
+            pos_to_slot = self.LEFT_POS_TO_SLOT
+            slot_to_pos = self.RIGHT_SLOT_TO_POS
+            priorities = self.LEFT_TARGET_PRIORITY
+        else:
+            pos_to_slot = self.RIGHT_POS_TO_SLOT
+            slot_to_pos = self.LEFT_SLOT_TO_POS
+            priorities = self.RIGHT_TARGET_PRIORITY
 
-        # First inspect enemies within the same row starting with the nearest column
-        for c in column_order:
-            candidate = (c, row)
-            if candidate in enemies:
-                return candidate
+        slot = pos_to_slot.get(pos)
+        if slot is None:
+            return None
 
-        # No enemy in the same row, search other rows
-        for c in column_order:
-            for r in range(self.GRID_ROWS):  # front to back
-                if r == row:
-                    continue
-                candidate = (c, r)
-                if candidate in enemies:
-                    return candidate
+        for target_slot in priorities[slot]:
+            target_pos = slot_to_pos[target_slot]
+            if target_pos in enemies:
+                return target_pos
         return None
 
     def simulate_battle(self) -> Dict[str, Dict[Tuple[int, int], float]]:
@@ -139,12 +184,12 @@ class ArenaSimulator:
 
             for pos in self._position_order():
                 if pos in snapshot1:
-                    target = self._select_target(pos, snapshot2)
+                    target = self._select_target(1, pos, snapshot2)
                     if target is not None:
                         plans.append((1, pos, target))
             for pos in self._position_order():
                 if pos in snapshot2:
-                    target = self._select_target(pos, snapshot1)
+                    target = self._select_target(2, pos, snapshot1)
                     if target is not None:
                         plans.append((2, pos, target))
 

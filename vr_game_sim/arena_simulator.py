@@ -1,5 +1,7 @@
 from __future__ import annotations
 import random
+import copy
+import math
 from typing import Dict, Tuple, List, Optional
 
 from .army_composition import Army
@@ -47,7 +49,12 @@ class ArenaSimulator:
             return defender_target
         return random.choice(attackers)
 
-    def __init__(self, armies_side1: List[Army], armies_side2: List[Army]):
+    def __init__(
+        self,
+        armies_side1: List[Army],
+        armies_side2: List[Army],
+        debug: bool = False,
+    ) -> None:
         max_slots = self.GRID_COLS * self.GRID_ROWS
         if len(armies_side1) > max_slots or len(armies_side2) > max_slots:
             raise ValueError(
@@ -63,6 +70,10 @@ class ArenaSimulator:
         }
         self.round: int = 0
         self.winner: Optional[int] = None
+        self.debug: bool = debug
+        self.last_round_buffer: List[
+            Tuple[Tuple[int, int], Tuple[int, int], float, float]
+        ] = []
 
     def _position_order(self) -> List[Tuple[int, int]]:
         """Return grid positions in row-major order, front column first."""
@@ -145,21 +156,54 @@ class ArenaSimulator:
             if not pairs:
                 break
 
-            # Resolve all battles for the current round
+            # First pass: resolve battles on copies and buffer the outcomes
+            round_buffer: List[
+                Tuple[Tuple[int, int], Tuple[int, int], float, float]
+            ] = []
             for pos1, pos2 in pairs:
-                army1 = self.armies_side1[pos1]
-                army2 = self.armies_side2[pos2]
-                sim = GameSimulator(army1, army2, track_stats=False)
+                army1_copy = copy.deepcopy(self.armies_side1[pos1])
+                army2_copy = copy.deepcopy(self.armies_side2[pos2])
+                sim = GameSimulator(army1_copy, army2_copy, track_stats=False)
                 sim.simulate_battle()
-                if army1.current_troop_count > 0 and army2.current_troop_count <= 0:
-                    army1.unit.initial_count = army1.current_troop_count
-                    del self.armies_side2[pos2]
-                elif army2.current_troop_count > 0 and army1.current_troop_count <= 0:
-                    army2.unit.initial_count = army2.current_troop_count
-                    del self.armies_side1[pos1]
-                else:
-                    del self.armies_side1[pos1]
-                    del self.armies_side2[pos2]
+                round_buffer.append(
+                    (pos1, pos2, army1_copy.current_troop_count, army2_copy.current_troop_count)
+                )
+
+            # Optional debug check against sequential resolution
+            if self.debug:
+                seq_side1 = {
+                    pos: copy.deepcopy(self.armies_side1[pos]) for pos, _ in pairs
+                }
+                seq_side2 = {
+                    pos: copy.deepcopy(self.armies_side2[pos]) for _, pos in pairs
+                }
+                for pos1, pos2 in pairs:
+                    seq_sim = GameSimulator(seq_side1[pos1], seq_side2[pos2], track_stats=False)
+                    seq_sim.simulate_battle()
+                for pos1, pos2, res1, res2 in round_buffer:
+                    if not math.isclose(res1, seq_side1[pos1].current_troop_count, rel_tol=1e-9):
+                        raise AssertionError("Buffered result mismatch for attacker")
+                    if not math.isclose(res2, seq_side2[pos2].current_troop_count, rel_tol=1e-9):
+                        raise AssertionError("Buffered result mismatch for defender")
+
+            # Second pass: commit buffered results and dispatch animations
+            for pos1, pos2, res1, res2 in round_buffer:
+                army1 = self.armies_side1.get(pos1)
+                army2 = self.armies_side2.get(pos2)
+                if army1:
+                    army1.current_troop_count = res1
+                    if res1 > 0:
+                        army1.unit.initial_count = res1
+                    else:
+                        del self.armies_side1[pos1]
+                if army2:
+                    army2.current_troop_count = res2
+                    if res2 > 0:
+                        army2.unit.initial_count = res2
+                    else:
+                        del self.armies_side2[pos2]
+
+            self.last_round_buffer = round_buffer
 
         if self.armies_side1 and not self.armies_side2:
             self.winner = 1

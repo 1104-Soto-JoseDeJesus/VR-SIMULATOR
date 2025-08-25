@@ -122,13 +122,42 @@ class ArenaSimulator:
             Tuple[Tuple[int, int], Tuple[int, int], float, float]
         ] = []
 
-    def _position_order(self) -> List[Tuple[int, int]]:
-        """Return grid positions in row-major order, front column first."""
-        order: List[Tuple[int, int]] = []
-        for row in range(self.GRID_ROWS):
-            for col in range(self.GRID_COLS):
-                order.append((col, row))
-        return order
+    def _position_order(self, side: int) -> List[Tuple[int, int]]:
+        """Return positions in slot-number order for the given ``side``.
+
+        The arena uses the numbering shown in the design diagram: slots ``1``–``8``
+        run down the rows, with the left side mirrored horizontally compared to
+        the right side.  Iterating in this order guarantees deterministic attack
+        resolution and makes the slot/coordinate relationship explicit.
+        """
+
+        mapping = self.LEFT_SLOT_TO_POS if side == 1 else self.RIGHT_SLOT_TO_POS
+        return [mapping[i] for i in range(1, 9)]
+
+    def _compute_round_plans(self) -> List[Tuple[int, Tuple[int, int], Tuple[int, int]]]:
+        """Compute all attack plans for the current round.
+
+        Each occupied slot is visited at most once ensuring a unit can only
+        select a single target in a round.  The plans are returned as a list of
+        tuples ``(side, attacker_pos, defender_pos)``.
+        """
+
+        plans: List[Tuple[int, Tuple[int, int], Tuple[int, int]]] = []
+        snapshot1 = self.armies_side1.copy()
+        snapshot2 = self.armies_side2.copy()
+
+        for pos in self._position_order(1):
+            if pos in snapshot1:
+                target = self._select_target(1, pos, snapshot2)
+                if target is not None:
+                    plans.append((1, pos, target))
+        for pos in self._position_order(2):
+            if pos in snapshot2:
+                target = self._select_target(2, pos, snapshot1)
+                if target is not None:
+                    plans.append((2, pos, target))
+
+        return plans
 
     def _select_target(
         self,
@@ -178,20 +207,7 @@ class ArenaSimulator:
             # Determine all attack plans for this round using a snapshot of the
             # current battlefield.  No army state is modified until all
             # engagements are processed.
-            plans: List[Tuple[int, Tuple[int, int], Tuple[int, int]]] = []
-            snapshot1 = self.armies_side1.copy()
-            snapshot2 = self.armies_side2.copy()
-
-            for pos in self._position_order():
-                if pos in snapshot1:
-                    target = self._select_target(1, pos, snapshot2)
-                    if target is not None:
-                        plans.append((1, pos, target))
-            for pos in self._position_order():
-                if pos in snapshot2:
-                    target = self._select_target(2, pos, snapshot1)
-                    if target is not None:
-                        plans.append((2, pos, target))
+            plans = self._compute_round_plans()
 
             if not plans:
                 break

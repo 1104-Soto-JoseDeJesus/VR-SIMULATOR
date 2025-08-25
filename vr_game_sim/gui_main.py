@@ -1654,7 +1654,7 @@ def display_histograms(
 
 
 class ArenaSetupDialog(QtWidgets.QDialog):
-    """Dialog for configuring and simulating arena battles on a 2x4 grid."""
+    """Dialog for configuring and simulating arena battles on two 2x4 grids."""
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -1662,15 +1662,22 @@ class ArenaSetupDialog(QtWidgets.QDialog):
 
         layout = QtWidgets.QVBoxLayout(self)
         grid_layout = QtWidgets.QGridLayout()
-        self.side1_frames: list[ArmyFrame] = []
-        self.side2_frames: list[ArmyFrame] = []
+        self.side1_frames: list[list[ArmyFrame]] = []
+        self.side2_frames: list[list[ArmyFrame]] = []
+        idx = 1
         for row in range(4):
-            f1 = ArmyFrame(row + 1, self)
-            f2 = ArmyFrame(row + 1, self)
-            self.side1_frames.append(f1)
-            self.side2_frames.append(f2)
-            grid_layout.addWidget(f1, row, 0)
-            grid_layout.addWidget(f2, row, 1)
+            row_frames1: list[ArmyFrame] = []
+            row_frames2: list[ArmyFrame] = []
+            for col in range(2):
+                f1 = ArmyFrame(idx, self)
+                f2 = ArmyFrame(idx, self)
+                idx += 1
+                row_frames1.append(f1)
+                row_frames2.append(f2)
+                grid_layout.addWidget(f1, row, col)
+                grid_layout.addWidget(f2, row, col + 2)
+            self.side1_frames.append(row_frames1)
+            self.side2_frames.append(row_frames2)
         layout.addLayout(grid_layout)
 
         btn_layout = QtWidgets.QHBoxLayout()
@@ -1689,16 +1696,18 @@ class ArenaSetupDialog(QtWidgets.QDialog):
 
     def _build_setup(self) -> dict:
         setup = {"side1": [], "side2": []}
-        for row, frame in enumerate(self.side1_frames):
-            cfg = frame.build_config()
-            if cfg.get("count", 0) > 0:
-                cfg["grid_pos"] = [0, row]
-                setup["side1"].append(cfg)
-        for row, frame in enumerate(self.side2_frames):
-            cfg = frame.build_config()
-            if cfg.get("count", 0) > 0:
-                cfg["grid_pos"] = [1, row]
-                setup["side2"].append(cfg)
+        for row, frames in enumerate(self.side1_frames):
+            for col, frame in enumerate(frames):
+                cfg = frame.build_config()
+                if cfg.get("count", 0) > 0:
+                    cfg["grid_pos"] = [col, row]
+                    setup["side1"].append(cfg)
+        for row, frames in enumerate(self.side2_frames):
+            for col, frame in enumerate(frames):
+                cfg = frame.build_config()
+                if cfg.get("count", 0) > 0:
+                    cfg["grid_pos"] = [col, row]
+                    setup["side2"].append(cfg)
         return setup
 
     def run_simulation(self) -> None:

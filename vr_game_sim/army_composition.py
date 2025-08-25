@@ -1,5 +1,4 @@
 # === File: army_composition.py ===
-import uuid
 import random
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Tuple
@@ -375,7 +374,7 @@ class Army:
         if canonical_effect_name == EFFECT_NAME_SILENCE_DEBUFF: final_config["prevents_rage_skill_cast"] = True
 
         inst = EffectInstance(
-            id=uuid.uuid4(), source_skill_id=source_skill_id, name=canonical_effect_name,
+            source_skill_id=source_skill_id, name=canonical_effect_name,
             effect_type=effect_data["effect_type"], duration=new_effect_duration,
             magnitude=magnitude, config=final_config
         )

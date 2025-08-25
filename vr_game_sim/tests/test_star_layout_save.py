@@ -40,7 +40,8 @@ def test_save_layout_propagates(tmp_path):
         dialog._save_layout()
         # Expect json for both hero images
         for name in ["h1", "h2"]:
-            meta = json.load(open(hero_dir / f"{name}.json"))
+            with open(hero_dir / f"{name}.json", "r", encoding="utf-8") as fh:
+                meta = json.load(fh)
             assert meta["star_vertical_ratio"] == 0.9
             assert meta["star_side_margin_ratio"] == 0.1
             assert meta["v_offsets"][0] == 0.1
@@ -71,7 +72,8 @@ def test_save_layout_propagates(tmp_path):
         dialog.preview.set_star_color(QtGui.QColor("#55667788"))
         dialog._save_layout()
         for name in ["p1", "p2"]:
-            meta = json.load(open(plugin_dir / f"{name}.json"))
+            with open(plugin_dir / f"{name}.json", "r", encoding="utf-8") as fh:
+                meta = json.load(fh)
             assert meta["star_vertical_ratio"] == 0.95
             assert meta["v_offsets"][0] == 0.3
             assert meta["star_color"] == "#55667788"

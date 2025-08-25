@@ -4,7 +4,6 @@ from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.effect_system import EffectInstance
 from vr_game_sim.enums import EffectType
 from vr_game_sim.constants import EFFECT_NAME_DELAYED_RAGE_REDUCTION
-import uuid
 
 
 def test_rage_per_round_tracks_only_additions():
@@ -15,7 +14,6 @@ def test_rage_per_round_tracks_only_additions():
 
     army.current_rage = 200
     eff = EffectInstance(
-        uuid.uuid4(),
         'test',
         EffectType.CUSTOM_SKILL_EFFECT,
         duration=0,

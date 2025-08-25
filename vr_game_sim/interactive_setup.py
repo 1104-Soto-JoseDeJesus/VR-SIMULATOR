@@ -8,6 +8,29 @@ from .skill_system import SkillDefinition
 
 
 def input_choice_numbered(prompt: str, choices_ordered: List[str], default: Optional[str] = None) -> str:
+    """Prompt the user to select from a numbered list of options.
+
+    Parameters
+    ----------
+    prompt:
+        Text shown above the options.
+    choices_ordered:
+        Choices presented to the user in display order.
+    default:
+        Optional default value returned when the user presses Enter without
+        typing anything. The default must be one of ``choices_ordered`` or a
+        free-text value.
+
+    Returns
+    -------
+    str
+        The selected choice text.
+
+    Examples
+    --------
+    >>> input_choice_numbered("Pick", ["A", "B"], default="A")
+    'A'
+    """
     print(prompt)
     indexed_choices: Dict[int, str] = {i + 1: choice for i, choice in enumerate(choices_ordered)}
     default_num_display = ""
@@ -68,6 +91,24 @@ def input_multi_choice_numbered(prompt: str, option_pairs: List[Tuple[str, str]]
 
 def input_int(prompt: str, min_val: Optional[int] = None, max_val: Optional[int] = None,
               default: Optional[int] = None) -> int:
+    """Read an integer from the user with optional bounds.
+
+    Parameters
+    ----------
+    prompt:
+        Text displayed to the user.
+    min_val:
+        Optional minimum allowed value.
+    max_val:
+        Optional maximum allowed value.
+    default:
+        Value returned when the user presses Enter without typing anything.
+
+    Returns
+    -------
+    int
+        The integer entered by the user within the specified bounds.
+    """
     prompt_text = prompt
     if default is not None: prompt_text += f" (default: {default})"
     prompt_text += ": "
@@ -86,6 +127,25 @@ def input_int(prompt: str, min_val: Optional[int] = None, max_val: Optional[int]
 
 
 def input_float(prompt: str, default: Optional[float] = None) -> float:
+    """Read a floating-point number from the user.
+
+    Parameters
+    ----------
+    prompt:
+        Text displayed to the user.
+    default:
+        Value returned when the user presses Enter without typing anything.
+
+    Returns
+    -------
+    float
+        The value entered by the user.
+
+    Examples
+    --------
+    >>> input_float("Bonus", default=0.1)
+    0.1
+    """
     prompt_text = prompt
     if default is not None: prompt_text += f" (default: {default})"
     prompt_text += " (e.g., 0.1 for +10%): "

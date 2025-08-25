@@ -1904,12 +1904,12 @@ class SlowSimTab(QtWidgets.QWidget):
             snapshot2 = sim.armies_side2.copy()
             for pos in sim._position_order():
                 if pos in snapshot1:
-                    target = sim._select_target(pos, snapshot2)
+                    target = sim._select_target(1, pos, snapshot2)
                     if target is not None:
                         plans.append((1, pos, target))
             for pos in sim._position_order():
                 if pos in snapshot2:
-                    target = sim._select_target(pos, snapshot1)
+                    target = sim._select_target(2, pos, snapshot1)
                     if target is not None:
                         plans.append((2, pos, target))
 

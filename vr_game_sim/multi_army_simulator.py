@@ -56,6 +56,7 @@ class MultiArmySimulator:
     def step(self, dt: float = 1.0) -> None:
         """Advance the simulation by ``dt`` seconds."""
         finished_duels: List[Duel] = []
+        engaged: List[Army] = []
         for duel in list(self.active_duels):
             duel.time_acc += dt
             while duel.time_acc >= 1.0:
@@ -66,6 +67,10 @@ class MultiArmySimulator:
                 if not result:
                     finished_duels.append(duel)
                     break
+                if duel.army_a not in engaged:
+                    engaged.append(duel.army_a)
+                if duel.army_b not in engaged:
+                    engaged.append(duel.army_b)
                 log = result["log"]
                 for army, d_troops, d_unrev in result["deltas"]:
                     army.apply_round_results(d_troops, d_unrev)
@@ -81,6 +86,16 @@ class MultiArmySimulator:
                     army.active_duels.remove(duel)
                 if army.current_troop_count <= 0:
                     self._clear_targeting(army)
+
+        # Track continuous engagement rounds with a 2s reset window
+        for army in self.armies:
+            if army in engaged:
+                army.continuous_rounds += 1
+                army.time_since_last_battle = 0.0
+            else:
+                army.time_since_last_battle += dt
+                if army.time_since_last_battle > 2.0:
+                    army.continuous_rounds = 0
 
         # Remove any dead armies while preserving the shared list reference
         # ``BattlefieldTab`` and other callers retain a reference to

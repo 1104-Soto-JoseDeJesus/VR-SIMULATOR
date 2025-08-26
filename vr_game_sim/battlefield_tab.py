@@ -41,6 +41,14 @@ class ArmyItem(QtWidgets.QGraphicsItem):
         self._hp_fg.setPen(QtGui.QPen(QtCore.Qt.GlobalColor.transparent))
         self._hp_fg.setZValue(11)
         self._hp_fg.setAcceptedMouseButtons(QtCore.Qt.MouseButton.NoButton)
+        self._highlight = QtWidgets.QGraphicsRectItem(-size, -size, 2 * size, 2 * size, self)
+        highlight_pen = QtGui.QPen(QtCore.Qt.GlobalColor.yellow)
+        highlight_pen.setWidth(3)
+        self._highlight.setPen(highlight_pen)
+        self._highlight.setBrush(QtGui.QBrush(QtCore.Qt.GlobalColor.transparent))
+        self._highlight.setZValue(12)
+        self._highlight.setVisible(False)
+        self._highlight.setAcceptedMouseButtons(QtCore.Qt.MouseButton.NoButton)
         self.update_from_army(army)
 
     def update_from_army(self, army: Army) -> None:
@@ -97,6 +105,9 @@ class ArmyItem(QtWidgets.QGraphicsItem):
                 self.sec_icon.setOffset(self.size - pix2.width(), self.size - pix2.height())
                 self.sec_icon.setAcceptedMouseButtons(QtCore.Qt.MouseButton.NoButton)
 
+    def set_highlighted(self, highlighted: bool) -> None:
+        self._highlight.setVisible(highlighted)
+
     # ``QGraphicsItem`` is abstract and requires ``boundingRect`` even when we
     # delegate all rendering to child items.  Provide a small rectangle that
     # comfortably encloses the portrait and health bar so Qt can perform
@@ -121,10 +132,12 @@ class BattlefieldView(QtWidgets.QGraphicsView):
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._drag_idx: int | None = None
+        self._hover_target: ArmyItem | None = None
         self._zoom = 1.0
         self._base_size = 30.0
         self._build_grid()
         self.army_items: List[ArmyItem] = []
+        self.setMouseTracking(True)
 
     def _build_grid(self) -> None:
         size = self._base_size
@@ -146,13 +159,41 @@ class BattlefieldView(QtWidgets.QGraphicsView):
             army = self._tab._army_at(x, y)
             if army:
                 self._drag_idx = self._tab.armies.index(army)
+                if self._hover_target:
+                    self._hover_target.set_highlighted(False)
+                    self._hover_target = None
         super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:  # type: ignore[override]
+        if self._drag_idx is not None:
+            scene_pt = self.mapToScene(event.position().toPoint())
+            x, y = self._scene_to_coords(scene_pt)
+            army = self._tab._army_at(x, y)
+            new_target: ArmyItem | None = None
+            if army and army.team != self._tab.armies[self._drag_idx].team:
+                try:
+                    idx = self._tab.armies.index(army)
+                    new_target = self.army_items[idx]
+                except ValueError:
+                    new_target = None
+            if self._hover_target is not new_target:
+                if self._hover_target:
+                    self._hover_target.set_highlighted(False)
+                self._hover_target = new_target
+                if self._hover_target:
+                    self._hover_target.set_highlighted(True)
+        super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:  # type: ignore[override]
         if self._drag_idx is not None:
             scene_pt = self.mapToScene(event.position().toPoint())
             x, y = self._scene_to_coords(scene_pt)
-            if self._tab.battlefield.within_bounds(x, y):
+            if self._hover_target:
+                target_army = self._hover_target.army
+                self.armyDropped.emit(self._drag_idx, target_army.float_x, target_army.float_y)
+                self._hover_target.set_highlighted(False)
+                self._hover_target = None
+            elif self._tab.battlefield.within_bounds(x, y):
                 self.armyDropped.emit(self._drag_idx, x, y)
             self._drag_idx = None
         super().mouseReleaseEvent(event)

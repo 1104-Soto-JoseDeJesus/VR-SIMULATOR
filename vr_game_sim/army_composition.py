@@ -74,6 +74,10 @@ class Army:
     _post_battle_unrevivable: float = field(init=False, default=0.0)
     pending_report: Optional[str] = field(init=False, default=None)
 
+    # Continuous engagement tracking
+    time_since_last_battle: float = field(init=False, default=0.0)
+    continuous_rounds: int = field(init=False, default=0)
+
     current_troop_count: float = field(init=False, default=0.0)
     active_effects: List[EffectInstance] = field(init=False, default_factory=list)
     upcoming_effects: List[EffectInstance] = field(init=False, default_factory=list)
@@ -907,6 +911,9 @@ class Army:
         self.started_last_round_with_active_shield = False
         self.healing_hymn_triggered_this_round = False
         self.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+
+        self.time_since_last_battle = 0.0
+        self.continuous_rounds = 0
 
         self.damage_dealt_history = []
         self.heal_received_history = []

@@ -41,6 +41,15 @@ class ArmyItem(QtWidgets.QGraphicsItem):
         self._hp_fg.setPen(QtGui.QPen(QtCore.Qt.GlobalColor.transparent))
         self._hp_fg.setZValue(11)
         self._hp_fg.setAcceptedMouseButtons(QtCore.Qt.MouseButton.NoButton)
+        # Outline used when highlighting this army as a potential target.
+        self._hover = QtWidgets.QGraphicsEllipseItem(-size, -size, size * 2, size * 2, self)
+        pen = QtGui.QPen(QtGui.QColor("yellow"))
+        pen.setWidth(2)
+        self._hover.setPen(pen)
+        self._hover.setBrush(QtGui.QBrush(QtCore.Qt.GlobalColor.transparent))
+        self._hover.setZValue(12)
+        self._hover.setVisible(False)
+        self._hover.setAcceptedMouseButtons(QtCore.Qt.MouseButton.NoButton)
         self.update_from_army(army)
 
     def update_from_army(self, army: Army) -> None:
@@ -105,6 +114,10 @@ class ArmyItem(QtWidgets.QGraphicsItem):
         s = self.size
         return QtCore.QRectF(-s, -s, 2 * s, 2 * s)
 
+    def set_highlight(self, enabled: bool) -> None:
+        """Visually emphasise this army when it is a drag target."""
+        self._hover.setVisible(enabled)
+
 
 class BattlefieldView(QtWidgets.QGraphicsView):
     """Graphics view rendering a plain battlefield without hex overlay."""
@@ -121,6 +134,7 @@ class BattlefieldView(QtWidgets.QGraphicsView):
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._drag_idx: int | None = None
+        self._hover_target: Army | None = None
         self._zoom = 1.0
         self._base_size = 30.0
         self._build_grid()
@@ -139,6 +153,23 @@ class BattlefieldView(QtWidgets.QGraphicsView):
         if item in self.army_items:
             self.army_items.remove(item)
         self._scene.removeItem(item)
+
+    def _item_for_army(self, army: Army) -> ArmyItem | None:
+        return next((it for it in self.army_items if it.army is army), None)
+
+    def _update_hover_target(self, army: Army | None) -> None:
+        """Highlight ``army`` and clear any previous hover target."""
+        if self._hover_target is army:
+            return
+        if self._hover_target is not None:
+            prev = self._item_for_army(self._hover_target)
+            if prev:
+                prev.set_highlight(False)
+        self._hover_target = army
+        if army is not None:
+            item = self._item_for_army(army)
+            if item:
+                item.set_highlight(True)
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:  # type: ignore[override]
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             scene_pt = self.mapToScene(event.position().toPoint())
@@ -148,13 +179,29 @@ class BattlefieldView(QtWidgets.QGraphicsView):
                 self._drag_idx = self._tab.armies.index(army)
         super().mousePressEvent(event)
 
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:  # type: ignore[override]
+        if self._drag_idx is not None:
+            scene_pt = self.mapToScene(event.position().toPoint())
+            x, y = self._scene_to_coords(scene_pt)
+            hover = self._tab._army_at(x, y)
+            drag_army = self._tab.armies[self._drag_idx]
+            if hover and hover is not drag_army and hover.team != drag_army.team:
+                self._update_hover_target(hover)
+            else:
+                self._update_hover_target(None)
+        super().mouseMoveEvent(event)
+
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:  # type: ignore[override]
         if self._drag_idx is not None:
             scene_pt = self.mapToScene(event.position().toPoint())
             x, y = self._scene_to_coords(scene_pt)
-            if self._tab.battlefield.within_bounds(x, y):
+            if self._hover_target is not None:
+                target = self._hover_target
+                self.armyDropped.emit(self._drag_idx, target.float_x, target.float_y)
+            elif self._tab.battlefield.within_bounds(x, y):
                 self.armyDropped.emit(self._drag_idx, x, y)
             self._drag_idx = None
+            self._update_hover_target(None)
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:  # type: ignore[override]

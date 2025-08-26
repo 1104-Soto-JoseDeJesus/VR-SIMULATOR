@@ -94,6 +94,13 @@ adjacent cells instead of stacking in the same spot. If that direct target falls
 retargets another of its attackers. A companion **Battlefield Reports** tab lists the battle log for each
 army. A **Reset from Setup** button reloads a fresh copy of the armies defined in the **Army Setup** tab.
 
+### Controls
+
+* Drag an army marker to move it around the map.
+* Dragging over an enemy highlights the target and locks the drop point to that army so releasing orders an attack.
+* Use the mouse wheel to zoom the battlefield view.
+* Double-click a marker to open its configuration dialog.
+
 ### Non-interactive mode
 
 You can bypass the interactive prompts by providing the `--setup` option with a

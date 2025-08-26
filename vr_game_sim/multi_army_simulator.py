@@ -8,7 +8,7 @@ import math
 from .army_composition import Army
 from .battlefield import Battlefield
 from .duel import Duel
-from .constants import ENGAGEMENT_RADIUS
+from .constants import ENGAGEMENT_RADIUS, DISENGAGE_DISTANCE
 
 
 class MultiArmySimulator:
@@ -121,9 +121,25 @@ class MultiArmySimulator:
 
         # Move armies not currently in any duel
         for army in self.armies:
-            if army.current_troop_count <= 0 or army.active_duels:
+            if army.current_troop_count <= 0:
+                continue
+            if army.active_duels and army.destination is None:
                 continue
             army.update_position(self.battlefield, dt)
+
+        # Break duels if participants separate beyond the disengage distance
+        for duel in list(self.active_duels):
+            dist = math.hypot(
+                duel.army_a.float_x - duel.army_b.float_x,
+                duel.army_a.float_y - duel.army_b.float_y,
+            )
+            if dist > DISENGAGE_DISTANCE:
+                self.active_duels.remove(duel)
+                for army in (duel.army_a, duel.army_b):
+                    if duel in army.active_duels:
+                        army.active_duels.remove(duel)
+                self._clear_targeting(duel.army_a)
+                self._clear_targeting(duel.army_b)
 
         # Check for clashes based on proximity
         for i, a1 in enumerate(self.armies):
@@ -136,6 +152,10 @@ class MultiArmySimulator:
                     continue
                 dist = math.hypot(a1.float_x - a2.float_x, a1.float_y - a2.float_y)
                 if dist <= ENGAGEMENT_RADIUS:
+                    if a1.direct_target is None:
+                        self._set_targeting(a1, a2)
+                    if a2.direct_target is None:
+                        self._set_targeting(a2, a1)
                     attacker: Army | None = None
                     defender: Army | None = None
                     if a1.direct_target is a2:
@@ -143,7 +163,6 @@ class MultiArmySimulator:
                     elif a2.direct_target is a1:
                         attacker, defender = a2, a1
                     if attacker and defender:
-                        self._set_targeting(attacker, defender)
                         allow = defender.direct_target is attacker or defender.direct_target is None
                         duel = Duel(attacker, defender, allow_b_attack=allow)
                         self.active_duels.append(duel)

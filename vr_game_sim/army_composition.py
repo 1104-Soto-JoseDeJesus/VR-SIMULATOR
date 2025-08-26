@@ -48,6 +48,7 @@ class Army:
     unit: Unit
     heroes: List[Hero] = field(default_factory=list)
     unrevivable_ratio: float = 0.5
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
     simulator: Optional[GameSimulatorRef] = None
 
     # Positioning and movement

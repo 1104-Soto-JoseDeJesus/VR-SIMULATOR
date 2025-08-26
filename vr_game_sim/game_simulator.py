@@ -508,116 +508,152 @@ class GameSimulator:
 
         return hp_damage_to_troops, absorbed_by_shield, damage_after_all_percent_mods, potential_units_killed_this_hit_rounded
 
-    def simulate_battle(self) -> str:
+    # ------------------------------------------------------------------
+    def start_battle(self) -> None:
+        """Reset both armies and prepare for a new battle."""
         self.army1.reset_for_new_battle()
         self.army2.reset_for_new_battle()
         self.round = 0
+        # Clear any prior report data so incremental rounds can be emitted
+        self.report_builder.lines.clear()
+        self.report_builder.rounds.clear()
 
-        while self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
-            self.round += 1
+    def simulate_round(
+        self,
+        allow_army1_attack: bool = True,
+        allow_army2_attack: bool = True,
+    ) -> Optional[Dict[str, Any]]:
+        """Simulate exactly one round of combat.
 
-            self.army1.rage_added_this_round = 0.0
-            self.army2.rage_added_this_round = 0.0
-            self.army1.shield_hp_gained_this_round = 0.0
-            self.army2.shield_hp_gained_this_round = 0.0
+        The optional ``allow_army*_attack`` flags can disable the proactive
+        basic attack phase for either army while still allowing counterattacks
+        when that army is struck.  Returns a dictionary describing the round
+        results or ``None`` if the battle has already concluded.
+        """
+        if self.army1.current_troop_count <= 0 or self.army2.current_troop_count <= 0:
+            return None
 
-            # CORRECTED: Reset pending damage/healing at the start of each round
-            self.army1.pending_hp_damage_this_round = 0.0
-            self.army1.pending_hp_healing_this_round = 0.0
-            self.army2.pending_hp_damage_this_round = 0.0
-            self.army2.pending_hp_healing_this_round = 0.0
+        self.round += 1
 
-            self.round_combat_actions_log.clear()
-            self.round_skill_triggers_log = {self.army1.name: [], self.army2.name: []}
-            # Reset flags that do not affect base rage calculation. Rage-related
-            # flags are reset later so we can inspect last round's values.
-            for army in [self.army1, self.army2]:
-                army.triggered_skills_this_round.clear()
-                army.healing_hymn_triggered_this_round = False
-                army.base_rage_awarded_this_round = False
+        start_line = len(self.report_builder.lines)
 
-            for army in [self.army1, self.army2]:
-                if army.effects_to_activate_next_round:
-                    army.upcoming_effects.extend(army.effects_to_activate_next_round)
-                    army.effects_to_activate_next_round.clear()
-                army.activate_queued_effects()
-                army.decrement_effect_durations()
+        self.army1.rage_added_this_round = 0.0
+        self.army2.rage_added_this_round = 0.0
+        self.army1.shield_hp_gained_this_round = 0.0
+        self.army2.shield_hp_gained_this_round = 0.0
 
-            self.army1.started_last_round_with_active_shield = self.army1.started_round_with_active_shield
-            self.army2.started_last_round_with_active_shield = self.army2.started_round_with_active_shield
-            self.army1.started_round_with_active_shield = self.army1.get_current_shield_hp() > 0
-            self.army2.started_round_with_active_shield = self.army2.get_current_shield_hp() > 0
+        self.army1.pending_hp_damage_this_round = 0.0
+        self.army1.pending_hp_healing_this_round = 0.0
+        self.army2.pending_hp_damage_this_round = 0.0
+        self.army2.pending_hp_healing_this_round = 0.0
 
-            # Rage skills will be executed after start-of-round effects
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
-                break
+        self.round_combat_actions_log.clear()
+        self.round_skill_triggers_log = {self.army1.name: [], self.army2.name: []}
 
-            for army, opponent in [(self.army1, self.army2), (self.army2, self.army1)]:
-                if army.current_troop_count <= 0: continue
-                army.activate_queued_effects()
-                army.apply_start_of_round_rage_deductions()
-                army.process_periodic_effects('start_of_round', opponent=opponent)
-                army.activate_queued_effects()
-                self._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND,
-                                             event_data={'opponent_for_shield_calc': opponent})
-                army.activate_queued_effects()
+        for army in [self.army1, self.army2]:
+            army.triggered_skills_this_round.clear()
+            army.healing_hymn_triggered_this_round = False
+            army.base_rage_awarded_this_round = False
 
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
+        for army in [self.army1, self.army2]:
+            if army.effects_to_activate_next_round:
+                army.upcoming_effects.extend(army.effects_to_activate_next_round)
+                army.effects_to_activate_next_round.clear()
+            army.activate_queued_effects()
+            army.decrement_effect_durations()
 
-            # Execute any queued rage skills after start-of-round effects.
-            if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
-                if self.army1.hero1_rage_skill_queued_this_round:
-                    self._execute_rage_skills(self.army1, self.army2, is_hero2_delayed_trigger=False)
-                if self.army2.hero1_rage_skill_queued_this_round:
-                    self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=False)
+        self.army1.started_last_round_with_active_shield = self.army1.started_round_with_active_shield
+        self.army2.started_last_round_with_active_shield = self.army2.started_round_with_active_shield
+        self.army1.started_round_with_active_shield = self.army1.get_current_shield_hp() > 0
+        self.army2.started_round_with_active_shield = self.army2.get_current_shield_hp() > 0
 
-                if self.army1.hero2_rage_skill_primed_for_round == self.round:
-                    self._execute_rage_skills(self.army1, self.army2, is_hero2_delayed_trigger=True)
-                if self.army2.hero2_rage_skill_primed_for_round == self.round:
-                    self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=True)
+        if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+            return None
 
+        for army, opponent in [(self.army1, self.army2), (self.army2, self.army1)]:
+            if army.current_troop_count <= 0:
+                continue
+            army.activate_queued_effects()
+            army.apply_start_of_round_rage_deductions()
+            army.process_periodic_effects("start_of_round", opponent=opponent)
+            army.activate_queued_effects()
+            self._process_skill_triggers(
+                army, opponent, SkillTriggerType.CHANCE_PER_ROUND,
+                event_data={"opponent_for_shield_calc": opponent},
+            )
+            army.activate_queued_effects()
 
+        if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+            return None
 
-            if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
-                self._process_skill_triggers(self.army1, self.army2, SkillTriggerType.ON_BASIC_ATTACK,
-                                             event_data={'opponent_for_shield_calc': self.army2})
-                self.army1.activate_queued_effects();
+        if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
+            if self.army1.hero1_rage_skill_queued_this_round:
+                self._execute_rage_skills(
+                    self.army1, self.army2, is_hero2_delayed_trigger=False
+                )
+            if self.army2.hero1_rage_skill_queued_this_round:
+                self._execute_rage_skills(
+                    self.army2, self.army1, is_hero2_delayed_trigger=False
+                )
+
+            if self.army1.hero2_rage_skill_primed_for_round == self.round:
+                self._execute_rage_skills(
+                    self.army1, self.army2, is_hero2_delayed_trigger=True
+                )
+            if self.army2.hero2_rage_skill_primed_for_round == self.round:
+                self._execute_rage_skills(
+                    self.army2, self.army1, is_hero2_delayed_trigger=True
+                )
+
+        if allow_army1_attack and self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
+            self._process_skill_triggers(
+                self.army1, self.army2, SkillTriggerType.ON_BASIC_ATTACK,
+                event_data={"opponent_for_shield_calc": self.army2},
+            )
+            self.army1.activate_queued_effects()
+            self.army2.activate_queued_effects()
+            self._calculate_and_log_attack(self.army1, self.army2, is_counter=False)
+
+            if self.army2.current_troop_count > 0:
+                self._process_skill_triggers(
+                    self.army2, self.army1, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+                    event_data={"opponent_for_shield_calc": self.army1},
+                )
                 self.army2.activate_queued_effects()
-                self._calculate_and_log_attack(self.army1, self.army2, is_counter=False)
-
-                if self.army2.current_troop_count > 0:
-                    self._process_skill_triggers(self.army2, self.army1, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
-                                                 event_data={'opponent_for_shield_calc': self.army1})
-                    self.army2.activate_queued_effects();
-                    self.army1.activate_queued_effects()
-                    self._process_skill_triggers(self.army2, self.army1, SkillTriggerType.ON_COUNTER_ATTACK,
-                                                 event_data={'opponent_for_shield_calc': self.army1})
-                    self.army2.activate_queued_effects();
-                    self.army1.activate_queued_effects()
-                    self._calculate_and_log_attack(self.army2, self.army1, is_counter=True)
-
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
-
-            if self.army2.current_troop_count > 0 and self.army1.current_troop_count > 0:
-                self._process_skill_triggers(self.army2, self.army1, SkillTriggerType.ON_BASIC_ATTACK,
-                                             event_data={'opponent_for_shield_calc': self.army1})
-                self.army2.activate_queued_effects();
                 self.army1.activate_queued_effects()
-                self._calculate_and_log_attack(self.army2, self.army1, is_counter=False)
+                self._process_skill_triggers(
+                    self.army2, self.army1, SkillTriggerType.ON_COUNTER_ATTACK,
+                    event_data={"opponent_for_shield_calc": self.army1},
+                )
+                self.army2.activate_queued_effects()
+                self.army1.activate_queued_effects()
+                self._calculate_and_log_attack(self.army2, self.army1, is_counter=True)
 
-                if self.army1.current_troop_count > 0:
-                    self._process_skill_triggers(self.army1, self.army2, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
-                                                 event_data={'opponent_for_shield_calc': self.army2})
-                    self.army1.activate_queued_effects();
-                    self.army2.activate_queued_effects()
-                    self._process_skill_triggers(self.army1, self.army2, SkillTriggerType.ON_COUNTER_ATTACK,
-                                                 event_data={'opponent_for_shield_calc': self.army2})
-                    self.army1.activate_queued_effects();
-                    self.army2.activate_queued_effects()
-                    self._calculate_and_log_attack(self.army1, self.army2, is_counter=True)
+        if allow_army2_attack and self.army2.current_troop_count > 0 and self.army1.current_troop_count > 0:
+            self._process_skill_triggers(
+                self.army2, self.army1, SkillTriggerType.ON_BASIC_ATTACK,
+                event_data={"opponent_for_shield_calc": self.army1},
+            )
+            self.army2.activate_queued_effects()
+            self.army1.activate_queued_effects()
+            self._calculate_and_log_attack(self.army2, self.army1, is_counter=False)
 
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
+            if self.army1.current_troop_count > 0:
+                self._process_skill_triggers(
+                    self.army1, self.army2, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+                    event_data={"opponent_for_shield_calc": self.army2},
+                )
+                self.army1.activate_queued_effects()
+                self.army2.activate_queued_effects()
+                self._process_skill_triggers(
+                    self.army1, self.army2, SkillTriggerType.ON_COUNTER_ATTACK,
+                    event_data={"opponent_for_shield_calc": self.army2},
+                )
+                self.army1.activate_queued_effects()
+                self.army2.activate_queued_effects()
+                self._calculate_and_log_attack(self.army1, self.army2, is_counter=True)
 
+        if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
             active_lines = self._log_active_effects_for_report()
             self.report_builder.emit_round(
                 self.round,
@@ -625,63 +661,114 @@ class GameSimulator:
                 self.round_skill_triggers_log,
                 active_effects=active_lines,
             )
+            end_line = len(self.report_builder.lines)
+            round_log = "\n".join(self.report_builder.lines[start_line:end_line])
+            return {
+                "round": self.round,
+                "log": round_log,
+                "army1": {
+                    "troops": self.army1.current_troop_count,
+                    "unrevivable": self.army1.unrevivable_troops,
+                },
+                "army2": {
+                    "troops": self.army2.current_troop_count,
+                    "unrevivable": self.army2.unrevivable_troops,
+                },
+            }
 
-            self.army1.commit_pending_healing_and_damage()
-            self.army2.commit_pending_healing_and_damage()
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
+        active_lines = self._log_active_effects_for_report()
+        self.report_builder.emit_round(
+            self.round,
+            self.round_combat_actions_log,
+            self.round_skill_triggers_log,
+            active_effects=active_lines,
+        )
 
-            for army, opponent in [(self.army1, self.army2), (self.army2, self.army1)]:
-                if army.current_troop_count <= 0: continue
-                army.process_periodic_effects('end_of_round', opponent=opponent)
-                army.activate_queued_effects()
+        self.army1.commit_pending_healing_and_damage()
+        self.army2.commit_pending_healing_and_damage()
 
-            # Apply base rage gain after combat and end-of-round effects
-            self._apply_base_rage_gain()
-            for army in [self.army1, self.army2]:
-                army.army_used_rage_skill_this_round_for_rage_gain_block = False
-                army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+        for army, opponent in [(self.army1, self.army2), (self.army2, self.army1)]:
+            if army.current_troop_count <= 0:
+                continue
+            army.process_periodic_effects("end_of_round", opponent=opponent)
+            army.activate_queued_effects()
 
-            if self.track_stats:
-                dmg1 = self.army2.pending_hp_damage_this_round
-                dmg2 = self.army1.pending_hp_damage_this_round
-                prev = self.army1.damage_dealt_history[-1] if self.army1.damage_dealt_history else 0
-                self.army1.damage_dealt_history.append(prev + dmg1)
-                prev = self.army2.damage_dealt_history[-1] if self.army2.damage_dealt_history else 0
-                self.army2.damage_dealt_history.append(prev + dmg2)
-                prev = self.army1.heal_received_history[-1] if self.army1.heal_received_history else 0
-                self.army1.heal_received_history.append(prev + self.army1.pending_hp_healing_this_round)
-                prev = self.army2.heal_received_history[-1] if self.army2.heal_received_history else 0
-                self.army2.heal_received_history.append(prev + self.army2.pending_hp_healing_this_round)
-                prev = self.army1.shield_received_history[-1] if self.army1.shield_received_history else 0
-                self.army1.shield_received_history.append(prev + self.army1.shield_hp_gained_this_round)
-                prev = self.army2.shield_received_history[-1] if self.army2.shield_received_history else 0
-                self.army2.shield_received_history.append(prev + self.army2.shield_hp_gained_this_round)
-                self.army1.rage_gained_history.append(self.army1.rage_added_this_round)
-                self.army2.rage_gained_history.append(self.army2.rage_added_this_round)
+        self._apply_base_rage_gain()
+        for army in [self.army1, self.army2]:
+            army.army_used_rage_skill_this_round_for_rage_gain_block = False
+            army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
 
-            for army in [self.army1, self.army2]:
-                if army.current_troop_count <= 0: continue
-                if army.hero1_rage_skill_id and \
-                        not army.hero1_rage_skill_queued_this_round and \
-                        (
-                                army.hero2_rage_skill_primed_for_round is None or army.hero2_rage_skill_primed_for_round != self.round + 1):
-                    skill_def_h1_rage = self.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
-                    if skill_def_h1_rage and army.current_rage >= skill_def_h1_rage.get("rage_cost", 1001):
-                        army.hero1_rage_skill_queued_this_round = True
+        if self.track_stats:
+            dmg1 = self.army2.pending_hp_damage_this_round
+            dmg2 = self.army1.pending_hp_damage_this_round
+            prev = self.army1.damage_dealt_history[-1] if self.army1.damage_dealt_history else 0
+            self.army1.damage_dealt_history.append(prev + dmg1)
+            prev = self.army2.damage_dealt_history[-1] if self.army2.damage_dealt_history else 0
+            self.army2.damage_dealt_history.append(prev + dmg2)
+            prev = self.army1.heal_received_history[-1] if self.army1.heal_received_history else 0
+            self.army1.heal_received_history.append(prev + self.army1.pending_hp_healing_this_round)
+            prev = self.army2.heal_received_history[-1] if self.army2.heal_received_history else 0
+            self.army2.heal_received_history.append(prev + self.army2.pending_hp_healing_this_round)
+            prev = self.army1.shield_received_history[-1] if self.army1.shield_received_history else 0
+            self.army1.shield_received_history.append(prev + self.army1.shield_hp_gained_this_round)
+            prev = self.army2.shield_received_history[-1] if self.army2.shield_received_history else 0
+            self.army2.shield_received_history.append(prev + self.army2.shield_hp_gained_this_round)
+            self.army1.rage_gained_history.append(self.army1.rage_added_this_round)
+            self.army2.rage_gained_history.append(self.army2.rage_added_this_round)
 
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
+        for army in [self.army1, self.army2]:
+            if army.current_troop_count <= 0:
+                continue
+            if (
+                army.hero1_rage_skill_id
+                and not army.hero1_rage_skill_queued_this_round
+                and (
+                    army.hero2_rage_skill_primed_for_round is None
+                    or army.hero2_rage_skill_primed_for_round != self.round + 1
+                )
+            ):
+                skill_def_h1_rage = self.SKILL_REGISTRY_GLOBAL.get(
+                    army.hero1_rage_skill_id
+                )
+                if skill_def_h1_rage and army.current_rage >= skill_def_h1_rage.get(
+                    "rage_cost", 1001
+                ):
+                    army.hero1_rage_skill_queued_this_round = True
 
+        self.report_builder.lines.append(
+            f"\nEnd of Round {self.round} Status -> "
+            f"{self.army1.name}: {self.army1.current_troop_count:.0f} troops "
+            f"(Rage: {self.army1.current_rage:.0f}, DMG Taken: "
+            f"{self.report_builder._c(str(round(self.army1.pending_hp_damage_this_round)), Fore.RED)}, "
+            f"Healing: {self.report_builder._c(str(round(self.army1.pending_hp_healing_this_round)), Fore.GREEN)}); "
+            f"{self.army2.name}: {self.army2.current_troop_count:.0f} troops "
+            f"(Rage: {self.army2.current_rage:.0f}, DMG Taken: "
+            f"{self.report_builder._c(str(round(self.army2.pending_hp_damage_this_round)), Fore.RED)}, "
+            f"Healing: {self.report_builder._c(str(round(self.army2.pending_hp_healing_this_round)), Fore.GREEN)})"
+        )
 
-            self.report_builder.lines.append(
-                f"\nEnd of Round {self.round} Status -> "
-                f"{self.army1.name}: {self.army1.current_troop_count:.0f} troops "
-                f"(Rage: {self.army1.current_rage:.0f}, DMG Taken: "
-                f"{self.report_builder._c(str(round(self.army1.pending_hp_damage_this_round)), Fore.RED)}, "
-                f"Healing: {self.report_builder._c(str(round(self.army1.pending_hp_healing_this_round)), Fore.GREEN)}); "
-                f"{self.army2.name}: {self.army2.current_troop_count:.0f} troops "
-                f"(Rage: {self.army2.current_rage:.0f}, DMG Taken: "
-                f"{self.report_builder._c(str(round(self.army2.pending_hp_damage_this_round)), Fore.RED)}, "
-                f"Healing: {self.report_builder._c(str(round(self.army2.pending_hp_healing_this_round)), Fore.GREEN)})")
+        end_line = len(self.report_builder.lines)
+        round_log = "\n".join(self.report_builder.lines[start_line:end_line])
+        return {
+            "round": self.round,
+            "log": round_log,
+            "army1": {
+                "troops": self.army1.current_troop_count,
+                "unrevivable": self.army1.unrevivable_troops,
+            },
+            "army2": {
+                "troops": self.army2.current_troop_count,
+                "unrevivable": self.army2.unrevivable_troops,
+            },
+        }
+
+    def simulate_battle(self) -> str:
+        self.start_battle()
+
+        while self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
+            result = self.simulate_round()
+            if result is None:
+                break
 
         self.report_builder.lines.append("\n--- Skill Trigger Counts ---")
         for army_obj in [self.army1, self.army2]:

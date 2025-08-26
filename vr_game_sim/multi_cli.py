@@ -9,6 +9,7 @@ from .army_composition import Army
 from .battlefield import Battlefield
 from .navmesh import NavMesh, Polygon
 from .multi_army_simulator import MultiArmySimulator
+from .constants import ENGAGEMENT_RADIUS
 
 
 def main() -> None:
@@ -44,7 +45,7 @@ def main() -> None:
             for other in simulator.armies:
                 if other is army or other.current_troop_count <= 0:
                     continue
-                if math.hypot(other.float_x - x, other.float_y - y) < 1.0:
+                if math.hypot(other.float_x - x, other.float_y - y) <= ENGAGEMENT_RADIUS:
                     occupant = other
                     break
             if not occupant or occupant.team == army.team:

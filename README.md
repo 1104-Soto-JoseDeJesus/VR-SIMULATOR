@@ -66,6 +66,16 @@ current field state. Attempting to enter a tile occupied by another army
 triggers the existing 1v1 combat simulator while both forces remain in
 adjacent positions.
 
+Multi-army battles can also be run non-interactively from the main script by
+supplying a setup file with any number of armies and the ``--multi`` flag:
+
+```bash
+python -m vr_game_sim.main --setup path/to/multi_setup.json --multi
+```
+
+Armies will be placed around the battlefield and march toward the centre so
+clashes resolve automatically.  Use ``--rounds`` to limit the simulation length.
+
 Within the graphical interface a dedicated **Battlefield** tab renders a full‑window map without scrollbars or hex overlays.
 Each army is represented by its main hero portrait with a smaller secondary hero icon tucked into the bottom‑right; armies without
 heroes fall back to a simple initial letter. Armies march toward dragged destinations using NavMesh waypoints updated ten times per

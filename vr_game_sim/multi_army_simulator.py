@@ -14,10 +14,23 @@ from .constants import ENGAGEMENT_RADIUS, DISENGAGE_DISTANCE
 class MultiArmySimulator:
     """Advance armies on a battlefield and resolve clashes."""
 
-    def __init__(self, battlefield: Battlefield, armies: List[Army]):
+    def __init__(self, battlefield: Battlefield, armies: List[Army], *, min_spacing: float = 2.0):
+        """Create a simulator for the given armies.
+
+        Parameters
+        ----------
+        battlefield:
+            The battlefield on which the armies fight.
+        armies:
+            The armies taking part in the simulation.
+        min_spacing:
+            Minimum distance maintained between engaged armies.  Defaults to
+            ``2.0`` units.
+        """
         self.battlefield = battlefield
         self.armies = armies
         self.active_duels: List[Duel] = []
+        self.min_spacing = float(min_spacing)
 
     # ------------------------------------------------------------------
     def _clear_targeting(self, army: Army) -> None:
@@ -141,6 +154,24 @@ class MultiArmySimulator:
                 self._clear_targeting(duel.army_a)
                 self._clear_targeting(duel.army_b)
 
+        # Ensure armies in active duels maintain minimum spacing each tick
+        for duel in self.active_duels:
+            a1, a2 = duel.army_a, duel.army_b
+            dist = math.hypot(a1.float_x - a2.float_x, a1.float_y - a2.float_y)
+            if dist < self.min_spacing:
+                if dist == 0.0:
+                    dx, dy = 1.0, 0.0
+                else:
+                    dx = (a2.float_x - a1.float_x) / dist
+                    dy = (a2.float_y - a1.float_y) / dist
+                move = (self.min_spacing - dist) / 2
+                nx1 = max(0.0, min(self.battlefield.width - 1e-3, a1.float_x - dx * move))
+                ny1 = max(0.0, min(self.battlefield.height - 1e-3, a1.float_y - dy * move))
+                nx2 = max(0.0, min(self.battlefield.width - 1e-3, a2.float_x + dx * move))
+                ny2 = max(0.0, min(self.battlefield.height - 1e-3, a2.float_y + dy * move))
+                self.battlefield.place_army(a1, nx1, ny1)
+                self.battlefield.place_army(a2, nx2, ny2)
+
         # Check for clashes based on proximity
         for i, a1 in enumerate(self.armies):
             if a1.current_troop_count <= 0:
@@ -152,22 +183,22 @@ class MultiArmySimulator:
                     continue
                 dist = math.hypot(a1.float_x - a2.float_x, a1.float_y - a2.float_y)
                 if dist <= ENGAGEMENT_RADIUS:
-                    if dist < 1.0:
-                        # Push armies apart slightly so they do not fully
-                        # overlap, making the battlefield easier to read.
+                    if dist < self.min_spacing:
+                        # Push armies apart so they do not fully overlap,
+                        # making the battlefield easier to read.
                         if dist == 0.0:
                             dx, dy = 1.0, 0.0
                         else:
                             dx = (a2.float_x - a1.float_x) / dist
                             dy = (a2.float_y - a1.float_y) / dist
-                        move = (1.0 - dist) / 2
+                        move = (self.min_spacing - dist) / 2
                         nx1 = max(0.0, min(self.battlefield.width - 1e-3, a1.float_x - dx * move))
                         ny1 = max(0.0, min(self.battlefield.height - 1e-3, a1.float_y - dy * move))
                         nx2 = max(0.0, min(self.battlefield.width - 1e-3, a2.float_x + dx * move))
                         ny2 = max(0.0, min(self.battlefield.height - 1e-3, a2.float_y + dy * move))
                         self.battlefield.place_army(a1, nx1, ny1)
                         self.battlefield.place_army(a2, nx2, ny2)
-                        dist = 1.0
+                        dist = self.min_spacing
                     if a1.direct_target is None:
                         self._set_targeting(a1, a2)
                     if a2.direct_target is None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import List
 import copy
 import math
+import json
 from pathlib import Path
 
 from PyQt6 import QtCore, QtWidgets, QtGui
@@ -14,6 +15,29 @@ from .main import create_armies_from_data
 from .multi_army_simulator import MultiArmySimulator
 from .navmesh import NavMesh, Polygon
 from .constants import ENGAGEMENT_RADIUS
+
+
+SAVED_ARMIES_FILE = Path(__file__).resolve().parent / "setups" / "saved_armies.json"
+
+
+def load_saved_armies() -> dict[str, dict]:
+    """Return dictionary of saved army configs keyed by name."""
+    if SAVED_ARMIES_FILE.exists():
+        try:
+            with open(SAVED_ARMIES_FILE, "r", encoding="utf-8") as fh:
+                return json.load(fh)
+        except Exception:
+            return {}
+    return {}
+
+
+def save_army_config(name: str, cfg: dict) -> None:
+    """Persist a single army configuration under ``name``."""
+    data = load_saved_armies()
+    data[name] = cfg
+    SAVED_ARMIES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(SAVED_ARMIES_FILE, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=4)
 class ArmyItem(QtWidgets.QGraphicsItem):
     """Movable graphics item representing an army at float coordinates."""
 
@@ -143,6 +167,18 @@ class BattlefieldView(QtWidgets.QGraphicsView):
         size = self._base_size
         rect = QtCore.QRectF(0, 0, size * self._tab.battlefield.width, size * self._tab.battlefield.height)
         self._scene.setSceneRect(rect)
+        bg_path = Path(__file__).resolve().parent / "Icons" / "BattlefieldBackground.png"
+        if bg_path.exists():
+            pix = QtGui.QPixmap(str(bg_path))
+            pix = pix.scaled(
+                int(rect.width()),
+                int(rect.height()),
+                QtCore.Qt.AspectRatioMode.IgnoreAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+            bg_item = QtWidgets.QGraphicsPixmapItem(pix)
+            bg_item.setZValue(-100)
+            self._scene.addItem(bg_item)
 
     def add_army_item(self, item: ArmyItem) -> None:
         self._scene.addItem(item)
@@ -263,7 +299,12 @@ class BattlefieldTab(QtWidgets.QWidget):
         # Update one hundred times per second for smoother movement
         self._timer.start(10)
 
-        self._reset_from_setup()
+        # Start with an empty battlefield; armies must be added manually
+        self.sim = MultiArmySimulator(self.battlefield, self.armies)
+        w, h = self.battlefield.width, self.battlefield.height
+        poly = Polygon(vertices=[(-1, -1), (w, -1), (w, h), (-1, h)], neighbors=[])
+        self.battlefield.load_navmesh(NavMesh([poly]))
+        self._refresh_grid()
 
     # ------------------------------------------------------------------
     def _reset_from_setup(self) -> None:
@@ -403,10 +444,27 @@ class BattlefieldTab(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     def _add_army(self) -> None:
         """Add a new army to the battlefield up to team limits."""
-        dialog = ArmyConfigDialog(None, self)
-        if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
-            return
-        cfg = dialog.build_config()
+        saved = load_saved_armies()
+        cfg: dict
+        if saved:
+            names = ["<New>"] + sorted(saved.keys())
+            name, ok = QtWidgets.QInputDialog.getItem(
+                self, "Add Army", "Select saved army or create new:", names, 0, False
+            )
+            if not ok:
+                return
+            if name != "<New>":
+                cfg = copy.deepcopy(saved[name])
+            else:
+                dialog = ArmyConfigDialog(None, self)
+                if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+                    return
+                cfg = dialog.build_config()
+        else:
+            dialog = ArmyConfigDialog(None, self)
+            if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+                return
+            cfg = dialog.build_config()
         team, ok = QtWidgets.QInputDialog.getInt(self, "Select Team", "Team (1 or 2):", 1, 1, 2)
         if not ok:
             return
@@ -462,9 +520,17 @@ class ArmyConfigDialog(QtWidgets.QDialog):
             QtWidgets.QDialogButtonBox.StandardButton.Ok
             | QtWidgets.QDialogButtonBox.StandardButton.Cancel
         )
+        save_btn = buttons.addButton("Save", QtWidgets.QDialogButtonBox.ButtonRole.ActionRole)
+        save_btn.clicked.connect(self._save)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
     def build_config(self) -> dict:
         return self.frame.build_config()
+
+    def _save(self) -> None:
+        cfg = self.build_config()
+        name, ok = QtWidgets.QInputDialog.getText(self, "Save Army", "Name:")
+        if ok and name:
+            save_army_config(name, cfg)

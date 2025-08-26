@@ -3,6 +3,9 @@ Contains all constant string literals for effect names, etc.
 This helps avoid typos and makes it easier to manage these values.
 """
 
+# --- Simulation Constants ---
+ENGAGEMENT_RADIUS = 1.5
+
 # --- Effect Name Constants ---
 EFFECT_NAME_BROKEN_BLADE_DEBUFF = "BROKEN_BLADE_DEBUFF"
 EFFECT_NAME_FIRST_STRIKE_RAGE_AURA = "FIRST_STRIKE_RAGE_AURA"

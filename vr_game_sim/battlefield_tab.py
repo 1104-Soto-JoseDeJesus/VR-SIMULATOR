@@ -13,6 +13,7 @@ from .army_composition import Army
 from .main import create_armies_from_data
 from .multi_army_simulator import MultiArmySimulator
 from .navmesh import NavMesh, Polygon
+from .constants import ENGAGEMENT_RADIUS
 class ArmyItem(QtWidgets.QGraphicsItem):
     """Movable graphics item representing an army at float coordinates."""
 
@@ -314,7 +315,7 @@ class BattlefieldTab(QtWidgets.QWidget):
         for army in self.armies:
             if army.current_troop_count <= 0:
                 continue
-            if math.hypot(army.float_x - x, army.float_y - y) < 1.0:
+            if math.hypot(army.float_x - x, army.float_y - y) <= ENGAGEMENT_RADIUS:
                 return army
         return None
 

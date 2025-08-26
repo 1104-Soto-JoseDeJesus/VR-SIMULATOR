@@ -31,6 +31,8 @@ from vr_game_sim.unit_definition import Unit as UnitClass
 from vr_game_sim.hero_definition import Hero, HERO_PRESETS
 from vr_game_sim.army_composition import Army
 from vr_game_sim.game_simulator import GameSimulator
+from vr_game_sim.battlefield import Battlefield
+from vr_game_sim.multi_army_simulator import MultiArmySimulator
 from vr_game_sim.interactive_setup import (
     input_choice_numbered,
     input_int,
@@ -192,6 +194,47 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
         GameSimulator.SKILL_REGISTRY_GLOBAL = SKILL_REGISTRY_GLOBAL
 
     return armies
+
+
+def run_multi_battle(
+    setup_data: List[Dict[str, Any]],
+    *,
+    max_rounds: int = 100,
+    seed: int | None = None,
+) -> List[Army]:
+    """Run a battle between three or more armies.
+
+    Armies are positioned around the edge of a square ``Battlefield`` and march
+    toward the centre so engagements begin automatically.  Each army is placed
+    on its own team so all forces are hostile to one another.  A list of the
+    surviving ``Army`` objects is returned once the simulation ends.
+    """
+
+    if seed is not None:
+        random.seed(seed)
+
+    armies = create_armies_from_data(setup_data)
+
+    battlefield = Battlefield(20, 20)
+    centre_x = battlefield.width / 2
+    centre_y = battlefield.height / 2
+    radius = min(centre_x, centre_y) - 1
+
+    for idx, army in enumerate(armies):
+        army.team = idx
+        angle = 2 * math.pi * idx / len(armies)
+        x = centre_x + radius * math.cos(angle)
+        y = centre_y + radius * math.sin(angle)
+        battlefield.place_army(army, x, y)
+        army.set_destination((centre_x, centre_y))
+
+    sim = MultiArmySimulator(battlefield, armies)
+    sim.run(max_rounds=max_rounds)
+
+    for army in sim.armies:
+        print(f"{army.name}: {army.current_troop_count:.0f} troops remaining")
+
+    return sim.armies
 
 
 def _run_single_battle(
@@ -718,11 +761,28 @@ if __name__ == "__main__":
         "--setup",
         help="Path to JSON setup file to load and run non-interactively",
     )
+    parser.add_argument(
+        "--multi",
+        action="store_true",
+        help="Use the real-time multi-army battlefield simulator",
+    )
+    parser.add_argument(
+        "--rounds",
+        type=int,
+        default=100,
+        help="Maximum rounds for multi-army simulations",
+    )
     args = parser.parse_args()
 
     print("=== Battle Simulator ===")
     ensure_setups_dir()
-    if args.setup:
+    if args.setup and args.multi:
+        loaded = load_setup_from_file(args.setup)
+        if not loaded:
+            sys.exit(1)
+        run_multi_battle(loaded, max_rounds=args.rounds)
+        sys.exit(0)
+    elif args.setup:
         loaded = load_setup_from_file(args.setup)
         if not loaded:
             sys.exit(1)

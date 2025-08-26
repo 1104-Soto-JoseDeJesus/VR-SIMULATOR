@@ -37,7 +37,10 @@ class MultiArmySimulator:
         if army.direct_target and army in army.direct_target.attackers:
             army.direct_target.attackers.remove(army)
         for atk in list(army.attackers):
-            atk.direct_target = None
+            if atk.direct_target is army:
+                atk.direct_target = None
+            if army in atk.attackers:
+                atk.attackers.remove(army)
         army.direct_target = None
         army.attackers.clear()
 

@@ -61,7 +61,13 @@ class BattlefieldReportsTab(QtWidgets.QWidget):
             self._text.clear()
 
     def _clear_reports(self) -> None:
-        """Remove all stored battle reports for every army."""
+        """Remove all stored battle reports and prune dead armies."""
+        alive: list[Army] = []
+        self._selector.clear()
         for army in self._armies:
-            army.battle_reports.clear()
+            if army.current_troop_count > 0:
+                army.battle_reports.clear()
+                alive.append(army)
+                self._selector.addItem(army.name)
+        self._armies = alive
         self._refresh()

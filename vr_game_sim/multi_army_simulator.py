@@ -101,14 +101,14 @@ class MultiArmySimulator:
 
         # Check for clashes based on proximity
         for i, a1 in enumerate(self.armies):
-            if a1.current_troop_count <= 0 or a1.active_duels:
+            if a1.current_troop_count <= 0:
                 continue
             for a2 in self.armies[i + 1 :]:
-                if (
-                    a2.current_troop_count <= 0
-                    or a2.active_duels
-                    or a1.team == a2.team
-                ):
+                if a2.current_troop_count <= 0 or a1.team == a2.team:
+                    continue
+                # Only skip if both armies are already locked in battles; an army
+                # that is already fighting can still be joined by fresh attackers.
+                if a1.active_duels and a2.active_duels:
                     continue
                 dist = math.hypot(a1.float_x - a2.float_x, a1.float_y - a2.float_y)
                 if dist < 1.0:

@@ -49,8 +49,10 @@ class Duel:
 
         self.sim_a.current_troop_count = self.army_a.current_troop_count
         self.sim_a.unrevivable_troops = self.army_a.unrevivable_troops
+        self.sim_a.round = self.army_a.round
         self.sim_b.current_troop_count = self.army_b.current_troop_count
         self.sim_b.unrevivable_troops = self.army_b.unrevivable_troops
+        self.sim_b.round = self.army_b.round
         self.last_a_troops = self.army_a.current_troop_count
         self.last_a_unrev = self.army_a.unrevivable_troops
         self.last_b_troops = self.army_b.current_troop_count
@@ -70,6 +72,9 @@ class Duel:
         self.last_a_unrev = self.sim_a.unrevivable_troops
         self.last_b_troops = self.sim_b.current_troop_count
         self.last_b_unrev = self.sim_b.unrevivable_troops
+        # Persist round counters back to the original armies
+        self.army_a.round = self.sim_a.round
+        self.army_b.round = self.sim_b.round
         battle_over = self.sim_a.current_troop_count <= 0 or self.sim_b.current_troop_count <= 0
         return {
             "log": result["log"],

@@ -74,6 +74,12 @@ class Army:
     _post_battle_unrevivable: float = field(init=False, default=0.0)
     pending_report: Optional[str] = field(init=False, default=None)
 
+    # Persistent round counter across duels
+    round: int = field(init=False, default=0)
+    # Seconds since the army last participated in combat. Used to reset
+    # ``round`` after prolonged inactivity.
+    time_since_last_battle: float = field(init=False, default=0.0)
+
     current_troop_count: float = field(init=False, default=0.0)
     active_effects: List[EffectInstance] = field(init=False, default_factory=list)
     upcoming_effects: List[EffectInstance] = field(init=False, default_factory=list)
@@ -605,7 +611,7 @@ class Army:
                 if phase == 'start_of_round':
                     start_gain_round = effect.config.get("start_rage_gain_round", 0);
                     end_gain_round = effect.config.get("end_rage_gain_round", 0)
-                    current_round = self.simulator.round
+                    current_round = self.round
                     if start_gain_round <= current_round <= end_gain_round:
                         rage_to_gain = effect.config.get("rage_per_round", 0)
                         if rage_to_gain > 0:
@@ -615,7 +621,7 @@ class Army:
             # Handle Olena's Concentration Rage Gain
             elif effect.name == EFFECT_NAME_CONCENTRATION_RAGE_GAIN and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
-                    current_sim_round = self.simulator.round
+                    current_sim_round = self.round
                     effect_applied_in_round = effect.config.get("effect_applied_in_round", -1)
                     base_rage = effect.config.get("base_rage_amount", 0)
                     bonus_rage = effect.config.get("bonus_rage_amount",
@@ -922,6 +928,7 @@ class Army:
         self._post_battle_troops = self.current_troop_count
         self._post_battle_unrevivable = self.unrevivable_troops
         self.pending_report = None
+        self.time_since_last_battle = 0.0
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

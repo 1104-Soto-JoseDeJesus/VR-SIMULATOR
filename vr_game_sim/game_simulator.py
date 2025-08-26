@@ -52,13 +52,22 @@ class GameSimulator:
         self.army2: Army = army2
         self.army1.simulator = self
         self.army2.simulator = self
-        self.round: int = 0
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
             self.army1.name: [], self.army2.name: []
         }
         self.report_builder = report_builder or ReportBuilder()
         self.track_stats = track_stats
+
+    @property
+    def round(self) -> int:
+        """Current round derived from the participating armies."""
+        return max(self.army1.round, self.army2.round)
+
+    @round.setter
+    def round(self, value: int) -> None:
+        self.army1.round = value
+        self.army2.round = value
 
     def _log_active_effects_for_report(self) -> List[str]:
         lines: List[str] = []
@@ -228,7 +237,7 @@ class GameSimulator:
                         is_on_cooldown = False
                         if cooldown is not None:
                             last_triggered = triggering_army.skill_last_triggered_round.get(skill_id, -(cooldown + 1))
-                            if self.round < last_triggered + cooldown:
+                            if triggering_army.round < last_triggered + cooldown:
                                 is_on_cooldown = True
                         if is_on_cooldown:
                             continue
@@ -283,7 +292,7 @@ class GameSimulator:
                                 )
 
                             if cooldown is not None:
-                                triggering_army.skill_last_triggered_round[skill_id] = self.round
+                                triggering_army.skill_last_triggered_round[skill_id] = triggering_army.round
 
                             if skill_id not in triggering_army.triggered_skills_this_round:
                                 triggering_army.triggered_skills_this_round.append(skill_id)
@@ -332,10 +341,13 @@ class GameSimulator:
                 if hero_slot == 1:
                     army.hero1_rage_skill_cast_blocked_by_silence_this_round = True
                 elif hero_slot == 2:
-                    if army.hero2_rage_skill_primed_for_round == self.round:
+                    if army.hero2_rage_skill_primed_for_round == army.round:
                         army.hero2_rage_skill_primed_for_round += 1
-                        self._log_skill_trigger(army, skill_def['name'],
-                                                f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence.")
+                        self._log_skill_trigger(
+                            army,
+                            skill_def['name'],
+                            f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence."
+                        )
                 return
 
         log_prefix = f"(Delayed Hero 2) " if is_hero2_delayed_trigger else f"{hero_who_triggered_name}'s "
@@ -349,13 +361,13 @@ class GameSimulator:
             army.current_rage -= rage_cost
             army.current_rage = max(0, army.current_rage)
             army.army_used_rage_skill_this_round_for_rage_gain_block = True
-            army.hero1_rage_skill_used_round = self.round
+            army.hero1_rage_skill_used_round = army.round
             army.hero1_rage_skill_queued_this_round = False
 
             if army.hero2_rage_skill_id and len(army.heroes) > 1:
-                army.hero2_rage_skill_primed_for_round = self.round + 2
+                army.hero2_rage_skill_primed_for_round = army.round + 2
         else:
-            if army.hero2_rage_skill_primed_for_round == self.round:
+            if army.hero2_rage_skill_primed_for_round == army.round:
                 army.hero2_rage_skill_primed_for_round = None
 
         rage_logic_handler: Optional[RageSkillLogicHandler] = skill_def.get("logic_handler")
@@ -405,14 +417,16 @@ class GameSimulator:
 
     def _apply_base_rage_gain(self) -> None:
         """Grant each army 100 rage at end of round unless their Hero 1 rage skill was used or blocked."""
-        if self.round < 1:
+        if self.army1.round < 1:
             for army in [self.army1, self.army2]:
                 army.base_rage_awarded_this_round = False
             return
 
         for army in [self.army1, self.army2]:
-            if (army.hero1_rage_skill_used_round == self.round or
-                    army.hero1_rage_skill_cast_blocked_by_silence_this_round):
+            if (
+                army.hero1_rage_skill_used_round == army.round
+                or army.hero1_rage_skill_cast_blocked_by_silence_this_round
+            ):
                 army.base_rage_awarded_this_round = False
             else:
                 army.current_rage += 100
@@ -513,7 +527,6 @@ class GameSimulator:
         """Reset both armies and prepare for a new battle."""
         self.army1.reset_for_new_battle()
         self.army2.reset_for_new_battle()
-        self.round = 0
         # Clear any prior report data so incremental rounds can be emitted
         self.report_builder.lines.clear()
         self.report_builder.rounds.clear()
@@ -533,7 +546,11 @@ class GameSimulator:
         if self.army1.current_troop_count <= 0 or self.army2.current_troop_count <= 0:
             return None
 
-        self.round += 1
+        self.army1.round += 1
+        self.army2.round += 1
+        # This round counts as combat interaction for both armies
+        self.army1.time_since_last_battle = 0.0
+        self.army2.time_since_last_battle = 0.0
 
         start_line = len(self.report_builder.lines)
 
@@ -596,11 +613,11 @@ class GameSimulator:
                     self.army2, self.army1, is_hero2_delayed_trigger=False
                 )
 
-            if self.army1.hero2_rage_skill_primed_for_round == self.round:
+            if self.army1.hero2_rage_skill_primed_for_round == self.army1.round:
                 self._execute_rage_skills(
                     self.army1, self.army2, is_hero2_delayed_trigger=True
                 )
-            if self.army2.hero2_rage_skill_primed_for_round == self.round:
+            if self.army2.hero2_rage_skill_primed_for_round == self.army2.round:
                 self._execute_rage_skills(
                     self.army2, self.army1, is_hero2_delayed_trigger=True
                 )
@@ -724,7 +741,7 @@ class GameSimulator:
                 and not army.hero1_rage_skill_queued_this_round
                 and (
                     army.hero2_rage_skill_primed_for_round is None
-                    or army.hero2_rage_skill_primed_for_round != self.round + 1
+                    or army.hero2_rage_skill_primed_for_round != army.round + 1
                 )
             ):
                 skill_def_h1_rage = self.SKILL_REGISTRY_GLOBAL.get(

@@ -55,6 +55,10 @@ class MultiArmySimulator:
 
     def step(self, dt: float = 1.0) -> None:
         """Advance the simulation by ``dt`` seconds."""
+        # Track time since each army last fought
+        for army in self.armies:
+            army.time_since_last_battle += dt
+
         finished_duels: List[Duel] = []
         for duel in list(self.active_duels):
             duel.time_acc += dt
@@ -73,6 +77,9 @@ class MultiArmySimulator:
                 if result["battle_over"]:
                     finished_duels.append(duel)
                     break
+            # These armies participated in combat this step
+            duel.army_a.time_since_last_battle = 0.0
+            duel.army_b.time_since_last_battle = 0.0
 
         for duel in finished_duels:
             self.active_duels.remove(duel)
@@ -123,6 +130,15 @@ class MultiArmySimulator:
         # Final cleanup of dead armies; again, mutate the list in place to keep
         # the simulator and GUI in sync.
         self.armies[:] = [a for a in self.armies if a.current_troop_count > 0]
+
+        # Reset round counters if an army has been idle too long
+        for army in self.armies:
+            if army.active_duels:
+                if army.time_since_last_battle > 2.0:
+                    army.round = 0
+                army.time_since_last_battle = 0.0
+            elif army.time_since_last_battle > 2.0:
+                army.round = 0
 
     def _resolve_battle(self, army1: Army, army2: Army) -> None:
         """Start a duel between two armies."""

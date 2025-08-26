@@ -152,6 +152,22 @@ class MultiArmySimulator:
                     continue
                 dist = math.hypot(a1.float_x - a2.float_x, a1.float_y - a2.float_y)
                 if dist <= ENGAGEMENT_RADIUS:
+                    if dist < 1.0:
+                        # Push armies apart slightly so they do not fully
+                        # overlap, making the battlefield easier to read.
+                        if dist == 0.0:
+                            dx, dy = 1.0, 0.0
+                        else:
+                            dx = (a2.float_x - a1.float_x) / dist
+                            dy = (a2.float_y - a1.float_y) / dist
+                        move = (1.0 - dist) / 2
+                        nx1 = max(0.0, min(self.battlefield.width - 1e-3, a1.float_x - dx * move))
+                        ny1 = max(0.0, min(self.battlefield.height - 1e-3, a1.float_y - dy * move))
+                        nx2 = max(0.0, min(self.battlefield.width - 1e-3, a2.float_x + dx * move))
+                        ny2 = max(0.0, min(self.battlefield.height - 1e-3, a2.float_y + dy * move))
+                        self.battlefield.place_army(a1, nx1, ny1)
+                        self.battlefield.place_army(a2, nx2, ny2)
+                        dist = 1.0
                     if a1.direct_target is None:
                         self._set_targeting(a1, a2)
                     if a2.direct_target is None:

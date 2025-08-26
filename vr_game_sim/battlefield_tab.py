@@ -435,6 +435,7 @@ class BattlefieldTab(QtWidgets.QWidget):
             new_army = create_armies_from_data([cfg])[0]
             new_army.team = team
             new_army.battle_reports = reports
+            new_army.id = old_army.id
             self.armies[idx] = new_army
             self.battlefield.place_army(new_army, x, y)
             if self.sim:

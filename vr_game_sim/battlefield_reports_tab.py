@@ -31,12 +31,12 @@ class BattlefieldReportsTab(QtWidgets.QWidget):
 
     def _update(self) -> None:
         """Refresh army list and currently displayed report."""
-        # Track new armies but never remove old ones so logs persist. If an
-        # existing army object is replaced (e.g. after editing), update the
-        # reference instead of adding a duplicate entry.
+        # Track new armies but never remove old ones so logs persist. Match on
+        # ``Army.id`` rather than name so multiple armies with the same name
+        # each get their own entry.
         for army in self._bf_tab.armies:
             for i, existing in enumerate(self._armies):
-                if existing.name == army.name:
+                if existing.id == army.id:
                     self._armies[i] = army
                     break
             else:

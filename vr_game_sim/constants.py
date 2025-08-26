@@ -5,6 +5,8 @@ This helps avoid typos and makes it easier to manage these values.
 
 # --- Simulation Constants ---
 ENGAGEMENT_RADIUS = 1.5
+# Distance an army must move away from an enemy to disengage.
+DISENGAGE_DISTANCE = 2.0
 
 # --- Effect Name Constants ---
 EFFECT_NAME_BROKEN_BLADE_DEBUFF = "BROKEN_BLADE_DEBUFF"

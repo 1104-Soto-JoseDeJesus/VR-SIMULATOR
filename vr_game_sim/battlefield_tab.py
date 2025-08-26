@@ -7,6 +7,7 @@ import math
 import json
 from pathlib import Path
 
+from PIL import Image
 from PyQt6 import QtCore, QtWidgets, QtGui
 
 from .battlefield import Battlefield
@@ -173,10 +174,11 @@ class BattlefieldView(QtWidgets.QGraphicsView):
             pix = pix.scaled(
                 int(rect.width()),
                 int(rect.height()),
-                QtCore.Qt.AspectRatioMode.IgnoreAspectRatio,
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
                 QtCore.Qt.TransformationMode.SmoothTransformation,
             )
             bg_item = QtWidgets.QGraphicsPixmapItem(pix)
+            bg_item.setPos((rect.width() - pix.width()) / 2, (rect.height() - pix.height()) / 2)
             bg_item.setZValue(-100)
             self._scene.addItem(bg_item)
 
@@ -268,6 +270,13 @@ class BattlefieldTab(QtWidgets.QWidget):
     def __init__(self, main_window: 'MainWindow', width: int = 16, height: int = 16) -> None:
         super().__init__(main_window)
         self._main_window = main_window
+        bg_path = Path(__file__).resolve().parent / "Icons" / "BattlefieldBackground.png"
+        if bg_path.exists():
+            try:
+                with Image.open(bg_path) as img:
+                    width = int(round(height * img.width / img.height))
+            except Exception:
+                pass
         self.battlefield = Battlefield(width, height)
         self.armies: List[Army] = []
         self.army_configs: List[dict] = []

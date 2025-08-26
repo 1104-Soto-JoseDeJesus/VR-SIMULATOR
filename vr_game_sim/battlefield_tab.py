@@ -377,12 +377,22 @@ class BattlefieldTab(QtWidgets.QWidget):
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             cfg = dialog.build_config()
             self.army_configs[idx] = cfg
-            x, y = self.armies[idx].x, self.armies[idx].y
-            self.armies[idx] = create_armies_from_data([cfg])[0]
-            self.battlefield.place_army(self.armies[idx], x, y)
+            old_army = self.armies[idx]
+            self._clear_targeting(old_army)
+            x, y = old_army.x, old_army.y
+            team = old_army.team
+            reports = old_army.battle_reports
+            new_army = create_armies_from_data([cfg])[0]
+            new_army.team = team
+            new_army.battle_reports = reports
+            self.armies[idx] = new_army
+            self.battlefield.place_army(new_army, x, y)
+            if self.sim:
+                self.sim.armies[idx] = new_army
             if 0 <= idx < len(self.army_items):
-                self.army_items[idx].update_from_army(self.armies[idx])
+                self.army_items[idx].update_from_army(new_army)
             self._refresh_grid()
+            self.reportsUpdated.emit()
 
     def _tick(self) -> None:
         if self.sim:

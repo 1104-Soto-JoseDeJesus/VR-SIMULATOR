@@ -14,9 +14,14 @@ class BattlefieldReportsTab(QtWidgets.QWidget):
         super().__init__(bf_tab)
         self._bf_tab = bf_tab
         layout = QtWidgets.QVBoxLayout(self)
+        control_row = QtWidgets.QHBoxLayout()
         self._selector = QtWidgets.QComboBox()
         self._selector.currentIndexChanged.connect(self._refresh)
-        layout.addWidget(self._selector)
+        control_row.addWidget(self._selector, 1)
+        clear_btn = QtWidgets.QPushButton("Clear Reports")
+        clear_btn.clicked.connect(self._clear_reports)
+        control_row.addWidget(clear_btn)
+        layout.addLayout(control_row)
         self._text = QtWidgets.QPlainTextEdit(readOnly=True)
         layout.addWidget(self._text, 1)
         # Keep a persistent list of armies so reports remain even after death
@@ -26,9 +31,15 @@ class BattlefieldReportsTab(QtWidgets.QWidget):
 
     def _update(self) -> None:
         """Refresh army list and currently displayed report."""
-        # Track new armies but never remove old ones so logs persist
+        # Track new armies but never remove old ones so logs persist. If an
+        # existing army object is replaced (e.g. after editing), update the
+        # reference instead of adding a duplicate entry.
         for army in self._bf_tab.armies:
-            if army not in self._armies:
+            for i, existing in enumerate(self._armies):
+                if existing.name == army.name:
+                    self._armies[i] = army
+                    break
+            else:
                 self._armies.append(army)
                 self._selector.addItem(army.name)
         self._refresh()
@@ -48,3 +59,9 @@ class BattlefieldReportsTab(QtWidgets.QWidget):
                 sb.setValue(max(0, sb.maximum() - (prev_max - prev_val)))
         else:
             self._text.clear()
+
+    def _clear_reports(self) -> None:
+        """Remove all stored battle reports for every army."""
+        for army in self._armies:
+            army.battle_reports.clear()
+        self._refresh()

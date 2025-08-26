@@ -1,8 +1,11 @@
 # === File: army_composition.py ===
+from __future__ import annotations
+
 import uuid
 import random
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Tuple
+import math
 
 from .enums import EffectType, SkillTriggerType, StatType, DoTType
 from .unit_definition import Unit
@@ -34,6 +37,8 @@ from .constants import (
     EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
 )
 
+from .battlefield import Battlefield, step_towards
+
 GameSimulatorRef = "GameSimulator"  # Forward reference
 
 
@@ -44,6 +49,30 @@ class Army:
     heroes: List[Hero] = field(default_factory=list)
     unrevivable_ratio: float = 0.5
     simulator: Optional[GameSimulatorRef] = None
+
+    # Positioning and movement
+    x: int = 0
+    y: int = 0
+    float_x: float = 0.0
+    float_y: float = 0.0
+    movement_speed: float = 1.0
+    destination: Optional[Tuple[int, int]] = None
+    path: List[Tuple[float, float]] = field(default_factory=list)
+
+    # Team affiliation and battle reporting
+    team: int = 0
+    battle_reports: List[str] = field(default_factory=list)
+    direct_target: Optional["Army"] = field(init=False, default=None)
+    attackers: List["Army"] = field(init=False, default_factory=list)
+
+    # Active duels reference for real-time battles (a defender may face multiple attackers)
+    active_duels: List["Duel"] = field(init=False, default_factory=list)
+
+    # Real-time battle tracking
+    battle_time_remaining: int = field(init=False, default=0)
+    _post_battle_troops: float = field(init=False, default=0.0)
+    _post_battle_unrevivable: float = field(init=False, default=0.0)
+    pending_report: Optional[str] = field(init=False, default=None)
 
     current_troop_count: float = field(init=False, default=0.0)
     active_effects: List[EffectInstance] = field(init=False, default_factory=list)
@@ -80,10 +109,81 @@ class Army:
     rage_added_this_round: float = field(init=False, default=0.0)
 
     def __post_init__(self):
+        self.float_x = float(self.x)
+        self.float_y = float(self.y)
         self.reset_for_new_battle()
 
     def increment_skill_trigger_count(self, skill_id: str):
         self.skill_trigger_counts[skill_id] = self.skill_trigger_counts.get(skill_id, 0) + 1
+
+    # --- Movement helpers -------------------------------------------------
+    def set_destination(self, dest: Tuple[int, int]):
+        """Queue a destination for the army to march towards."""
+        self.destination = dest
+        self.path.clear()
+
+    def update_position(self, battlefield: "Battlefield"):
+        """Advance the army towards its destination within movement bounds."""
+        if not self.destination:
+            return
+
+        if battlefield.navmesh:
+            # Generate path on first movement
+            if not self.path:
+                start = (self.float_x, self.float_y)
+                self.path = battlefield.navmesh.find_path(start, self.destination)
+                if self.path and self.path[0] == start:
+                    self.path.pop(0)
+            if not self.path:
+                self.destination = None
+                return
+            target = self.path[0]
+            dx, dy = target[0] - self.float_x, target[1] - self.float_y
+            dist = math.hypot(dx, dy)
+            if dist <= self.movement_speed:
+                self.float_x, self.float_y = target
+                self.path.pop(0)
+                if not self.path:
+                    self.destination = None
+            else:
+                self.float_x += self.movement_speed * dx / dist
+                self.float_y += self.movement_speed * dy / dist
+            self.x, self.y = int(round(self.float_x)), int(round(self.float_y))
+        else:
+            dest = self.destination
+            for _ in range(int(self.movement_speed)):
+                if (self.x, self.y) == dest:
+                    break
+                new_x, new_y = step_towards(battlefield, (self.x, self.y), dest)
+                if battlefield.within_bounds(new_x, new_y):
+                    self.x, self.y = new_x, new_y
+                    self.float_x, self.float_y = float(self.x), float(self.y)
+                else:
+                    break
+            if (self.x, self.y) == dest:
+                self.destination = None
+
+    # --- Battle result application ----------------------------------------
+    def apply_round_results(self, troop_delta: float, unrevivable_delta: float) -> None:
+        """Update troop counts using deltas from a duel round."""
+        self.current_troop_count += troop_delta
+        if self.current_troop_count < 0:
+            self.current_troop_count = 0
+        self.unrevivable_troops += unrevivable_delta
+
+    def engage(self, final_troops: float, final_unrevivable: float, duration: int) -> None:
+        """Begin a battle that will resolve after ``duration`` seconds."""
+        self._post_battle_troops = final_troops
+        self._post_battle_unrevivable = final_unrevivable
+        self.battle_time_remaining = duration
+
+    def progress_battle(self) -> None:
+        """Advance any active battle timer and apply results when finished."""
+        if self.battle_time_remaining > 0:
+            self.battle_time_remaining -= 1
+            if self.battle_time_remaining == 0:
+                self.current_troop_count = self._post_battle_troops
+                self.unrevivable_troops = self._post_battle_unrevivable
 
     def _identify_hero_rage_skills(self):
         self.hero1_rage_skill_id = None
@@ -815,6 +915,14 @@ class Army:
         self.rage_gained_history = []
         self.shield_hp_gained_this_round = 0.0
         self.rage_added_this_round = 0.0
+
+        self.direct_target = None
+        self.attackers.clear()
+        self.active_duels.clear()
+        self.battle_time_remaining = 0
+        self._post_battle_troops = self.current_troop_count
+        self._post_battle_unrevivable = self.unrevivable_troops
+        self.pending_report = None
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

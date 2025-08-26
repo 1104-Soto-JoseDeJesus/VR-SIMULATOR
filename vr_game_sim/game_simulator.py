@@ -522,6 +522,7 @@ class GameSimulator:
         self,
         allow_army1_attack: bool = True,
         allow_army2_attack: bool = True,
+        reset_triggers: bool = True,
     ) -> Optional[Dict[str, Any]]:
         """Simulate exactly one round of combat.
 
@@ -550,8 +551,10 @@ class GameSimulator:
         self.round_combat_actions_log.clear()
         self.round_skill_triggers_log = {self.army1.name: [], self.army2.name: []}
 
+        if reset_triggers:
+            for army in [self.army1, self.army2]:
+                army.triggered_skills_this_round.clear()
         for army in [self.army1, self.army2]:
-            army.triggered_skills_this_round.clear()
             army.healing_hymn_triggered_this_round = False
             army.base_rage_awarded_this_round = False
 

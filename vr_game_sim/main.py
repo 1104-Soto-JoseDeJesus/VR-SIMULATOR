@@ -229,6 +229,10 @@ def run_multi_battle(
         army.set_destination((centre_x, centre_y))
 
     sim = MultiArmySimulator(battlefield, armies)
+    # Establish an initial circular targeting chain so battles commence under
+    # the explicit-targeting rules.
+    for i, army in enumerate(armies):
+        sim.set_targeting(army, armies[(i + 1) % len(armies)])
     sim.run(max_rounds=max_rounds)
 
     for army in sim.armies:

@@ -55,15 +55,24 @@ class MultiArmySimulator:
 
     def step(self, dt: float = 1.0) -> None:
         """Advance the simulation by ``dt`` seconds."""
+        # Reset per-round skill trigger tracking so reactive skills only fire
+        # once per second even under multiple attackers.
+        for army in self.armies:
+            army.triggered_skills_this_round.clear()
+            army.healing_hymn_triggered_this_round = False
+            army.base_rage_awarded_this_round = False
+
         finished_duels: List[Duel] = []
         engaged: List[Army] = []
-        for duel in list(self.active_duels):
+        duels = list(self.active_duels)
+        random.shuffle(duels)
+        for duel in duels:
             duel.time_acc += dt
             while duel.time_acc >= 1.0:
                 duel.time_acc -= 1.0
                 duel.sync_from_armies()
                 duel.allow_b_attack = duel.army_b.direct_target is duel.army_a
-                result = duel.simulate_round()
+                result = duel.simulate_round(reset_triggers=False)
                 if not result:
                     finished_duels.append(duel)
                     break
@@ -96,6 +105,7 @@ class MultiArmySimulator:
                 army.time_since_last_battle += dt
                 if army.time_since_last_battle > 2.0:
                     army.continuous_rounds = 0
+                    army.current_rage = 0.0
 
         # Remove any dead armies while preserving the shared list reference
         # ``BattlefieldTab`` and other callers retain a reference to
@@ -122,18 +132,23 @@ class MultiArmySimulator:
             for a2 in self.armies[i + 1 :]:
                 if a2.current_troop_count <= 0 or a1.team == a2.team:
                     continue
-                # Only skip if both armies are already locked in battles; an army
-                # that is already fighting can still be joined by fresh attackers.
                 if a1.active_duels and a2.active_duels:
                     continue
                 dist = math.hypot(a1.float_x - a2.float_x, a1.float_y - a2.float_y)
                 if dist <= ENGAGEMENT_RADIUS:
-                    self._set_targeting(a1, a2)
-                    allow = a2.direct_target is a1 or a2.direct_target is None
-                    duel = Duel(a1, a2, allow_b_attack=allow)
-                    self.active_duels.append(duel)
-                    a1.active_duels.append(duel)
-                    a2.active_duels.append(duel)
+                    attacker: Army | None = None
+                    defender: Army | None = None
+                    if a1.direct_target is a2:
+                        attacker, defender = a1, a2
+                    elif a2.direct_target is a1:
+                        attacker, defender = a2, a1
+                    if attacker and defender:
+                        self._set_targeting(attacker, defender)
+                        allow = defender.direct_target is attacker or defender.direct_target is None
+                        duel = Duel(attacker, defender, allow_b_attack=allow)
+                        self.active_duels.append(duel)
+                        attacker.active_duels.append(duel)
+                        defender.active_duels.append(duel)
 
         # Final cleanup of dead armies; again, mutate the list in place to keep
         # the simulator and GUI in sync.

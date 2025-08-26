@@ -92,6 +92,8 @@ def test_multiple_attackers_can_engage_same_defender():
     atk2.set_destination((5, 5))
 
     sim = MultiArmySimulator(battlefield, [atk1, atk2, defender])
+    sim.set_targeting(atk1, defender)
+    sim.set_targeting(atk2, defender)
 
     # Run until both attackers have engaged the defender
     for _ in range(10):
@@ -127,5 +129,6 @@ def test_armies_engage_within_radius():
     battlefield.place_army(atk, 0, 0)
     battlefield.place_army(defn, ENGAGEMENT_RADIUS, 0)
     sim = MultiArmySimulator(battlefield, [atk, defn])
+    sim.set_targeting(atk, defn)
     sim.step()
     assert len(sim.active_duels) == 1

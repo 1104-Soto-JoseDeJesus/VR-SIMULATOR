@@ -26,6 +26,11 @@ class Duel:
         sim_b = copy.deepcopy(self.army_b)
         sim_a.unit.initial_count = int(self.army_a.current_troop_count)
         sim_b.unit.initial_count = int(self.army_b.current_troop_count)
+        # Share skill trigger tracking so multiple duels honour per-round limits
+        sim_a.triggered_skills_this_round = self.army_a.triggered_skills_this_round
+        sim_b.triggered_skills_this_round = self.army_b.triggered_skills_this_round
+        sim_a.skill_last_triggered_round = self.army_a.skill_last_triggered_round
+        sim_b.skill_last_triggered_round = self.army_b.skill_last_triggered_round
         self.sim_a = sim_a
         self.sim_b = sim_b
         self.simulator = GameSimulator(sim_a, sim_b, report_builder=self.report_builder, track_stats=False)
@@ -56,9 +61,13 @@ class Duel:
         self.last_b_troops = self.army_b.current_troop_count
         self.last_b_unrev = self.army_b.unrevivable_troops
 
-    def simulate_round(self) -> Dict[str, Any] | None:
+    def simulate_round(self, reset_triggers: bool = True) -> Dict[str, Any] | None:
         """Advance the duel by a single round."""
-        result = self.simulator.simulate_round(allow_army1_attack=True, allow_army2_attack=self.allow_b_attack)
+        result = self.simulator.simulate_round(
+            allow_army1_attack=True,
+            allow_army2_attack=self.allow_b_attack,
+            reset_triggers=reset_triggers,
+        )
         if not result:
             return None
 

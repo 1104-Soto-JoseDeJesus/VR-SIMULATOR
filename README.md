@@ -83,7 +83,8 @@ second for smooth, accurate movement and battles resolve in real time – a 30�
 troop bars ticking down each second. Each marker shows a white vertical bar along the left side indicating remaining troops that rises or falls as losses and reinforcements occur. Double‑click a marker to open a dedicated configuration
 dialog for that battlefield army so changes do not affect the duel tab. Use the mouse wheel to
 zoom the map. Dragging an army onto an occupied tile triggers combat but
-the units remain on adjacent cells while the duel resolves. Portrait overlays no longer block dragging,
+the units remain on adjacent cells while the duel resolves. While dragging, hovering over an enemy highlights the target and
+locks the destination to that foe so releasing the mouse snaps the move to the enemy's position. Portrait overlays no longer block dragging,
 so armies remain movable even when heroes are assigned. Armies can be added via an **Add Army**
 button with up to five per team, letting larger forces clash. When two or more armies march on the
 same foe only one is treated as the direct target and trades basic attacks, counterattacks and

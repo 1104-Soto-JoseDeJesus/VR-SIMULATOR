@@ -2611,6 +2611,11 @@ class MainWindow(QtWidgets.QMainWindow):
         if not file_path:
             return
         writer = QtGui.QPdfWriter(file_path)
+        # ``QPdfWriter`` uses a high default resolution (1200 DPI) which makes
+        # coordinates specified in the layout JSON appear tiny when rendered.
+        # The layout tool stores positions in PostScript points (72 DPI) so we
+        # match that here to keep sizes consistent.
+        writer.setResolution(72)
         writer.setPageMargins(QtCore.QMarginsF(0, 0, 0, 0))
         painter = QtGui.QPainter(writer)
         for page_idx, page in enumerate(self.pdf_layout):
@@ -2634,7 +2639,10 @@ class MainWindow(QtWidgets.QMainWindow):
                     )
                 x = int(item.get("x", 0))
                 y = int(item.get("y", 0))
-                painter.drawPixmap(x, y, pix)
+                # ``drawPixmap`` can drop images when painting to a PDF surface
+                # in headless environments.  Converting to ``QImage`` ensures
+                # the bitmap is embedded reliably.
+                painter.drawImage(x, y, pix.toImage())
             if page_idx < len(self.pdf_layout) - 1:
                 writer.newPage()
         painter.end()

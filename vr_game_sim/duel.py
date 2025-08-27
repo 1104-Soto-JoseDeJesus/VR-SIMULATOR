@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import copy
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 from .army_composition import Army
 from .game_simulator import GameSimulator
@@ -20,49 +19,44 @@ class Duel:
     time_acc: float = 0.0
 
     def __post_init__(self) -> None:
-        # Create deep copies for the internal simulator so the original armies
-        # retain their positioning and other battlefield state.
-        sim_a = copy.deepcopy(self.army_a)
-        sim_b = copy.deepcopy(self.army_b)
-        sim_a.unit.initial_count = int(self.army_a.current_troop_count)
-        sim_b.unit.initial_count = int(self.army_b.current_troop_count)
-        # Share skill trigger tracking so multiple duels honour per-round limits
-        sim_a.triggered_skills_this_round = self.army_a.triggered_skills_this_round
-        sim_b.triggered_skills_this_round = self.army_b.triggered_skills_this_round
-        sim_a.skill_last_triggered_round = self.army_a.skill_last_triggered_round
-        sim_b.skill_last_triggered_round = self.army_b.skill_last_triggered_round
-        self.sim_a = sim_a
-        self.sim_b = sim_b
-        self.simulator = GameSimulator(sim_a, sim_b, report_builder=self.report_builder, track_stats=False)
-        self.simulator.start_battle()
-        self.last_a_troops = sim_a.current_troop_count
-        self.last_a_unrev = sim_a.unrevivable_troops
-        self.last_b_troops = sim_b.current_troop_count
-        self.last_b_unrev = sim_b.unrevivable_troops
+        """Initialise the duel using the live ``Army`` objects.
 
-    # ------------------------------------------------------------------
-    def sync_from_armies(self) -> None:
-        """Synchronize simulator copies with the real armies.
-
-        When multiple attackers engage the same defender, separate ``Duel``
-        instances share the defender.  Without syncing, each duel would use a
-        stale snapshot of troop counts, effectively letting the defender fight
-        as if losses from other attackers never occurred.  Copy the live
-        ``Army`` state into the simulator copies so all duels operate on the
-        same data before a round is simulated.
+        Prior versions deep‑copied the armies so simultaneous attackers
+        operated on isolated snapshots that required manual synchronisation.
+        By referencing the original armies directly the combat state (effects,
+        shields, troop counts, etc.) is naturally shared between concurrent
+        duels.
         """
 
-        self.sim_a.current_troop_count = self.army_a.current_troop_count
-        self.sim_a.unrevivable_troops = self.army_a.unrevivable_troops
-        self.sim_b.current_troop_count = self.army_b.current_troop_count
-        self.sim_b.unrevivable_troops = self.army_b.unrevivable_troops
-        self.last_a_troops = self.army_a.current_troop_count
-        self.last_a_unrev = self.army_a.unrevivable_troops
-        self.last_b_troops = self.army_b.current_troop_count
-        self.last_b_unrev = self.army_b.unrevivable_troops
+        # ``GameSimulator`` mutates the ``Army`` instances it receives, so by
+        # passing the real armies we guarantee all duels operate on a single
+        # source of truth.
+        self.simulator = GameSimulator(
+            self.army_a, self.army_b, report_builder=self.report_builder, track_stats=False
+        )
+
+        # Align the simulator's round counter with battlefield time so that
+        # late‑joining attackers start on the correct global round.
+        self.simulator.round = max(self.army_a.continuous_rounds, self.army_b.continuous_rounds)
 
     def simulate_round(self, reset_triggers: bool = True) -> Dict[str, Any] | None:
-        """Advance the duel by a single round."""
+        """Advance the duel by a single round.
+
+        The armies are mutated in place, so to provide round deltas we snapshot
+        their state before and after running the simulator.
+        """
+
+        # Ensure any shared ``Army`` objects reference this duel's simulator so
+        # skill logic that calls ``army.simulator`` interacts with the correct
+        # ``GameSimulator`` instance.
+        self.simulator.army1.simulator = self.simulator
+        self.simulator.army2.simulator = self.simulator
+
+        start_a_troops = self.army_a.current_troop_count
+        start_a_unrev = self.army_a.unrevivable_troops
+        start_b_troops = self.army_b.current_troop_count
+        start_b_unrev = self.army_b.unrevivable_troops
+
         result = self.simulator.simulate_round(
             allow_army1_attack=True,
             allow_army2_attack=self.allow_b_attack,
@@ -71,15 +65,11 @@ class Duel:
         if not result:
             return None
 
-        delta_a_troops = self.sim_a.current_troop_count - self.last_a_troops
-        delta_a_unrev = self.sim_a.unrevivable_troops - self.last_a_unrev
-        delta_b_troops = self.sim_b.current_troop_count - self.last_b_troops
-        delta_b_unrev = self.sim_b.unrevivable_troops - self.last_b_unrev
-        self.last_a_troops = self.sim_a.current_troop_count
-        self.last_a_unrev = self.sim_a.unrevivable_troops
-        self.last_b_troops = self.sim_b.current_troop_count
-        self.last_b_unrev = self.sim_b.unrevivable_troops
-        battle_over = self.sim_a.current_troop_count <= 0 or self.sim_b.current_troop_count <= 0
+        delta_a_troops = self.army_a.current_troop_count - start_a_troops
+        delta_a_unrev = self.army_a.unrevivable_troops - start_a_unrev
+        delta_b_troops = self.army_b.current_troop_count - start_b_troops
+        delta_b_unrev = self.army_b.unrevivable_troops - start_b_unrev
+        battle_over = self.army_a.current_troop_count <= 0 or self.army_b.current_troop_count <= 0
         return {
             "log": result["log"],
             "deltas": [

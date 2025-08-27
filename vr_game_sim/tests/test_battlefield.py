@@ -172,3 +172,7 @@ def test_add_army_validates_input():
     bf.add_army(army, team="A")
     with pytest.raises(ValueError):
         bf.add_army(army, team="A")
+
+    # ``team`` must be a non-empty string
+    with pytest.raises(ValueError):
+        bf.add_army(DummyArmy("Atk2", hp=5), team=None)

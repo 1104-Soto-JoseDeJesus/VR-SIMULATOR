@@ -49,6 +49,10 @@ class _ArmyContext:
     speed: float = 0.0
     # Name of the army this one is directly targeting.
     direct_target: Optional[str] = None
+    # Per-attacker round counter which tracks only when recently engaged.
+    internal_round: int = 0
+    # Timestamp of the last round this army actually fought in.
+    last_engaged_time: float = field(default=float('-inf'))
 
 
 class BattlefieldEngine:
@@ -71,6 +75,10 @@ class BattlefieldEngine:
 
         # Mapping of (attacker, defender) -> GameSimulator
         self._engagements: Dict[Tuple[str, str], GameSimulator] = {}
+
+        # Pending engagements that should start on the next whole second.
+        # Mapping of (attacker, defender) -> start_time
+        self._pending_engagements: Dict[Tuple[str, str], float] = {}
 
         # Graph of direct engagements represented as an adjacency list.
         self._graph: Dict[str, set] = defaultdict(set)
@@ -132,10 +140,14 @@ class BattlefieldEngine:
 
         atk_ctx = self._armies[attacker]
         old_target = atk_ctx.direct_target
-        if old_target and (attacker, old_target) in self._engagements:
-            self._engagements.pop((attacker, old_target), None)
-            self._graph[attacker].discard(old_target)
-            self._graph[old_target].discard(attacker)
+        if old_target:
+            # Remove active engagement if one exists
+            if (attacker, old_target) in self._engagements:
+                self._engagements.pop((attacker, old_target), None)
+                self._graph[attacker].discard(old_target)
+                self._graph[old_target].discard(attacker)
+            # Remove any pending engagement for the old target
+            self._pending_engagements.pop((attacker, old_target), None)
 
         atk_ctx.direct_target = defender
 
@@ -145,11 +157,9 @@ class BattlefieldEngine:
         if defender not in self._armies:
             raise KeyError("Defender must be registered before engagement")
 
-        def_ctx = self._armies[defender]
-        simulator = GameSimulator(atk_ctx.army, def_ctx.army, track_stats=False)
-        self._engagements[(attacker, defender)] = simulator
-        self._graph[attacker].add(defender)
-        self._graph[defender].add(attacker)
+        # Schedule the engagement to start on the next whole second
+        start_time = int(self.time_elapsed) + 1
+        self._pending_engagements[(attacker, defender)] = float(start_time)
 
     # Backwards compatible alias
     def engage(self, attacker: str, defender: str) -> None:
@@ -210,13 +220,28 @@ class BattlefieldEngine:
 
     def _commit_rounds(self) -> None:
         """Execute a single round for all direct engagements."""
-        # Reset per-round skill tracking to allow reactive skills to fire once
-        # across all engagements.
+        # Activate any pending engagements scheduled for this second.
+        for (atk, dfd), start in list(self._pending_engagements.items()):
+            if self.time_elapsed >= start and self._armies[atk].direct_target == dfd:
+                atk_ctx = self._armies[atk]
+                def_ctx = self._armies[dfd]
+                simulator = GameSimulator(atk_ctx.army, def_ctx.army, track_stats=False)
+                self._engagements[(atk, dfd)] = simulator
+                self._graph[atk].add(dfd)
+                self._graph[dfd].add(atk)
+                self._pending_engagements.pop((atk, dfd), None)
+            elif self.time_elapsed >= start:
+                # Target changed before engagement started; discard
+                self._pending_engagements.pop((atk, dfd), None)
+
+        # Reset per-round skill and rage tracking to allow reactive skills to
+        # fire once across all engagements.
         for ctx in self._armies.values():
             army = ctx.army
             army.triggered_skills_this_round.clear()
             army.pending_hp_damage_this_round = 0.0
             army.pending_hp_healing_this_round = 0.0
+            army.rage_added_this_round = 0.0
 
         to_remove: List[Tuple[str, str]] = []
         for key, sim in self._engagements.items():
@@ -230,6 +255,20 @@ class BattlefieldEngine:
             self._graph[atk].discard(dfd)
             self._graph[dfd].discard(atk)
             self._engagements.pop(key, None)
+
+        # Update internal rounds and grant base rage to armies that have
+        # participated in combat recently (within the last 2 seconds).
+        for ctx in self._armies.values():
+            army = ctx.army
+            time_since = self.time_elapsed - ctx.last_engaged_time
+            if time_since <= 2:
+                ctx.internal_round += 1
+                army.current_rage += 100
+                army.rage_added_this_round += 100
+                army.rage_gained_history.append(army.rage_added_this_round)
+            else:
+                # No recent combat – reset round counter
+                ctx.internal_round = 0
 
     def _simulate_one_round(self, sim: GameSimulator) -> None:
         """Very small round simulation using :class:`GameSimulator` internals."""
@@ -260,6 +299,10 @@ class BattlefieldEngine:
 
         atk.commit_pending_healing_and_damage()
         dfd.commit_pending_healing_and_damage()
+
+        # Record latest engagement time for both armies
+        self._armies[atk.name].last_engaged_time = self.time_elapsed
+        self._armies[dfd.name].last_engaged_time = self.time_elapsed
 
     # ------------------------------------------------------------------
     # Utility

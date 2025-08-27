@@ -1475,6 +1475,121 @@ class ArmyFrame(QtWidgets.QGroupBox):
         }
 
 
+class ArmyIcon(QtWidgets.QGraphicsItem):
+    """Graphics item representing an army with portraits and a health bar."""
+
+    def __init__(
+        self,
+        main_image: str,
+        secondary_image: str | None = None,
+        health_ratio: float = 1.0,
+    ) -> None:
+        super().__init__()
+        self.main_pix = QtGui.QPixmap(main_image)
+        self.sec_pix: QtGui.QPixmap | None = None
+        if secondary_image:
+            sec = QtGui.QPixmap(secondary_image)
+            self.sec_pix = sec.scaled(
+                self.main_pix.width() // 2,
+                self.main_pix.height() // 2,
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+        self.health_ratio = max(0.0, min(1.0, health_ratio))
+
+    def boundingRect(self) -> QtCore.QRectF:  # type: ignore[override]
+        width = self.main_pix.width() + 6
+        height = self.main_pix.height()
+        return QtCore.QRectF(0, 0, width, height)
+
+    def paint(  # type: ignore[override]
+        self,
+        painter: QtGui.QPainter,
+        option: QtWidgets.QStyleOptionGraphicsItem,
+        widget: QtWidgets.QWidget | None = None,
+    ) -> None:
+        painter.drawPixmap(0, 0, self.main_pix)
+        if self.sec_pix is not None:
+            x = self.main_pix.width() - self.sec_pix.width()
+            y = self.main_pix.height() - self.sec_pix.height()
+            painter.drawPixmap(x, y, self.sec_pix)
+
+        bar_x = self.main_pix.width() + 1
+        bar_width = 4
+        bar_height = self.main_pix.height()
+        painter.setPen(QtGui.QPen(QtCore.Qt.GlobalColor.white))
+        painter.setBrush(QtGui.QBrush(QtCore.Qt.GlobalColor.white))
+        filled = int(bar_height * self.health_ratio)
+        painter.drawRect(bar_x, bar_height - filled, bar_width, filled)
+
+    def set_health(self, ratio: float) -> None:
+        self.health_ratio = max(0.0, min(1.0, ratio))
+        self.update()
+
+
+class BattlefieldTab(QtWidgets.QWidget):
+    """Tab showing a battlefield map with army controls."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        layout = QtWidgets.QVBoxLayout(self)
+
+        controls = QtWidgets.QHBoxLayout()
+        self.add_army_btn = QtWidgets.QPushButton("Add Army")
+        self.save_army_btn = QtWidgets.QPushButton("Save Army")
+        self.load_army_btn = QtWidgets.QPushButton("Load Army")
+        self.refresh_btn = QtWidgets.QPushButton("Refresh Battlefield")
+        for btn in (
+            self.add_army_btn,
+            self.save_army_btn,
+            self.load_army_btn,
+            self.refresh_btn,
+        ):
+            controls.addWidget(btn)
+        controls.addStretch()
+        layout.addLayout(controls)
+
+        self.scene = QtWidgets.QGraphicsScene(self)
+        self.view = QtWidgets.QGraphicsView(self.scene)
+        self.view.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        self.view.setSceneRect(0, 0, 800, 600)
+        layout.addWidget(self.view, 1)
+
+        self.add_army_btn.clicked.connect(self._demo_add_army)
+        self.refresh_btn.clicked.connect(lambda: self.scene.update())
+
+        self._next_x = 0
+
+    def _demo_add_army(self) -> None:
+        heroes = sorted(HERO_PRESETS.keys())
+        if not heroes:
+            return
+        main_path = os.path.join(
+            os.path.dirname(__file__), "Hero Images", f"{heroes[0].capitalize()}.png"
+        )
+        secondary_path = None
+        if len(heroes) > 1:
+            secondary_path = os.path.join(
+                os.path.dirname(__file__), "Hero Images", f"{heroes[1].capitalize()}.png"
+            )
+        icon = ArmyIcon(main_path, secondary_path, 1.0)
+        icon.setPos(self._next_x, 0)
+        self.scene.addItem(icon)
+        self._next_x += icon.boundingRect().width() + 10
+
+    def add_army_icon(
+        self,
+        main_image: str,
+        secondary_image: str | None,
+        health_ratio: float,
+        position: tuple[float, float],
+    ) -> ArmyIcon:
+        icon = ArmyIcon(main_image, secondary_image, health_ratio)
+        icon.setPos(*position)
+        self.scene.addItem(icon)
+        return icon
+
+
 class SimulationWorker(QtCore.QThread):
     progress_update = QtCore.pyqtSignal(int, int)
     finished_text = QtCore.pyqtSignal(str, object)
@@ -1804,6 +1919,10 @@ class MainWindow(QtWidgets.QMainWindow):
         setup_layout.addWidget(preview_group)
 
         self.tabs.addTab(setup_tab, "Army Setup")
+
+        # --- Battlefield tab ---
+        self.battlefield_tab = BattlefieldTab()
+        self.tabs.addTab(self.battlefield_tab, "Battlefield")
 
         # --- Report tab ---
         report_tab = QtWidgets.QWidget()

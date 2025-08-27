@@ -695,12 +695,16 @@ class PageLayoutWidget(QtWidgets.QGraphicsView):
         gradient = QtGui.QLinearGradient(0, 0, 0, self._page_rect.height())
         gradient.setColorAt(0, QtGui.QColor("#4a4a4a"))
         gradient.setColorAt(1, QtGui.QColor("#1e1e1e"))
-        scene.setBackgroundBrush(gradient)
+        page_rect_item = QtWidgets.QGraphicsRectItem(self._page_rect)
+        page_rect_item.setBrush(gradient)
+        page_rect_item.setPen(QtGui.QPen(QtGui.QColor("#aaaaaa")))
+        page_rect_item.setZValue(-1)
+        scene.addItem(page_rect_item)
         self.setScene(scene)
 
         # give the view itself a contrasting background so the page edges are
         # easy to distinguish from the surrounding window
-        self.setBackgroundBrush(QtGui.QColor("#2e2e2e"))
+        self.setBackgroundBrush(QtGui.QColor("#000000"))
         self.setAcceptDrops(True)
         self.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
         self.setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
@@ -2593,6 +2597,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not file_path:
             return
         writer = QtGui.QPdfWriter(file_path)
+        writer.setPageMargins(QtCore.QMarginsF(0, 0, 0, 0))
         painter = QtGui.QPainter(writer)
         for page_idx, page in enumerate(self.pdf_layout):
             page_width = writer.width()

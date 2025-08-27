@@ -687,8 +687,21 @@ class PageLayoutWidget(QtWidgets.QGraphicsView):
     def __init__(self, pixmap_getter, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self._get_pixmap = pixmap_getter
-        self.setScene(QtWidgets.QGraphicsScene(self))
+
+        # size the scene to match an A4 page and apply the summary background
+        size = QtGui.QPageSize(QtGui.QPageSize.PageSizeId.A4).sizePoints()
+        self._page_rect = QtCore.QRectF(0, 0, size.width(), size.height())
+        scene = QtWidgets.QGraphicsScene(self._page_rect, self)
+        gradient = QtGui.QLinearGradient(0, 0, 0, self._page_rect.height())
+        gradient.setColorAt(0, QtGui.QColor("#4a4a4a"))
+        gradient.setColorAt(1, QtGui.QColor("#1e1e1e"))
+        scene.setBackgroundBrush(gradient)
+        self.setScene(scene)
         self.setAcceptDrops(True)
+        self.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        self.setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
+        self.setTransformationAnchor(QtWidgets.QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.fitInView(self._page_rect, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
 
     def dragEnterEvent(self, event: QtGui.QDragEnterEvent) -> None:  # type: ignore[override]
         if event.mimeData().hasText():
@@ -712,7 +725,7 @@ class PageLayoutWidget(QtWidgets.QGraphicsView):
         self.scene().addItem(item)
         event.acceptProposedAction()
 
-    def add_item(self, item_type: str, x: float, y: float) -> None:
+    def add_item(self, item_type: str, x: float, y: float, scale: float = 1.0) -> None:
         """Convenience helper to insert an item at coordinates (x, y)."""
         pix = self._get_pixmap(item_type)
         if pix is None or pix.isNull():
@@ -721,8 +734,27 @@ class PageLayoutWidget(QtWidgets.QGraphicsView):
         flags = QtWidgets.QGraphicsItem.GraphicsItemFlag
         item.setFlags(flags.ItemIsMovable | flags.ItemIsSelectable)
         item.setPos(x, y)
+        if scale != 1.0:
+            item.setScale(scale)
         item.setData(0, item_type)
         self.scene().addItem(item)
+
+    def wheelEvent(self, event: QtGui.QWheelEvent) -> None:  # type: ignore[override]
+        selected = [
+            it
+            for it in self.scene().selectedItems()
+            if isinstance(it, QtWidgets.QGraphicsPixmapItem)
+        ]
+        if selected:
+            factor = 1.0 + event.angleDelta().y() / 1200
+            for it in selected:
+                new_scale = max(0.1, it.scale() * factor)
+                it.setScale(new_scale)
+            event.accept()
+            return
+        factor = 1.2 if event.angleDelta().y() > 0 else 1 / 1.2
+        self.scale(factor, factor)
+        event.accept()
 
     def serialize(self) -> dict:
         data: list[dict] = []

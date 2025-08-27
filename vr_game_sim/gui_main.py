@@ -701,7 +701,15 @@ class PageLayoutWidget(QtWidgets.QGraphicsView):
         self.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
         self.setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
         self.setTransformationAnchor(QtWidgets.QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.fit_page()
+
+    def fit_page(self) -> None:
+        """Scale the view so the entire page is visible."""
         self.fitInView(self._page_rect, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self.fit_page()
 
     def dragEnterEvent(self, event: QtGui.QDragEnterEvent) -> None:  # type: ignore[override]
         if event.mimeData().hasText():
@@ -798,6 +806,8 @@ class PDFLayoutDialog(QtWidgets.QDialog):
         super().__init__(parent)
         self.setWindowTitle("PDF Layout Tool")
         self._main_window = parent  # type: ignore[assignment]
+        # enable standard window controls so users can maximise the dialog
+        self.setWindowFlag(QtCore.Qt.WindowType.Window, True)
 
         self.pages: list[dict] = load_pdf_layout()
         layout = QtWidgets.QVBoxLayout(self)
@@ -818,15 +828,21 @@ class PDFLayoutDialog(QtWidgets.QDialog):
         self.tab_widget = QtWidgets.QTabWidget()
         hbox.addWidget(self.tab_widget, 1)
 
+        self._page_widgets: list[PageLayoutWidget] = []
+
         btn_box = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Save
             | QtWidgets.QDialogButtonBox.StandardButton.Cancel
         )
+        self._fullscreen_btn = btn_box.addButton(
+            "Full Screen", QtWidgets.QDialogButtonBox.ButtonRole.ActionRole
+        )
+        self._fullscreen_btn.setCheckable(True)
+        self._fullscreen_btn.toggled.connect(self._toggle_fullscreen)
         btn_box.accepted.connect(self._save_layout)
         btn_box.rejected.connect(self.reject)
         layout.addWidget(btn_box)
 
-        self._page_widgets: list[PageLayoutWidget] = []
         self._populate_palette()
         self._populate_tabs()
 
@@ -866,6 +882,16 @@ class PDFLayoutDialog(QtWidgets.QDialog):
         pages = [w.serialize() for w in self._page_widgets]
         save_pdf_layout(pages)
         self.accept()
+
+    def _toggle_fullscreen(self, checked: bool) -> None:
+        if checked:
+            self.showFullScreen()
+            self._fullscreen_btn.setText("Exit Full Screen")
+        else:
+            self.showNormal()
+            self._fullscreen_btn.setText("Full Screen")
+        for w in self._page_widgets:
+            w.fit_page()
 
 class SkillParamEditor(QtWidgets.QWidget):
     """Widget providing spin boxes for configurable skill parameters."""

@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import List
 import random
 import math
+from copy import deepcopy
 
 from .army_composition import Army
 from .battlefield import Battlefield
@@ -78,6 +79,22 @@ class MultiArmySimulator:
             army.healing_hymn_triggered_this_round = False
             army.base_rage_awarded_this_round = False
 
+        # Snapshot key state so multiple simultaneous attackers operate on the
+        # same starting values.  Changes are accumulated and applied after all
+        # duels in this step have resolved.
+        start_state = {}
+        accum = {}
+        for army in self.armies:
+            start_state[id(army)] = {
+                "troops": army.current_troop_count,
+                "unrev": army.unrevivable_troops,
+                "rage": army.current_rage,
+                "effects": deepcopy(army.active_effects),
+                "upcoming": deepcopy(army.upcoming_effects),
+                "next_round": deepcopy(army.effects_to_activate_next_round),
+            }
+            accum[id(army)] = {"troops": 0.0, "unrev": 0.0, "rage": 0.0, "effects": []}
+
         finished_duels: List[Duel] = []
         engaged: List[Army] = []
         duels = list(self.active_duels)
@@ -98,9 +115,40 @@ class MultiArmySimulator:
                 log = result["log"]
                 duel.army_a.battle_reports.append(log)
                 duel.army_b.battle_reports.append(log)
+
+                # Record deltas and immediately revert armies to their
+                # starting state so subsequent duels operate on the same
+                # baseline values.
+                for army, dtroops, dunrev in result["deltas"]:
+                    key = id(army)
+                    accum[key]["troops"] += dtroops
+                    accum[key]["unrev"] += dunrev
+                    accum[key]["rage"] += army.current_rage - start_state[key]["rage"]
+                    for eff in army.active_effects:
+                        if eff not in start_state[key]["effects"]:
+                            accum[key]["effects"].append(deepcopy(eff))
+                    # restore state
+                    army.current_troop_count = start_state[key]["troops"]
+                    army.unrevivable_troops = start_state[key]["unrev"]
+                    army.current_rage = start_state[key]["rage"]
+                    army.active_effects = deepcopy(start_state[key]["effects"])
+                    army.upcoming_effects = deepcopy(start_state[key]["upcoming"])
+                    army.effects_to_activate_next_round = deepcopy(
+                        start_state[key]["next_round"]
+                    )
+
                 if result["battle_over"]:
                     finished_duels.append(duel)
                     break
+
+        # Apply accumulated round deltas after all duels have executed
+        for army in self.armies:
+            delta = accum[id(army)]
+            army.current_troop_count = max(0.0, army.current_troop_count + delta["troops"])
+            army.unrevivable_troops = max(0.0, army.unrevivable_troops + delta["unrev"])
+            army.current_rage += delta["rage"]
+            if delta["effects"]:
+                army.active_effects.extend(delta["effects"])
 
         for duel in finished_duels:
             self.active_duels.remove(duel)

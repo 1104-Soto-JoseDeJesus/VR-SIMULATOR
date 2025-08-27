@@ -203,6 +203,19 @@ class GameSimulator:
         if event_data and 'opponent_for_shield_calc' in event_data:
             actual_opponent_for_calc = event_data['opponent_for_shield_calc']
 
+        # Only allow non-reactive skills to affect armies the unit is directly
+        # targeting.  Reactive triggers (those that explicitly respond to an
+        # enemy action) are exempt so counterattacks and similar mechanics
+        # still function under multiple attackers.
+        reactive_triggers = {
+            SkillTriggerType.ON_COUNTER_ATTACK,
+            SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+            SkillTriggerType.ON_RECEIVING_HEALING,
+            SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE,
+        }
+        if trigger_type not in reactive_triggers and triggering_army.direct_target is not opponent_army:
+            return
+
         orig_round = self.round
         self.round = triggering_army.continuous_rounds + 1
         try:

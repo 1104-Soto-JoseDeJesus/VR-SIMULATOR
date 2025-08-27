@@ -44,7 +44,7 @@ class _ArmyContext:
     army: Army
     team: str
     position: Tuple[float, float] = (0.0, 0.0)
-    waypoint: Tuple[float, float] = (0.0, 0.0)
+    path: List[Tuple[float, float]] = field(default_factory=list)
     speed: float = 0.0
 
 
@@ -89,7 +89,7 @@ class BattlefieldEngine:
         """
 
         ctx = _ArmyContext(army=army, team=team, position=position,
-                           waypoint=position, speed=speed)
+                           path=[], speed=speed)
         self._armies[army.name] = ctx
 
         # Apply existing team effects and append new shared effects if supplied.
@@ -102,9 +102,17 @@ class BattlefieldEngine:
             army.active_effects.append(eff)
 
     def set_waypoint(self, army_name: str, waypoint: Tuple[float, float]) -> None:
-        """Update the target waypoint for ``army_name``."""
+        """Update the target waypoint for ``army_name``.
+
+        This resets the army's path to a single waypoint.  For multi point
+        paths :meth:`set_path` can be used directly.
+        """
+        self.set_path(army_name, [waypoint])
+
+    def set_path(self, army_name: str, path: List[Tuple[float, float]]) -> None:
+        """Assign a full waypoint ``path`` to ``army_name``."""
         if army_name in self._armies:
-            self._armies[army_name].waypoint = waypoint
+            self._armies[army_name].path = list(path)
 
     # ------------------------------------------------------------------
     # Engagement handling
@@ -150,21 +158,35 @@ class BattlefieldEngine:
     # Internal helpers
     # ------------------------------------------------------------------
     def _step_movements(self, dt: float) -> None:
-        """Interpolate movement towards an army's waypoint."""
+        """Interpolate movement towards the next waypoint in an army's path."""
         for ctx in self._armies.values():
-            if ctx.speed <= 0:
+            if ctx.speed <= 0 or not ctx.path:
                 continue
             x, y = ctx.position
-            wx, wy = ctx.waypoint
+            wx, wy = ctx.path[0]
             dx, dy = wx - x, wy - y
             dist = hypot(dx, dy)
             if dist == 0:
+                ctx.position = (wx, wy)
+                ctx.path.pop(0)
                 continue
             step = min(dist, ctx.speed * dt)
             if step == dist:
                 ctx.position = (wx, wy)
+                ctx.path.pop(0)
             else:
                 ctx.position = (x + dx / dist * step, y + dy / dist * step)
+
+        # Snap armies to their engaged opponents when sufficiently close.
+        for (atk, dfd), _ in self._engagements.items():
+            atk_ctx = self._armies[atk]
+            dfd_ctx = self._armies[dfd]
+            ax, ay = atk_ctx.position
+            dx_, dy_ = dfd_ctx.position
+            if hypot(ax - dx_, ay - dy_) <= 2:
+                atk_ctx.position = dfd_ctx.position
+                atk_ctx.path.clear()
+                dfd_ctx.path.clear()
 
     def _commit_rounds(self) -> None:
         """Execute a single round for all direct engagements."""

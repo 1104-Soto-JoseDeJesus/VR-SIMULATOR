@@ -757,6 +757,9 @@ class GameSimulator:
                 ):
                     army.hero1_rage_skill_queued_this_round = True
 
+        for army in (self.army1, self.army2):
+            army.continuous_rounds += 1
+
         self.report_builder.lines.append(
             f"\nEnd of Round {self.round} Status -> "
             f"{self.army1.name}: {self.army1.current_troop_count:.0f} troops "

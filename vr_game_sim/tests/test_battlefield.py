@@ -134,3 +134,25 @@ def test_reactive_skills_gated_once(monkeypatch):
                     bf.engagements[("Atk3", "Def")].reactive_calls)
     assert reactive_sum == 1
     assert defender.hp == 4
+
+
+def test_get_all_combat_reports(monkeypatch):
+    monkeypatch.setattr(bf_module, "GameSimulator", DummyGameSimulator)
+
+    defender = DummyArmy("Def", hp=5)
+    atk1 = DummyArmy("Atk1", hp=5)
+    atk2 = DummyArmy("Atk2", hp=5)
+
+    bf = Battlefield()
+    bf.add_army(defender, team="B")
+    bf.add_army(atk1, team="A")
+    bf.add_army(atk2, team="A")
+
+    bf.register_engagement("Atk1", "Def")
+    bf.register_engagement("Atk2", "Def")
+    bf.tick()
+
+    reports = bf.get_all_combat_reports()
+    assert ("Atk1", "Def") in reports
+    assert ("Atk2", "Def") in reports
+    assert all(len(r) == 1 for r in reports.values())

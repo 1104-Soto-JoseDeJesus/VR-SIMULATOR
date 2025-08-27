@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import Any, Dict, List, Tuple, Set, Optional
 
 from .game_simulator import GameSimulator
+from .battlefield_report_builder import BattlefieldReportBuilder
 
 
 class Battlefield:
@@ -27,7 +28,7 @@ class Battlefield:
         self.armies: Dict[str, Any] = {}
         self.teams: Dict[str, set[str]] = defaultdict(set)
         self.engagements: Dict[Tuple[str, str], GameSimulator] = {}
-        self._combat_reports: Dict[Tuple[str, str], List[Any]] = defaultdict(list)
+        self._report_builder = BattlefieldReportBuilder()
         # Track targeting relationships and reactive skill timing.
         self.direct_targets: Dict[str, Optional[str]] = {}
         self.indirect_attackers: Dict[str, Set[str]] = defaultdict(set)
@@ -63,7 +64,7 @@ class Battlefield:
         to_remove = [pair for pair in self.engagements if army_name in pair]
         for pair in to_remove:
             del self.engagements[pair]
-            self._combat_reports.pop(pair, None)
+            self._report_builder.remove_engagement(*pair)
             self._engagement_start_time.pop(pair, None)
 
         # clean up targeting information
@@ -138,7 +139,7 @@ class Battlefield:
                         reactive_triggered = True
                     else:
                         report = {}
-                self._combat_reports[(attacker_name, defender_name)].append(report)
+                self._report_builder.log_round(attacker_name, defender_name, report)
 
         for army_name in engaged_this_tick:
             self._local_rounds[army_name] += 1
@@ -149,7 +150,11 @@ class Battlefield:
     # ------------------------------------------------------------------
     def get_combat_report(self, attacker_name: str, defender_name: str) -> List[Any]:
         """Return the list of round reports for the attacker/defender pair."""
-        return list(self._combat_reports.get((attacker_name, defender_name), []))
+        return self._report_builder.get_engagement(attacker_name, defender_name)
+
+    def get_all_combat_reports(self) -> Dict[Tuple[str, str], List[Any]]:
+        """Return a mapping of all engagements to their reports."""
+        return self._report_builder.get_all_engagements()
 
     def get_local_round(self, army_name: str) -> int:
         """Return the current local round counter for ``army_name``."""

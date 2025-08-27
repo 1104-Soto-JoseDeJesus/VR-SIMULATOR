@@ -23,8 +23,11 @@ from vr_game_sim.main import (
     run_additional_simulations,
     save_setup_to_file,
     load_setup_from_file,
+    save_army_to_file,
+    load_army_from_file,
 )
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
+from vr_game_sim.battlefield_engine import BattlefieldEngine
 
 
 def get_pdf_layout_path() -> str:
@@ -1475,6 +1478,44 @@ class ArmyFrame(QtWidgets.QGroupBox):
         }
 
 
+class ArmySetupDialog(QtWidgets.QDialog):
+    """Dialog wrapping :class:`ArmyFrame` for defining an army.
+
+    The dialog reuses the existing 1v1 configuration form and augments it with a
+    simple team selector so the returned configuration contains all information
+    required for :class:`BattlefieldEngine`.
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Army Setup")
+        layout = QtWidgets.QVBoxLayout(self)
+
+        self.frame = ArmyFrame(1)
+        layout.addWidget(self.frame)
+
+        team_row = QtWidgets.QHBoxLayout()
+        team_row.addWidget(QtWidgets.QLabel("Team:"))
+        self.team_combo = QtWidgets.QComboBox()
+        self.team_combo.setEditable(True)
+        self.team_combo.addItems(["red", "blue"])
+        team_row.addWidget(self.team_combo)
+        layout.addLayout(team_row)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def get_config(self) -> dict:
+        cfg = self.frame.build_config()
+        cfg["team"] = self.team_combo.currentText()
+        return cfg
+
+
 class ArmyIcon(QtWidgets.QGraphicsItem):
     """Graphics item representing an army with portraits and a health bar."""
 
@@ -1555,22 +1596,81 @@ class BattlefieldTab(QtWidgets.QWidget):
         self.view.setSceneRect(0, 0, 800, 600)
         layout.addWidget(self.view, 1)
 
-        self.add_army_btn.clicked.connect(self._demo_add_army)
+        self.engine = BattlefieldEngine()
+        self.add_army_btn.clicked.connect(self._add_army)
+        self.save_army_btn.clicked.connect(self._save_army)
+        self.load_army_btn.clicked.connect(self._load_army)
         self.refresh_btn.clicked.connect(lambda: self.scene.update())
 
         self._next_x = 0
+        self._last_army_cfg: dict | None = None
 
-    def _demo_add_army(self) -> None:
-        heroes = sorted(HERO_PRESETS.keys())
-        if not heroes:
+    def _add_army(self) -> None:
+        dlg = ArmySetupDialog(self)
+        if dlg.exec() != int(QtWidgets.QDialog.DialogCode.Accepted):
             return
+        cfg = dlg.get_config()
+        self._last_army_cfg = cfg
+        army = create_armies_from_data([cfg])[0]
+        self.engine.add_army(army, cfg.get("team", ""))
+
+        heroes = cfg.get("heroes", [])
         main_path = os.path.join(
-            os.path.dirname(__file__), "Hero Images", f"{heroes[0].capitalize()}.png"
+            os.path.dirname(__file__),
+            "Hero Images",
+            f"{heroes[0]['hero_name_or_preset'].capitalize()}.png",
+        ) if heroes else os.path.join(
+            os.path.dirname(__file__), "Icons", f"{cfg['unit_type'].capitalize()}.png"
         )
         secondary_path = None
         if len(heroes) > 1:
             secondary_path = os.path.join(
-                os.path.dirname(__file__), "Hero Images", f"{heroes[1].capitalize()}.png"
+                os.path.dirname(__file__),
+                "Hero Images",
+                f"{heroes[1]['hero_name_or_preset'].capitalize()}.png",
+            )
+        icon = ArmyIcon(main_path, secondary_path, 1.0)
+        icon.setPos(self._next_x, 0)
+        self.scene.addItem(icon)
+        self._next_x += icon.boundingRect().width() + 10
+
+    def _save_army(self) -> None:
+        if not self._last_army_cfg:
+            QtWidgets.QMessageBox.warning(self, "No Army", "No army to save.")
+            return
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Save Army", "", "JSON Files (*.json)"
+        )
+        if file_path:
+            save_army_to_file(self._last_army_cfg, file_path)
+
+    def _load_army(self) -> None:
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Load Army", "", "JSON Files (*.json)"
+        )
+        if not file_path:
+            return
+        cfg = load_army_from_file(file_path)
+        if not cfg:
+            return
+        self._last_army_cfg = cfg
+        army = create_armies_from_data([cfg])[0]
+        self.engine.add_army(army, cfg.get("team", ""))
+
+        heroes = cfg.get("heroes", [])
+        main_path = os.path.join(
+            os.path.dirname(__file__),
+            "Hero Images",
+            f"{heroes[0]['hero_name_or_preset'].capitalize()}.png",
+        ) if heroes else os.path.join(
+            os.path.dirname(__file__), "Icons", f"{cfg['unit_type'].capitalize()}.png"
+        )
+        secondary_path = None
+        if len(heroes) > 1:
+            secondary_path = os.path.join(
+                os.path.dirname(__file__),
+                "Hero Images",
+                f"{heroes[1]['hero_name_or_preset'].capitalize()}.png",
             )
         icon = ArmyIcon(main_path, secondary_path, 1.0)
         icon.setPos(self._next_x, 0)

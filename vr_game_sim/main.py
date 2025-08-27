@@ -124,6 +124,34 @@ def load_setup_from_file(filename: str) -> Optional[List[Dict[str, Any]]]:
         return None
 
 
+def save_army_to_file(army_data: Dict[str, Any], filename: str | os.PathLike[str]) -> None:
+    """Save a single army configuration to ``filename`` in JSON format."""
+    if os.path.isabs(str(filename)):
+        filepath = str(filename)
+    else:
+        ensure_setups_dir()
+        filepath = os.path.join(SETUPS_DIR, str(filename))
+    try:
+        with open(filepath, "w", encoding="utf-8") as fh:
+            json.dump(army_data, fh, indent=4)
+    except OSError as exc:
+        print(f"Error saving army: {exc}")
+
+
+def load_army_from_file(filename: str | os.PathLike[str]) -> Optional[Dict[str, Any]]:
+    """Load a single army configuration from ``filename``."""
+    filepath = str(filename) if os.path.isabs(str(filename)) else os.path.join(SETUPS_DIR, str(filename))
+    try:
+        with open(filepath, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+            if isinstance(data, list):
+                return data[0] if data else None
+            return data
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Error loading army: {exc}")
+        return None
+
+
 def list_saved_setups() -> List[str]:
     """Lists available .json setup files in the setups directory, excluding internal ones."""
     ensure_setups_dir()

@@ -109,7 +109,7 @@ class StarredImageLabel(QtWidgets.QLabel):
     # Colour used when greying out missing stars (matches previous behaviour)
     GREY_COLOR = QtGui.QColor(100, 100, 100, 180)
     DEFAULT_STAR_VERTICAL_RATIO = 0.8
-    PLUGIN_STAR_VERTICAL_RATIO = 0.88
+    PLUGIN_STAR_VERTICAL_RATIO = 0.83
     PLUGIN_STAR_SIDE_MARGIN_RATIO = 0.0
     HERO_STAR_VERTICAL_RATIO = 0.88
     HERO_STAR_SIDE_MARGIN_RATIO = 0.04
@@ -2617,35 +2617,40 @@ class MainWindow(QtWidgets.QMainWindow):
         # match that here to keep sizes consistent.
         writer.setResolution(72)
         writer.setPageMargins(QtCore.QMarginsF(0, 0, 0, 0))
-        painter = QtGui.QPainter(writer)
-        for page_idx, page in enumerate(self.pdf_layout):
-            page_width = writer.width()
-            page_height = writer.height()
-            gradient = QtGui.QLinearGradient(0, 0, 0, page_height)
-            gradient.setColorAt(0, QtGui.QColor("#4a4a4a"))
-            gradient.setColorAt(1, QtGui.QColor("#1e1e1e"))
-            painter.fillRect(0, 0, page_width, page_height, gradient)
-            for item in page.get("items", []):
-                pix = self.get_pdf_item_pixmap(item.get("type", ""))
-                if pix is None:
-                    continue
-                scale = float(item.get("scale", 1.0))
-                if scale != 1.0:
-                    pix = pix.scaled(
-                        int(pix.width() * scale),
-                        int(pix.height() * scale),
-                        QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-                        QtCore.Qt.TransformationMode.SmoothTransformation,
-                    )
-                x = int(item.get("x", 0))
-                y = int(item.get("y", 0))
-                # ``drawPixmap`` can drop images when painting to a PDF surface
-                # in headless environments.  Converting to ``QImage`` ensures
-                # the bitmap is embedded reliably.
-                painter.drawImage(x, y, pix.toImage())
-            if page_idx < len(self.pdf_layout) - 1:
-                writer.newPage()
-        painter.end()
+        painter = QtGui.QPainter()
+        if not painter.begin(writer):
+            self.status.setText("Failed to write PDF")
+            return
+        try:
+            for page_idx, page in enumerate(self.pdf_layout):
+                page_width = writer.width()
+                page_height = writer.height()
+                gradient = QtGui.QLinearGradient(0, 0, 0, page_height)
+                gradient.setColorAt(0, QtGui.QColor("#4a4a4a"))
+                gradient.setColorAt(1, QtGui.QColor("#1e1e1e"))
+                painter.fillRect(0, 0, page_width, page_height, gradient)
+                for item in page.get("items", []):
+                    pix = self.get_pdf_item_pixmap(item.get("type", ""))
+                    if pix is None:
+                        continue
+                    scale = float(item.get("scale", 1.0))
+                    if scale != 1.0:
+                        pix = pix.scaled(
+                            int(pix.width() * scale),
+                            int(pix.height() * scale),
+                            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                            QtCore.Qt.TransformationMode.SmoothTransformation,
+                        )
+                    x = int(item.get("x", 0))
+                    y = int(item.get("y", 0))
+                    # ``drawPixmap`` can drop images when painting to a PDF surface
+                    # in headless environments.  Converting to ``QImage`` ensures
+                    # the bitmap is embedded reliably.
+                    painter.drawImage(x, y, pix.toImage())
+                if page_idx < len(self.pdf_layout) - 1:
+                    writer.newPage()
+        finally:
+            painter.end()
         self.status.setText(f"PDF exported to {os.path.basename(file_path)}")
 
     # --- Simulation handling --------------------------------------------

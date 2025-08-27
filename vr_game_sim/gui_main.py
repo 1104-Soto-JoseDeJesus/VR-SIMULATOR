@@ -24,6 +24,7 @@ from vr_game_sim.main import (
     save_setup_to_file,
     load_setup_from_file,
 )
+from vr_game_sim.realtime_battle_widget import RealTimeBattleWidget
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 
 
@@ -1850,6 +1851,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hist_scroll.setWidgetResizable(True)
         self.hist_scroll.setWidget(self.hist_container)
         self.tabs.addTab(self.hist_scroll, "Figures")
+
+        # --- Real-Time Battles tab ---
+        # This tab hosts a standalone widget used for running and viewing
+        # real-time battle simulations.  It is added after the Figures tab so
+        # that the existing 1v1 figures functionality remains unaffected.
+        self.realtime_battle_widget = RealTimeBattleWidget()
+        self.tabs.addTab(self.realtime_battle_widget, "Real-Time Battles")
 
         return main_layout
 

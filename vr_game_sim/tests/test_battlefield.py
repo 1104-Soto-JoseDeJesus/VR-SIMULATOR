@@ -15,6 +15,7 @@ class DummyGameSimulator:
         self.attacker = attacker
         self.defender = defender
         self.rounds = 0
+        self.reactive_calls = 0
 
     def simulate_round(self):
         self.rounds += 1
@@ -22,8 +23,12 @@ class DummyGameSimulator:
             self.defender.hp -= 1
         return {"round": self.rounds, "attacker": self.attacker.name, "defender_hp": self.defender.hp}
 
+    def simulate_reactive_round(self):
+        self.reactive_calls += 1
+        return {"reactive": self.reactive_calls}
 
-def test_battlefield_tick_merges_defender_state(monkeypatch):
+
+def test_battlefield_tracks_direct_and_indirect(monkeypatch):
     monkeypatch.setattr(bf_module, "GameSimulator", DummyGameSimulator)
 
     defender = DummyArmy("Def", hp=5)
@@ -40,12 +45,15 @@ def test_battlefield_tick_merges_defender_state(monkeypatch):
 
     bf.tick()
 
-    assert defender.hp == 3
+    # Only the direct attacker deals damage.
+    assert defender.hp == 4
     assert bf.current_time == 1
+    assert bf.direct_targets["Def"] == "Atk1"
+    assert bf.indirect_attackers["Def"] == {"Atk2"}
+    assert bf.engagements[("Atk1", "Def")].rounds == 1
+    assert bf.engagements[("Atk2", "Def")].reactive_calls == 1
     assert len(bf.get_combat_report("Atk1", "Def")) == 1
     assert len(bf.get_combat_report("Atk2", "Def")) == 1
-    # Defender was attacked twice in the same second but its local round should
-    # only increment once.
     assert bf.get_local_round("Def") == 1
     assert bf.get_local_round("Atk1") == 1
     assert bf.get_local_round("Atk2") == 1
@@ -100,3 +108,29 @@ def test_local_round_resets_after_inactivity(monkeypatch):
     bf.tick()  # time = 4, first round after re-engaging
     assert bf.get_local_round("Atk") == 1
     assert bf.current_time == 4
+
+
+def test_reactive_skills_gated_once(monkeypatch):
+    monkeypatch.setattr(bf_module, "GameSimulator", DummyGameSimulator)
+
+    defender = DummyArmy("Def", hp=5)
+    atk1 = DummyArmy("Atk1", hp=5)
+    atk2 = DummyArmy("Atk2", hp=5)
+    atk3 = DummyArmy("Atk3", hp=5)
+
+    bf = Battlefield()
+    bf.add_army(defender, team="B")
+    bf.add_army(atk1, team="A")
+    bf.add_army(atk2, team="A")
+    bf.add_army(atk3, team="A")
+
+    bf.register_engagement("Atk1", "Def")
+    bf.register_engagement("Atk2", "Def")
+    bf.register_engagement("Atk3", "Def")
+
+    bf.tick()
+
+    reactive_sum = (bf.engagements[("Atk2", "Def")].reactive_calls +
+                    bf.engagements[("Atk3", "Def")].reactive_calls)
+    assert reactive_sum == 1
+    assert defender.hp == 4

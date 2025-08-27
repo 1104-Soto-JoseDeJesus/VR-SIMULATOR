@@ -271,6 +271,14 @@ class RealTimeBattleWidget(QtWidgets.QWidget):
                 "pending_effects": [],
                 # Second when this army last acted. Used for idle detection.
                 "last_action_second": self.current_second,
+                # Track which second this army was last directly attacked.
+                # This allows the widget to differentiate "direct" and
+                # "indirect" attackers so that only the first attacker each
+                # second can inflict damage or grant rage/effects.
+                "last_defended_second": -1,
+                # Index of the attacker considered "direct" for the current
+                # second.  Additional attackers will be treated as indirect.
+                "direct_attacker": None,
             }
         )
 
@@ -402,12 +410,23 @@ class RealTimeBattleWidget(QtWidgets.QWidget):
         # Enforce the "wait until next whole second" rule.
         if self.current_second < attacker.get("next_action_second", 0):
             return False
+        # Determine if this attacker is the first ("direct") attacker this
+        # second.  Only the direct attacker can apply damage, heal or grant
+        # rage/effects to the defender.  Subsequent attackers are treated as
+        # "indirect" and only trigger potential counterattacks outside the
+        # scope of this lightweight widget.
+        if defender.get("last_defended_second") != self.current_second:
+            defender["last_defended_second"] = self.current_second
+            defender["direct_attacker"] = attacker_index
+            defender["pending_damage"] += float(damage)
+            defender["pending_heal"] += float(heal)
+            defender["pending_rage"] += float(rage)
+            if effects:
+                defender["pending_effects"].extend(effects)
 
-        defender["pending_damage"] += float(damage)
-        defender["pending_heal"] += float(heal)
-        defender["pending_rage"] += float(rage)
-        if effects:
-            defender["pending_effects"].extend(effects)
+        # Being attacked counts as activity for the defender so that idle
+        # detection does not wipe its rage or round counters.
+        defender["last_action_second"] = self.current_second
 
         attacker["last_action_second"] = self.current_second
         attacker["own_round"] += 1
@@ -437,6 +456,7 @@ class RealTimeBattleWidget(QtWidgets.QWidget):
                 entry["pending_heal"] = 0.0
                 entry["pending_rage"] = 0.0
                 entry["pending_effects"] = []
+                entry["direct_attacker"] = None
 
                 # Handle idle armies: reset rage and own round if idle >=2 seconds
                 if self.current_second - entry["last_action_second"] >= 2:

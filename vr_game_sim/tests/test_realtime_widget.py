@@ -114,13 +114,18 @@ def test_aggregate_damage_and_idle_reset():
     widget.advance_time(1)
 
     # Both attackers act in the same second against the defender
-    assert widget.queue_damage(0, 2, 10)
-    assert widget.queue_damage(1, 2, 10)
+    # Only the first attack should deal damage and award rage/effects. The
+    # second attacker becomes "indirect".
+    assert widget.queue_damage(0, 2, 10, rage=1)
+    assert widget.queue_damage(1, 2, 10, rage=1)
 
     widget.advance_time(1)
 
     defender = widget.armies[2]
-    assert defender["current_troops"] == _sample_config()["count"] - 20
+    # Defender only suffers damage from the first (direct) attacker
+    assert defender["current_troops"] == _sample_config()["count"] - 10
+    # Rage gain also occurs only once
+    assert defender["rage"] == 1
     # Each attacker advanced their own round counter once
     assert widget.armies[0]["own_round"] == 1
     assert widget.armies[1]["own_round"] == 1

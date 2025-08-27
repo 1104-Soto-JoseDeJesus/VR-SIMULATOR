@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from PyQt6 import QtWidgets
+from PyQt6.QtGui import QFontDatabase
 
 from .army_composition import Army
 from .battlefield_tab import BattlefieldTab
@@ -23,6 +24,7 @@ class BattlefieldReportsTab(QtWidgets.QWidget):
         control_row.addWidget(clear_btn)
         layout.addLayout(control_row)
         self._text = QtWidgets.QPlainTextEdit(readOnly=True)
+        self._text.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
         layout.addWidget(self._text, 1)
         # Keep a persistent list of armies so reports remain even after death
         self._armies: list[Army] = []
@@ -33,8 +35,12 @@ class BattlefieldReportsTab(QtWidgets.QWidget):
         """Refresh army list and currently displayed report."""
         # Track new armies but never remove old ones so logs persist. Match on
         # ``Army.id`` rather than name so multiple armies with the same name
-        # each get their own entry.
+        # each get their own entry.  Dead armies from the battlefield are
+        # ignored here so that a manual report clear doesn't immediately
+        # reintroduce them.
         for army in self._bf_tab.armies:
+            if army.current_troop_count <= 0:
+                continue
             for i, existing in enumerate(self._armies):
                 if existing.id == army.id:
                     self._armies[i] = army

@@ -1,8 +1,9 @@
 import os
+import math
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PyQt6 import QtWidgets
+from PyQt6 import QtCore, QtWidgets
 
 from vr_game_sim.realtime_battle_widget import RealTimeBattleWidget
 
@@ -50,4 +51,40 @@ def test_save_and_load(tmp_path):
     assert item.health_fg.rect().height() == height
     item.set_troop_count(50)
     assert item.health_fg.rect().height() == height / 2
+
+
+def test_attack_order_and_retaliation():
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = RealTimeBattleWidget()
+    widget.attack_radius = 10
+
+    # Add attacker (team 1) and defender (team 2)
+    widget._add_army_from_config(_sample_config(), team=1, pos=QtCore.QPointF(0, 0))
+    widget._add_army_from_config(_sample_config(), team=2, pos=QtCore.QPointF(5, 0))
+
+    attacker = widget.armies[0]
+    defender = widget.armies[1]
+
+    # Drag attacker near defender and commit drop
+    attacker["item"].setPos(QtCore.QPointF(6, 0))
+    widget.handle_army_drop(attacker["item"])
+
+    # Attacker should snap to 2 units away and target the defender
+    assert math.isclose(attacker["item"].pos().x(), 7.0, rel_tol=1e-5)
+    assert attacker["target"] is defender
+    # Defender had no target so should now target the attacker
+    assert defender["target"] is attacker
+
+    # Give defender a different target and attack again; it should keep its target
+    widget._add_army_from_config(_sample_config(), team=1, pos=QtCore.QPointF(100, 0))
+    other = widget.armies[2]
+    defender["target"] = other
+    attacker["item"].setPos(QtCore.QPointF(6, 0))
+    widget.handle_army_drop(attacker["item"])
+    assert defender["target"] is other
+
+    # Defender can re-target by dragging near the attacker
+    defender["item"].setPos(attacker["item"].pos() + QtCore.QPointF(1, 0))
+    widget.handle_army_drop(defender["item"])
+    assert defender["target"] is attacker
 

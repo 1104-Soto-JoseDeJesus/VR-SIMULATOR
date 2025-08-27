@@ -64,6 +64,14 @@ class Battlefield:
         if army.name in self.armies:
             raise ValueError(f"Army '{army.name}' already present on battlefield")
 
+        # ``team`` is used as a dictionary key and must therefore be a
+        # sensible, hashable string.  Passing ``None`` or an empty string would
+        # previously create a key that later code did not expect, causing a
+        # crash when serialising or iterating teams.  Validate the input early
+        # so callers receive a clear error instead of a downstream failure.
+        if not isinstance(team, str) or not team:
+            raise ValueError("team must be a non-empty string")
+
         self.armies[army.name] = army
         self.teams[team].add(army.name)
         # initialise tracking structures for the army

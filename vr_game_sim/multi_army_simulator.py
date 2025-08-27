@@ -86,7 +86,6 @@ class MultiArmySimulator:
             duel.time_acc += dt
             while duel.time_acc >= 1.0:
                 duel.time_acc -= 1.0
-                duel.sync_from_armies()
                 duel.allow_b_attack = duel.army_b.direct_target is duel.army_a
                 result = duel.simulate_round(reset_triggers=False)
                 if not result:
@@ -97,9 +96,8 @@ class MultiArmySimulator:
                 if duel.army_b not in engaged:
                     engaged.append(duel.army_b)
                 log = result["log"]
-                for army, d_troops, d_unrev in result["deltas"]:
-                    army.apply_round_results(d_troops, d_unrev)
-                    army.battle_reports.append(log)
+                duel.army_a.battle_reports.append(log)
+                duel.army_b.battle_reports.append(log)
                 if result["battle_over"]:
                     finished_duels.append(duel)
                     break

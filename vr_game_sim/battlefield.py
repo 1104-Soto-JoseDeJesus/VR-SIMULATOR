@@ -47,7 +47,23 @@ class Battlefield:
     # Army management
     # ------------------------------------------------------------------
     def add_army(self, army: Any, team: str) -> None:
-        """Register ``army`` to ``team`` on the battlefield."""
+        """Register ``army`` to ``team`` on the battlefield.
+
+        ``add_army`` previously assumed the caller always provided a fully
+        initialised army instance.  In practice callers may accidentally pass
+        ``None`` or try to re-add an army with a name that is already present
+        on the battlefield which would raise obscure ``AttributeError`` or lead
+        to inconsistent state.  To make the API robust we now validate the
+        input and reject duplicate registrations with a clear ``ValueError``.
+        """
+
+        # Basic validation of the provided army object
+        if army is None or not hasattr(army, "name"):
+            raise ValueError("army must be a valid object with a 'name' attribute")
+
+        if army.name in self.armies:
+            raise ValueError(f"Army '{army.name}' already present on battlefield")
+
         self.armies[army.name] = army
         self.teams[team].add(army.name)
         # initialise tracking structures for the army

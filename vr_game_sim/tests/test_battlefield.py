@@ -1,5 +1,6 @@
 import dataclasses
 
+import pytest
 import vr_game_sim.battlefield as bf_module
 from vr_game_sim.battlefield import Battlefield
 
@@ -156,3 +157,18 @@ def test_get_all_combat_reports(monkeypatch):
     assert ("Atk1", "Def") in reports
     assert ("Atk2", "Def") in reports
     assert all(len(r) == 1 for r in reports.values())
+
+
+def test_add_army_validates_input():
+    """Adding an invalid or duplicate army should raise ``ValueError``."""
+    bf = Battlefield()
+
+    # Invalid army object
+    with pytest.raises(ValueError):
+        bf.add_army(None, team="A")
+
+    # Adding the same army twice is not allowed
+    army = DummyArmy("Atk", hp=5)
+    bf.add_army(army, team="A")
+    with pytest.raises(ValueError):
+        bf.add_army(army, team="A")

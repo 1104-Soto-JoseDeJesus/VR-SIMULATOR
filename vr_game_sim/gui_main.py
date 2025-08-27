@@ -1524,6 +1524,9 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
         main_image: str,
         secondary_image: str | None = None,
         health_ratio: float = 1.0,
+        *,
+        army_name: str | None = None,
+        team: str | None = None,
     ) -> None:
         super().__init__()
         self.main_pix = QtGui.QPixmap(main_image)
@@ -1537,6 +1540,8 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
                 QtCore.Qt.TransformationMode.SmoothTransformation,
             )
         self.health_ratio = max(0.0, min(1.0, health_ratio))
+        self.army_name = army_name
+        self.team = team
 
     def boundingRect(self) -> QtCore.QRectF:  # type: ignore[override]
         width = self.main_pix.width() + 6
@@ -1596,6 +1601,10 @@ class BattlefieldTab(QtWidgets.QWidget):
         self.view.setSceneRect(0, 0, 800, 600)
         layout.addWidget(self.view, 1)
 
+        # Capture mouse movement for waypoint dragging
+        self.view.setMouseTracking(True)
+        self.view.viewport().installEventFilter(self)
+
         self.engine = BattlefieldEngine()
         self.add_army_btn.clicked.connect(self._add_army)
         self.save_army_btn.clicked.connect(self._save_army)
@@ -1604,6 +1613,9 @@ class BattlefieldTab(QtWidgets.QWidget):
 
         self._next_x = 0
         self._last_army_cfg: dict | None = None
+        self._dragging_icon: ArmyIcon | None = None
+        self._drag_path: list[tuple[float, float]] = []
+        self._snap_target: ArmyIcon | None = None
 
     def _add_army(self) -> None:
         dlg = ArmySetupDialog(self)
@@ -1612,7 +1624,8 @@ class BattlefieldTab(QtWidgets.QWidget):
         cfg = dlg.get_config()
         self._last_army_cfg = cfg
         army = create_armies_from_data([cfg])[0]
-        self.engine.add_army(army, cfg.get("team", ""))
+        pos = (self._next_x, 0.0)
+        self.engine.add_army(army, cfg.get("team", ""), position=pos)
 
         heroes = cfg.get("heroes", [])
         main_path = os.path.join(
@@ -1629,8 +1642,14 @@ class BattlefieldTab(QtWidgets.QWidget):
                 "Hero Images",
                 f"{heroes[1]['hero_name_or_preset'].capitalize()}.png",
             )
-        icon = ArmyIcon(main_path, secondary_path, 1.0)
-        icon.setPos(self._next_x, 0)
+        icon = ArmyIcon(
+            main_path,
+            secondary_path,
+            1.0,
+            army_name=army.name,
+            team=cfg.get("team", ""),
+        )
+        icon.setPos(*pos)
         self.scene.addItem(icon)
         self._next_x += icon.boundingRect().width() + 10
 
@@ -1655,7 +1674,8 @@ class BattlefieldTab(QtWidgets.QWidget):
             return
         self._last_army_cfg = cfg
         army = create_armies_from_data([cfg])[0]
-        self.engine.add_army(army, cfg.get("team", ""))
+        pos = (self._next_x, 0.0)
+        self.engine.add_army(army, cfg.get("team", ""), position=pos)
 
         heroes = cfg.get("heroes", [])
         main_path = os.path.join(
@@ -1672,8 +1692,14 @@ class BattlefieldTab(QtWidgets.QWidget):
                 "Hero Images",
                 f"{heroes[1]['hero_name_or_preset'].capitalize()}.png",
             )
-        icon = ArmyIcon(main_path, secondary_path, 1.0)
-        icon.setPos(self._next_x, 0)
+        icon = ArmyIcon(
+            main_path,
+            secondary_path,
+            1.0,
+            army_name=army.name,
+            team=cfg.get("team", ""),
+        )
+        icon.setPos(*pos)
         self.scene.addItem(icon)
         self._next_x += icon.boundingRect().width() + 10
 
@@ -1683,11 +1709,91 @@ class BattlefieldTab(QtWidgets.QWidget):
         secondary_image: str | None,
         health_ratio: float,
         position: tuple[float, float],
+        *,
+        army_name: str | None = None,
+        team: str | None = None,
     ) -> ArmyIcon:
-        icon = ArmyIcon(main_image, secondary_image, health_ratio)
+        icon = ArmyIcon(
+            main_image,
+            secondary_image,
+            health_ratio,
+            army_name=army_name,
+            team=team,
+        )
         icon.setPos(*position)
         self.scene.addItem(icon)
         return icon
+
+    # ------------------------------------------------------------------
+    # Mouse interaction for waypoints and engagements
+    # ------------------------------------------------------------------
+
+    def _find_enemy_near(
+        self, pos: QtCore.QPointF, team: str, threshold: float = 30.0
+    ) -> ArmyIcon | None:
+        for item in self.scene.items():
+            if (
+                isinstance(item, ArmyIcon)
+                and item is not self._dragging_icon
+                and item.team != team
+            ):
+                center = item.sceneBoundingRect().center()
+                if math.hypot(center.x() - pos.x(), center.y() - pos.y()) <= threshold:
+                    return item
+        return None
+
+    def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:  # type: ignore[override]
+        if obj is self.view.viewport():
+            if (
+                event.type() == QtCore.QEvent.Type.MouseButtonPress
+                and event.button() == QtCore.Qt.MouseButton.LeftButton
+            ):
+                item = self.view.itemAt(event.pos())
+                if isinstance(item, ArmyIcon):
+                    self._dragging_icon = item
+                    self._drag_path = [(item.x(), item.y())]
+                    return True
+            if event.type() == QtCore.QEvent.Type.MouseMove and self._dragging_icon:
+                pos = self.view.mapToScene(event.pos())
+                enemy = self._find_enemy_near(pos, self._dragging_icon.team or "")
+                if enemy:
+                    if self._snap_target and self._snap_target is not enemy:
+                        self._snap_target.setOpacity(1.0)
+                    self._snap_target = enemy
+                    enemy.setOpacity(0.7)
+                    pos = enemy.sceneBoundingRect().center()
+                else:
+                    if self._snap_target:
+                        self._snap_target.setOpacity(1.0)
+                    self._snap_target = None
+                last_x, last_y = self._drag_path[-1]
+                if math.hypot(pos.x() - last_x, pos.y() - last_y) > 5:
+                    self._drag_path.append((pos.x(), pos.y()))
+                return True
+            if (
+                event.type() == QtCore.QEvent.Type.MouseButtonRelease
+                and event.button() == QtCore.Qt.MouseButton.LeftButton
+                and self._dragging_icon
+            ):
+                pos = self.view.mapToScene(event.pos())
+                if self._snap_target:
+                    self.engine.engage(
+                        self._dragging_icon.army_name or "",
+                        self._snap_target.army_name or "",
+                    )
+                    self._snap_target.setOpacity(1.0)
+                else:
+                    self._drag_path.append((pos.x(), pos.y()))
+                    self.engine.set_path(
+                        self._dragging_icon.army_name or "",
+                        self._drag_path,
+                    )
+                    self._dragging_icon.setPos(pos)
+                self._dragging_icon = None
+                self._drag_path = []
+                self._snap_target = None
+                return True
+        return super().eventFilter(obj, event)
 
 
 class SimulationWorker(QtCore.QThread):

@@ -1654,24 +1654,67 @@ def display_histograms(
     frame.setLayout(outer)
     scroll.setWidget(frame)
 
-class DraggableArmyIcon(QtWidgets.QGraphicsEllipseItem):
-    """Simple draggable item representing an army on the battlefield."""
+class ArmyGraphicsItem(QtWidgets.QGraphicsItem):
+    """Draggable army icon with portrait and vertical health bar."""
 
-    def __init__(self, army_name: str, drop_callback, radius: float = 10.0) -> None:
-        super().__init__(-radius, -radius, radius * 2, radius * 2)
+    def __init__(
+        self,
+        army_name: str,
+        drop_callback,
+        main_image: str,
+        secondary_image: str | None = None,
+        size: int = 40,
+    ) -> None:
+        super().__init__()
         self.army_name = army_name
         self.drop_callback = drop_callback
-        self.setBrush(QtGui.QBrush(QtGui.QColor("red")))
+        self.main_pixmap = QtGui.QPixmap(main_image).scaled(
+            size, size, QtCore.Qt.AspectRatioMode.KeepAspectRatio, QtCore.Qt.TransformationMode.SmoothTransformation
+        )
+        self.secondary_pixmap = None
+        if secondary_image:
+            self.secondary_pixmap = QtGui.QPixmap(secondary_image).scaled(
+                size // 2,
+                size // 2,
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+        self.size = size
+        self.health_ratio = 1.0
         self.setFlags(
             QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable
             | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
         )
+
+    def boundingRect(self) -> QtCore.QRectF:  # type: ignore[override]
+        return QtCore.QRectF(-6, 0, self.size + 6, self.size)
+
+    def paint(
+        self,
+        painter: QtGui.QPainter,
+        option: QtWidgets.QStyleOptionGraphicsItem,
+        widget: QtWidgets.QWidget | None = None,
+    ) -> None:  # type: ignore[override]
+        painter.drawPixmap(0, 0, self.main_pixmap)
+        if self.secondary_pixmap:
+            w = self.secondary_pixmap.width()
+            h = self.secondary_pixmap.height()
+            painter.drawPixmap(self.size - w, self.size - h, self.secondary_pixmap)
+        bar_width = 4
+        bar_height = self.size * self.health_ratio
+        painter.setBrush(QtGui.QBrush(QtGui.QColor("white")))
+        painter.setPen(QtCore.Qt.PenStyle.NoPen)
+        painter.drawRect(-bar_width, self.size - bar_height, bar_width, bar_height)
 
     def mouseReleaseEvent(
         self, event: QtWidgets.QGraphicsSceneMouseEvent
     ) -> None:  # type: ignore[override]
         super().mouseReleaseEvent(event)
         self.drop_callback(self.army_name, (self.x(), self.y()))
+
+    def set_health_ratio(self, ratio: float) -> None:
+        self.health_ratio = max(0.0, min(1.0, ratio))
+        self.update()
 
 
 class BattlefieldTab(QtWidgets.QWidget):
@@ -1686,6 +1729,11 @@ class BattlefieldTab(QtWidgets.QWidget):
         self._build_navmesh()
         self.controller = MovementController(self.navmesh)
         self._army_counter = 1
+        self._army_items: dict[str, ArmyGraphicsItem] = {}
+
+        self._timer = QtCore.QTimer(self)
+        self._timer.timeout.connect(self._update_positions)
+        self._timer.start(16)
 
         layout = QtWidgets.QVBoxLayout(self)
         controls = QtWidgets.QHBoxLayout()
@@ -1727,12 +1775,15 @@ class BattlefieldTab(QtWidgets.QWidget):
         team = "team1" if self.team_combo.currentIndex() == 0 else "team2"
         self.battlefield.add_army(army, team)
         pos = (50.0 * self._army_counter, 50.0)
-        self.controller.register_army(name, pos, 100.0)
-        color = QtGui.QColor("red" if team == "team1" else "blue")
-        item = DraggableArmyIcon(name, self.controller.set_waypoint)
-        item.setBrush(QtGui.QBrush(color))
+        # Armies move at 1 unit/second; controller operates at 1000 Hz.
+        self.controller.register_army(name, pos, 1.0)
+        img_dir = os.path.join(os.path.dirname(__file__), "Hero Images")
+        main_img = os.path.join(img_dir, "Bjorn.png")
+        secondary_img = os.path.join(img_dir, "Leif.png")
+        item = ArmyGraphicsItem(name, self.controller.set_waypoint, main_img, secondary_img)
         item.setPos(*pos)
         self.scene.addItem(item)
+        self._army_items[name] = item
 
     def _reset_field(self) -> None:
         for army_name in list(self.battlefield.armies.keys()):
@@ -1740,6 +1791,16 @@ class BattlefieldTab(QtWidgets.QWidget):
         self.scene.clear()
         self.controller = MovementController(self.navmesh)
         self._army_counter = 1
+        self._army_items.clear()
+
+    def _update_positions(self) -> None:
+        # Advance movement in high resolution ticks and update icon positions.
+        ticks = max(1, self.controller.tick_rate // 60)
+        for _ in range(ticks):
+            self.controller.tick()
+        for name, item in self._army_items.items():
+            x, y = self.controller.get_position(name)
+            item.setPos(x, y)
 
 
 class BattlefieldReportsTab(QtWidgets.QWidget):

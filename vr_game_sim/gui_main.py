@@ -24,6 +24,8 @@ from vr_game_sim.main import (
 )
 from vr_game_sim.battlefield import Battlefield
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
+from vr_game_sim.movement_controller import MovementController, NavMesh
+from vr_game_sim.army_composition import Army
 
 
 def get_pdf_layout_path() -> str:
@@ -1652,17 +1654,129 @@ def display_histograms(
     frame.setLayout(outer)
     scroll.setWidget(frame)
 
+class DraggableArmyIcon(QtWidgets.QGraphicsEllipseItem):
+    """Simple draggable item representing an army on the battlefield."""
+
+    def __init__(self, army_name: str, drop_callback, radius: float = 10.0) -> None:
+        super().__init__(-radius, -radius, radius * 2, radius * 2)
+        self.army_name = army_name
+        self.drop_callback = drop_callback
+        self.setBrush(QtGui.QBrush(QtGui.QColor("red")))
+        self.setFlags(
+            QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+            | QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
+        )
+
+    def mouseReleaseEvent(
+        self, event: QtWidgets.QGraphicsSceneMouseEvent
+    ) -> None:  # type: ignore[override]
+        super().mouseReleaseEvent(event)
+        self.drop_callback(self.army_name, (self.x(), self.y()))
+
+
+class BattlefieldTab(QtWidgets.QWidget):
+    """Interactive battlefield canvas allowing army placement and movement."""
+
+    def __init__(
+        self, battlefield: Battlefield, parent: QtWidgets.QWidget | None = None
+    ) -> None:
+        super().__init__(parent)
+        self.battlefield = battlefield
+        self.navmesh = NavMesh()
+        self._build_navmesh()
+        self.controller = MovementController(self.navmesh)
+        self._army_counter = 1
+
+        layout = QtWidgets.QVBoxLayout(self)
+        controls = QtWidgets.QHBoxLayout()
+        controls.addWidget(QtWidgets.QLabel("Team:"))
+        self.team_combo = QtWidgets.QComboBox()
+        self.team_combo.addItems(["Team 1", "Team 2"])
+        controls.addWidget(self.team_combo)
+        add_btn = QtWidgets.QPushButton("Add Army")
+        add_btn.clicked.connect(self._add_army)
+        controls.addWidget(add_btn)
+        reset_btn = QtWidgets.QPushButton("Reset")
+        reset_btn.clicked.connect(self._reset_field)
+        controls.addWidget(reset_btn)
+        controls.addStretch()
+        layout.addLayout(controls)
+
+        self.scene = QtWidgets.QGraphicsScene(0, 0, 600, 400)
+        self.view = QtWidgets.QGraphicsView(self.scene)
+        self.view.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        layout.addWidget(self.view)
+
+    def _build_navmesh(self) -> None:
+        nodes = {
+            "A": (0.0, 0.0),
+            "B": (600.0, 0.0),
+            "C": (600.0, 400.0),
+            "D": (0.0, 400.0),
+        }
+        for nid, pos in nodes.items():
+            self.navmesh.add_node(nid, pos)
+        for a, b in [("A", "B"), ("B", "C"), ("C", "D"), ("D", "A"), ("A", "C"), ("B", "D")]:
+            self.navmesh.add_edge(a, b)
+
+    def _add_army(self) -> None:
+        name = f"Army{self._army_counter}"
+        self._army_counter += 1
+        unit = Unit("infantry", 5, 100)
+        army = Army(name, unit, [])
+        team = "team1" if self.team_combo.currentIndex() == 0 else "team2"
+        self.battlefield.add_army(army, team)
+        pos = (50.0 * self._army_counter, 50.0)
+        self.controller.register_army(name, pos, 100.0)
+        color = QtGui.QColor("red" if team == "team1" else "blue")
+        item = DraggableArmyIcon(name, self.controller.set_waypoint)
+        item.setBrush(QtGui.QBrush(color))
+        item.setPos(*pos)
+        self.scene.addItem(item)
+
+    def _reset_field(self) -> None:
+        for army_name in list(self.battlefield.armies.keys()):
+            self.battlefield.remove_army(army_name)
+        self.scene.clear()
+        self.controller = MovementController(self.navmesh)
+        self._army_counter = 1
+
+
+class BattlefieldReportsTab(QtWidgets.QWidget):
+    """Display per-army combat reports from the battlefield."""
+
+    def __init__(self, battlefield: Battlefield, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.battlefield = battlefield
+        layout = QtWidgets.QVBoxLayout(self)
+        refresh_btn = QtWidgets.QPushButton("Refresh Reports")
+        refresh_btn.clicked.connect(self.refresh)
+        layout.addWidget(refresh_btn)
+        self.tree = QtWidgets.QTreeWidget()
+        self.tree.setHeaderHidden(True)
+        layout.addWidget(self.tree)
+
+    def refresh(self) -> None:
+        self.tree.clear()
+        reports = self.battlefield.get_all_combat_reports()
+        for (attacker, defender), rounds in reports.items():
+            parent = QtWidgets.QTreeWidgetItem([f"{attacker} vs {defender}"])
+            for idx, rep in enumerate(rounds, start=1):
+                QtWidgets.QTreeWidgetItem(parent, [f"Round {idx}: {rep}"])
+            self.tree.addTopLevelItem(parent)
+        self.tree.expandAll()
+
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Battle Simulator")
+        # Battlefield instance for save/load helpers
+        self.battlefield = Battlefield()
         self.toolbar = self._init_menu_toolbar()
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
         self.pdf_layout = load_pdf_layout()
-        # Battlefield instance for save/load helpers
-        self.battlefield = Battlefield()
 
     def open_star_overlay_tuner(self) -> None:
         """Open the star overlay debug dialog."""
@@ -1816,6 +1930,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.tabs.addTab(setup_tab, "Army Setup")
 
+        # --- Battlefield tab ---
+        self.battlefield_tab = BattlefieldTab(self.battlefield)
+        self.tabs.addTab(self.battlefield_tab, "Battlefield")
+
         # --- Report tab ---
         report_tab = QtWidgets.QWidget()
         report_layout = QtWidgets.QVBoxLayout(report_tab)
@@ -1854,6 +1972,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         report_layout.addWidget(self.report_stack)
         self.tabs.addTab(report_tab, "Report")
+
+        # --- Battlefield Reports tab ---
+        self.battlefield_reports_tab = BattlefieldReportsTab(self.battlefield)
+        self.tabs.addTab(self.battlefield_reports_tab, "Battlefield Reports")
 
         # --- Figures tab ---
         self.hist_container = QtWidgets.QWidget()

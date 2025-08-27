@@ -213,6 +213,26 @@ class BattlefieldEngine:
 
         atk_ctx.direct_target = defender
 
+        # Compute initial path that stops 2 units short of the defender.
+        ax, ay = atk_ctx.position
+        dx_, dy_ = def_ctx.position
+        vec_x, vec_y = dx_ - ax, dy_ - ay
+        dist = hypot(vec_x, vec_y)
+        if dist > 0:
+            norm_x, norm_y = vec_x / dist, vec_y / dist
+            target_x = dx_ - norm_x * 2
+            target_y = dy_ - norm_y * 2
+            if dist > 2:
+                atk_ctx.path = [(target_x, target_y)]
+            else:
+                # Already within the desired distance; reposition immediately
+                atk_ctx.position = (target_x, target_y)
+                atk_ctx.path.clear()
+        else:
+            # Overlapping positions; choose arbitrary offset
+            atk_ctx.position = (dx_ - 2, dy_)
+            atk_ctx.path.clear()
+
         # Schedule the engagement to start on the next whole second
         start_time = int(self.time_elapsed) + 1
         self._pending_engagements[(attacker, defender)] = float(start_time)
@@ -266,14 +286,20 @@ class BattlefieldEngine:
             else:
                 ctx.position = (x + dx / dist * step, y + dy / dist * step)
 
-        # Snap armies to their engaged opponents when sufficiently close.
+        # Maintain a minimum distance of 2 units between engaged armies.
         for (atk, dfd), _ in self._engagements.items():
             atk_ctx = self._armies[atk]
             dfd_ctx = self._armies[dfd]
             ax, ay = atk_ctx.position
             dx_, dy_ = dfd_ctx.position
-            if hypot(ax - dx_, ay - dy_) <= 2:
-                atk_ctx.position = dfd_ctx.position
+            vec_x, vec_y = ax - dx_, ay - dy_
+            dist = hypot(vec_x, vec_y)
+            if dist < 2:
+                if dist > 0:
+                    norm_x, norm_y = vec_x / dist, vec_y / dist
+                else:
+                    norm_x, norm_y = 1.0, 0.0
+                atk_ctx.position = (dx_ + norm_x * 2, dy_ + norm_y * 2)
                 atk_ctx.path.clear()
                 dfd_ctx.path.clear()
 

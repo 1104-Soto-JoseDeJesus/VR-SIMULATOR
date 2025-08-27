@@ -159,3 +159,88 @@ class Battlefield:
     def get_local_round(self, army_name: str) -> int:
         """Return the current local round counter for ``army_name``."""
         return self._local_rounds.get(army_name, 0)
+
+    # ------------------------------------------------------------------
+    # Configuration serialisation helpers
+    # ------------------------------------------------------------------
+    def serialize_setup(self) -> List[Dict[str, Any]]:
+        """Return a serialisable representation of the current armies.
+
+        The structure mirrors the ``setup_data`` consumed by
+        :func:`create_armies_from_data` in :mod:`main`.  Each army is converted
+        into a dictionary capturing its unit composition, heroes and team
+        assignment.
+        """
+
+        setup: List[Dict[str, Any]] = []
+        for army_name, army in self.armies.items():
+            team = None
+            for t, members in self.teams.items():
+                if army_name in members:
+                    team = t
+                    break
+
+            heroes_cfg: List[Dict[str, Any]] = []
+            for hero in getattr(army, "heroes", []):
+                heroes_cfg.append(
+                    {
+                        "hero_name_or_preset": hero.name,
+                        "talent_ids": list(hero.talent_ids),
+                        "base_skill_ids": list(hero.base_skill_ids),
+                        "plugin_skill_ids": list(hero.plugin_skill_ids),
+                    }
+                )
+
+            unit = army.unit
+            setup.append(
+                {
+                    "army_name": army.name,
+                    "unit_type": unit.unit_type,
+                    "tier": unit.tier,
+                    "count": unit.initial_count,
+                    "atk_mod": unit.initial_atk_modifier,
+                    "def_mod": unit.initial_def_modifier,
+                    "hp_mod": unit.initial_hp_modifier,
+                    "unrevivable_ratio": army.unrevivable_ratio,
+                    "heroes": heroes_cfg,
+                    "team": team,
+                }
+            )
+
+        return setup
+
+    def save_setup(self, filename: str) -> None:
+        """Persist the current battlefield configuration to ``filename``.
+
+        ``filename`` may be an absolute path or a bare file name.  The heavy
+        lifting is delegated to :func:`save_setup_to_file` in ``main`` to keep
+        behaviour consistent with the command line tools.
+        """
+
+        from .main import save_setup_to_file  # Local import to avoid circular
+
+        save_setup_to_file(self.serialize_setup(), filename)
+
+    @classmethod
+    def load_setup(cls, filename: str) -> Optional[Tuple["Battlefield", List[Dict[str, Any]]]]:
+        """Create a new :class:`Battlefield` populated from ``filename``.
+
+        Returns a tuple of the newly created battlefield and the raw setup data
+        on success, or ``None`` if loading fails.  Army configurations are
+        deserialised using :func:`load_setup_from_file` and converted back into
+        :class:`Army` objects via :func:`create_armies_from_data`.
+        """
+
+        from .main import create_armies_from_data, load_setup_from_file
+
+        data = load_setup_from_file(filename)
+        if not data:
+            return None
+
+        bf = cls()
+        armies = create_armies_from_data(data)
+        for cfg, army in zip(data, armies):
+            team = cfg.get("team", f"team{len(bf.teams) + 1}")
+            bf.add_army(army, team)
+
+        return bf, data

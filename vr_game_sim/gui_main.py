@@ -21,9 +21,8 @@ from vr_game_sim.report_builder import ReportBuilder
 from vr_game_sim.main import (
     create_armies_from_data,
     run_additional_simulations,
-    save_setup_to_file,
-    load_setup_from_file,
 )
+from vr_game_sim.battlefield import Battlefield
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 
 
@@ -1662,6 +1661,8 @@ class MainWindow(QtWidgets.QMainWindow):
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
         self.pdf_layout = load_pdf_layout()
+        # Battlefield instance for save/load helpers
+        self.battlefield = Battlefield()
 
     def open_star_overlay_tuner(self) -> None:
         """Open the star overlay debug dialog."""
@@ -1803,6 +1804,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         setup_layout.addWidget(preview_group)
 
+        # Save/load buttons for battlefield configurations
+        btn_row = QtWidgets.QHBoxLayout()
+        save_btn = QtWidgets.QPushButton("Save Setup")
+        load_btn = QtWidgets.QPushButton("Load Setup")
+        save_btn.clicked.connect(self.save_setup)
+        load_btn.clicked.connect(self.load_setup)
+        btn_row.addWidget(save_btn)
+        btn_row.addWidget(load_btn)
+        setup_layout.addLayout(btn_row)
+
         self.tabs.addTab(setup_tab, "Army Setup")
 
         # --- Report tab ---
@@ -1888,10 +1899,16 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         if file_path:
             self.last_setup_dir = os.path.dirname(file_path)
-            save_setup_to_file(
-                [self.army1_frame.build_config(), self.army2_frame.build_config()],
-                os.path.basename(file_path),
-            )
+            setup_data = [
+                self.army1_frame.build_config(),
+                self.army2_frame.build_config(),
+            ]
+            bf = Battlefield()
+            armies = create_armies_from_data(setup_data)
+            for idx, army in enumerate(armies, start=1):
+                bf.add_army(army, f"team{idx}")
+            bf.save_setup(os.path.basename(file_path))
+            self.battlefield = bf
             self.status.setText(f"Saved to {os.path.basename(file_path)}")
 
     def load_setup(self) -> None:
@@ -1903,10 +1920,13 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         if file_path:
             self.last_setup_dir = os.path.dirname(file_path)
-            data = load_setup_from_file(file_path)
-            if data and len(data) >= 2:
-                self.army1_frame.populate_from_config(data[0])
-                self.army2_frame.populate_from_config(data[1])
+            result = Battlefield.load_setup(file_path)
+            if result:
+                bf, data = result
+                self.battlefield = bf
+                if len(data) >= 2:
+                    self.army1_frame.populate_from_config(data[0])
+                    self.army2_frame.populate_from_config(data[1])
                 self.status.setText(f"Loaded {os.path.basename(file_path)}")
 
     def duplicate_army(self, source: int, target: int) -> None:

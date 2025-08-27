@@ -214,7 +214,13 @@ class MultiArmySimulator:
             for a2 in self.armies[i + 1 :]:
                 if a2.current_troop_count <= 0 or a1.team == a2.team:
                     continue
-                if a1.active_duels and a2.active_duels:
+                # Skip pairing if a duel between these two armies already exists
+                duel_exists = any(
+                    (d.army_a is a1 and d.army_b is a2)
+                    or (d.army_a is a2 and d.army_b is a1)
+                    for d in self.active_duels
+                )
+                if duel_exists:
                     continue
                 dist = math.hypot(a1.float_x - a2.float_x, a1.float_y - a2.float_y)
                 if dist <= engage_radius:

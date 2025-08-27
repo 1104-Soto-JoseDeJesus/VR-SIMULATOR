@@ -709,11 +709,14 @@ class PageLayoutWidget(QtWidgets.QGraphicsView):
         self.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
         self.setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)
         self.setTransformationAnchor(QtWidgets.QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self._min_scale = 1.0
         self.fit_page()
 
     def fit_page(self) -> None:
         """Scale the view so the entire page is visible."""
         self.fitInView(self._page_rect, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+        # record the scale factor that keeps the page fully visible
+        self._min_scale = self.transform().m11()
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # type: ignore[override]
         super().resizeEvent(event)
@@ -769,7 +772,13 @@ class PageLayoutWidget(QtWidgets.QGraphicsView):
             event.accept()
             return
         factor = 1.2 if event.angleDelta().y() > 0 else 1 / 1.2
-        self.scale(factor, factor)
+        current = self.transform().m11()
+        new_scale = current * factor
+        # prevent zooming out beyond the fitted page size
+        if factor < 1.0 and new_scale <= self._min_scale:
+            self.fit_page()
+        else:
+            self.scale(factor, factor)
         event.accept()
 
     def serialize(self) -> dict:
@@ -819,6 +828,11 @@ class PDFLayoutDialog(QtWidgets.QDialog):
 
         self.pages: list[dict] = load_pdf_layout()
         layout = QtWidgets.QVBoxLayout(self)
+        # open at a comfortable size so the full page is visible without
+        # requiring manual zoom-out
+        page_size = QtGui.QPageSize(QtGui.QPageSize.PageSizeId.A4).sizePoints()
+        scale = 1.2
+        self.resize(int(page_size.width() * scale + 200), int(page_size.height() * scale))
 
         self._count_spin = QtWidgets.QSpinBox()
         self._count_spin.setRange(1, 20)

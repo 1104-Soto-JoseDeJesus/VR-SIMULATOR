@@ -35,6 +35,7 @@ from typing import Dict, List, Optional, Tuple
 
 from .army_composition import Army
 from .game_simulator import GameSimulator
+from .enums import SkillTriggerType
 
 
 @dataclass
@@ -46,6 +47,8 @@ class _ArmyContext:
     position: Tuple[float, float] = (0.0, 0.0)
     path: List[Tuple[float, float]] = field(default_factory=list)
     speed: float = 0.0
+    # Name of the army this one is directly targeting.
+    direct_target: Optional[str] = None
 
 
 class BattlefieldEngine:
@@ -117,23 +120,40 @@ class BattlefieldEngine:
     # ------------------------------------------------------------------
     # Engagement handling
     # ------------------------------------------------------------------
-    def engage(self, attacker: str, defender: str) -> None:
-        """Create a direct engagement between two armies.
+    def set_direct_target(self, attacker: str, defender: Optional[str]) -> None:
+        """Assign ``defender`` as the direct target for ``attacker``.
 
-        A :class:`GameSimulator` is instantiated for this pair.  The same
-        ``Army`` instances are reused in each simulator so the defender's state
-        is automatically synchronised across different attackers.
+        ``defender`` may be ``None`` to clear an existing target. Engagement
+        simulators and graph links are updated to mirror this assignment.
         """
 
-        if attacker not in self._armies or defender not in self._armies:
-            raise KeyError("Both armies must be registered before engagement")
+        if attacker not in self._armies:
+            raise KeyError("Attacker must be registered before engagement")
 
         atk_ctx = self._armies[attacker]
+        old_target = atk_ctx.direct_target
+        if old_target and (attacker, old_target) in self._engagements:
+            self._engagements.pop((attacker, old_target), None)
+            self._graph[attacker].discard(old_target)
+            self._graph[old_target].discard(attacker)
+
+        atk_ctx.direct_target = defender
+
+        if defender is None:
+            return
+
+        if defender not in self._armies:
+            raise KeyError("Defender must be registered before engagement")
+
         def_ctx = self._armies[defender]
         simulator = GameSimulator(atk_ctx.army, def_ctx.army, track_stats=False)
         self._engagements[(attacker, defender)] = simulator
         self._graph[attacker].add(defender)
         self._graph[defender].add(attacker)
+
+    # Backwards compatible alias
+    def engage(self, attacker: str, defender: str) -> None:
+        self.set_direct_target(attacker, defender)
 
     # ------------------------------------------------------------------
     # Clock / ticking
@@ -190,6 +210,14 @@ class BattlefieldEngine:
 
     def _commit_rounds(self) -> None:
         """Execute a single round for all direct engagements."""
+        # Reset per-round skill tracking to allow reactive skills to fire once
+        # across all engagements.
+        for ctx in self._armies.values():
+            army = ctx.army
+            army.triggered_skills_this_round.clear()
+            army.pending_hp_damage_this_round = 0.0
+            army.pending_hp_healing_this_round = 0.0
+
         to_remove: List[Tuple[str, str]] = []
         for key, sim in self._engagements.items():
             self._simulate_one_round(sim)
@@ -208,9 +236,30 @@ class BattlefieldEngine:
         if sim.army1.current_troop_count <= 0 or sim.army2.current_troop_count <= 0:
             return
         sim.round += 1
-        sim._calculate_and_log_attack(sim.army1, sim.army2, is_counter=False)
-        sim.army1.commit_pending_healing_and_damage()
-        sim.army2.commit_pending_healing_and_damage()
+
+        atk, dfd = sim.army1, sim.army2
+
+        # Attacker basic attack
+        sim._process_skill_triggers(atk, dfd, SkillTriggerType.ON_BASIC_ATTACK,
+                                    event_data={'opponent_for_shield_calc': dfd})
+        atk.activate_queued_effects()
+        dfd.activate_queued_effects()
+        sim._calculate_and_log_attack(atk, dfd, is_counter=False)
+
+        if dfd.current_troop_count > 0:
+            # Defender reacts to being hit and may counter attack
+            sim._process_skill_triggers(dfd, atk, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+                                        event_data={'opponent_for_shield_calc': atk})
+            dfd.activate_queued_effects()
+            atk.activate_queued_effects()
+            sim._process_skill_triggers(dfd, atk, SkillTriggerType.ON_COUNTER_ATTACK,
+                                        event_data={'opponent_for_shield_calc': atk})
+            dfd.activate_queued_effects()
+            atk.activate_queued_effects()
+            sim._calculate_and_log_attack(dfd, atk, is_counter=True)
+
+        atk.commit_pending_healing_and_damage()
+        dfd.commit_pending_healing_and_damage()
 
     # ------------------------------------------------------------------
     # Utility

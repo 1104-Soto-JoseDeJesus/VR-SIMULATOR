@@ -6,6 +6,7 @@ from vr_game_sim.effect_system import EffectInstance
 from vr_game_sim.enums import EffectType
 from vr_game_sim.constants import (
     EFFECT_NAME_JUDGEMENT_MARKER,
+    EFFECT_NAME_SAINTLY_GUARDIAN_SHIELD_BOOST,
 )
 from vr_game_sim.game_simulator import GameSimulator
 
@@ -65,3 +66,12 @@ def test_judgements_fury_below_threshold_no_buff():
 
     assert not happened
     assert logs == []
+
+
+def test_saintly_guardian_in_active_effects():
+    hero = Hero('Helgar', HERO_PRESETS['helgar']['talents'], HERO_PRESETS['helgar']['base_skills'], HERO_PRESETS['helgar']['plugin_skills'], SKILL_REGISTRY_GLOBAL)
+    army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
+    enemy = Army('E', Unit('archers', 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy)
+    lines = sim._log_active_effects_for_report()
+    assert any(EFFECT_NAME_SAINTLY_GUARDIAN_SHIELD_BOOST in line for line in lines)

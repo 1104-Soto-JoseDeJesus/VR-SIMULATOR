@@ -352,8 +352,9 @@ class BattlefieldEngine:
                 army.rage_added_this_round += 100
                 army.rage_gained_history.append(army.rage_added_this_round)
             else:
-                # No recent combat – reset round counter
+                # No recent combat – reset round counter and rage
                 ctx.internal_round = 0
+                army.current_rage = 0.0
 
             self._queue_state_update(army)
 

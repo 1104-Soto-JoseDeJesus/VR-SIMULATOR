@@ -74,4 +74,5 @@ def test_round_and_rage_stop_after_two_seconds_idle():
     assert army_a.current_rage == 500
     engine.tick(1.0)  # t=6, out of combat
     assert ctx_a.internal_round == 0
-    assert army_a.current_rage == 500
+    assert army_a.current_rage == 0
+    assert ctx_a.last_engaged_time == pytest.approx(3.0)

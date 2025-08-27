@@ -411,6 +411,8 @@ class GameSimulator:
             return
 
         for army in [self.army1, self.army2]:
+            if army.base_rage_awarded_this_round:
+                continue
             if (army.hero1_rage_skill_used_round == self.round or
                     army.hero1_rage_skill_cast_blocked_by_silence_this_round):
                 army.base_rage_awarded_this_round = False
@@ -554,9 +556,9 @@ class GameSimulator:
         if reset_triggers:
             for army in [self.army1, self.army2]:
                 army.triggered_skills_this_round.clear()
+                army.base_rage_awarded_this_round = False
         for army in [self.army1, self.army2]:
             army.healing_hymn_triggered_this_round = False
-            army.base_rage_awarded_this_round = False
 
         for army in [self.army1, self.army2]:
             if army.effects_to_activate_next_round:

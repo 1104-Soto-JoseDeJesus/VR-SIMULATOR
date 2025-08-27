@@ -59,6 +59,9 @@ class GameSimulator:
         }
         self.report_builder = report_builder or ReportBuilder()
         self.track_stats = track_stats
+        for army in (self.army1, self.army2):
+            if not army.active_effects:
+                army._apply_initial_passive_skills()
 
     def _log_active_effects_for_report(self) -> List[str]:
         lines: List[str] = []
@@ -200,93 +203,84 @@ class GameSimulator:
         if event_data and 'opponent_for_shield_calc' in event_data:
             actual_opponent_for_calc = event_data['opponent_for_shield_calc']
 
-        for hero in triggering_army.heroes:
-            for skill_def in hero.skills:
-                if skill_def["id"] == "dummy_talent_empty": continue
-                if skill_def["trigger"] == SkillTriggerType.RAGE_SKILL: continue
-                if skill_def["trigger"] == SkillTriggerType.PASSIVE: continue
+        orig_round = self.round
+        self.round = triggering_army.continuous_rounds + 1
+        try:
+            for hero in triggering_army.heroes:
+                for skill_def in hero.skills:
+                    if skill_def["id"] == "dummy_talent_empty": continue
+                    if skill_def["trigger"] == SkillTriggerType.RAGE_SKILL: continue
+                    if skill_def["trigger"] == SkillTriggerType.PASSIVE: continue
 
-                if skill_def["trigger"] == trigger_type:
-                    base_chance = skill_def.get("trigger_chance", 1.0)
-                    coop_bonus = 0.0
-                    if (
-                        skill_def["trigger"]
-                        in [SkillTriggerType.ON_BASIC_ATTACK, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST]
-                        and PluginSkillLabel.COOPERATION in skill_def.get("labels", [])
-                    ):
-                        coop_bonus = triggering_army.get_sum_stat_magnitudes(
-                            StatType.COOPERATION_TRIGGER_RATE_MODIFIER
-                        )
-                    final_chance = min(1.0, base_chance + coop_bonus)
-                    if random.random() < final_chance:
-                        skill_id = skill_def["id"]
-                        skill_cfg = skill_def.get("config", {})
-                        cooldown = skill_cfg.get("cooldown_rounds")
-                        an_effect_truly_happened = False
-                        log_details_current_skill: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+                    if skill_def["trigger"] == trigger_type:
+                        base_chance = skill_def.get("trigger_chance", 1.0)
+                        coop_bonus = 0.0
+                        if (
+                            skill_def["trigger"]
+                            in [SkillTriggerType.ON_BASIC_ATTACK, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST]
+                            and PluginSkillLabel.COOPERATION in skill_def.get("labels", [])
+                        ):
+                            coop_bonus = triggering_army.get_sum_stat_magnitudes(
+                                StatType.COOPERATION_TRIGGER_RATE_MODIFIER
+                            )
+                        final_chance = min(1.0, base_chance + coop_bonus)
+                        if random.random() < final_chance:
+                            skill_id = skill_def["id"]
+                            skill_cfg = skill_def.get("config", {})
+                            cooldown = skill_cfg.get("cooldown_rounds")
+                            an_effect_truly_happened = False
+                            log_details_current_skill: List[Tuple[str, Optional[Dict[str, Any]]]] = []
 
-                        is_on_cooldown = False
-                        if cooldown is not None:
-                            last_triggered = triggering_army.skill_last_triggered_round.get(skill_id, -(cooldown + 1))
-                            if self.round < last_triggered + cooldown:
-                                is_on_cooldown = True
-                        if is_on_cooldown:
-                            continue
-
-                        if skill_id in triggering_army.triggered_skills_this_round:
-                            continue
-
-                        logic_handler: Optional[SkillLogicHandler] = skill_def.get("logic_handler")
-                        if logic_handler:
-                            handler_event_data = (event_data or {}).copy()
-                            handler_event_data['actual_opponent_for_calc'] = actual_opponent_for_calc
-                            an_effect_truly_happened, log_details_current_skill = \
-                                logic_handler(triggering_army, opponent_army, skill_def, handler_event_data, self)
-                        elif "sub_effects" in skill_def:
-                            for sub_effect_data in skill_def["sub_effects"]:
-                                if random.random() < sub_effect_data.get("chance", 1.0):
-                                    effect_to_apply = sub_effect_data["effect_to_apply"]
-                                    target_sub = opponent_army if skill_def.get(
-                                        "target") == "ENEMY" else triggering_army
-                                    created_effect = triggering_army._create_and_add_single_effect(
-                                        effect_to_apply.copy(), skill_id, triggering_army, target_sub,
-                                        actual_opponent_for_calc)
-                                    if created_effect:
-                                        an_effect_truly_happened = True
-                                        log_details_current_skill.append(
-                                            (f"{sub_effect_data.get('name_suffix', 'Effect')}: {created_effect.get_functionality_description()} for {created_effect.duration + 1} rounds.",
-                                             None))
-                        elif "effects_to_apply" in skill_def and skill_def["effects_to_apply"]:
-                            target_std = opponent_army if skill_def.get("target") == "ENEMY" else triggering_army
-                            applied_details = triggering_army._add_effects_from_skill_def(
-                                skill_def, target_std, triggering_army, actual_opponent_for_calc)
-                            if applied_details:
-                                an_effect_truly_happened = True
-                                for _, desc in applied_details:
-                                    log_details_current_skill.append((desc, None))
-
-                        if an_effect_truly_happened:
-                            self._log_skill_trigger(triggering_army, skill_def['name'], "Triggered.")
-                            for desc_str, dmg_details in log_details_current_skill:
-                                self._log_skill_trigger(triggering_army, f"  ↳", desc_str, damage_details=dmg_details)
-                            triggering_army.increment_skill_trigger_count(skill_id)
-
-                            if skill_def.get("trigger") == SkillTriggerType.CHANCE_PER_ROUND:
-                                self._process_skill_triggers(
-                                    triggering_army,
-                                    opponent_army,
-                                    SkillTriggerType.ON_OWN_COMMAND_SKILL_CAST,
-                                    event_data={
-                                        "source_command_skill_id": skill_id,
-                                        "opponent_for_shield_calc": actual_opponent_for_calc,
-                                    },
-                                )
-
+                            is_on_cooldown = False
                             if cooldown is not None:
+                                last_triggered = triggering_army.skill_last_triggered_round.get(skill_id, -(cooldown + 1))
+                                if self.round < last_triggered + cooldown:
+                                    is_on_cooldown = True
+                            if is_on_cooldown:
+                                continue
+
+                            if skill_id in triggering_army.triggered_skills_this_round:
+                                continue
+
+                            logic_handler: Optional[SkillLogicHandler] = skill_def.get("logic_handler")
+                            if logic_handler:
+                                handler_event_data = (event_data or {}).copy()
+                                handler_event_data['actual_opponent_for_calc'] = actual_opponent_for_calc
+                                an_effect_truly_happened, log_details_current_skill = \
+                                    logic_handler(triggering_army, opponent_army, skill_def, handler_event_data, self)
+                            elif "sub_effects" in skill_def:
+                                for sub_effect_data in skill_def["sub_effects"]:
+                                    if random.random() < sub_effect_data.get("chance", 1.0):
+                                        effect_to_apply = sub_effect_data["effect_to_apply"]
+                                        target_sub = opponent_army if skill_def.get(
+                                            "target") == "ENEMY" else triggering_army
+                                        created_effect = triggering_army._create_and_add_single_effect(
+                                            effect_to_apply.copy(), skill_id, triggering_army, target_sub,
+                                            actual_opponent_for_calc)
+                                        if created_effect:
+                                            an_effect_truly_happened = True
+                                            log_details_current_skill.append(
+                                                (f"{sub_effect_data.get('name_suffix', 'Effect')}: {created_effect.get_functionality_description()} for {created_effect.duration + 1} rounds.",
+                                                 None))
+                            elif "effects_to_apply" in skill_def and skill_def["effects_to_apply"]:
+                                target_std = opponent_army if skill_def.get("target") == "ENEMY" else triggering_army
+                                applied_details = triggering_army._add_effects_from_skill_def(skill_def, target_std,
+                                                                                             triggering_army,
+                                                                                             actual_opponent_for_calc)
+                                if applied_details:
+                                    an_effect_truly_happened = True
+                                    for _, desc in applied_details:
+                                        log_details_current_skill.append((desc, None))
+
+                            if an_effect_truly_happened:
+                                self._log_skill_trigger(triggering_army, skill_def['name'], "Triggered.")
+                                for desc_str, dmg_details in log_details_current_skill:
+                                    self._log_skill_trigger(triggering_army, "  ↳", desc_str, damage_details=dmg_details)
+                                triggering_army.increment_skill_trigger_count(skill_id)
                                 triggering_army.skill_last_triggered_round[skill_id] = self.round
 
-                            if skill_id not in triggering_army.triggered_skills_this_round:
-                                triggering_army.triggered_skills_this_round.append(skill_id)
+        finally:
+            self.round = orig_round
 
     def _execute_rage_skills(self, army: Army, opponent: Army, is_hero2_delayed_trigger: bool = False):
         skill_to_execute_id: Optional[str] = None
@@ -332,89 +326,98 @@ class GameSimulator:
                 if hero_slot == 1:
                     army.hero1_rage_skill_cast_blocked_by_silence_this_round = True
                 elif hero_slot == 2:
-                    if army.hero2_rage_skill_primed_for_round == self.round:
+                    if army.hero2_rage_skill_primed_for_round == army.continuous_rounds + 1:
                         army.hero2_rage_skill_primed_for_round += 1
-                        self._log_skill_trigger(army, skill_def['name'],
-                                                f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence.")
+                        self._log_skill_trigger(
+                            army,
+                            skill_def['name'],
+                            f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence."
+                        )
                 return
 
-        log_prefix = f"(Delayed Hero 2) " if is_hero2_delayed_trigger else f"{hero_who_triggered_name}'s "
-        an_effect_happened_rage = False
-        log_details_rage: List[Tuple[str, Optional[Dict[str, Any]]]] = []
-        damage_dealt_by_rage = False
-        rage_before_cast = army.current_rage
+        orig_round = self.round
+        self.round = army.continuous_rounds + 1
+        try:
+            log_prefix = f"(Delayed Hero 2) " if is_hero2_delayed_trigger else f"{hero_who_triggered_name}'s "
+            an_effect_happened_rage = False
+            log_details_rage: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+            damage_dealt_by_rage = False
+            rage_before_cast = army.current_rage
 
-        if not is_hero2_delayed_trigger:
-            rage_cost = skill_def.get("rage_cost", 1000)
-            army.current_rage -= rage_cost
-            army.current_rage = max(0, army.current_rage)
-            army.army_used_rage_skill_this_round_for_rage_gain_block = True
-            army.hero1_rage_skill_used_round = self.round
-            army.hero1_rage_skill_queued_this_round = False
+            if not is_hero2_delayed_trigger:
+                rage_cost = skill_def.get("rage_cost", 1000)
+                army.current_rage -= rage_cost
+                army.current_rage = max(0, army.current_rage)
+                army.army_used_rage_skill_this_round_for_rage_gain_block = True
+                army.hero1_rage_skill_used_round = self.round
+                army.hero1_rage_skill_queued_this_round = False
 
-            if army.hero2_rage_skill_id and len(army.heroes) > 1:
-                army.hero2_rage_skill_primed_for_round = self.round + 2
-        else:
-            if army.hero2_rage_skill_primed_for_round == self.round:
-                army.hero2_rage_skill_primed_for_round = None
+                if army.hero2_rage_skill_id and len(army.heroes) > 1:
+                    army.hero2_rage_skill_primed_for_round = self.round + 2
+            else:
+                if army.hero2_rage_skill_primed_for_round == self.round:
+                    army.hero2_rage_skill_primed_for_round = None
 
-        rage_logic_handler: Optional[RageSkillLogicHandler] = skill_def.get("logic_handler")
-        if rage_logic_handler:
-            handler_event_data = {
-                "is_hero2_delayed_rage": is_hero2_delayed_trigger,
-                "triggering_hero_slot": hero_slot,
-                "current_rage_before_cast": rage_before_cast,
-                "actual_opponent_for_calc": opponent
-            }
-            an_effect_happened_rage, log_details_rage, damage_dealt_by_rage = \
-                rage_logic_handler(army, opponent, skill_def, handler_event_data, self)
-        elif "effects_to_apply" in skill_def:
-            target_army_for_effect = opponent if skill_def.get("target") == "ENEMY" else army
-            applied_details = army._add_effects_from_skill_def(skill_def, target_army_for_effect, army, opponent)
-            if applied_details:
-                an_effect_happened_rage = True
-                for _, desc in applied_details:
-                    log_details_rage.append((desc, None))
-                if skill_def.get("target") == "ENEMY":
-                    for eff_data in skill_def["effects_to_apply"]:
-                        if eff_data.get("effect_type") == EffectType.DAMAGE_OVER_TIME:
-                            damage_dealt_by_rage = True;
-                            break
+            rage_logic_handler: Optional[RageSkillLogicHandler] = skill_def.get("logic_handler")
+            if rage_logic_handler:
+                handler_event_data = {
+                    "is_hero2_delayed_rage": is_hero2_delayed_trigger,
+                    "triggering_hero_slot": hero_slot,
+                    "current_rage_before_cast": rage_before_cast,
+                    "actual_opponent_for_calc": opponent
+                }
+                an_effect_happened_rage, log_details_rage, damage_dealt_by_rage = \
+                    rage_logic_handler(army, opponent, skill_def, handler_event_data, self)
+            elif "effects_to_apply" in skill_def:
+                target_army_for_effect = opponent if skill_def.get("target") == "ENEMY" else army
+                applied_details = army._add_effects_from_skill_def(skill_def, target_army_for_effect, army, opponent)
+                if applied_details:
+                    an_effect_happened_rage = True
+                    for _, desc in applied_details:
+                        log_details_rage.append((desc, None))
+                    if skill_def.get("target") == "ENEMY":
+                        for eff_data in skill_def["effects_to_apply"]:
+                            if eff_data.get("effect_type") == EffectType.DAMAGE_OVER_TIME:
+                                damage_dealt_by_rage = True
+                                break
 
-        if an_effect_happened_rage:
-            self._log_skill_trigger(army, f"{log_prefix}{skill_def['name']}", "Rage Skill Triggered.")
-            for desc_str, dmg_details in log_details_rage:
-                self._log_skill_trigger(army, "  ↳", desc_str, damage_details=dmg_details)
-            army.increment_skill_trigger_count(skill_def["id"])
+            if an_effect_happened_rage:
+                self._log_skill_trigger(army, f"{log_prefix}{skill_def['name']}", "Rage Skill Triggered.")
+                for desc_str, dmg_details in log_details_rage:
+                    self._log_skill_trigger(army, "  ↳", desc_str, damage_details=dmg_details)
+                army.increment_skill_trigger_count(skill_def["id"])
 
-            self._process_skill_triggers(army, opponent, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST,
-                                         event_data={"source_rage_skill_id": skill_to_execute_id,
-                                                     "hero_slot": hero_slot,
-                                                     "opponent_for_shield_calc": opponent})
-            army.activate_queued_effects()
-            if opponent.current_troop_count > 0:
-                opponent.activate_queued_effects()
-
-        if damage_dealt_by_rage and opponent.current_troop_count > 0:
-            self._process_skill_triggers(opponent, army, SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE,
-                                         event_data={'attacking_army_for_tit_for_tat': army,
-                                                     "opponent_for_shield_calc": army})
-            opponent.activate_queued_effects()
-            if army.current_troop_count > 0:
+                self._process_skill_triggers(army, opponent, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST,
+                                             event_data={"source_rage_skill_id": skill_to_execute_id,
+                                                         "hero_slot": hero_slot,
+                                                         "opponent_for_shield_calc": opponent})
                 army.activate_queued_effects()
+                if opponent.current_troop_count > 0:
+                    opponent.activate_queued_effects()
+
+            if damage_dealt_by_rage and opponent.current_troop_count > 0:
+                self._process_skill_triggers(opponent, army, SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE,
+                                             event_data={'attacking_army_for_tit_for_tat': army,
+                                                         "opponent_for_shield_calc": army})
+                opponent.activate_queued_effects()
+                if army.current_troop_count > 0:
+                    army.activate_queued_effects()
+        finally:
+            self.round = orig_round
 
     def _apply_base_rage_gain(self) -> None:
-        """Grant each army 100 rage at end of round unless their Hero 1 rage skill was used or blocked."""
-        if self.round < 1:
-            for army in [self.army1, self.army2]:
-                army.base_rage_awarded_this_round = False
-            return
-
+        """Grant each army 100 rage at end of its own round unless Hero 1 rage skill was used or blocked."""
         for army in [self.army1, self.army2]:
+            local_round = army.continuous_rounds + 1
+            if local_round < 1:
+                army.base_rage_awarded_this_round = False
+                continue
             if army.base_rage_awarded_this_round:
                 continue
-            if (army.hero1_rage_skill_used_round == self.round or
-                    army.hero1_rage_skill_cast_blocked_by_silence_this_round):
+            if (
+                army.hero1_rage_skill_used_round == local_round
+                or army.hero1_rage_skill_cast_blocked_by_silence_this_round
+            ):
                 army.base_rage_awarded_this_round = False
             else:
                 army.current_rage += 100
@@ -601,11 +604,11 @@ class GameSimulator:
                     self.army2, self.army1, is_hero2_delayed_trigger=False
                 )
 
-            if self.army1.hero2_rage_skill_primed_for_round == self.round:
+            if self.army1.hero2_rage_skill_primed_for_round == self.army1.continuous_rounds + 1:
                 self._execute_rage_skills(
                     self.army1, self.army2, is_hero2_delayed_trigger=True
                 )
-            if self.army2.hero2_rage_skill_primed_for_round == self.round:
+            if self.army2.hero2_rage_skill_primed_for_round == self.army2.continuous_rounds + 1:
                 self._execute_rage_skills(
                     self.army2, self.army1, is_hero2_delayed_trigger=True
                 )
@@ -724,12 +727,13 @@ class GameSimulator:
         for army in [self.army1, self.army2]:
             if army.current_troop_count <= 0:
                 continue
+            local_round = army.continuous_rounds + 1
             if (
                 army.hero1_rage_skill_id
                 and not army.hero1_rage_skill_queued_this_round
                 and (
                     army.hero2_rage_skill_primed_for_round is None
-                    or army.hero2_rage_skill_primed_for_round != self.round + 1
+                    or army.hero2_rage_skill_primed_for_round != local_round + 1
                 )
             ):
                 skill_def_h1_rage = self.SKILL_REGISTRY_GLOBAL.get(

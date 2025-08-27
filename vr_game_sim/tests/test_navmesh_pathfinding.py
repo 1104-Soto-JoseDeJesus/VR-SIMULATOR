@@ -33,7 +33,8 @@ def test_battlefield_path_and_snap_to_enemy():
     engine.engage('A1', 'A2')
 
     engine.set_path('A1', [(5.0, 0.0)])
-    engine.tick(1.1)  # slightly more than one second to cross snap threshold
+    engine.tick(1.0)  # move for 1 second; engagement activates at the boundary
+    engine.tick(0.1)  # now snap to opponent with engagement active
 
     assert engine._armies['A1'].position == (approx(5.0), approx(0.0))
     assert engine._armies['A1'].path == []

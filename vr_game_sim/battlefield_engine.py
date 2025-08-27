@@ -181,7 +181,9 @@ class BattlefieldEngine:
         """Assign ``defender`` as the direct target for ``attacker``.
 
         ``defender`` may be ``None`` to clear an existing target. Engagement
-        simulators and graph links are updated to mirror this assignment.
+        simulators and graph links are updated to mirror this assignment.  A
+        :class:`ValueError` is raised when attempting to target an army on the
+        same team as the attacker.
         """
 
         if attacker not in self._armies:
@@ -198,13 +200,18 @@ class BattlefieldEngine:
             # Remove any pending engagement for the old target
             self._pending_engagements.pop((attacker, old_target), None)
 
-        atk_ctx.direct_target = defender
-
         if defender is None:
+            atk_ctx.direct_target = None
             return
 
         if defender not in self._armies:
             raise KeyError("Defender must be registered before engagement")
+
+        def_ctx = self._armies[defender]
+        if def_ctx.team == atk_ctx.team:
+            raise ValueError("Cannot engage armies on the same team")
+
+        atk_ctx.direct_target = defender
 
         # Schedule the engagement to start on the next whole second
         start_time = int(self.time_elapsed) + 1

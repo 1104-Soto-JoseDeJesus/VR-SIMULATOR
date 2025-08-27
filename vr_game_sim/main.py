@@ -44,9 +44,16 @@ from vr_game_sim.skill_definitions import (
 )
 
 # --- Configuration for Save/Load ---
-SETUPS_DIR = "setups"
+# Resolve asset directories relative to this file so the package works even
+# when the current working directory is outside the project root.  Previously
+# the code relied on ``os.getcwd()`` which caused lookup failures (and crashes
+# on some platforms) when running ``python -m vr_game_sim.main`` from another
+# directory.  Using absolute paths ensures setups and histogram outputs are
+# written to the package's folders regardless of where the process starts.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SETUPS_DIR = os.path.join(BASE_DIR, "setups")
+HISTOGRAM_DIR = os.path.join(BASE_DIR, "histograms")
 LAST_SETUP_FILENAME = os.path.join(SETUPS_DIR, "_last_run_setup.json")
-HISTOGRAM_DIR = "histograms"
 # Default size for generated histogram images (width, height in inches)
 # Reduced size so the four histogram images can be displayed together in a
 # 2x2 layout without exceeding a typical screen resolution.

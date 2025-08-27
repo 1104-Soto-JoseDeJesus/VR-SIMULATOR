@@ -10,6 +10,7 @@ army item shows a vertical health bar representing remaining troops.
 
 from pathlib import Path
 import json
+import math
 from typing import List, Optional, Tuple
 
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -18,7 +19,12 @@ from .navmesh import NavMesh
 
 
 class ArmyGraphicsItem(QtWidgets.QGraphicsItemGroup):
-    """Composite graphics item displaying hero portraits and a health bar."""
+    """Composite graphics item displaying hero portraits and a health bar.
+
+    The item handles mouse interaction so that the owning
+    :class:`RealTimeBattleWidget` can react when the user releases the item in
+    a new location.
+    """
 
     def __init__(
         self,
@@ -26,8 +32,11 @@ class ArmyGraphicsItem(QtWidgets.QGraphicsItemGroup):
         secondary_pixmap: Optional[QtGui.QPixmap],
         team_color: QtGui.QColor,
         max_troops: int,
+        controller: "RealTimeBattleWidget",
     ) -> None:
         super().__init__()
+
+        self._controller = controller
 
         self.main_item = QtWidgets.QGraphicsPixmapItem(main_pixmap)
         self.addToGroup(self.main_item)
@@ -68,6 +77,23 @@ class ArmyGraphicsItem(QtWidgets.QGraphicsItemGroup):
         self.max_troops = max(1, max_troops)
         self.current_troops = max_troops
         self._update_bar()
+
+    # ------------------------------------------------------------------
+    # Interaction
+    # ------------------------------------------------------------------
+    def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
+        """Notify the controller that the item was released.
+
+        The underlying ``ItemIsMovable`` flag already moves the item while the
+        user drags it.  On release we simply forward the event so that the
+        ``RealTimeBattleWidget`` can commit the destination and potentially
+        create attack orders.
+        """
+
+        super().mouseReleaseEvent(event)
+        # Inform the controller that this item has been dropped.
+        if self._controller is not None:
+            self._controller.handle_army_drop(self)
 
     def _update_bar(self) -> None:
         """Update the health bar to reflect current troop count."""
@@ -159,6 +185,11 @@ class RealTimeBattleWidget(QtWidgets.QWidget):
             self.scene.addItem(item)
 
         self.armies: List[dict] = []
+        # Radius within which dropping an army near an enemy will create an
+        # attack order.  The value is in scene units and can be tweaked by
+        # tests or callers.
+        self.attack_radius: float = 30.0
+
         self._load_armies()
 
     def _load_hero_pixmap(self, name: Optional[str]) -> Optional[QtGui.QPixmap]:
@@ -190,11 +221,26 @@ class RealTimeBattleWidget(QtWidgets.QWidget):
         team_color = (
             QtCore.Qt.GlobalColor.red if team == 1 else QtCore.Qt.GlobalColor.blue
         )
-        item = ArmyGraphicsItem(main_pix, secondary_pix, QtGui.QColor(team_color), cfg.get("count", 0))
+        item = ArmyGraphicsItem(
+            main_pix,
+            secondary_pix,
+            QtGui.QColor(team_color),
+            cfg.get("count", 0),
+            self,
+        )
         if pos is not None:
             item.setPos(pos)
         self.scene.addItem(item)
-        self.armies.append({"config": cfg, "team": team, "item": item})
+        # Each army keeps track of its current destination and attack target.
+        self.armies.append(
+            {
+                "config": cfg,
+                "team": team,
+                "item": item,
+                "destination": item.pos(),
+                "target": None,
+            }
+        )
 
     def add_army(self) -> None:
         dialog = ArmyDialog(self)
@@ -233,6 +279,50 @@ class RealTimeBattleWidget(QtWidgets.QWidget):
             pos_vals = entry.get("pos", [0, 0])
             pos = QtCore.QPointF(float(pos_vals[0]), float(pos_vals[1]))
             self._add_army_from_config(cfg, team, pos)
+
+    # ------------------------------------------------------------------
+    # Interaction logic
+    # ------------------------------------------------------------------
+    def handle_army_drop(self, item: ArmyGraphicsItem) -> None:
+        """Commit an army's new destination and resolve attack orders."""
+
+        entry = next((e for e in self.armies if e["item"] is item), None)
+        if entry is None:
+            return
+
+        pos = item.pos()
+        entry["destination"] = pos
+
+        nearest = None
+        nearest_dist = self.attack_radius
+        for other in self.armies:
+            if other is entry or other["team"] == entry["team"]:
+                continue
+            other_pos = other["item"].pos()
+            dx = pos.x() - other_pos.x()
+            dy = pos.y() - other_pos.y()
+            dist = math.hypot(dx, dy)
+            if dist < nearest_dist:
+                nearest_dist = dist
+                nearest = other
+
+        if nearest is None:
+            entry["target"] = None
+            return
+
+        enemy_pos = nearest["item"].pos()
+        dx = pos.x() - enemy_pos.x()
+        dy = pos.y() - enemy_pos.y()
+        dist = math.hypot(dx, dy) or 1.0
+        snap_x = enemy_pos.x() + dx / dist * 2
+        snap_y = enemy_pos.y() + dy / dist * 2
+        new_pos = QtCore.QPointF(snap_x, snap_y)
+        item.setPos(new_pos)
+        entry["destination"] = new_pos
+
+        entry["target"] = nearest
+        if nearest.get("target") is None:
+            nearest["target"] = entry
 
     def _refresh_battlefield(self) -> None:
         for entry in self.armies:

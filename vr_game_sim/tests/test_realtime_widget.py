@@ -88,3 +88,47 @@ def test_attack_order_and_retaliation():
     widget.handle_army_drop(defender["item"])
     assert defender["target"] is attacker
 
+
+def test_global_timer_and_join_wait():
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = RealTimeBattleWidget()
+
+    widget._add_army_from_config(_sample_config(), team=1)
+    widget.advance_time(1)
+
+    # Army joining at second 1 should wait until second 2 before acting
+    widget._add_army_from_config(_sample_config(), team=1)
+    assert widget.current_second == 1
+    assert widget.armies[1]["next_action_second"] == 2
+
+
+def test_aggregate_damage_and_idle_reset():
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = RealTimeBattleWidget()
+
+    # Two attackers and one defender
+    widget._add_army_from_config(_sample_config(), team=1)
+    widget._add_army_from_config(_sample_config(), team=1)
+    widget._add_army_from_config(_sample_config(), team=2)
+
+    widget.advance_time(1)
+
+    # Both attackers act in the same second against the defender
+    assert widget.queue_damage(0, 2, 10)
+    assert widget.queue_damage(1, 2, 10)
+
+    widget.advance_time(1)
+
+    defender = widget.armies[2]
+    assert defender["current_troops"] == _sample_config()["count"] - 20
+    # Each attacker advanced their own round counter once
+    assert widget.armies[0]["own_round"] == 1
+    assert widget.armies[1]["own_round"] == 1
+
+    # No further actions; after two more seconds counters reset
+    widget.advance_time(2)
+    assert widget.armies[0]["own_round"] == 0
+    assert widget.armies[1]["own_round"] == 0
+    assert widget.armies[0]["rage"] == 0
+    assert widget.armies[1]["rage"] == 0
+

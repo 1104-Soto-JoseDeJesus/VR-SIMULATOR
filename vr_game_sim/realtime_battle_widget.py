@@ -190,6 +190,16 @@ class RealTimeBattleWidget(QtWidgets.QWidget):
         # tests or callers.
         self.attack_radius: float = 30.0
 
+        # ------------------------------------------------------------------
+        # Real-time battle state
+        # ------------------------------------------------------------------
+        # ``current_second`` represents a global timer shared by every army on
+        # the battlefield.  When new armies join mid-fight they must wait until
+        # the next whole second before taking their first action.  The timer is
+        # advanced via :meth:`advance_time` and is intentionally decoupled from
+        # Qt's event loop so that tests can manipulate it deterministically.
+        self.current_second: int = 0
+
         self._load_armies()
 
     def _load_hero_pixmap(self, name: Optional[str]) -> Optional[QtGui.QPixmap]:
@@ -232,6 +242,8 @@ class RealTimeBattleWidget(QtWidgets.QWidget):
             item.setPos(pos)
         self.scene.addItem(item)
         # Each army keeps track of its current destination and attack target.
+        # In addition, a number of attributes are maintained so that tests can
+        # simulate real-time combat at a per-second granularity.
         self.armies.append(
             {
                 "config": cfg,
@@ -239,6 +251,26 @@ class RealTimeBattleWidget(QtWidgets.QWidget):
                 "item": item,
                 "destination": item.pos(),
                 "target": None,
+                # -- Real-time combat state ---------------------------------
+                # ``current_troops`` mirrors the graphics item's troop count.
+                "current_troops": cfg.get("count", 0),
+                # Next whole second this army may act.  Armies added during an
+                # ongoing battle must wait until ``current_second + 1``.
+                "next_action_second": self.current_second + 1,
+                # Internal round number used by skills that depend on the
+                # army's own round counter.
+                "own_round": 0,
+                # Rage is accumulated once per round based on aggregated
+                # attacker inputs.
+                "rage": 0.0,
+                # Aggregated changes from all attackers during the current
+                # second.  These are committed when ``advance_time`` ticks.
+                "pending_damage": 0.0,
+                "pending_heal": 0.0,
+                "pending_rage": 0.0,
+                "pending_effects": [],
+                # Second when this army last acted. Used for idle detection.
+                "last_action_second": self.current_second,
             }
         )
 
@@ -328,4 +360,86 @@ class RealTimeBattleWidget(QtWidgets.QWidget):
         for entry in self.armies:
             self.scene.removeItem(entry["item"])
         self.armies.clear()
+
+    # ------------------------------------------------------------------
+    # Real-time combat helpers
+    # ------------------------------------------------------------------
+    def queue_damage(
+        self,
+        attacker_index: int,
+        defender_index: int,
+        damage: float,
+        heal: float = 0.0,
+        rage: float = 0.0,
+        effects: Optional[List[str]] = None,
+    ) -> bool:
+        """Aggregate combat input for a defender for the current second.
+
+        Parameters
+        ----------
+        attacker_index:
+            Index of the attacking army in ``self.armies``.
+        defender_index:
+            Index of the defending army in ``self.armies``.
+        damage / heal / rage:
+            Values contributed by the attacker for this second.  They are
+            aggregated on the defender and committed when ``advance_time`` is
+            called.
+        effects:
+            Optional collection of effect names to apply to the defender.
+
+        Returns
+        -------
+        bool
+            ``True`` if the attacker was allowed to act, ``False`` otherwise.
+        """
+
+        if attacker_index >= len(self.armies) or defender_index >= len(self.armies):
+            return False
+        attacker = self.armies[attacker_index]
+        defender = self.armies[defender_index]
+
+        # Enforce the "wait until next whole second" rule.
+        if self.current_second < attacker.get("next_action_second", 0):
+            return False
+
+        defender["pending_damage"] += float(damage)
+        defender["pending_heal"] += float(heal)
+        defender["pending_rage"] += float(rage)
+        if effects:
+            defender["pending_effects"].extend(effects)
+
+        attacker["last_action_second"] = self.current_second
+        attacker["own_round"] += 1
+        attacker["next_action_second"] = self.current_second + 1
+        return True
+
+    def advance_time(self, seconds: int = 1) -> None:
+        """Advance the global timer and resolve aggregated actions.
+
+        This processes any pending damage/healing/effects once per round for
+        each army and also resets rage and round counters for armies that have
+        been idle for at least two seconds.
+        """
+
+        for _ in range(max(0, int(seconds))):
+            self.current_second += 1
+            for entry in self.armies:
+                # Commit aggregated combat inputs
+                net_hp = entry["pending_heal"] - entry["pending_damage"]
+                if net_hp != 0:
+                    entry["current_troops"] = max(0.0, entry["current_troops"] + net_hp)
+                    entry["item"].set_troop_count(int(entry["current_troops"]))
+                entry["rage"] += entry["pending_rage"]
+
+                # Clear pending values for next round
+                entry["pending_damage"] = 0.0
+                entry["pending_heal"] = 0.0
+                entry["pending_rage"] = 0.0
+                entry["pending_effects"] = []
+
+                # Handle idle armies: reset rage and own round if idle >=2 seconds
+                if self.current_second - entry["last_action_second"] >= 2:
+                    entry["rage"] = 0.0
+                    entry["own_round"] = 0
 

@@ -697,6 +697,10 @@ class PageLayoutWidget(QtWidgets.QGraphicsView):
         gradient.setColorAt(1, QtGui.QColor("#1e1e1e"))
         scene.setBackgroundBrush(gradient)
         self.setScene(scene)
+
+        # give the view itself a contrasting background so the page edges are
+        # easy to distinguish from the surrounding window
+        self.setBackgroundBrush(QtGui.QColor("#2e2e2e"))
         self.setAcceptDrops(True)
         self.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
         self.setDragMode(QtWidgets.QGraphicsView.DragMode.RubberBandDrag)

@@ -2037,20 +2037,21 @@ class MainWindow(QtWidgets.QMainWindow):
             arr[mask, 3] = 0
             return QtGui.QPixmap.fromImage(image)
 
-        image_files = [
-            "own_remaining_troops.png",
-            "enemy_remaining_troops.png",
-            "rounds_to_battle_end.png",
-            "victory_distribution.png",
-        ]
         base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
         hist_pixmaps: dict[str, QtGui.QPixmap] = {}
-        for fname in image_files:
+        try:
+            files = sorted(os.listdir(base_hist_dir))
+        except OSError:
+            files = []
+        for fname in files:
+            if not fname.lower().endswith(".png"):
+                continue
             path = os.path.join(base_hist_dir, fname)
-            if os.path.exists(path):
-                pm = QtGui.QPixmap(path)
-                pm = make_transparent(pm)
-                hist_pixmaps[os.path.splitext(fname)[0]] = pm
+            pm = QtGui.QPixmap(path)
+            if pm.isNull():
+                continue
+            pm = make_transparent(pm)
+            hist_pixmaps[os.path.splitext(fname)[0]] = pm
         if not hist_pixmaps:
             return None, {}
 
@@ -2219,30 +2220,53 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _render_army_composition_pixmap(self) -> QtGui.QPixmap:
         cfgs = [self.army1_frame.build_config(), self.army2_frame.build_config()]
-        lines: list[str] = []
+        lines: list[tuple[str, QtGui.QColor]] = []
         for idx, cfg in enumerate(cfgs, start=1):
-            lines.append(f"Army {idx}: {cfg['army_name']}")
+            header_color = QtGui.QColor("#6fa8dc") if idx == 1 else QtGui.QColor("#f4b183")
+            lines.append((f"Army {idx}: {cfg['army_name']}", header_color))
             lines.append(
-                f"  Unit: {cfg['unit_type']} T{cfg['tier']}  Count: {cfg['count']:,}")
+                (
+                    f"  Unit: {cfg['unit_type']} T{cfg['tier']}  Count: {cfg['count']:,}",
+                    QtGui.QColor("white"),
+                )
+            )
             lines.append(
-                f"  Atk/Def/HP mods: {cfg['atk_mod']:+.1f}/{cfg['def_mod']:+.1f}/{cfg['hp_mod']:+.1f}")
+                (
+                    f"  Atk/Def/HP mods: {cfg['atk_mod']:+.1f}/{cfg['def_mod']:+.1f}/{cfg['hp_mod']:+.1f}",
+                    QtGui.QColor("white"),
+                )
+            )
             heroes = ", ".join(h.get("hero_name_or_preset", "") for h in cfg["heroes"]) or "None"
-            lines.append(f"  Heroes: {heroes}")
-            lines.append("")
-        font = QtGui.QFont("Times New Roman", 160)
-        fm = QtGui.QFontMetrics(font)
-        width = max(fm.horizontalAdvance(line) for line in lines)
-        height = fm.height() * len(lines)
+            lines.append((f"  Heroes: {heroes}", QtGui.QColor("white")))
+            lines.append(("", QtGui.QColor("white")))
+
+        title = "Army Composition"
+        title_font = QtGui.QFont("Times New Roman", 180)
+        title_font.setBold(True)
+        body_font = QtGui.QFont("Times New Roman", 160)
+        fm_body = QtGui.QFontMetrics(body_font)
+        fm_title = QtGui.QFontMetrics(title_font)
+
+        width = max(
+            fm_title.horizontalAdvance(title),
+            *(fm_body.horizontalAdvance(text) for text, _ in lines)
+        )
+        height = fm_title.height() + fm_body.height() * len(lines)
         margin = 80
         pix = QtGui.QPixmap(width + margin * 2, height + margin * 2)
         pix.fill(QtCore.Qt.GlobalColor.transparent)
         painter = QtGui.QPainter(pix)
+        painter.fillRect(pix.rect(), QtGui.QColor(0, 0, 0, 160))
+        painter.setFont(title_font)
         painter.setPen(QtGui.QColor("white"))
-        painter.setFont(font)
-        y = margin + fm.ascent()
-        for line in lines:
-            painter.drawText(margin, y, line)
-            y += fm.height()
+        y = margin + fm_title.ascent()
+        painter.drawText(margin, y, title)
+        y += fm_title.height()
+        painter.setFont(body_font)
+        for text, color in lines:
+            painter.setPen(color)
+            painter.drawText(margin, y + fm_body.ascent(), text)
+            y += fm_body.height()
         painter.end()
         return pix
 

@@ -1668,17 +1668,29 @@ class ArmyGraphicsItem(QtWidgets.QGraphicsItem):
         super().__init__()
         self.army_name = army_name
         self.drop_callback = drop_callback
-        self.main_pixmap = QtGui.QPixmap(main_image).scaled(
-            size, size, QtCore.Qt.AspectRatioMode.KeepAspectRatio, QtCore.Qt.TransformationMode.SmoothTransformation
-        )
-        self.secondary_pixmap = None
-        if secondary_image:
-            self.secondary_pixmap = QtGui.QPixmap(secondary_image).scaled(
-                size // 2,
-                size // 2,
+        pix = QtGui.QPixmap(main_image)
+        if pix.isNull():
+            pix = QtGui.QPixmap(size, size)
+            pix.fill(QtGui.QColor("gray"))
+        else:
+            pix = pix.scaled(
+                size,
+                size,
                 QtCore.Qt.AspectRatioMode.KeepAspectRatio,
                 QtCore.Qt.TransformationMode.SmoothTransformation,
             )
+        self.main_pixmap = pix
+
+        self.secondary_pixmap = None
+        if secondary_image:
+            sec = QtGui.QPixmap(secondary_image)
+            if not sec.isNull():
+                self.secondary_pixmap = sec.scaled(
+                    size // 2,
+                    size // 2,
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
         self.size = size
         self.health_ratio = 1.0
         self.setFlags(

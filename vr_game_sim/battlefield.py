@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, Dict, List, Tuple, Set
+from typing import Any, Dict, List, Tuple, Set, Optional
 
 from .game_simulator import GameSimulator
 
@@ -28,6 +28,10 @@ class Battlefield:
         self.teams: Dict[str, set[str]] = defaultdict(set)
         self.engagements: Dict[Tuple[str, str], GameSimulator] = {}
         self._combat_reports: Dict[Tuple[str, str], List[Any]] = defaultdict(list)
+        # Track targeting relationships and reactive skill timing.
+        self.direct_targets: Dict[str, Optional[str]] = {}
+        self.indirect_attackers: Dict[str, Set[str]] = defaultdict(set)
+        self._last_reactive_time: Dict[str, int] = {}
 
         # Track when an engagement becomes active so that newly registered
         # fights only trigger on the *next* tick boundary.
@@ -45,6 +49,9 @@ class Battlefield:
         """Register ``army`` to ``team`` on the battlefield."""
         self.armies[army.name] = army
         self.teams[team].add(army.name)
+        # initialise tracking structures for the army
+        self.direct_targets.setdefault(army.name, None)
+        self.indirect_attackers.setdefault(army.name, set())
 
     def remove_army(self, army_name: str) -> None:
         """Remove an army from the battlefield and clear related engagements."""
@@ -59,6 +66,16 @@ class Battlefield:
             self._combat_reports.pop(pair, None)
             self._engagement_start_time.pop(pair, None)
 
+        # clean up targeting information
+        self.direct_targets.pop(army_name, None)
+        for k, v in list(self.direct_targets.items()):
+            if v == army_name:
+                self.direct_targets[k] = None
+        self.indirect_attackers.pop(army_name, None)
+        for attackers in self.indirect_attackers.values():
+            attackers.discard(army_name)
+        self._last_reactive_time.pop(army_name, None)
+
     # ------------------------------------------------------------------
     # Engagement management
     # ------------------------------------------------------------------
@@ -71,6 +88,13 @@ class Battlefield:
         # The engagement only becomes active on the next tick so that an army's
         # first action is aligned with the tick boundary.
         self._engagement_start_time[key] = self.current_time + 1
+        # update targeting relationships
+        if self.direct_targets.get(attacker_name) is None:
+            self.direct_targets[attacker_name] = defender_name
+        if self.direct_targets.get(defender_name) is None:
+            self.direct_targets[defender_name] = attacker_name
+        elif self.direct_targets.get(defender_name) != attacker_name:
+            self.indirect_attackers[defender_name].add(attacker_name)
 
     # ------------------------------------------------------------------
     # Simulation control
@@ -96,9 +120,24 @@ class Battlefield:
         engaged_this_tick: Set[str] = set()
         for defender_name, sims in engagements_by_defender.items():
             engaged_this_tick.add(defender_name)
+            direct_attacker = self.direct_targets.get(defender_name)
+            reactive_triggered = self._last_reactive_time.get(defender_name) == self.current_time
             for attacker_name, sim in sims:
                 engaged_this_tick.add(attacker_name)
-                report = sim.simulate_round()
+                if attacker_name == direct_attacker or direct_attacker is None:
+                    report = sim.simulate_round()
+                    self.direct_targets.setdefault(defender_name, attacker_name)
+                else:
+                    self.indirect_attackers[defender_name].add(attacker_name)
+                    if not reactive_triggered:
+                        if hasattr(sim, "simulate_reactive_round"):
+                            report = sim.simulate_reactive_round()
+                        else:
+                            report = {}
+                        self._last_reactive_time[defender_name] = self.current_time
+                        reactive_triggered = True
+                    else:
+                        report = {}
                 self._combat_reports[(attacker_name, defender_name)].append(report)
 
         for army_name in engaged_this_tick:

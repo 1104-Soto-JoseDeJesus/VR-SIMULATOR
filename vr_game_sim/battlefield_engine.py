@@ -31,7 +31,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from math import hypot
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .army_composition import Army
 from .game_simulator import GameSimulator
@@ -88,6 +88,14 @@ class BattlefieldEngine:
         self._sub_accumulator = 0.0
         self.time_elapsed = 0.0
 
+        # Centralised army state tracking for broadcasting between participants.
+        # _state_cache stores a lightweight signature to detect changes while
+        # _pending_state_updates keeps full snapshots to broadcast on the next
+        # tick.  Listeners can subscribe via :meth:`add_state_listener`.
+        self._state_cache: Dict[str, Tuple] = {}
+        self._pending_state_updates: Dict[str, Dict[str, Any]] = {}
+        self._state_listeners: List[Callable[[str, Dict[str, Any]], None]] = []
+
     # ------------------------------------------------------------------
     # Army management
     # ------------------------------------------------------------------
@@ -124,6 +132,47 @@ class BattlefieldEngine:
         """Assign a full waypoint ``path`` to ``army_name``."""
         if army_name in self._armies:
             self._armies[army_name].path = list(path)
+
+    # ------------------------------------------------------------------
+    # State broadcasting
+    # ------------------------------------------------------------------
+    def add_state_listener(self, listener: Callable[[str, Dict[str, Any]], None]) -> None:
+        """Subscribe to state updates for armies.
+
+        ``listener`` will be called with ``(army_name, state_dict)`` whenever an
+        army's active effects, shield HP or rage changes.  The broadcast occurs
+        before the next tick completes.
+        """
+
+        self._state_listeners.append(listener)
+
+    def _snapshot_state(self, army: Army) -> Dict[str, Any]:
+        return {
+            'active_effects': list(army.active_effects),
+            'shield_hp': army.get_current_shield_hp(),
+            'rage': army.current_rage,
+        }
+
+    def _state_signature(self, army: Army) -> Tuple:
+        effects_sig = tuple(sorted((str(e.id), round(e.magnitude, 3), e.duration)
+                                   for e in army.active_effects))
+        shield = round(army.get_current_shield_hp(), 3)
+        rage = round(army.current_rage, 3)
+        return effects_sig, shield, rage
+
+    def _queue_state_update(self, army: Army) -> None:
+        sig = self._state_signature(army)
+        if self._state_cache.get(army.name) != sig:
+            self._state_cache[army.name] = sig
+            self._pending_state_updates[army.name] = self._snapshot_state(army)
+
+    def _flush_state_updates(self) -> None:
+        if not self._pending_state_updates:
+            return
+        for name, state in self._pending_state_updates.items():
+            for listener in self._state_listeners:
+                listener(name, state)
+        self._pending_state_updates.clear()
 
     # ------------------------------------------------------------------
     # Engagement handling
@@ -183,6 +232,9 @@ class BattlefieldEngine:
         while self._round_accumulator >= 1.0:
             self._commit_rounds()
             self._round_accumulator -= 1.0
+
+        # Push any queued defender state updates to listeners.
+        self._flush_state_updates()
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -270,6 +322,8 @@ class BattlefieldEngine:
                 # No recent combat – reset round counter
                 ctx.internal_round = 0
 
+            self._queue_state_update(army)
+
     def _simulate_one_round(self, sim: GameSimulator) -> None:
         """Very small round simulation using :class:`GameSimulator` internals."""
         if sim.army1.current_troop_count <= 0 or sim.army2.current_troop_count <= 0:
@@ -299,6 +353,10 @@ class BattlefieldEngine:
 
         atk.commit_pending_healing_and_damage()
         dfd.commit_pending_healing_and_damage()
+
+        # Queue broadcasts for any state changes to either army.
+        self._queue_state_update(atk)
+        self._queue_state_update(dfd)
 
         # Record latest engagement time for both armies
         self._armies[atk.name].last_engaged_time = self.time_elapsed

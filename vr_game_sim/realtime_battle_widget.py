@@ -225,8 +225,12 @@ class RealTimeBattleWidget(QtWidgets.QWidget):
 
         main_pix = self._load_hero_pixmap(main_name)
         if main_pix is None:
-            return
+            main_pix = QtGui.QPixmap(64, 92)
+            main_pix.fill(QtCore.Qt.GlobalColor.lightGray)
         secondary_pix = self._load_hero_pixmap(secondary_name)
+        if secondary_pix is None and secondary_name:
+            secondary_pix = QtGui.QPixmap(64, 92)
+            secondary_pix.fill(QtCore.Qt.GlobalColor.lightGray)
 
         team_color = (
             QtCore.Qt.GlobalColor.red if team == 1 else QtCore.Qt.GlobalColor.blue

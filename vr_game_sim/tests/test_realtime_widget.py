@@ -53,6 +53,17 @@ def test_save_and_load(tmp_path):
     assert item.health_fg.rect().height() == height / 2
 
 
+def test_add_army_without_hero():
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    widget = RealTimeBattleWidget()
+    cfg = _sample_config()
+    cfg["heroes"] = []
+    widget._add_army_from_config(cfg, team=1)
+    assert len(widget.armies) == 1
+    item = widget.armies[0]["item"]
+    assert not item.main_item.pixmap().isNull()
+
+
 def test_attack_order_and_retaliation():
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     widget = RealTimeBattleWidget()

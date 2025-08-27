@@ -31,6 +31,7 @@ class MultiArmySimulator:
         self.armies = armies
         self.active_duels: List[Duel] = []
         self.min_spacing = float(min_spacing)
+        self.current_round = 0
 
     # ------------------------------------------------------------------
     def _clear_targeting(self, army: Army) -> None:
@@ -84,10 +85,14 @@ class MultiArmySimulator:
         random.shuffle(duels)
         for duel in duels:
             duel.time_acc += dt
+        if any(duel.time_acc >= 1.0 for duel in duels):
+            self.current_round += 1
+        for duel in duels:
             while duel.time_acc >= 1.0:
                 duel.time_acc -= 1.0
                 duel.sync_from_armies()
                 duel.allow_b_attack = duel.army_b.direct_target is duel.army_a
+                duel.simulator.round = self.current_round - 1
                 result = duel.simulate_round(reset_triggers=False)
                 if not result:
                     finished_duels.append(duel)

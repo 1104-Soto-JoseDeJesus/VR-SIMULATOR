@@ -132,3 +132,39 @@ def test_armies_engage_within_radius():
     sim.set_targeting(atk, defn)
     sim.step()
     assert len(sim.active_duels) == 1
+
+
+def test_late_engagement_rounds_sync():
+    battlefield = Battlefield(50, 50)
+    defender = Army("DEF", Unit("infantry", 5, 5000))
+    defender.team = 2
+    early = Army("EAR", Unit("infantry", 5, 5000))
+    early.team = 1
+    late = Army("LATE", Unit("infantry", 5, 5000))
+    late.team = 1
+
+    battlefield.place_army(defender, 25, 25)
+    battlefield.place_army(early, 25, 30)
+    battlefield.place_army(late, 25, 45)
+
+    early.set_destination((25, 25))
+    late.set_destination((25, 25))
+
+    sim = MultiArmySimulator(battlefield, [early, late, defender])
+    sim.set_targeting(early, defender)
+    sim.set_targeting(late, defender)
+
+    # Run until the late attacker reaches the defender and the duel is created
+    for _ in range(100):
+        sim.step()
+        if len(defender.active_duels) == 2:
+            break
+
+    assert len(defender.active_duels) == 2
+
+    prev_round = sim.current_round
+    sim.step()  # process the first round with both attackers engaged
+    assert sim.current_round == prev_round + 1
+    assert sim.current_round > 1
+    assert f"Round {sim.current_round}" in late.battle_reports[0]
+    assert f"Round {sim.current_round}" in early.battle_reports[-1]

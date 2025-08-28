@@ -69,7 +69,7 @@ class GameSimulator:
         lines: List[str] = []
         for army in [self.army1, self.army2]:
             lines.append(
-                f"\n{army.name} active effects (Rage: {army.current_rage:.0f}, Unrevivable: {round(army.unrevivable_troops)}):")
+                f"\n{army.name} active effects (Troops: {army.current_troop_count}, Rage: {army.current_rage:.0f}, Unrevivable: {round(army.unrevivable_troops)}):")
             if not army.active_effects:
                 lines.append("  None")
                 continue
@@ -638,6 +638,8 @@ class GameSimulator:
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 
+            self.army1.commit_pending_healing_and_damage()
+            self.army2.commit_pending_healing_and_damage()
             active_lines = self._log_active_effects_for_report()
             self.report_builder.emit_round(
                 self.round,
@@ -645,10 +647,8 @@ class GameSimulator:
                 self.round_skill_triggers_log,
                 active_effects=active_lines,
             )
-
-            self.army1.commit_pending_healing_and_damage()
-            self.army2.commit_pending_healing_and_damage()
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
+            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+                break
 
             for army, opponent in [(self.army1, self.army2), (self.army2, self.army1)]:
                 if army.current_troop_count <= 0: continue

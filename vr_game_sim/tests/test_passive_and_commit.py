@@ -4,6 +4,8 @@ from vr_game_sim.army_composition import Army
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.hero_definition import Hero, HERO_PRESETS
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
+from vr_game_sim.game_simulator import GameSimulator
+from vr_game_sim.report_builder import ReportBuilder
 
 
 def make_army_with_laird(name: str) -> Army:
@@ -32,4 +34,15 @@ def test_passive_effects_and_commit_logged_same_round():
     assert len(rounds) == 1
     round1 = rounds[0]
     assert any('Holy Shield Boost' in line for line in round1['active_effects'])
+    assert any(tr['skill_name'] == 'Damage Commitment' for tr in round1['skill_triggers']['A'])
+
+
+def test_simulator_commit_logged_same_round():
+    atk = Army('A', Unit('pikemen', 5, initial_count=1000))
+    dfd = Army('B', Unit('archers', 5, initial_count=1000))
+    rb = ReportBuilder(use_color=False)
+    sim = GameSimulator(atk, dfd, rb)
+    sim.simulate_battle()
+    rounds = rb.get_rounds()
+    round1 = rounds[0]
     assert any(tr['skill_name'] == 'Damage Commitment' for tr in round1['skill_triggers']['A'])

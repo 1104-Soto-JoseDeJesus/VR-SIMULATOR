@@ -135,6 +135,16 @@ class BattlefieldEngine:
         ``shared_effects`` – if provided – are added to the team's shared effect
         pool and applied to all current members of the team.
         """
+        # Armies are keyed by their name inside the engine.  Previously adding
+        # a second army with an identical name would silently overwrite the
+        # existing entry which effectively "removed" the first army.  This made
+        # it appear as if only a single army could be registered per team when
+        # default names were used.  To prevent this confusing behaviour we now
+        # explicitly guard against duplicate names and raise a ``ValueError``
+        # instead of overwriting existing entries.
+
+        if army.name in self._armies:
+            raise ValueError(f"Army with name '{army.name}' already exists")
 
         ctx = _ArmyContext(army=army, team=team, position=position,
                            path=[], speed=speed)

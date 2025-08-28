@@ -2510,15 +2510,38 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def update_battlefield_reports(self) -> None:
         """Populate the battlefield report list from the engine."""
-        self.bf_report_list.clear()
         builder = getattr(self.battlefield_tab, "report_builder", None)
         if not builder:
             return
-        for key in builder.get_reports().keys():
+
+        # Preserve the currently selected report so the list doesn't reset while
+        # the battlefield engine is running.  The engine refreshes this list
+        # every tick which previously cleared the selection, making it
+        # impossible to read any report.
+        current_item = self.bf_report_list.currentItem()
+        current_key = (
+            current_item.data(QtCore.Qt.ItemDataRole.UserRole)
+            if current_item is not None
+            else None
+        )
+
+        # Determine if the list actually changed compared to the last refresh
+        existing_keys = [
+            self.bf_report_list.item(i).data(QtCore.Qt.ItemDataRole.UserRole)
+            for i in range(self.bf_report_list.count())
+        ]
+        new_keys = list(builder.get_reports().keys())
+        if existing_keys == new_keys:
+            return
+
+        self.bf_report_list.clear()
+        for key in new_keys:
             atk, dfd = key
             item = QtWidgets.QListWidgetItem(f"{atk} vs {dfd}")
             item.setData(QtCore.Qt.ItemDataRole.UserRole, key)
             self.bf_report_list.addItem(item)
+            if key == current_key:
+                self.bf_report_list.setCurrentItem(item)
 
     def _display_selected_bf_report(
         self, current: QtWidgets.QListWidgetItem | None

@@ -439,8 +439,8 @@ class BattlefieldEngine:
                 self._graph[dfd].add(atk)
                 self._pending_engagements.pop((atk, dfd), None)
 
-        # Reset per-round skill and rage tracking to allow reactive skills to
-        # fire once across all engagements.
+        # Reset per-round bookkeeping so reactive/round based skills only
+        # fire once across all engagements and rage gain can be tracked.
         for ctx in self._armies.values():
             army = ctx.army
             army.triggered_skills_this_round.clear()
@@ -505,18 +505,26 @@ class BattlefieldEngine:
         for name in defeated:
             self._remove_army(name)
 
-        # Update internal rounds and grant base rage to armies that have
-        # participated in combat recently (within the last 2 seconds).
+        # Update internal round counters for armies that fought recently.  The
+        # actual rage gain is handled within ``_simulate_one_round`` via the
+        # simulator's internal logic which mirrors the behaviour of the full
+        # duel simulator.  Armies that have been idle for more than two seconds
+        # lose their round progress and rage.
         for ctx in self._armies.values():
             army = ctx.army
             time_since = self.time_elapsed - ctx.last_engaged_time
             if time_since <= 2:
                 ctx.internal_round += 1
-                army.current_rage += 100
-                army.rage_added_this_round += 100
+                # Armies that were idle this round (no simulator processed
+                # combat for them) still receive base rage during the two second
+                # grace period after leaving combat.  ``last_engaged_time`` is
+                # only updated when a round is actually simulated, so a smaller
+                # value indicates we didn't fight this tick.
+                if army.rage_added_this_round == 0 and ctx.last_engaged_time < self.time_elapsed:
+                    army.current_rage += 100
+                    army.rage_added_this_round += 100
                 army.rage_gained_history.append(army.rage_added_this_round)
             else:
-                # No recent combat – reset round counter and rage
                 ctx.internal_round = 0
                 army.current_rage = 0.0
 
@@ -530,36 +538,76 @@ class BattlefieldEngine:
 
         atk, dfd = sim.army1, sim.army2
 
-        # Army1 basic attack
-        sim._process_skill_triggers(atk, dfd, SkillTriggerType.ON_BASIC_ATTACK,
-                                    event_data={'opponent_for_shield_calc': dfd})
+        # --- Start of round processing & round based skill triggers ---
+        for army, opponent in ((atk, dfd), (dfd, atk)):
+            if army.current_troop_count <= 0:
+                continue
+            army.activate_queued_effects()
+            army.apply_start_of_round_rage_deductions()
+            army.process_periodic_effects('start_of_round', opponent=opponent)
+            army.activate_queued_effects()
+            sim._process_skill_triggers(
+                army,
+                opponent,
+                SkillTriggerType.CHANCE_PER_ROUND,
+                event_data={'opponent_for_shield_calc': opponent},
+            )
+            army.activate_queued_effects()
+
+        # Queue rage skills if the threshold has been reached after start of round
+        for army in (atk, dfd):
+            if (
+                army.current_troop_count > 0
+                and army.hero1_rage_skill_id
+                and not army.hero1_rage_skill_queued_this_round
+                and (
+                    army.hero2_rage_skill_primed_for_round is None
+                    or army.hero2_rage_skill_primed_for_round != sim.round
+                )
+            ):
+                skill_def = sim.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
+                if skill_def and army.current_rage >= skill_def.get("rage_cost", 1000):
+                    army.hero1_rage_skill_queued_this_round = True
+
+        # Execute any queued rage skills.
+        if atk.current_troop_count > 0 and dfd.current_troop_count > 0:
+            if atk.hero1_rage_skill_queued_this_round:
+                sim._execute_rage_skills(atk, dfd, is_hero2_delayed_trigger=False)
+            if dfd.hero1_rage_skill_queued_this_round:
+                sim._execute_rage_skills(dfd, atk, is_hero2_delayed_trigger=False)
+            if atk.hero2_rage_skill_primed_for_round == sim.round:
+                sim._execute_rage_skills(atk, dfd, is_hero2_delayed_trigger=True)
+            if dfd.hero2_rage_skill_primed_for_round == sim.round:
+                sim._execute_rage_skills(dfd, atk, is_hero2_delayed_trigger=True)
+
+        # --- Basic attack sequences ---
+        sim._process_skill_triggers(
+            atk, dfd, SkillTriggerType.ON_BASIC_ATTACK,
+            event_data={'opponent_for_shield_calc': dfd}
+        )
         atk.activate_queued_effects()
         dfd.activate_queued_effects()
         sim._calculate_and_log_attack(atk, dfd, is_counter=False)
 
         if dfd.current_troop_count > 0:
-            # Defender reacts to being hit and may counter attack
-            sim._process_skill_triggers(dfd, atk, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
-                                        event_data={'opponent_for_shield_calc': atk})
+            sim._process_skill_triggers(
+                dfd, atk, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+                event_data={'opponent_for_shield_calc': atk}
+            )
             dfd.activate_queued_effects()
             atk.activate_queued_effects()
-            sim._process_skill_triggers(dfd, atk, SkillTriggerType.ON_COUNTER_ATTACK,
-                                        event_data={'opponent_for_shield_calc': atk})
+            sim._process_skill_triggers(
+                dfd, atk, SkillTriggerType.ON_COUNTER_ATTACK,
+                event_data={'opponent_for_shield_calc': atk}
+            )
             dfd.activate_queued_effects()
             atk.activate_queued_effects()
             sim._calculate_and_log_attack(dfd, atk, is_counter=True)
 
-        dfd_ctx = self._armies.get(dfd.name)
-        # Army2 basic attack only if defender targets attacker
-        if (
-            atk.current_troop_count > 0
-            and dfd.current_troop_count > 0
-            and dfd_ctx is not None
-            and dfd_ctx.direct_target == atk.name
-        ):
+        if atk.current_troop_count > 0 and dfd.current_troop_count > 0:
             sim._process_skill_triggers(
                 dfd, atk, SkillTriggerType.ON_BASIC_ATTACK,
-                event_data={"opponent_for_shield_calc": atk}
+                event_data={'opponent_for_shield_calc': atk}
             )
             dfd.activate_queued_effects()
             atk.activate_queued_effects()
@@ -568,17 +616,29 @@ class BattlefieldEngine:
             if atk.current_troop_count > 0:
                 sim._process_skill_triggers(
                     atk, dfd, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
-                    event_data={"opponent_for_shield_calc": dfd}
+                    event_data={'opponent_for_shield_calc': dfd}
                 )
                 atk.activate_queued_effects()
                 dfd.activate_queued_effects()
                 sim._process_skill_triggers(
                     atk, dfd, SkillTriggerType.ON_COUNTER_ATTACK,
-                    event_data={"opponent_for_shield_calc": dfd}
+                    event_data={'opponent_for_shield_calc': dfd}
                 )
                 atk.activate_queued_effects()
                 dfd.activate_queued_effects()
                 sim._calculate_and_log_attack(atk, dfd, is_counter=True)
+
+        # End of round processing and base rage gain
+        for army, opponent in ((atk, dfd), (dfd, atk)):
+            if army.current_troop_count <= 0:
+                continue
+            army.process_periodic_effects('end_of_round', opponent=opponent)
+            army.activate_queued_effects()
+
+        sim._apply_base_rage_gain()
+        for army in (atk, dfd):
+            army.army_used_rage_skill_this_round_for_rage_gain_block = False
+            army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
 
         # Record latest engagement time for both armies
         self._armies[atk.name].last_engaged_time = self.time_elapsed

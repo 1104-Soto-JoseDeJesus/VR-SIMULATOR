@@ -1,0 +1,71 @@
+from vr_game_sim.battlefield_engine import BattlefieldEngine
+from vr_game_sim.hero_definition import Hero
+from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
+from vr_game_sim.army_composition import Army
+from vr_game_sim.unit_definition import Unit
+
+
+def make_basic_army(name: str):
+    unit = Unit("pikemen", 5, initial_count=1000)
+    return Army(name, unit)
+
+
+def make_rage_army(name: str) -> Army:
+    hero = Hero("Tester", [], ["base_skill_snakes_frenzy"], [], SKILL_REGISTRY_GLOBAL)
+    unit = Unit("pikemen", 5, initial_count=1000)
+    return Army(name, unit, heroes=[hero])
+
+
+def make_round_skill_army(name: str) -> Army:
+    hero = Hero("Tester", ["talent_godly_wrath"], [], [], SKILL_REGISTRY_GLOBAL)
+    unit = Unit("pikemen", 5, initial_count=1000)
+    return Army(name, unit, heroes=[hero])
+
+
+def test_rage_skill_executes_in_battlefield():
+    engine = BattlefieldEngine()
+    attacker = make_rage_army("A")
+    defender = make_basic_army("B")
+    engine.add_army(attacker, "red", position=(0, 0), speed=0)
+    engine.add_army(defender, "blue", position=(2, 0), speed=0)
+
+    attacker.current_rage = 1000
+
+    engine.engage("A", "B")
+    engine.tick(1.0)
+
+    assert attacker.current_rage == 0
+    assert attacker.skill_trigger_counts.get("base_skill_snakes_frenzy", 0) == 1
+    assert defender.current_troop_count < 1000
+
+
+def test_chance_per_round_skill_triggers():
+    engine = BattlefieldEngine()
+    attacker = make_round_skill_army("A")
+    defender = make_basic_army("B")
+    engine.add_army(attacker, "red", position=(0, 0), speed=0)
+    engine.add_army(defender, "blue", position=(2, 0), speed=0)
+
+    engine.engage("A", "B")
+    engine.tick(1.0)  # round 1
+    engine.tick(1.0)  # round 2
+
+    assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 1
+
+
+def test_defender_attacks_even_if_targeting_other():
+    engine = BattlefieldEngine()
+    army_a = make_basic_army("A")
+    army_b = make_basic_army("B")
+    army_c = make_basic_army("C")
+
+    engine.add_army(army_a, "red", position=(100, 0), speed=0)
+    engine.add_army(army_b, "red", position=(0, 0), speed=0)
+    engine.add_army(army_c, "blue", position=(2, 0), speed=0)
+
+    engine.engage("A", "C")
+    engine.engage("B", "C")
+    engine.tick(1.0)
+
+    assert army_b.current_troop_count < 1000
+

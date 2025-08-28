@@ -313,7 +313,13 @@ class BattlefieldEngine:
         # If the defender is idle, keep them stationary until combat begins but
         # do not preemptively assign a direct target.  The first attacker to
         # actually arrive and engage will become the defender's target.
-        if def_ctx.direct_target is None and def_ctx.team != atk_ctx.team:
+        #
+        # Previously this block ran even when the defender was already moving
+        # along a waypoint path which caused them to immediately stop once an
+        # enemy targeted them.  By additionally checking that the defender has
+        # no active path we ensure only truly idle armies are frozen in place
+        # while moving armies continue towards their destination.
+        if def_ctx.direct_target is None and def_ctx.team != atk_ctx.team and not def_ctx.path:
             def_ctx.pursue_target = False
             def_ctx.path.clear()
 

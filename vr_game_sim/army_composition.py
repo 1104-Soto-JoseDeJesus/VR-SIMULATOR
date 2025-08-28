@@ -747,16 +747,6 @@ class Army:
         self.upcoming_effects.clear()
 
     def decrement_effect_durations(self):
-        """Reduce durations of all active effects.
-
-        Effects with ``duration == -1`` are permanent and simply have their
-        ``applied_this_round`` flag cleared.  All other effects have their
-        duration decreased once at the start of each new round regardless of
-        when they were applied.  This ensures that buffs triggered in the
-        previous round immediately begin counting down on the very next round
-        instead of appearing static for an extra round in battle reports.
-        """
-
         next_active_effects = []
         for eff in self.active_effects:
             if eff.duration == -1:
@@ -764,11 +754,14 @@ class Army:
                 next_active_effects.append(eff)
                 continue
 
-            eff.duration -= 1
-            eff.applied_this_round = False
-            if eff.duration >= 0:
-                next_active_effects.append(eff)
-
+            if eff.applied_this_round:
+                eff.applied_this_round = False
+                if eff.duration >= 0:
+                    next_active_effects.append(eff)
+            else:
+                eff.duration -= 1
+                if eff.duration >= 0:
+                    next_active_effects.append(eff)
         self.active_effects = next_active_effects
 
     def apply_start_of_round_rage_deductions(self):

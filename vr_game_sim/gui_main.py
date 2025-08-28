@@ -9,6 +9,7 @@ import math
 import json
 from functools import partial
 import time
+import re
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
@@ -2588,13 +2589,19 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         rounds = builder.get_rounds().get(key, [])
         text = builder.get_reports().get(key, "")
-        for r in rounds:
-            gr = r.get("defender_global_round")
-            if gr is not None:
-                text = text.replace(
-                    f"Round {r['round']}",
-                    f"Round {r['round']} (Defender Round {gr})",
-                )
+
+        # Replace only whole-round lines to avoid nested substitutions
+        if text:
+            lines = text.splitlines()
+            for idx, line in enumerate(lines):
+                stripped = line.strip()
+                for r in rounds:
+                    gr = r.get("defender_global_round")
+                    if gr is not None and stripped == f"Round {r['round']}":
+                        lines[idx] = f"Round {r['round']} (Defender Round {gr})"
+                        break
+            text = "\n".join(lines)
+
         self.bf_output_text.setPlainText(text)
         self._populate_round_tree(rounds, tree=self.bf_output_tree)
 

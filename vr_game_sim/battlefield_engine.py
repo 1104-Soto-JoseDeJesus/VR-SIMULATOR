@@ -283,28 +283,13 @@ class BattlefieldEngine:
         start_time = int(self.time_elapsed) + 1
         self._pending_engagements[(attacker, defender)] = float(start_time)
 
-        # Auto-target defenders without an existing target.
-        if def_ctx.direct_target is None:
-            def_ctx.direct_target = attacker
-
-            dx, dy = def_ctx.position
-            ax_, ay_ = atk_ctx.position
-            vec_x2, vec_y2 = ax_ - dx, ay_ - dy
-            dist2 = hypot(vec_x2, vec_y2)
-            if dist2 > 0:
-                n_x2, n_y2 = vec_x2 / dist2, vec_y2 / dist2
-                t_x2 = ax_ - n_x2 * 2
-                t_y2 = ay_ - n_y2 * 2
-                if dist2 > 2:
-                    def_ctx.path = [(t_x2, t_y2)]
-                else:
-                    def_ctx.position = (t_x2, t_y2)
-                    def_ctx.path.clear()
-            else:
-                def_ctx.position = (ax_ - 2, ay_)
-                def_ctx.path.clear()
-
-            self._pending_engagements[(defender, attacker)] = float(start_time)
+        # Do not automatically set the defender's target or movement.
+        # Previously the engine would auto-target defenders that were engaged by
+        # an attacker, causing the defender to immediately start moving towards
+        # the attacker.  This made a single drag-and-drop action in the GUI move
+        # *both* armies which was unintuitive.  Now the defender remains idle
+        # until it is explicitly commanded to attack via its own
+        # ``engage``/``set_direct_target`` call from the UI or other code.
 
     # Backwards compatible alias
     def engage(self, attacker: str, defender: str) -> None:

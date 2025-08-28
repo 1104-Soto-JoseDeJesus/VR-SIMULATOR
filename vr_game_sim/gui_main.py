@@ -1882,6 +1882,8 @@ class BattlefieldTab(QtWidgets.QWidget):
         )
         icon.setPos(*pos)
         self.scene.addItem(icon)
+        # Track icons so timer updates can animate movement and health bars
+        self._icons[army.name] = icon
         self._next_x += icon.boundingRect().width() + 10
 
     def _refresh_battlefield(self) -> None:

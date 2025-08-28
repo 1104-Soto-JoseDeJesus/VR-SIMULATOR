@@ -429,9 +429,19 @@ class BattlefieldEngine:
             army.pending_hp_healing_this_round = 0.0
             army.rage_added_this_round = 0.0
 
-        to_remove: List[Tuple[str, str]] = []
+        unique_armies: List[Army] = []
         for key, sim in self._engagements.items():
             self._simulate_one_round(sim)
+            for army in (sim.army1, sim.army2):
+                if army not in unique_armies:
+                    unique_armies.append(army)
+
+        for army in unique_armies:
+            army.commit_pending_healing_and_damage()
+            self._queue_state_update(army)
+
+        to_remove: List[Tuple[str, str]] = []
+        for key, sim in self._engagements.items():
             a1 = sim.army1.current_troop_count
             a2 = sim.army2.current_troop_count
             if a1 <= 0 or a2 <= 0:
@@ -516,13 +526,6 @@ class BattlefieldEngine:
                 atk.activate_queued_effects()
                 dfd.activate_queued_effects()
                 sim._calculate_and_log_attack(atk, dfd, is_counter=True)
-
-        atk.commit_pending_healing_and_damage()
-        dfd.commit_pending_healing_and_damage()
-
-        # Queue broadcasts for any state changes to either army.
-        self._queue_state_update(atk)
-        self._queue_state_update(dfd)
 
         # Record latest engagement time for both armies
         self._armies[atk.name].last_engaged_time = self.time_elapsed

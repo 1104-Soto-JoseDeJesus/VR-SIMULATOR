@@ -8,6 +8,7 @@ import threading
 import math
 import json
 from functools import partial
+import time
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
@@ -1639,9 +1640,32 @@ class BattlefieldTab(QtWidgets.QWidget):
         self._snap_target: ArmyIcon | None = None
         self._drag_start: tuple[float, float] | None = None
 
+        # Periodic engine updates (~60 FPS)
+        self._last_tick = time.perf_counter()
+        self._timer = QtCore.QTimer(self)
+        self._timer.setInterval(16)
+        self._timer.timeout.connect(self._on_timer_tick)
+        self._timer.start()
+
+    def _on_timer_tick(self) -> None:
+        now = time.perf_counter()
+        dt = now - self._last_tick
+        self._last_tick = now
+        self.engine.tick(dt)
+        for item in self.scene.items():
+            if isinstance(item, ArmyIcon) and item.army_name:
+                ctx = self.engine._armies.get(item.army_name)
+                if ctx:
+                    x, y = ctx.position
+                    item.setPos(x, y)
+        window = self.window()
+        if window is not None and hasattr(window, "update_battlefield_reports"):
+            window.update_battlefield_reports()
+
     # ------------------------------------------------------------------
     # Navigation mesh helpers
     # ------------------------------------------------------------------
+
     def _draw_navmesh(self) -> None:
         pen = QtGui.QPen(QtCore.Qt.GlobalColor.black)
         pen.setWidth(0)

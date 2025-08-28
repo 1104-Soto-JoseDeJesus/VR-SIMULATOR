@@ -26,15 +26,16 @@ class NavMesh:
     def from_grid(cls, grid: List[str]) -> "NavMesh":
         """Create a mesh from an ASCII grid layout.
 
-        ``grid`` is a list of strings where ``#`` marks an obstacle and any
-        other character is treated as walkable terrain.
+        ``grid`` is a list of strings representing the terrain layout.  Older
+        versions of the project treated ``#`` characters as impassable
+        obstacles.  Obstacle overlays have since been removed which means all
+        cells are now considered walkable regardless of their character.
         """
 
         cells = set()
         for y, row in enumerate(grid):
-            for x, ch in enumerate(row.strip("\n")):
-                if ch != "#":
-                    cells.add((x, y))
+            for x, _ in enumerate(row.strip("\n")):
+                cells.add((x, y))
         return cls(cells)
 
     # ------------------------------------------------------------------

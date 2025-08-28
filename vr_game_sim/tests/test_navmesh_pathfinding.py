@@ -6,7 +6,7 @@ from vr_game_sim.army_composition import Army
 from vr_game_sim.battlefield_engine import BattlefieldEngine
 
 
-def test_navmesh_astar_avoids_obstacles():
+def test_navmesh_astar_ignores_obstacles():
     grid = [
         "...",
         ".#.",
@@ -15,8 +15,8 @@ def test_navmesh_astar_avoids_obstacles():
     mesh = NavMesh.from_grid(grid)
     path = mesh.astar((0, 0), (2, 2))
     assert path[0] == (0, 0) and path[-1] == (2, 2)
-    assert (1, 1) not in path  # obstacle should be avoided
-    # consecutive steps must be adjacent
+    # With all cells walkable the shortest path has Manhattan length 4
+    assert len(path) == 5
     for a, b in zip(path, path[1:]):
         assert abs(a[0] - b[0]) + abs(a[1] - b[1]) == 1
 

@@ -105,7 +105,15 @@ class Army:
 
         for hero in self.heroes:
             for skill_def in hero.skills:
-                if skill_def["trigger"] == SkillTriggerType.PASSIVE and skill_def.get("id") != "dummy_talent_empty":
+                if (
+                    skill_def["trigger"] == SkillTriggerType.PASSIVE
+                    and skill_def.get("id") != "dummy_talent_empty"
+                ):
+                    # Passive skills may be applied multiple times when armies
+                    # join new engagements.  Skip any skill that has already
+                    # triggered once to avoid stacking permanent effects.
+                    if self.skill_trigger_counts.get(skill_def.get("id")):
+                        continue
                     an_effect_truly_happened_passive = False
                     log_details_passive: List[Tuple[str, Optional[Dict[str, Any]]]] = []
 

@@ -57,6 +57,11 @@ class GameSimulator:
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
             self.army1.name: [], self.army2.name: []
         }
+        # Ensure passive skills are applied once the simulator is associated
+        # with the armies.  Without this call passive effects would never
+        # appear in battle reports.
+        self.army1._apply_initial_passive_skills()
+        self.army2._apply_initial_passive_skills()
         self.report_builder = report_builder or ReportBuilder()
         self.track_stats = track_stats
 

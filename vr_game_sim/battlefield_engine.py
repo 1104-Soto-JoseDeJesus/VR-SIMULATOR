@@ -174,6 +174,25 @@ class BattlefieldEngine:
         if army_name in self._armies:
             self._armies[army_name].path = list(path)
 
+    def _remove_army(self, name: str) -> None:
+        """Remove ``name`` from the engine and clean up references."""
+        ctx = self._armies.pop(name, None)
+        if ctx is None:
+            return
+        self._graph.pop(name, None)
+        for neighbours in self._graph.values():
+            neighbours.discard(name)
+        for key in list(self._pending_engagements.keys()):
+            if name in key:
+                self._pending_engagements.pop(key, None)
+        for other in self._armies.values():
+            if other.direct_target == name:
+                other.direct_target = None
+                other.pursue_target = False
+                other.path.clear()
+        self._state_cache.pop(name, None)
+        self._pending_state_updates.pop(name, None)
+
     # ------------------------------------------------------------------
     # State broadcasting
     # ------------------------------------------------------------------
@@ -463,6 +482,11 @@ class BattlefieldEngine:
             self._graph[atk].discard(dfd)
             self._graph[dfd].discard(atk)
             self._engagements.pop(key, None)
+
+        defeated = [name for name, ctx in list(self._armies.items())
+                     if ctx.army.current_troop_count <= 0]
+        for name in defeated:
+            self._remove_army(name)
 
         # Update internal rounds and grant base rage to armies that have
         # participated in combat recently (within the last 2 seconds).

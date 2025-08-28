@@ -1519,9 +1519,21 @@ class ArmySetupDialog(QtWidgets.QDialog):
             QtWidgets.QDialogButtonBox.StandardButton.Ok
             | QtWidgets.QDialogButtonBox.StandardButton.Cancel
         )
+        self.save_army_btn = buttons.addButton(
+            "Save Army", QtWidgets.QDialogButtonBox.ButtonRole.ActionRole
+        )
+        self.save_army_btn.clicked.connect(self._save_army)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+
+    def _save_army(self) -> None:
+        cfg = self.get_config()
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Save Army", "", "JSON Files (*.json)"
+        )
+        if file_path:
+            save_army_to_file(cfg, file_path)
 
     def get_config(self) -> dict:
         cfg = self.frame.build_config()
@@ -1615,12 +1627,10 @@ class BattlefieldTab(QtWidgets.QWidget):
 
         controls = QtWidgets.QHBoxLayout()
         self.add_army_btn = QtWidgets.QPushButton("Add Army")
-        self.save_army_btn = QtWidgets.QPushButton("Save Army")
         self.load_army_btn = QtWidgets.QPushButton("Load Army")
         self.refresh_btn = QtWidgets.QPushButton("Refresh Battlefield")
         for btn in (
             self.add_army_btn,
-            self.save_army_btn,
             self.load_army_btn,
             self.refresh_btn,
         ):
@@ -1689,12 +1699,10 @@ class BattlefieldTab(QtWidgets.QWidget):
         self.engine.add_state_listener(self._on_engine_state)
 
         self.add_army_btn.clicked.connect(self._add_army)
-        self.save_army_btn.clicked.connect(self._save_army)
         self.load_army_btn.clicked.connect(self._load_army)
         self.refresh_btn.clicked.connect(self._refresh_battlefield)
 
         self._next_x = 0
-        self._last_army_cfg: dict | None = None
         self._dragging_icon: ArmyIcon | None = None
         self._drag_path: list[tuple[float, float]] = []
         self._snap_target: ArmyIcon | None = None
@@ -1794,7 +1802,6 @@ class BattlefieldTab(QtWidgets.QWidget):
         if dlg.exec() != int(QtWidgets.QDialog.DialogCode.Accepted):
             return
         cfg = dlg.get_config()
-        self._last_army_cfg = cfg
         army = create_armies_from_data([cfg])[0]
         pos = (self._next_x, 0.0)
         self.engine.add_army(
@@ -1832,16 +1839,6 @@ class BattlefieldTab(QtWidgets.QWidget):
         self._icons[army.name] = icon
         self._next_x += icon.boundingRect().width() + 10
 
-    def _save_army(self) -> None:
-        if not self._last_army_cfg:
-            QtWidgets.QMessageBox.warning(self, "No Army", "No army to save.")
-            return
-        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Save Army", "", "JSON Files (*.json)"
-        )
-        if file_path:
-            save_army_to_file(self._last_army_cfg, file_path)
-
     def _load_army(self) -> None:
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, "Load Army", "", "JSON Files (*.json)"
@@ -1851,7 +1848,6 @@ class BattlefieldTab(QtWidgets.QWidget):
         cfg = load_army_from_file(file_path)
         if not cfg:
             return
-        self._last_army_cfg = cfg
         army = create_armies_from_data([cfg])[0]
         pos = (self._next_x, 0.0)
         self.engine.add_army(

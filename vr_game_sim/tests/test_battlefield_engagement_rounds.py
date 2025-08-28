@@ -76,3 +76,17 @@ def test_round_and_rage_stop_after_two_seconds_idle():
     assert ctx_a.internal_round == 0
     assert army_a.current_rage == 0
     assert ctx_a.last_engaged_time == pytest.approx(3.0)
+
+
+def test_both_armies_attack_each_round():
+    engine = BattlefieldEngine()
+    army_a = make_army('A')
+    army_b = make_army('B')
+    engine.add_army(army_a, 'red', position=(0, 0), speed=0)
+    engine.add_army(army_b, 'blue', position=(2, 0), speed=0)
+
+    engine.engage('A', 'B')
+    engine.tick(1.0)
+
+    assert army_a.current_troop_count < 1000
+    assert army_b.current_troop_count < 1000

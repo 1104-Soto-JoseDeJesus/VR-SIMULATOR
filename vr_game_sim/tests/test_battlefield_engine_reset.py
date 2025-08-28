@@ -4,9 +4,9 @@ from vr_game_sim.battlefield_engine import BattlefieldEngine
 
 
 def test_engine_reset_clears_state_and_clock() -> None:
-    unit = Unit('pikemen', 5, initial_count=10)
+    unit = Unit('pikemen', 5, initial_count=1000)
     army_a = Army('A', unit)
-    unit_b = Unit('archers', 5, initial_count=10)
+    unit_b = Unit('archers', 5, initial_count=1000)
     army_b = Army('B', unit_b)
     engine = BattlefieldEngine()
     engine.add_army(army_a, 'red', position=(1.0, 0.0))

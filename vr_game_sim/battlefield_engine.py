@@ -50,6 +50,8 @@ class _ArmyContext:
     speed: float = 0.0
     # Name of the army this one is directly targeting.
     direct_target: Optional[str] = None
+    # Whether the army should actively pursue its target.
+    pursue_target: bool = False
     # Per-attacker round counter which tracks only when recently engaged.
     internal_round: int = 0
     # Timestamp of the last round this army actually fought in.
@@ -216,7 +218,7 @@ class BattlefieldEngine:
     # ------------------------------------------------------------------
     # Engagement handling
     # ------------------------------------------------------------------
-    def set_direct_target(self, attacker: str, defender: Optional[str]) -> None:
+    def set_direct_target(self, attacker: str, defender: Optional[str], *, pursue: bool = True) -> None:
         """Assign ``defender`` as the direct target for ``attacker``.
 
         ``defender`` may be ``None`` to clear an existing target.  Engagement
@@ -250,6 +252,7 @@ class BattlefieldEngine:
                     self._graph[attacker].discard(old_target)
                     rev_ctx.direct_target = None
             atk_ctx.direct_target = None
+            atk_ctx.pursue_target = False
             return
 
         if defender not in self._armies:
@@ -260,37 +263,40 @@ class BattlefieldEngine:
             raise ValueError("Cannot engage armies on the same team")
 
         atk_ctx.direct_target = defender
+        atk_ctx.pursue_target = pursue
 
-        # Compute initial path that stops 2 units short of the defender.
-        ax, ay = atk_ctx.position
-        dx_, dy_ = def_ctx.position
-        vec_x, vec_y = dx_ - ax, dy_ - ay
-        dist = hypot(vec_x, vec_y)
-        if dist > 0:
-            norm_x, norm_y = vec_x / dist, vec_y / dist
-            target_x = dx_ - norm_x * 2
-            target_y = dy_ - norm_y * 2
-            if dist > 2:
-                atk_ctx.path = [(target_x, target_y)]
+        # Compute initial path that stops 2 units short of the defender when pursuing.
+        if pursue:
+            ax, ay = atk_ctx.position
+            dx_, dy_ = def_ctx.position
+            vec_x, vec_y = dx_ - ax, dy_ - ay
+            dist = hypot(vec_x, vec_y)
+            if dist > 0:
+                norm_x, norm_y = vec_x / dist, vec_y / dist
+                target_x = dx_ - norm_x * 2
+                target_y = dy_ - norm_y * 2
+                if dist > 2:
+                    atk_ctx.path = [(target_x, target_y)]
+                else:
+                    # Already within the desired distance; reposition immediately
+                    atk_ctx.position = (target_x, target_y)
+                    atk_ctx.path.clear()
             else:
-                # Already within the desired distance; reposition immediately
-                atk_ctx.position = (target_x, target_y)
+                # Overlapping positions; choose arbitrary offset
+                atk_ctx.position = (dx_ - 2, dy_)
                 atk_ctx.path.clear()
         else:
-            # Overlapping positions; choose arbitrary offset
-            atk_ctx.position = (dx_ - 2, dy_)
             atk_ctx.path.clear()
 
         start_time = int(self.time_elapsed) + 1
         self._pending_engagements[(attacker, defender)] = float(start_time)
 
-        # Automatically mirror the engagement if the defender is idle.  This
-        # causes an attacker to be set as the defender's direct target only when
-        # the defender currently lacks a target and is on an opposing team.
-        # Calling ``set_direct_target`` recursively is safe here because the
-        # original attacker already has a target, preventing infinite recursion.
+        # If the defender is idle, make the attacker their direct target but
+        # keep them stationary until combat begins.
         if def_ctx.direct_target is None and def_ctx.team != atk_ctx.team:
-            self.set_direct_target(defender, attacker)
+            def_ctx.direct_target = attacker
+            def_ctx.pursue_target = False
+            def_ctx.path.clear()
 
     # Backwards compatible alias
     def engage(self, attacker: str, defender: str) -> None:
@@ -330,7 +336,7 @@ class BattlefieldEngine:
         continuously follow moving defenders.
         """
         for ctx in self._armies.values():
-            if not ctx.direct_target:
+            if not ctx.direct_target or not ctx.pursue_target:
                 continue
             def_ctx = self._armies.get(ctx.direct_target)
             if def_ctx is None:
@@ -461,7 +467,7 @@ class BattlefieldEngine:
 
         atk, dfd = sim.army1, sim.army2
 
-        # Attacker basic attack
+        # Army1 basic attack
         sim._process_skill_triggers(atk, dfd, SkillTriggerType.ON_BASIC_ATTACK,
                                     event_data={'opponent_for_shield_calc': dfd})
         atk.activate_queued_effects()
@@ -479,6 +485,25 @@ class BattlefieldEngine:
             dfd.activate_queued_effects()
             atk.activate_queued_effects()
             sim._calculate_and_log_attack(dfd, atk, is_counter=True)
+
+        # Army2 basic attack if still alive
+        if atk.current_troop_count > 0 and dfd.current_troop_count > 0:
+            sim._process_skill_triggers(dfd, atk, SkillTriggerType.ON_BASIC_ATTACK,
+                                        event_data={'opponent_for_shield_calc': atk})
+            dfd.activate_queued_effects()
+            atk.activate_queued_effects()
+            sim._calculate_and_log_attack(dfd, atk, is_counter=False)
+
+            if atk.current_troop_count > 0:
+                sim._process_skill_triggers(atk, dfd, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+                                            event_data={'opponent_for_shield_calc': dfd})
+                atk.activate_queued_effects()
+                dfd.activate_queued_effects()
+                sim._process_skill_triggers(atk, dfd, SkillTriggerType.ON_COUNTER_ATTACK,
+                                            event_data={'opponent_for_shield_calc': dfd})
+                atk.activate_queued_effects()
+                dfd.activate_queued_effects()
+                sim._calculate_and_log_attack(atk, dfd, is_counter=True)
 
         atk.commit_pending_healing_and_damage()
         dfd.commit_pending_healing_and_damage()

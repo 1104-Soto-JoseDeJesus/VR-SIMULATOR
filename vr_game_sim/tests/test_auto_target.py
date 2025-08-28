@@ -13,21 +13,24 @@ def test_defender_auto_targets_attacker_when_idle():
     engine = BattlefieldEngine()
     army_a = make_army('A')
     army_b = make_army('B')
-    engine.add_army(army_a, 'red')
-    engine.add_army(army_b, 'blue')
+    engine.add_army(army_a, 'red', position=(0, 0), speed=1)
+    engine.add_army(army_b, 'blue', position=(5, 0), speed=1)
 
     engine.engage('A', 'B')
-
-    # Defender should immediately target the attacker
+    # Defender should immediately target the attacker but remain stationary
     assert engine._armies['B'].direct_target == 'A'
-    # Both engagements should be scheduled
+    assert engine._armies['B'].path == []
     assert ('A', 'B') in engine._pending_engagements
-    assert ('B', 'A') in engine._pending_engagements
+    assert ('B', 'A') not in engine._pending_engagements
 
-    engine.tick(1.0)
-    # After one second both engagements are active
-    assert ('A', 'B') in engine._engagements
-    assert ('B', 'A') in engine._engagements
+    engine.tick(0.5)
+    # Defender should still be at initial position after partial tick
+    assert engine._armies['B'].position == (5.0, 0.0)
+
+    engine.tick(2.5)
+    # After attacker moves into range defender has not moved
+    assert engine._armies['B'].position == (5.0, 0.0)
+    assert engine._armies['A'].position[0] == pytest.approx(3.0, abs=1e-3)
 
 
 def test_defender_with_existing_target_does_not_auto_target():

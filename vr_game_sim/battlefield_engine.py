@@ -545,10 +545,12 @@ class BattlefieldEngine:
 
         # Emit round log using the simulator's report builder if available
         if sim.report_builder:
+            active_lines = sim._log_active_effects_for_report()
             sim.report_builder.emit_round(
                 sim.round,
                 sim.round_combat_actions_log,
                 sim.round_skill_triggers_log,
+                active_effects=active_lines,
             )
             sim.round_combat_actions_log.clear()
             sim.round_skill_triggers_log = {

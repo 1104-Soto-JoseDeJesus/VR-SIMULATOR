@@ -2,11 +2,15 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6 import QtWidgets
 
+import uuid
+
 from vr_game_sim.battlefield_engine import BattlefieldEngine
 from vr_game_sim.battlefield_report_builder import BattlefieldReportBuilder
 from vr_game_sim.gui_main import MainWindow
 from vr_game_sim.army_composition import Army
 from vr_game_sim.unit_definition import Unit
+from vr_game_sim.effect_system import EffectInstance
+from vr_game_sim.enums import EffectType, DoTType
 
 app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
@@ -80,3 +84,28 @@ def test_gui_displays_global_and_local_rounds():
     top = window.bf_output_tree.topLevelItem(0)
     assert top.text(0) == "Round 1 (Defender Round 5)"
     window.close()
+
+
+def test_dot_effects_logged_in_reports():
+    builder = BattlefieldReportBuilder()
+    engine = BattlefieldEngine(report_builder=builder)
+    atk = make_army("A")
+    dfd = make_army("B")
+    engine.add_army(atk, "red", position=(0, 0), speed=0)
+    engine.add_army(dfd, "blue", position=(2, 0), speed=0)
+
+    dot = EffectInstance(
+        id=uuid.uuid4(),
+        source_skill_id="test",
+        effect_type=EffectType.DAMAGE_OVER_TIME,
+        duration=1,
+        config={"dot_type": DoTType.BLEED, "status_effect_factor": 100},
+    )
+    dfd.active_effects.append(dot)
+
+    engine.engage("A", "B")
+    engine.tick(1.0)
+
+    rounds = builder.get_rounds()[("A", "B")]
+    effects = rounds[0]["active_effects"]
+    assert any("Damage Over Time" in e for e in effects)

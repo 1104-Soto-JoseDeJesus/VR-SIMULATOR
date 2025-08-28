@@ -310,10 +310,10 @@ class BattlefieldEngine:
         start_time = int(self.time_elapsed) + 1
         self._pending_engagements[(attacker, defender)] = float(start_time)
 
-        # If the defender is idle, make the attacker their direct target but
-        # keep them stationary until combat begins.
+        # If the defender is idle, keep them stationary until combat begins but
+        # do not preemptively assign a direct target.  The first attacker to
+        # actually arrive and engage will become the defender's target.
         if def_ctx.direct_target is None and def_ctx.team != atk_ctx.team:
-            def_ctx.direct_target = attacker
             def_ctx.pursue_target = False
             def_ctx.path.clear()
 
@@ -427,17 +427,26 @@ class BattlefieldEngine:
                 def_ctx = self._armies[dfd]
                 ax, ay = atk_ctx.position
                 dx_, dy_ = def_ctx.position
-                if hypot(ax - dx_, ay - dy_) > 2:
+                if hypot(ax - dx_, ay - dy_) > 2.01:
                     # Still too far away; keep engagement pending
                     continue
                 rb = None
                 if self._report_builder is not None:
                     rb = self._report_builder.get_builder(atk, dfd)
+                old_def_target = def_ctx.direct_target
                 simulator = GameSimulator(atk_ctx.army, def_ctx.army, rb, track_stats=False)
                 self._engagements[(atk, dfd)] = simulator
                 self._graph[atk].add(dfd)
                 self._graph[dfd].add(atk)
                 self._pending_engagements.pop((atk, dfd), None)
+
+                # Assign defender's direct target to the first attacker that
+                # actually reaches combat range.  If the defender is already
+                # engaged with another army we retain the existing target.
+                if old_def_target is None or (old_def_target, dfd) not in self._engagements:
+                    def_ctx.direct_target = atk
+                    def_ctx.pursue_target = False
+                    def_ctx.path.clear()
 
         # Reset per-round bookkeeping so reactive/round based skills only
         # fire once across all engagements and rage gain can be tracked.
@@ -449,7 +458,9 @@ class BattlefieldEngine:
             army.rage_added_this_round = 0.0
 
         unique_armies: List[Army] = []
+        pre_round_effects: Dict[GameSimulator, List[str]] = {}
         for key, sim in self._engagements.items():
+            pre_round_effects[sim] = sim._log_active_effects_for_report()
             self._simulate_one_round(sim)
             atk, dfd = key
             if (
@@ -475,7 +486,7 @@ class BattlefieldEngine:
         # "Damage Commitment" entries appear in the same round they belong to.
         for sim in self._engagements.values():
             if sim.report_builder:
-                active_lines = sim._log_active_effects_for_report()
+                active_lines = pre_round_effects.get(sim, [])
                 sim.report_builder.emit_round(
                     sim.round,
                     sim.round_combat_actions_log,

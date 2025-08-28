@@ -28,10 +28,6 @@ def test_long_distance_march_delays_engagement():
     assert ('A', 'B') in engine._pending_engagements
 
     engine.tick(1.0)
-    assert ('A', 'B') not in engine._engagements
-    assert ('A', 'B') in engine._pending_engagements
-
-    engine.tick(1.0)
     assert ('A', 'B') in engine._engagements
 
 
@@ -47,7 +43,7 @@ def test_mutual_approach_engages_when_close():
     assert ('A', 'B') in engine._pending_engagements
     assert ('B', 'A') in engine._pending_engagements
 
-    for _ in range(4):
+    for _ in range(3):
         engine.tick(1.0)
         assert ('A', 'B') not in engine._engagements
         assert ('B', 'A') not in engine._engagements

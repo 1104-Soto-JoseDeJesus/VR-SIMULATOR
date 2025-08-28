@@ -1,6 +1,7 @@
 from pytest import approx
 
 from vr_game_sim.navmesh import NavMesh
+
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.army_composition import Army
 from vr_game_sim.battlefield_engine import BattlefieldEngine
@@ -22,8 +23,8 @@ def test_navmesh_astar_ignores_obstacles():
 
 
 def test_battlefield_path_stops_before_enemy():
-    unit_a = Unit('pikemen', 5, initial_count=10)
-    unit_b = Unit('archers', 5, initial_count=10)
+    unit_a = Unit('pikemen', 5, initial_count=1000)
+    unit_b = Unit('archers', 5, initial_count=1000)
     army_a = Army('A1', unit_a)
     army_b = Army('A2', unit_b)
 

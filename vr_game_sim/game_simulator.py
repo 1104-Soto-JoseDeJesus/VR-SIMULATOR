@@ -566,8 +566,23 @@ class GameSimulator:
                 self._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND,
                                              event_data={'opponent_for_shield_calc': opponent})
                 army.activate_queued_effects()
+            # Queue rage skills if rage threshold reached after start-of-round effects
+            for army in (self.army1, self.army2):
+                if (
+                    army.current_troop_count > 0
+                    and army.hero1_rage_skill_id
+                    and not army.hero1_rage_skill_queued_this_round
+                    and (
+                        army.hero2_rage_skill_primed_for_round is None
+                        or army.hero2_rage_skill_primed_for_round != self.round
+                    )
+                ):
+                    skill_def = self.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
+                    if skill_def and army.current_rage >= skill_def.get("rage_cost", 1000):
+                        army.hero1_rage_skill_queued_this_round = True
 
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
+            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+                break
 
             # Execute any queued rage skills after start-of-round effects.
             if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:

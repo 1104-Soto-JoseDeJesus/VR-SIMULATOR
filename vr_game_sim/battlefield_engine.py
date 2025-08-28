@@ -486,21 +486,33 @@ class BattlefieldEngine:
             atk.activate_queued_effects()
             sim._calculate_and_log_attack(dfd, atk, is_counter=True)
 
-        # Army2 basic attack if still alive
-        if atk.current_troop_count > 0 and dfd.current_troop_count > 0:
-            sim._process_skill_triggers(dfd, atk, SkillTriggerType.ON_BASIC_ATTACK,
-                                        event_data={'opponent_for_shield_calc': atk})
+        dfd_ctx = self._armies.get(dfd.name)
+        # Army2 basic attack only if defender targets attacker
+        if (
+            atk.current_troop_count > 0
+            and dfd.current_troop_count > 0
+            and dfd_ctx is not None
+            and dfd_ctx.direct_target == atk.name
+        ):
+            sim._process_skill_triggers(
+                dfd, atk, SkillTriggerType.ON_BASIC_ATTACK,
+                event_data={"opponent_for_shield_calc": atk}
+            )
             dfd.activate_queued_effects()
             atk.activate_queued_effects()
             sim._calculate_and_log_attack(dfd, atk, is_counter=False)
 
             if atk.current_troop_count > 0:
-                sim._process_skill_triggers(atk, dfd, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
-                                            event_data={'opponent_for_shield_calc': dfd})
+                sim._process_skill_triggers(
+                    atk, dfd, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+                    event_data={"opponent_for_shield_calc": dfd}
+                )
                 atk.activate_queued_effects()
                 dfd.activate_queued_effects()
-                sim._process_skill_triggers(atk, dfd, SkillTriggerType.ON_COUNTER_ATTACK,
-                                            event_data={'opponent_for_shield_calc': dfd})
+                sim._process_skill_triggers(
+                    atk, dfd, SkillTriggerType.ON_COUNTER_ATTACK,
+                    event_data={"opponent_for_shield_calc": dfd}
+                )
                 atk.activate_queued_effects()
                 dfd.activate_queued_effects()
                 sim._calculate_and_log_attack(atk, dfd, is_counter=True)

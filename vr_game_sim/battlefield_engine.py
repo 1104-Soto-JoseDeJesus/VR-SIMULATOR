@@ -311,6 +311,7 @@ class BattlefieldEngine:
 
         # Handle movement in small 1ms steps.
         while self._sub_accumulator >= 0.001:
+            self._refresh_target_waypoints()
             self._step_movements(0.001)
             self._sub_accumulator -= 0.001
 
@@ -325,6 +326,36 @@ class BattlefieldEngine:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+    def _refresh_target_waypoints(self) -> None:
+        """Update paths for armies that have a direct target.
+
+        This recomputes the waypoint leading to the defender's current
+        position minus two units.  By running every sub‑tick attackers will
+        continuously follow moving defenders.
+        """
+        for ctx in self._armies.values():
+            if not ctx.direct_target:
+                continue
+            def_ctx = self._armies.get(ctx.direct_target)
+            if def_ctx is None:
+                continue
+            ax, ay = ctx.position
+            dx, dy = def_ctx.position
+            vec_x, vec_y = dx - ax, dy - ay
+            dist = hypot(vec_x, vec_y)
+            if dist > 0:
+                norm_x, norm_y = vec_x / dist, vec_y / dist
+                target_x = dx - norm_x * 2
+                target_y = dy - norm_y * 2
+                if dist > 2:
+                    ctx.path = [(target_x, target_y)]
+                else:
+                    ctx.position = (target_x, target_y)
+                    ctx.path.clear()
+            else:
+                ctx.position = (dx - 2, dy)
+                ctx.path.clear()
+
     def _step_movements(self, dt: float) -> None:
         """Interpolate movement towards the next waypoint in an army's path."""
         for ctx in self._armies.values():

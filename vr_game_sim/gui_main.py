@@ -1611,7 +1611,7 @@ class BattlefieldTab(QtWidgets.QWidget):
         self.add_army_btn.clicked.connect(self._add_army)
         self.save_army_btn.clicked.connect(self._save_army)
         self.load_army_btn.clicked.connect(self._load_army)
-        self.refresh_btn.clicked.connect(lambda: self.scene.update())
+        self.refresh_btn.clicked.connect(self._refresh_battlefield)
 
         self._next_x = 0
         self._last_army_cfg: dict | None = None
@@ -1704,6 +1704,16 @@ class BattlefieldTab(QtWidgets.QWidget):
         icon.setPos(*pos)
         self.scene.addItem(icon)
         self._next_x += icon.boundingRect().width() + 10
+
+    def _refresh_battlefield(self) -> None:
+        """Clear all armies and reset the battlefield engine."""
+        self.scene.clear()
+        self._next_x = 0
+        self.report_builder = BattlefieldReportBuilder()
+        self.engine.reset(report_builder=self.report_builder)
+        self._dragging_icon = None
+        self._drag_path = []
+        self._snap_target = None
 
     def add_army_icon(
         self,

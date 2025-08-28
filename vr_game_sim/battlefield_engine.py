@@ -548,10 +548,27 @@ class BattlefieldEngine:
         atk, dfd = sim.army1, sim.army2
 
         # --- Start of round housekeeping ---
-        # Decrement existing effect durations, then activate any effects that were
-        # scheduled to begin this round so they start with their full duration.
+        # GameSimulator's 1v1 logic decrements durations in a way that skips
+        # effects applied in the current round.  For the battlefield engine we
+        # want newly triggered effects to begin counting down immediately on the
+        # following round.  To keep the duel simulator behaviour untouched while
+        # still providing consistent countdowns for multi‑army battles we perform
+        # the duration management inline instead of calling
+        # ``Army.decrement_effect_durations`` which contains the 1v1 specific
+        # semantics.
         for army in (atk, dfd):
-            army.decrement_effect_durations()
+            next_effects = []
+            for eff in army.active_effects:
+                if eff.duration == -1:
+                    eff.applied_this_round = False
+                    next_effects.append(eff)
+                    continue
+                eff.duration -= 1
+                eff.applied_this_round = False
+                if eff.duration >= 0:
+                    next_effects.append(eff)
+            army.active_effects = next_effects
+
             if army.effects_to_activate_next_round:
                 army.upcoming_effects.extend(army.effects_to_activate_next_round)
                 army.effects_to_activate_next_round.clear()

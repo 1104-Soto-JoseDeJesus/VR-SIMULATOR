@@ -2334,6 +2334,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         setup_layout.addWidget(preview_group)
 
+        # 1v1 tabs
         self.tabs.addTab(setup_tab, "Army Setup")
 
         # --- Battlefield tab ---
@@ -2386,7 +2387,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.bf_report_stack.addWidget(self.bf_output_text)
 
         bf_layout.addWidget(self.bf_report_stack)
-        self.tabs.addTab(self.battlefield_report_tab, "Battlefield Reports")
 
         # --- Report tab ---
         report_tab = QtWidgets.QWidget()
@@ -2433,8 +2433,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hist_scroll.setWidgetResizable(True)
         self.hist_scroll.setWidget(self.hist_container)
         self.tabs.addTab(self.hist_scroll, "Figures")
-        # Add Battlefield tab at the end so it appears on the far right
+
+        # Multi-army tabs
         self.tabs.addTab(self.battlefield_tab, "Battlefield")
+        self.tabs.addTab(self.battlefield_report_tab, "Battlefield Reports")
 
         self.tabs.currentChanged.connect(self._on_tab_changed)
 

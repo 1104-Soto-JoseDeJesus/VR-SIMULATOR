@@ -109,3 +109,6 @@ def test_dot_effects_logged_in_reports():
     rounds = builder.get_rounds()[("A", "B")]
     effects = rounds[0]["active_effects"]
     assert any("Damage Over Time" in e for e in effects)
+
+    report_text = builder.get_reports()[("A", "B")]
+    assert "Damage Over Time" in report_text

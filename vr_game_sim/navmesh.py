@@ -1,5 +1,6 @@
 import heapq
 from typing import Iterable, List, Set, Tuple
+from math import hypot
 
 
 class NavMesh:
@@ -12,8 +13,8 @@ class NavMesh:
 
     The :meth:`astar` method returns a list of waypoints (including ``start``
     and ``goal``) describing the shortest path computed using the A* search
-    algorithm.  Only 4‑directional movement is supported which is perfectly
-    adequate for the light‑weight simulations in the unit tests.
+    algorithm.  8‑directional movement is supported allowing diagonal travel
+    for shorter, more natural paths.
     """
 
     def __init__(self, walkable: Iterable[Tuple[int, int]]):
@@ -43,14 +44,17 @@ class NavMesh:
     # ------------------------------------------------------------------
     @staticmethod
     def _heuristic(a: Tuple[int, int], b: Tuple[int, int]) -> float:
-        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+        return hypot(a[0] - b[0], a[1] - b[1])
 
     def _neighbours(self, node: Tuple[int, int]):
         x, y = node
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            nxt = (x + dx, y + dy)
-            if nxt in self.walkable:
-                yield nxt
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if dx == 0 and dy == 0:
+                    continue
+                nxt = (x + dx, y + dy)
+                if nxt in self.walkable:
+                    yield nxt
 
     def astar(self, start: Tuple[int, int], goal: Tuple[int, int]) -> List[Tuple[int, int]]:
         """Return a list of waypoints from ``start`` to ``goal``.
@@ -73,7 +77,8 @@ class NavMesh:
             if current == goal:
                 break
             for nxt in self._neighbours(current):
-                new_cost = cost_so_far[current] + 1
+                step_cost = hypot(nxt[0] - current[0], nxt[1] - current[1])
+                new_cost = cost_so_far[current] + step_cost
                 if nxt not in cost_so_far or new_cost < cost_so_far[nxt]:
                     cost_so_far[nxt] = new_cost
                     priority = new_cost + self._heuristic(goal, nxt)

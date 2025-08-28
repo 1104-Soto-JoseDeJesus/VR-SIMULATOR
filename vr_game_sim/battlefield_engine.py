@@ -36,6 +36,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from .army_composition import Army
 from .game_simulator import GameSimulator
 from .enums import SkillTriggerType
+from .battlefield_report_builder import BattlefieldReportBuilder
 
 
 @dataclass
@@ -65,7 +66,7 @@ class BattlefieldEngine:
     a defender are automatically visible to all attackers.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, report_builder: Optional[BattlefieldReportBuilder] = None) -> None:
         # Registry of armies keyed by name.
         self._armies: Dict[str, _ArmyContext] = {}
 
@@ -75,6 +76,9 @@ class BattlefieldEngine:
 
         # Mapping of (attacker, defender) -> GameSimulator
         self._engagements: Dict[Tuple[str, str], GameSimulator] = {}
+
+        # Optional report builder aggregating per-engagement logs
+        self._report_builder = report_builder
 
         # Pending engagements that should start on the next whole second.
         # Mapping of (attacker, defender) -> start_time
@@ -310,7 +314,10 @@ class BattlefieldEngine:
             if self.time_elapsed >= start and self._armies[atk].direct_target == dfd:
                 atk_ctx = self._armies[atk]
                 def_ctx = self._armies[dfd]
-                simulator = GameSimulator(atk_ctx.army, def_ctx.army, track_stats=False)
+                rb = None
+                if self._report_builder is not None:
+                    rb = self._report_builder.get_builder(atk, dfd)
+                simulator = GameSimulator(atk_ctx.army, def_ctx.army, rb, track_stats=False)
                 self._engagements[(atk, dfd)] = simulator
                 self._graph[atk].add(dfd)
                 self._graph[dfd].add(atk)
@@ -395,6 +402,19 @@ class BattlefieldEngine:
         # Record latest engagement time for both armies
         self._armies[atk.name].last_engaged_time = self.time_elapsed
         self._armies[dfd.name].last_engaged_time = self.time_elapsed
+
+        # Emit round log using the simulator's report builder if available
+        if sim.report_builder:
+            sim.report_builder.emit_round(
+                sim.round,
+                sim.round_combat_actions_log,
+                sim.round_skill_triggers_log,
+            )
+            sim.round_combat_actions_log.clear()
+            sim.round_skill_triggers_log = {
+                sim.army1.name: [],
+                sim.army2.name: [],
+            }
 
     # ------------------------------------------------------------------
     # Utility

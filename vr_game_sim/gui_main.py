@@ -1557,9 +1557,15 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
         self.team = team
 
     def boundingRect(self) -> QtCore.QRectF:  # type: ignore[override]
-        width = self.main_pix.width() + 6
+        """Return the bounding rectangle for the icon including the health bar."""
+
+        # The item reserves a small extra margin to accommodate the vertical
+        # health bar.  When the bar is drawn on the left we need to shift the
+        # rectangle accordingly so the scene knows to paint that area as well.
+        extra = 6  # bar width (4px) + 2px spacing
+        width = self.main_pix.width() + extra
         height = self.main_pix.height()
-        return QtCore.QRectF(0, 0, width, height)
+        return QtCore.QRectF(-extra, 0, width, height)
 
     def paint(  # type: ignore[override]
         self,
@@ -1573,8 +1579,11 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
             y = self.main_pix.height() - self.sec_pix.height()
             painter.drawPixmap(x, y, self.sec_pix)
 
-        bar_x = self.main_pix.width() + 1
+        # Draw the vertical health bar to the *left* of the main image.  The
+        # bounding rect has been shifted to expose a 6px wide strip on the left
+        # which we can use for the bar and a 1px gap.
         bar_width = 4
+        bar_x = -bar_width - 1  # 1px gap between bar and portrait
         bar_height = self.main_pix.height()
         painter.setPen(QtGui.QPen(QtCore.Qt.GlobalColor.white))
         painter.setBrush(QtGui.QBrush(QtCore.Qt.GlobalColor.white))
@@ -1638,6 +1647,11 @@ class BattlefieldTab(QtWidgets.QWidget):
 
         self.report_builder = BattlefieldReportBuilder()
         self.engine = BattlefieldEngine(report_builder=self.report_builder)
+
+        # Mapping of army name -> icon for quick updates from engine state
+        self._icons: dict[str, ArmyIcon] = {}
+        self.engine.add_state_listener(self._on_engine_state)
+
         self.add_army_btn.clicked.connect(self._add_army)
         self.save_army_btn.clicked.connect(self._save_army)
         self.load_army_btn.clicked.connect(self._load_army)
@@ -1656,6 +1670,18 @@ class BattlefieldTab(QtWidgets.QWidget):
         self._timer.setInterval(16)
         self._timer.timeout.connect(self._on_timer_tick)
         self._timer.start()
+
+    def _on_engine_state(self, name: str, state: dict) -> None:
+        """Update health bars in response to engine state broadcasts."""
+        icon = self._icons.get(name)
+        if not icon:
+            return
+        ctx = self.engine._armies.get(name)
+        if not ctx:
+            return
+        army = ctx.army
+        initial = max(1.0, army.unit.initial_count)
+        icon.set_health(army.current_troop_count / initial)
 
     def _on_timer_tick(self) -> None:
         now = time.perf_counter()
@@ -1755,6 +1781,7 @@ class BattlefieldTab(QtWidgets.QWidget):
         )
         icon.setPos(*pos)
         self.scene.addItem(icon)
+        self._icons[army.name] = icon
         self._next_x += icon.boundingRect().width() + 10
 
     def _save_army(self) -> None:

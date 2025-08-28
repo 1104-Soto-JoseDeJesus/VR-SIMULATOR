@@ -1540,9 +1540,19 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
         *,
         army_name: str | None = None,
         team: str | None = None,
+        max_size: int = 64,
     ) -> None:
         super().__init__()
-        self.main_pix = QtGui.QPixmap(main_image)
+        # Scale the main portrait so that extremely large source images do not
+        # overwhelm the battlefield grid.  ``max_size`` refers to the maximum
+        # width/height of the portrait itself; the health bar is drawn outside
+        # of this area.
+        self.main_pix = QtGui.QPixmap(main_image).scaled(
+            max_size,
+            max_size,
+            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+            QtCore.Qt.TransformationMode.SmoothTransformation,
+        )
         self.sec_pix: QtGui.QPixmap | None = None
         if secondary_image:
             sec = QtGui.QPixmap(secondary_image)
@@ -1639,6 +1649,10 @@ class BattlefieldTab(QtWidgets.QWidget):
         self._grid = grid
         self._cell_w = self.view.sceneRect().width() / len(grid[0])
         self._cell_h = self.view.sceneRect().height() / len(grid)
+        # Scale portraits to a fraction of the cell size so they fit neatly on
+        # the map.  Using ``min`` keeps icons square even if cells are
+        # rectangular.
+        self._icon_size = int(min(self._cell_w, self._cell_h) * 0.8)
         self._draw_navmesh()
 
         # Capture mouse movement for waypoint dragging
@@ -1778,6 +1792,7 @@ class BattlefieldTab(QtWidgets.QWidget):
             1.0,
             army_name=army.name,
             team=cfg.get("team", ""),
+            max_size=self._icon_size,
         )
         icon.setPos(*pos)
         self.scene.addItem(icon)
@@ -1834,6 +1849,7 @@ class BattlefieldTab(QtWidgets.QWidget):
             1.0,
             army_name=army.name,
             team=cfg.get("team", ""),
+            max_size=self._icon_size,
         )
         icon.setPos(*pos)
         self.scene.addItem(icon)
@@ -1867,6 +1883,7 @@ class BattlefieldTab(QtWidgets.QWidget):
             health_ratio,
             army_name=army_name,
             team=team,
+            max_size=self._icon_size,
         )
         icon.setPos(*position)
         self.scene.addItem(icon)

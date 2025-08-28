@@ -230,6 +230,14 @@ class BattlefieldEngine:
             self._pending_engagements.pop((attacker, old_target), None)
 
         if defender is None:
+            if old_target:
+                rev_ctx = self._armies.get(old_target)
+                if rev_ctx and rev_ctx.direct_target == attacker:
+                    self._engagements.pop((old_target, attacker), None)
+                    self._pending_engagements.pop((old_target, attacker), None)
+                    self._graph[old_target].discard(attacker)
+                    self._graph[attacker].discard(old_target)
+                    rev_ctx.direct_target = None
             atk_ctx.direct_target = None
             return
 
@@ -262,9 +270,31 @@ class BattlefieldEngine:
             atk_ctx.position = (dx_ - 2, dy_)
             atk_ctx.path.clear()
 
-        # Schedule the engagement to start on the next whole second
         start_time = int(self.time_elapsed) + 1
         self._pending_engagements[(attacker, defender)] = float(start_time)
+
+        # Auto-target defenders without an existing target.
+        if def_ctx.direct_target is None:
+            def_ctx.direct_target = attacker
+
+            dx, dy = def_ctx.position
+            ax_, ay_ = atk_ctx.position
+            vec_x2, vec_y2 = ax_ - dx, ay_ - dy
+            dist2 = hypot(vec_x2, vec_y2)
+            if dist2 > 0:
+                n_x2, n_y2 = vec_x2 / dist2, vec_y2 / dist2
+                t_x2 = ax_ - n_x2 * 2
+                t_y2 = ay_ - n_y2 * 2
+                if dist2 > 2:
+                    def_ctx.path = [(t_x2, t_y2)]
+                else:
+                    def_ctx.position = (t_x2, t_y2)
+                    def_ctx.path.clear()
+            else:
+                def_ctx.position = (ax_ - 2, ay_)
+                def_ctx.path.clear()
+
+            self._pending_engagements[(defender, attacker)] = float(start_time)
 
     # Backwards compatible alias
     def engage(self, attacker: str, defender: str) -> None:

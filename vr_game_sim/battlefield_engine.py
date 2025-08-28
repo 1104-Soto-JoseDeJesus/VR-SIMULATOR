@@ -471,6 +471,23 @@ class BattlefieldEngine:
             army.commit_pending_healing_and_damage()
             self._queue_state_update(army)
 
+        # Emit round reports after committing damage/healing so that
+        # "Damage Commitment" entries appear in the same round they belong to.
+        for sim in self._engagements.values():
+            if sim.report_builder:
+                active_lines = sim._log_active_effects_for_report()
+                sim.report_builder.emit_round(
+                    sim.round,
+                    sim.round_combat_actions_log,
+                    sim.round_skill_triggers_log,
+                    active_effects=active_lines,
+                )
+                sim.round_combat_actions_log.clear()
+                sim.round_skill_triggers_log = {
+                    sim.army1.name: [],
+                    sim.army2.name: [],
+                }
+
         to_remove: List[Tuple[str, str]] = []
         for key, sim in self._engagements.items():
             a1 = sim.army1.current_troop_count
@@ -567,20 +584,6 @@ class BattlefieldEngine:
         self._armies[atk.name].last_engaged_time = self.time_elapsed
         self._armies[dfd.name].last_engaged_time = self.time_elapsed
 
-        # Emit round log using the simulator's report builder if available
-        if sim.report_builder:
-            active_lines = sim._log_active_effects_for_report()
-            sim.report_builder.emit_round(
-                sim.round,
-                sim.round_combat_actions_log,
-                sim.round_skill_triggers_log,
-                active_effects=active_lines,
-            )
-            sim.round_combat_actions_log.clear()
-            sim.round_skill_triggers_log = {
-                sim.army1.name: [],
-                sim.army2.name: [],
-            }
 
     # ------------------------------------------------------------------
     # Utility

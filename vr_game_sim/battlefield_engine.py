@@ -547,6 +547,16 @@ class BattlefieldEngine:
 
         atk, dfd = sim.army1, sim.army2
 
+        # --- Start of round housekeeping ---
+        # Decrement existing effect durations, then activate any effects that were
+        # scheduled to begin this round so they start with their full duration.
+        for army in (atk, dfd):
+            army.decrement_effect_durations()
+            if army.effects_to_activate_next_round:
+                army.upcoming_effects.extend(army.effects_to_activate_next_round)
+                army.effects_to_activate_next_round.clear()
+            army.activate_queued_effects()
+
         # --- Start of round processing & round based skill triggers ---
         for army, opponent in ((atk, dfd), (dfd, atk)):
             if army.current_troop_count <= 0:

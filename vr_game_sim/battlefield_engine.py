@@ -219,10 +219,11 @@ class BattlefieldEngine:
     def set_direct_target(self, attacker: str, defender: Optional[str]) -> None:
         """Assign ``defender`` as the direct target for ``attacker``.
 
-        ``defender`` may be ``None`` to clear an existing target. Engagement
+        ``defender`` may be ``None`` to clear an existing target.  Engagement
         simulators and graph links are updated to mirror this assignment.  A
         :class:`ValueError` is raised when attempting to target an army on the
-        same team as the attacker.
+        same team as the attacker.  When a defender has no current target they
+        will automatically target the attacker in response.
         """
 
         if attacker not in self._armies:
@@ -283,13 +284,13 @@ class BattlefieldEngine:
         start_time = int(self.time_elapsed) + 1
         self._pending_engagements[(attacker, defender)] = float(start_time)
 
-        # Do not automatically set the defender's target or movement.
-        # Previously the engine would auto-target defenders that were engaged by
-        # an attacker, causing the defender to immediately start moving towards
-        # the attacker.  This made a single drag-and-drop action in the GUI move
-        # *both* armies which was unintuitive.  Now the defender remains idle
-        # until it is explicitly commanded to attack via its own
-        # ``engage``/``set_direct_target`` call from the UI or other code.
+        # Automatically mirror the engagement if the defender is idle.  This
+        # causes an attacker to be set as the defender's direct target only when
+        # the defender currently lacks a target and is on an opposing team.
+        # Calling ``set_direct_target`` recursively is safe here because the
+        # original attacker already has a target, preventing infinite recursion.
+        if def_ctx.direct_target is None and def_ctx.team != atk_ctx.team:
+            self.set_direct_target(defender, attacker)
 
     # Backwards compatible alias
     def engage(self, attacker: str, defender: str) -> None:

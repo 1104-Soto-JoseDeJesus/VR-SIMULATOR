@@ -2140,7 +2140,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # --- Battlefield tab ---
         self.battlefield_tab = BattlefieldTab()
-        self.tabs.addTab(self.battlefield_tab, "Battlefield")
 
         # --- Battlefield Reports tab ---
         self.battlefield_report_tab = QtWidgets.QWidget()
@@ -2236,6 +2235,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hist_scroll.setWidgetResizable(True)
         self.hist_scroll.setWidget(self.hist_container)
         self.tabs.addTab(self.hist_scroll, "Figures")
+        # Add Battlefield tab at the end so it appears on the far right
+        self.tabs.addTab(self.battlefield_tab, "Battlefield")
 
         self.tabs.currentChanged.connect(self._on_tab_changed)
 

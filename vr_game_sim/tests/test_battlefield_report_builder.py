@@ -43,3 +43,40 @@ def test_gui_lists_battlefield_reports():
     window.bf_report_list.setCurrentItem(item)
     assert "Round 1" in window.bf_output_text.toPlainText()
     window.close()
+
+
+def test_builder_records_defender_global_rounds():
+    builder = BattlefieldReportBuilder()
+    engine = BattlefieldEngine(report_builder=builder)
+    atk_a = make_army("A")
+    atk_c = make_army("C")
+    dfd_b = make_army("B")
+    engine.add_army(atk_a, "red")
+    engine.add_army(atk_c, "red")
+    engine.add_army(dfd_b, "blue")
+    engine.tick(0.3)
+    engine.engage("A", "B")
+    engine.tick(0.7)  # start A-B at t=1
+    engine.tick(0.1)
+    engine.engage("C", "B")
+    engine.tick(0.9)  # t=2, round2 for A-B and round1 for C-B
+    rounds = builder.get_rounds()
+    assert rounds[("A", "B")][0]["defender_global_round"] == 1
+    assert rounds[("A", "B")][1]["defender_global_round"] == 2
+    assert rounds[("C", "B")][0]["defender_global_round"] == 2
+
+
+def test_gui_displays_global_and_local_rounds():
+    window = MainWindow()
+    rb = window.battlefield_tab.report_builder
+    b = rb.get_builder("A", "B")
+    b.emit_round(1, [], {"A": [], "B": []})
+    rb.record_defender_round("A", "B", 1, 5)
+    window.update_battlefield_reports()
+    item = window.bf_report_list.item(0)
+    window.bf_report_list.setCurrentItem(item)
+    text = window.bf_output_text.toPlainText()
+    assert "Round 1 (Defender Round 5)" in text
+    top = window.bf_output_tree.topLevelItem(0)
+    assert top.text(0) == "Round 1 (Defender Round 5)"
+    window.close()

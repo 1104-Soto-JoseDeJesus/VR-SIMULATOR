@@ -1630,6 +1630,12 @@ class BattlefieldTab(QtWidgets.QWidget):
         self.scene = QtWidgets.QGraphicsScene(self)
         self.view = QtWidgets.QGraphicsView(self.scene)
         self.view.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        self.view.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.view.setVerticalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
 
         # Use a background image for the battlefield so that the navigation
         # mesh aligns perfectly with it.  Fall back to a default size if the
@@ -1664,8 +1670,9 @@ class BattlefieldTab(QtWidgets.QWidget):
         self._cell_h = self.view.sceneRect().height() / len(grid)
         # Scale portraits to a fraction of the cell size so they fit neatly on
         # the map.  Using ``min`` keeps icons square even if cells are
-        # rectangular.
-        self._icon_size = int(min(self._cell_w, self._cell_h) * 0.8)
+        # rectangular.  Icons are enlarged to roughly three times their
+        # previous size to make armies more prominent on the map.
+        self._icon_size = int(min(self._cell_w, self._cell_h) * 0.8 * 3)
         self._draw_navmesh()
 
         # Capture mouse movement for waypoint dragging
@@ -1732,7 +1739,7 @@ class BattlefieldTab(QtWidgets.QWidget):
     # ------------------------------------------------------------------
 
     def _draw_navmesh(self) -> None:
-        """Render the battlefield background and any obstacles."""
+        """Render the battlefield background."""
 
         # Draw the background image first so it sits behind all other items.
         if hasattr(self, "_background") and not self._background.isNull():
@@ -1745,22 +1752,17 @@ class BattlefieldTab(QtWidgets.QWidget):
             bg_item = self.scene.addPixmap(scaled)
             bg_item.setZValue(-2)
 
-        # Overlay obstacle cells with a red tint so they remain visible.
-        pen = QtGui.QPen(QtCore.Qt.GlobalColor.black)
-        pen.setWidth(0)
-        brush = QtGui.QBrush(QtGui.QColor(80, 0, 0, 160))
-        for y, row in enumerate(self._grid):
-            for x, ch in enumerate(row):
-                if ch != '#':
-                    continue
-                rect = QtCore.QRectF(
-                    x * self._cell_w,
-                    y * self._cell_h,
-                    self._cell_w,
-                    self._cell_h,
-                )
-                item = self.scene.addRect(rect, pen, brush)
-                item.setZValue(-1)
+        # Ensure the entire battlefield fits inside the view without scrolling.
+        self.view.fitInView(
+            self.view.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio
+        )
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # type: ignore[override]
+        """Keep the entire battlefield visible when the widget is resized."""
+        super().resizeEvent(event)
+        self.view.fitInView(
+            self.view.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio
+        )
 
     def _cell_from_point(self, pos: tuple[float, float]) -> tuple[int, int]:
         return int(pos[0] // self._cell_w), int(pos[1] // self._cell_h)

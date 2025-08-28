@@ -1505,6 +1505,15 @@ class ArmySetupDialog(QtWidgets.QDialog):
         team_row.addWidget(self.team_combo)
         layout.addLayout(team_row)
 
+        speed_row = QtWidgets.QHBoxLayout()
+        speed_row.addWidget(QtWidgets.QLabel("Speed:"))
+        self.speed_spin = QtWidgets.QDoubleSpinBox()
+        self.speed_spin.setRange(0.0, 10.0)
+        self.speed_spin.setSingleStep(0.1)
+        self.speed_spin.setValue(1.0)
+        speed_row.addWidget(self.speed_spin)
+        layout.addLayout(speed_row)
+
         buttons = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Ok
             | QtWidgets.QDialogButtonBox.StandardButton.Cancel
@@ -1516,6 +1525,7 @@ class ArmySetupDialog(QtWidgets.QDialog):
     def get_config(self) -> dict:
         cfg = self.frame.build_config()
         cfg["team"] = self.team_combo.currentText()
+        cfg["speed"] = float(self.speed_spin.value())
         return cfg
 
 
@@ -1714,7 +1724,12 @@ class BattlefieldTab(QtWidgets.QWidget):
         self._last_army_cfg = cfg
         army = create_armies_from_data([cfg])[0]
         pos = (self._next_x, 0.0)
-        self.engine.add_army(army, cfg.get("team", ""), position=pos)
+        self.engine.add_army(
+            army,
+            cfg.get("team", ""),
+            position=pos,
+            speed=cfg.get("speed", 1.0),
+        )
 
         heroes = cfg.get("heroes", [])
         main_path = os.path.join(
@@ -1764,7 +1779,12 @@ class BattlefieldTab(QtWidgets.QWidget):
         self._last_army_cfg = cfg
         army = create_armies_from_data([cfg])[0]
         pos = (self._next_x, 0.0)
-        self.engine.add_army(army, cfg.get("team", ""), position=pos)
+        self.engine.add_army(
+            army,
+            cfg.get("team", ""),
+            position=pos,
+            speed=cfg.get("speed", 1.0),
+        )
 
         heroes = cfg.get("heroes", [])
         main_path = os.path.join(

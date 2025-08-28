@@ -101,6 +101,31 @@ class BattlefieldEngine:
         self._state_listeners: List[Callable[[str, Dict[str, Any]], None]] = []
 
     # ------------------------------------------------------------------
+    # Reset
+    # ------------------------------------------------------------------
+    def reset(self, report_builder: Optional[BattlefieldReportBuilder] = None) -> None:
+        """Reset the engine state and global clock.
+
+        Parameters
+        ----------
+        report_builder:
+            Optional new :class:`BattlefieldReportBuilder` to associate with the
+            engine.  If omitted the existing builder is cleared.
+        """
+
+        self._armies.clear()
+        self._team_effects.clear()
+        self._engagements.clear()
+        self._pending_engagements.clear()
+        self._graph.clear()
+        self._round_accumulator = 0.0
+        self._sub_accumulator = 0.0
+        self.time_elapsed = 0.0
+        self._state_cache.clear()
+        self._pending_state_updates.clear()
+        self._report_builder = report_builder
+
+    # ------------------------------------------------------------------
     # Army management
     # ------------------------------------------------------------------
     def add_army(self, army: Army, team: str, *, position: Tuple[float, float] = (0.0, 0.0),

@@ -1188,10 +1188,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         # --- Hero 1 preview widget ---
         self.hero1_img = StarredImageLabel()
-        self.hero1_img.setFixedSize(64, 92)
+        self.hero1_img.setFixedSize(48, 69)
         self.hero1_plugin_imgs = [StarredImageLabel(), StarredImageLabel()]
         for lbl in self.hero1_plugin_imgs:
-            lbl.setFixedSize(75, 92)
+            lbl.setFixedSize(56, 69)
         hero1_preview_layout = QtWidgets.QHBoxLayout()
         hero1_preview_layout.setContentsMargins(0, 0, 0, 0)
         hero1_preview_layout.setSpacing(30)
@@ -1208,10 +1208,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         # --- Hero 2 preview widget ---
         self.hero2_img = StarredImageLabel()
-        self.hero2_img.setFixedSize(64, 92)
+        self.hero2_img.setFixedSize(48, 69)
         self.hero2_plugin_imgs = [StarredImageLabel(), StarredImageLabel()]
         for lbl in self.hero2_plugin_imgs:
-            lbl.setFixedSize(75, 92)
+            lbl.setFixedSize(56, 69)
         hero2_preview_layout = QtWidgets.QHBoxLayout()
         hero2_preview_layout.setContentsMargins(0, 0, 0, 0)
         hero2_preview_layout.setSpacing(30)
@@ -1672,8 +1672,9 @@ class BattlefieldTab(QtWidgets.QWidget):
         # Scale portraits to a fraction of the cell size so they fit neatly on
         # the map.  Using ``min`` keeps icons square even if cells are
         # rectangular.  Icons are enlarged to roughly three times their
-        # previous size to make armies more prominent on the map.
-        self._icon_size = int(min(self._cell_w, self._cell_h) * 0.8 * 3)
+        # previous size to make armies more prominent on the map and then
+        # reduced by 25% for a better overall fit.
+        self._icon_size = int(min(self._cell_w, self._cell_h) * 0.8 * 3 * 0.75)
         self._draw_navmesh()
 
         # Capture mouse movement for waypoint dragging

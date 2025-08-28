@@ -18,6 +18,7 @@ from vr_game_sim.hero_definition import HERO_PRESETS
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.report_builder import ReportBuilder
+from vr_game_sim.battlefield_report_builder import BattlefieldReportBuilder
 from vr_game_sim.main import (
     create_armies_from_data,
     run_additional_simulations,
@@ -1605,7 +1606,8 @@ class BattlefieldTab(QtWidgets.QWidget):
         self.view.setMouseTracking(True)
         self.view.viewport().installEventFilter(self)
 
-        self.engine = BattlefieldEngine()
+        self.report_builder = BattlefieldReportBuilder()
+        self.engine = BattlefieldEngine(report_builder=self.report_builder)
         self.add_army_btn.clicked.connect(self._add_army)
         self.save_army_btn.clicked.connect(self._save_army)
         self.load_army_btn.clicked.connect(self._load_army)
@@ -2130,6 +2132,55 @@ class MainWindow(QtWidgets.QMainWindow):
         self.battlefield_tab = BattlefieldTab()
         self.tabs.addTab(self.battlefield_tab, "Battlefield")
 
+        # --- Battlefield Reports tab ---
+        self.battlefield_report_tab = QtWidgets.QWidget()
+        bf_layout = QtWidgets.QVBoxLayout(self.battlefield_report_tab)
+
+        self.bf_report_list = QtWidgets.QListWidget()
+        self.bf_report_list.currentItemChanged.connect(
+            self._display_selected_bf_report
+        )
+        bf_layout.addWidget(self.bf_report_list)
+
+        self.bf_toggle_report_view_btn = QtWidgets.QPushButton(
+            "Show Text Report"
+        )
+        self.bf_toggle_report_view_btn.setCheckable(True)
+        self.bf_toggle_report_view_btn.toggled.connect(
+            self._toggle_bf_report_view
+        )
+        bf_layout.addWidget(
+            self.bf_toggle_report_view_btn,
+            alignment=QtCore.Qt.AlignmentFlag.AlignLeft,
+        )
+
+        self.bf_report_stack = QtWidgets.QStackedWidget()
+
+        bf_fixed_font = QtGui.QFontDatabase.systemFont(
+            QtGui.QFontDatabase.SystemFont.FixedFont
+        )
+
+        self.bf_output_tree = QtWidgets.QTreeWidget()
+        self.bf_output_tree.setHeaderHidden(True)
+        self.bf_output_tree.setFont(bf_fixed_font)
+        self.bf_output_tree.setStyleSheet(
+            "QTreeWidget { background-color: #1e1e1e; color: #ffffff; "
+            "border: 1px solid #444444; }"
+        )
+        self.bf_report_stack.addWidget(self.bf_output_tree)
+
+        self.bf_output_text = QtWidgets.QTextEdit()
+        self.bf_output_text.setReadOnly(True)
+        self.bf_output_text.setFont(bf_fixed_font)
+        self.bf_output_text.setStyleSheet(
+            "QTextEdit { background-color: #1e1e1e; color: #ffffff; "
+            "border: 1px solid #444444; }"
+        )
+        self.bf_report_stack.addWidget(self.bf_output_text)
+
+        bf_layout.addWidget(self.bf_report_stack)
+        self.tabs.addTab(self.battlefield_report_tab, "Battlefield Reports")
+
         # --- Report tab ---
         report_tab = QtWidgets.QWidget()
         report_layout = QtWidgets.QVBoxLayout(report_tab)
@@ -2175,6 +2226,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hist_scroll.setWidgetResizable(True)
         self.hist_scroll.setWidget(self.hist_container)
         self.tabs.addTab(self.hist_scroll, "Figures")
+
+        self.tabs.currentChanged.connect(self._on_tab_changed)
 
         return main_layout
 
@@ -2271,6 +2324,47 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.report_stack.setCurrentWidget(self.output_tree)
             self.toggle_report_view_btn.setText("Show Text Report")
+
+    def _toggle_bf_report_view(self, checked: bool) -> None:
+        if checked:
+            self.bf_report_stack.setCurrentWidget(self.bf_output_text)
+            self.bf_toggle_report_view_btn.setText("Show Round View")
+        else:
+            self.bf_report_stack.setCurrentWidget(self.bf_output_tree)
+            self.bf_toggle_report_view_btn.setText("Show Text Report")
+
+    def update_battlefield_reports(self) -> None:
+        """Populate the battlefield report list from the engine."""
+        self.bf_report_list.clear()
+        builder = getattr(self.battlefield_tab, "report_builder", None)
+        if not builder:
+            return
+        for key in builder.get_reports().keys():
+            atk, dfd = key
+            item = QtWidgets.QListWidgetItem(f"{atk} vs {dfd}")
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, key)
+            self.bf_report_list.addItem(item)
+
+    def _display_selected_bf_report(
+        self, current: QtWidgets.QListWidgetItem | None
+    ) -> None:
+        if current is None:
+            self.bf_output_tree.clear()
+            self.bf_output_text.clear()
+            return
+        key = current.data(QtCore.Qt.ItemDataRole.UserRole)
+        builder = getattr(self.battlefield_tab, "report_builder", None)
+        if not builder:
+            return
+        rounds = builder.get_rounds().get(key, [])
+        text = builder.get_reports().get(key, "")
+        self.bf_output_text.setPlainText(text)
+        self._populate_round_tree(rounds, tree=self.bf_output_tree)
+
+    def _on_tab_changed(self, index: int) -> None:
+        widget = self.tabs.widget(index)
+        if widget is self.battlefield_report_tab:
+            self.update_battlefield_reports()
 
     def export_report(self) -> None:
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -2889,8 +2983,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.finished.connect(self.worker.deleteLater)
         self.worker.start()
  
-    def _populate_round_tree(self, rounds: list[dict]) -> None:
-        self.output_tree.clear()
+    def _populate_round_tree(
+        self, rounds: list[dict], tree: QtWidgets.QTreeWidget | None = None
+    ) -> None:
+        target = tree or self.output_tree
+        target.clear()
         for r in rounds:
             round_item = QtWidgets.QTreeWidgetItem([f"Round {r['round']}"])
             if r.get("active_effects"):
@@ -2924,7 +3021,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         text = f"{tr['skill_name']}: {tr['effect_description']}{detail}"
                         QtWidgets.QTreeWidgetItem(army_item, [text])
                 round_item.addChild(army_item)
-            self.output_tree.addTopLevelItem(round_item)
+            target.addTopLevelItem(round_item)
 
     def _sim_finished(self, text: str, rounds: list[dict]) -> None:
         self.output_text.setPlainText(text)

@@ -36,3 +36,27 @@ def test_attackers_follow_moving_defenders():
     assert path_a2[0][0] == pytest.approx(b_pos2[0] - 2, abs=1e-3)
     assert path_a2[0][1] == pytest.approx(b_pos2[1], abs=1e-3)
     assert path_a2 != path_a1
+
+
+def test_defender_continues_moving_when_attacked():
+    """A moving defender should keep its waypoint when targeted by an enemy."""
+    engine = BattlefieldEngine()
+    army_a = make_army('A')
+    army_b = make_army('B')
+
+    engine.add_army(army_a, 'red', position=(0, 0), speed=2)
+    engine.add_army(army_b, 'blue', position=(5, 0), speed=1)
+
+    # Move B towards x=10
+    engine.set_waypoint('B', (10, 0))
+
+    engine.tick(1.0)
+    pos_before = engine._armies['B'].position
+    assert pos_before[0] > 5
+
+    # Attacker targets moving B; B should continue towards the waypoint
+    engine.set_direct_target('A', 'B')
+
+    engine.tick(1.0)
+    pos_after = engine._armies['B'].position
+    assert pos_after[0] > pos_before[0]

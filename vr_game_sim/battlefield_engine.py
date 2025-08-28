@@ -432,6 +432,18 @@ class BattlefieldEngine:
         unique_armies: List[Army] = []
         for key, sim in self._engagements.items():
             self._simulate_one_round(sim)
+            atk, dfd = key
+            if (
+                self._report_builder is not None
+                and sim.report_builder is not None
+                and dfd in self._armies
+            ):
+                self._report_builder.record_defender_round(
+                    atk,
+                    dfd,
+                    sim.round,
+                    self._armies[dfd].internal_round + 1,
+                )
             for army in (sim.army1, sim.army2):
                 if army not in unique_armies:
                     unique_armies.append(army)

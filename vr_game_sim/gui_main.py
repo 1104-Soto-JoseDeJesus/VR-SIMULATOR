@@ -2556,6 +2556,13 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         rounds = builder.get_rounds().get(key, [])
         text = builder.get_reports().get(key, "")
+        for r in rounds:
+            gr = r.get("defender_global_round")
+            if gr is not None:
+                text = text.replace(
+                    f"Round {r['round']}",
+                    f"Round {r['round']} (Defender Round {gr})",
+                )
         self.bf_output_text.setPlainText(text)
         self._populate_round_tree(rounds, tree=self.bf_output_tree)
 
@@ -3187,7 +3194,10 @@ class MainWindow(QtWidgets.QMainWindow):
         target = tree or self.output_tree
         target.clear()
         for r in rounds:
-            round_item = QtWidgets.QTreeWidgetItem([f"Round {r['round']}"])
+            title = f"Round {r['round']}"
+            if r.get("defender_global_round") is not None:
+                title += f" (Defender Round {r['defender_global_round']})"
+            round_item = QtWidgets.QTreeWidgetItem([title])
             if r.get("active_effects"):
                 effects_item = QtWidgets.QTreeWidgetItem(["Active Effects"])
                 for eff in r["active_effects"]:

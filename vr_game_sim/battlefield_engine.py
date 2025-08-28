@@ -393,9 +393,18 @@ class BattlefieldEngine:
         """Execute a single round for all direct engagements."""
         # Activate any pending engagements scheduled for this second.
         for (atk, dfd), start in list(self._pending_engagements.items()):
-            if self.time_elapsed >= start and self._armies[atk].direct_target == dfd:
-                atk_ctx = self._armies[atk]
+            if self.time_elapsed >= start:
+                atk_ctx = self._armies.get(atk)
+                if not atk_ctx or atk_ctx.direct_target != dfd:
+                    # Target changed before engagement started; discard
+                    self._pending_engagements.pop((atk, dfd), None)
+                    continue
                 def_ctx = self._armies[dfd]
+                ax, ay = atk_ctx.position
+                dx_, dy_ = def_ctx.position
+                if hypot(ax - dx_, ay - dy_) > 2:
+                    # Still too far away; keep engagement pending
+                    continue
                 rb = None
                 if self._report_builder is not None:
                     rb = self._report_builder.get_builder(atk, dfd)
@@ -403,9 +412,6 @@ class BattlefieldEngine:
                 self._engagements[(atk, dfd)] = simulator
                 self._graph[atk].add(dfd)
                 self._graph[dfd].add(atk)
-                self._pending_engagements.pop((atk, dfd), None)
-            elif self.time_elapsed >= start:
-                # Target changed before engagement started; discard
                 self._pending_engagements.pop((atk, dfd), None)
 
         # Reset per-round skill and rage tracking to allow reactive skills to

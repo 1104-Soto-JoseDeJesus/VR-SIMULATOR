@@ -1630,7 +1630,20 @@ class BattlefieldTab(QtWidgets.QWidget):
         self.scene = QtWidgets.QGraphicsScene(self)
         self.view = QtWidgets.QGraphicsView(self.scene)
         self.view.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-        self.view.setSceneRect(0, 0, 800, 600)
+
+        # Use a background image for the battlefield so that the navigation
+        # mesh aligns perfectly with it.  Fall back to a default size if the
+        # image is unavailable.
+        bg_path = os.path.join(
+            os.path.dirname(__file__), "Icons", "BattlefieldBackground.png"
+        )
+        self._background = QtGui.QPixmap(bg_path)
+        if not self._background.isNull():
+            self.view.setSceneRect(
+                0, 0, self._background.width(), self._background.height()
+            )
+        else:  # pragma: no cover - background image may be missing in tests
+            self.view.setSceneRect(0, 0, 800, 600)
         layout.addWidget(self.view, 1)
 
         # ------------------------------------------------------------------
@@ -1702,12 +1715,14 @@ class BattlefieldTab(QtWidgets.QWidget):
         dt = now - self._last_tick
         self._last_tick = now
         self.engine.tick(dt)
-        for item in self.scene.items():
-            if isinstance(item, ArmyIcon) and item.army_name:
-                ctx = self.engine._armies.get(item.army_name)
-                if ctx:
-                    x, y = ctx.position
-                    item.setPos(x, y)
+        for name, icon in list(self._icons.items()):
+            ctx = self.engine._armies.get(name)
+            if ctx is None or ctx.army.current_troop_count <= 0:
+                self.scene.removeItem(icon)
+                self._icons.pop(name, None)
+                continue
+            x, y = ctx.position
+            icon.setPos(x, y)
         window = self.window()
         if window is not None and hasattr(window, "update_battlefield_reports"):
             window.update_battlefield_reports()
@@ -1717,20 +1732,34 @@ class BattlefieldTab(QtWidgets.QWidget):
     # ------------------------------------------------------------------
 
     def _draw_navmesh(self) -> None:
+        """Render the battlefield background and any obstacles."""
+
+        # Draw the background image first so it sits behind all other items.
+        if hasattr(self, "_background") and not self._background.isNull():
+            scaled = self._background.scaled(
+                int(self.view.sceneRect().width()),
+                int(self.view.sceneRect().height()),
+                QtCore.Qt.AspectRatioMode.IgnoreAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+            bg_item = self.scene.addPixmap(scaled)
+            bg_item.setZValue(-2)
+
+        # Overlay obstacle cells with a red tint so they remain visible.
         pen = QtGui.QPen(QtCore.Qt.GlobalColor.black)
         pen.setWidth(0)
+        brush = QtGui.QBrush(QtGui.QColor(80, 0, 0, 160))
         for y, row in enumerate(self._grid):
             for x, ch in enumerate(row):
+                if ch != '#':
+                    continue
                 rect = QtCore.QRectF(
                     x * self._cell_w,
                     y * self._cell_h,
                     self._cell_w,
                     self._cell_h,
                 )
-                color = QtGui.QColor(50, 50, 50)
-                if ch == '#':
-                    color = QtGui.QColor(80, 0, 0)
-                item = self.scene.addRect(rect, pen, QtGui.QBrush(color))
+                item = self.scene.addRect(rect, pen, brush)
                 item.setZValue(-1)
 
     def _cell_from_point(self, pos: tuple[float, float]) -> tuple[int, int]:
@@ -1858,6 +1887,7 @@ class BattlefieldTab(QtWidgets.QWidget):
     def _refresh_battlefield(self) -> None:
         """Clear all armies and reset the battlefield engine."""
         self.scene.clear()
+        self._icons.clear()
         self._draw_navmesh()
         self._next_x = 0
         self.report_builder = BattlefieldReportBuilder()

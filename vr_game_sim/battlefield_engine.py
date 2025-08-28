@@ -458,9 +458,7 @@ class BattlefieldEngine:
             army.rage_added_this_round = 0.0
 
         unique_armies: List[Army] = []
-        pre_round_effects: Dict[GameSimulator, List[str]] = {}
         for key, sim in self._engagements.items():
-            pre_round_effects[sim] = sim._log_active_effects_for_report()
             self._simulate_one_round(sim)
             atk, dfd = key
             if (
@@ -486,7 +484,7 @@ class BattlefieldEngine:
         # "Damage Commitment" entries appear in the same round they belong to.
         for sim in self._engagements.values():
             if sim.report_builder:
-                active_lines = pre_round_effects.get(sim, [])
+                active_lines = sim._log_active_effects_for_report()
                 sim.report_builder.emit_round(
                     sim.round,
                     sim.round_combat_actions_log,

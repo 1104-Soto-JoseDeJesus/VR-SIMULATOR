@@ -542,11 +542,16 @@ class GameSimulator:
                 army.base_rage_awarded_this_round = False
 
             for army in [self.army1, self.army2]:
+                # First decrement durations of effects that were active last round.
+                army.decrement_effect_durations()
+
+                # Move any effects scheduled for this round and activate them
+                # after durations were reduced so they begin with their full
+                # duration.
                 if army.effects_to_activate_next_round:
                     army.upcoming_effects.extend(army.effects_to_activate_next_round)
                     army.effects_to_activate_next_round.clear()
                 army.activate_queued_effects()
-                army.decrement_effect_durations()
 
             self.army1.started_last_round_with_active_shield = self.army1.started_round_with_active_shield
             self.army2.started_last_round_with_active_shield = self.army2.started_round_with_active_shield

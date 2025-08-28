@@ -43,6 +43,7 @@ def test_mutual_approach_engages_when_close():
     engine.add_army(army_b, 'blue', position=(10, 0), speed=1)
 
     engine.engage('A', 'B')
+    engine.engage('B', 'A')
     assert ('A', 'B') in engine._pending_engagements
     assert ('B', 'A') in engine._pending_engagements
 

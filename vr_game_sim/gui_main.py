@@ -29,6 +29,7 @@ from vr_game_sim.main import (
 )
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.battlefield_engine import BattlefieldEngine
+from vr_game_sim.navmesh import NavMesh
 
 
 def get_pdf_layout_path() -> str:
@@ -331,45 +332,45 @@ class StarredImageLabel(QtWidgets.QLabel):
             self.clear()
             return
 
-        qt_img = ImageQt.ImageQt(self._orig_image)
-        pix = QtGui.QPixmap.fromImage(qt_img)
+        w, h = self._orig_image.size
+        buf = self._orig_image.convert("RGBA").tobytes("raw", "BGRA")
+        img = QtGui.QImage(buf, w, h, QtGui.QImage.Format.Format_ARGB32).copy()
 
         if self.star_count < self.max_stars:
-            painter = QtGui.QPainter(pix)
-            painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-            painter.setPen(QtCore.Qt.PenStyle.NoPen)
-            painter.setBrush(self.star_color)
+            star_width = w * (1 - 2 * self.star_side_margin_ratio) / self.max_stars
+            star_height = h * (1 - self.star_vertical_ratio)
+            x_offset = w * self.star_side_margin_ratio
+            y_base = h - star_height
 
-            usable_width = pix.width() * (1 - 2 * self.star_side_margin_ratio)
-            cell_width = usable_width / self.max_stars
-            base_height = pix.height() * (1 - self.star_vertical_ratio)
-            x_offset = pix.width() * self.star_side_margin_ratio
+            mask = QtGui.QImage(w, h, QtGui.QImage.Format.Format_ARGB32)
+            mask.fill(QtGui.QColor(0, 0, 0, 0))
+            mp = QtGui.QPainter(mask)
+            mp.setPen(QtCore.Qt.PenStyle.NoPen)
+            mp.setBrush(self.star_color)
+            poly = self._build_star_polygon(int(star_width), int(star_height))
+            for idx in range(self.star_count, self.max_stars):
+                v_off = h_off = 0.0
+                if self._is_hero_image:
+                    if idx < len(self.hero_star_v_offsets):
+                        v_off = self.hero_star_v_offsets[idx] * star_height
+                    if idx < len(self.hero_star_h_offsets):
+                        h_off = self.hero_star_h_offsets[idx] * star_width
+                elif self._is_plugin_image:
+                    if idx < len(self.plugin_star_v_offsets):
+                        v_off = self.plugin_star_v_offsets[idx] * star_height
+                    if idx < len(self.plugin_star_h_offsets):
+                        h_off = self.plugin_star_h_offsets[idx] * star_width
+                mp.save()
+                mp.translate(int(x_offset + idx * star_width + h_off), int(y_base + v_off))
+                mp.drawPolygon(poly)
+                mp.restore()
+            mp.end()
 
-            for i in range(self.star_count, self.max_stars):
-                scale = 1.0
-                if self._is_hero_image and i < len(self.hero_star_size_factors):
-                    scale = self.hero_star_size_factors[i]
-                elif self._is_plugin_image and i < len(self.plugin_star_size_factors):
-                    scale = self.plugin_star_size_factors[i]
-                star_w = cell_width * scale
-                star_h = base_height * scale
-                polygon = self._build_star_polygon(int(star_w), int(star_h))
-                y_offset = pix.height() - star_h
-                if self._is_hero_image and i < len(self.hero_star_v_offsets):
-                    y_offset += star_h * self.hero_star_v_offsets[i]
-                elif self._is_plugin_image and i < len(self.plugin_star_v_offsets):
-                    y_offset += star_h * self.plugin_star_v_offsets[i]
-                x_pos = x_offset + i * cell_width + (cell_width - star_w) / 2
-                if self._is_hero_image and i < len(self.hero_star_h_offsets):
-                    x_pos += star_w * self.hero_star_h_offsets[i]
-                elif self._is_plugin_image and i < len(self.plugin_star_h_offsets):
-                    x_pos += star_w * self.plugin_star_h_offsets[i]
-                painter.save()
-                painter.translate(int(x_pos), int(y_offset))
-                painter.drawPolygon(polygon)
-                painter.restore()
+            painter = QtGui.QPainter(img)
+            painter.drawImage(0, 0, mask)
             painter.end()
 
+        pix = QtGui.QPixmap.fromImage(img)
         self.setPixmap(
             pix.scaled(self.width(), self.height(), QtCore.Qt.AspectRatioMode.KeepAspectRatio)
         )
@@ -1602,6 +1603,24 @@ class BattlefieldTab(QtWidgets.QWidget):
         self.view.setSceneRect(0, 0, 800, 600)
         layout.addWidget(self.view, 1)
 
+        # ------------------------------------------------------------------
+        # Navigation mesh setup
+        # ------------------------------------------------------------------
+        grid_path = os.path.join(os.path.dirname(__file__), "navmesh_grid.txt")
+        try:
+            with open(grid_path, "r", encoding="utf-8") as fh:
+                grid = [line.rstrip("\n") for line in fh if line.strip()]
+        except OSError:
+            cols = int(self.view.sceneRect().width() // 40)
+            rows = int(self.view.sceneRect().height() // 40)
+            grid = ["." * cols for _ in range(rows)]
+
+        self.navmesh = NavMesh.from_grid(grid)
+        self._grid = grid
+        self._cell_w = self.view.sceneRect().width() / len(grid[0])
+        self._cell_h = self.view.sceneRect().height() / len(grid)
+        self._draw_navmesh()
+
         # Capture mouse movement for waypoint dragging
         self.view.setMouseTracking(True)
         self.view.viewport().installEventFilter(self)
@@ -1618,6 +1637,50 @@ class BattlefieldTab(QtWidgets.QWidget):
         self._dragging_icon: ArmyIcon | None = None
         self._drag_path: list[tuple[float, float]] = []
         self._snap_target: ArmyIcon | None = None
+        self._drag_start: tuple[float, float] | None = None
+
+    # ------------------------------------------------------------------
+    # Navigation mesh helpers
+    # ------------------------------------------------------------------
+    def _draw_navmesh(self) -> None:
+        pen = QtGui.QPen(QtCore.Qt.GlobalColor.black)
+        pen.setWidth(0)
+        for y, row in enumerate(self._grid):
+            for x, ch in enumerate(row):
+                rect = QtCore.QRectF(
+                    x * self._cell_w,
+                    y * self._cell_h,
+                    self._cell_w,
+                    self._cell_h,
+                )
+                color = QtGui.QColor(50, 50, 50)
+                if ch == '#':
+                    color = QtGui.QColor(80, 0, 0)
+                item = self.scene.addRect(rect, pen, QtGui.QBrush(color))
+                item.setZValue(-1)
+
+    def _cell_from_point(self, pos: tuple[float, float]) -> tuple[int, int]:
+        return int(pos[0] // self._cell_w), int(pos[1] // self._cell_h)
+
+    def _point_from_cell(self, cell: tuple[int, int]) -> tuple[float, float]:
+        x, y = cell
+        return (
+            x * self._cell_w + self._cell_w / 2.0,
+            y * self._cell_h + self._cell_h / 2.0,
+        )
+
+    def _path_between(
+        self, start: tuple[float, float], end: tuple[float, float]
+    ) -> list[tuple[float, float]]:
+        try:
+            start_cell = self._cell_from_point(start)
+            end_cell = self._cell_from_point(end)
+            cells = self.navmesh.astar(start_cell, end_cell)
+        except Exception:
+            return []
+        if not cells:
+            return []
+        return [self._point_from_cell(c) for c in cells[1:]]
 
     def _add_army(self) -> None:
         dlg = ArmySetupDialog(self)
@@ -1708,12 +1771,14 @@ class BattlefieldTab(QtWidgets.QWidget):
     def _refresh_battlefield(self) -> None:
         """Clear all armies and reset the battlefield engine."""
         self.scene.clear()
+        self._draw_navmesh()
         self._next_x = 0
         self.report_builder = BattlefieldReportBuilder()
         self.engine.reset(report_builder=self.report_builder)
         self._dragging_icon = None
         self._drag_path = []
         self._snap_target = None
+        self._drag_start = None
 
     def add_army_icon(
         self,
@@ -1764,6 +1829,7 @@ class BattlefieldTab(QtWidgets.QWidget):
                 if isinstance(item, ArmyIcon):
                     self._dragging_icon = item
                     self._drag_path = [(item.x(), item.y())]
+                    self._drag_start = (item.x(), item.y())
                     return True
             if event.type() == QtCore.QEvent.Type.MouseMove and self._dragging_icon:
                 pos = self.view.mapToScene(event.pos())
@@ -1778,9 +1844,6 @@ class BattlefieldTab(QtWidgets.QWidget):
                     if self._snap_target:
                         self._snap_target.setOpacity(1.0)
                     self._snap_target = None
-                last_x, last_y = self._drag_path[-1]
-                if math.hypot(pos.x() - last_x, pos.y() - last_y) > 5:
-                    self._drag_path.append((pos.x(), pos.y()))
                 return True
             if (
                 event.type() == QtCore.QEvent.Type.MouseButtonRelease
@@ -1788,22 +1851,35 @@ class BattlefieldTab(QtWidgets.QWidget):
                 and self._dragging_icon
             ):
                 pos = self.view.mapToScene(event.pos())
+                start = self._drag_start or (self._dragging_icon.x(), self._dragging_icon.y())
                 if self._snap_target:
+                    end_pt = self._snap_target.sceneBoundingRect().center()
+                    end = (end_pt.x(), end_pt.y())
+                    path = self._path_between(start, end)
+                    self.engine.set_path(
+                        self._dragging_icon.army_name or "",
+                        path,
+                    )
                     self.engine.engage(
                         self._dragging_icon.army_name or "",
                         self._snap_target.army_name or "",
                     )
                     self._snap_target.setOpacity(1.0)
                 else:
-                    self._drag_path.append((pos.x(), pos.y()))
+                    end = (pos.x(), pos.y())
+                    path = self._path_between(start, end)
                     self.engine.set_path(
                         self._dragging_icon.army_name or "",
-                        self._drag_path,
+                        path,
                     )
-                    self._dragging_icon.setPos(pos)
+                    if path:
+                        self._dragging_icon.setPos(*path[-1])
+                    else:
+                        self._dragging_icon.setPos(pos)
                 self._dragging_icon = None
                 self._drag_path = []
                 self._snap_target = None
+                self._drag_start = None
                 return True
         return super().eventFilter(obj, event)
 

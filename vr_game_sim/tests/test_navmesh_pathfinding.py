@@ -4,7 +4,7 @@ from vr_game_sim.navmesh import NavMesh
 
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.army_composition import Army
-from vr_game_sim.battlefield_engine import BattlefieldEngine
+from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
 
 
 def test_navmesh_astar_ignores_obstacles():
@@ -36,7 +36,8 @@ def test_battlefield_path_stops_before_enemy():
     engine.tick(1.0)  # move for 1 second; engagement activates at the boundary
     engine.tick(0.1)  # ensure post-engagement updates run
 
-    assert engine._armies['A1'].position == (approx(3.0), approx(0.0))
+    expected = 5.0 - ENGAGEMENT_DISTANCE
+    assert engine._armies['A1'].position == (approx(expected), approx(0.0))
     assert engine._armies['A1'].path == []
 
 
@@ -51,9 +52,10 @@ def test_battlefield_repositions_when_too_close():
     engine.add_army(army_b, 'blue', position=(5.0, 0.0), speed=0.0)
     engine.engage('A1', 'A2')
 
-    engine.tick(0.1)  # reposition to maintain 2 unit distance
+    engine.tick(0.1)  # reposition to maintain minimum distance
 
-    assert engine._armies['A1'].position == (approx(3.0), approx(0.0))
+    expected = 5.0 - ENGAGEMENT_DISTANCE
+    assert engine._armies['A1'].position == (approx(expected), approx(0.0))
 
 
 def test_battlefield_follow_multiple_waypoints():

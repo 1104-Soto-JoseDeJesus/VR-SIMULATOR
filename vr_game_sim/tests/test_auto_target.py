@@ -2,7 +2,7 @@ import pytest
 
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.army_composition import Army
-from vr_game_sim.battlefield_engine import BattlefieldEngine
+from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
 
 
 def make_army(name: str) -> Army:
@@ -33,7 +33,8 @@ def test_defender_targets_attacker_on_first_engagement():
     # After attacker moves into range defender targets the attacker
     assert engine._armies['B'].direct_target == 'A'
     assert engine._armies['B'].position == (5.0, 0.0)
-    assert engine._armies['A'].position[0] == pytest.approx(3.0, abs=1e-3)
+    expected = 5.0 - ENGAGEMENT_DISTANCE
+    assert engine._armies['A'].position[0] == pytest.approx(expected, abs=1e-3)
 
 
 def test_first_arrival_becomes_direct_target():

@@ -24,10 +24,7 @@ def test_long_distance_march_delays_engagement():
     assert ('A', 'B') in engine._pending_engagements
 
     engine.tick(1.0)
-    assert ('A', 'B') not in engine._engagements
-    assert ('A', 'B') in engine._pending_engagements
-
-    engine.tick(1.0)
+    # Distance now equals ENGAGEMENT_DISTANCE so combat starts
     assert ('A', 'B') in engine._engagements
 
 

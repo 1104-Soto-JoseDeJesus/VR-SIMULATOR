@@ -18,7 +18,7 @@ def angle_between(engine: BattlefieldEngine, name: str, defender: str) -> float:
     return (math.degrees(math.atan2(ay - dy, ax - dx)) + 360) % 360
 
 
-def test_later_attacker_slides_clockwise_when_too_close():
+def test_later_attacker_slides_anticlockwise_when_too_close():
     engine = BattlefieldEngine()
     atk1 = make_army('A1')
     atk2 = make_army('A2')
@@ -44,7 +44,7 @@ def test_later_attacker_slides_clockwise_when_too_close():
     ang1 = angle_between(engine, 'A1', 'D')
     ang2 = angle_between(engine, 'A2', 'D')
     diff = (ang2 - ang1 + 180) % 360 - 180
-    assert diff == pytest.approx(-45, abs=1)
+    assert diff == pytest.approx(45, abs=1)
 
 
 def test_clockwise_arrival_between_5_and_25_degrees_slides_anticlockwise():
@@ -163,7 +163,7 @@ def test_no_slide_when_more_than_25_degrees_anticlockwise():
     assert diff == pytest.approx(30, abs=1)
 
 
-def test_same_angle_attacker_slides_clockwise():
+def test_same_angle_attacker_slides_anticlockwise():
     engine = BattlefieldEngine()
     atk1 = make_army('A1')
     atk2 = make_army('A2')
@@ -183,7 +183,7 @@ def test_same_angle_attacker_slides_clockwise():
     ang1 = angle_between(engine, 'A1', 'D')
     ang2 = angle_between(engine, 'A2', 'D')
     diff = (ang2 - ang1 + 180) % 360 - 180
-    assert diff == pytest.approx(-45, abs=1)
+    assert diff == pytest.approx(45, abs=1)
 
 
 def test_current_position_used_for_reposition():
@@ -208,4 +208,4 @@ def test_current_position_used_for_reposition():
     ang1 = angle_between(engine, 'A1', 'D')
     ang2 = angle_between(engine, 'A2', 'D')
     diff = (ang2 - ang1 + 180) % 360 - 180
-    assert diff == pytest.approx(-45, abs=1)
+    assert diff == pytest.approx(45, abs=1)

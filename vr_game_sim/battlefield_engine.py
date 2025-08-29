@@ -490,18 +490,18 @@ class BattlefieldEngine:
                     # ``diff`` represents how many degrees ``ctx`` sits
                     # clockwise (negative) or anti-clockwise (positive) from
                     # ``other`` based on their current centre positions.  Late
-                    # arrivals 5° clockwise to 25° anti-clockwise slide 45°
-                    # clockwise to make room; those 5.1–25° clockwise instead
-                    # slide 45° anti-clockwise.
+                    # arrivals 5° anti-clockwise to 25° clockwise slide 45°
+                    # anti-clockwise to make room; those 5.1–25° anti-clockwise
+                    # instead slide 45° clockwise.
 
-                    if -5 <= diff <= 25:
-                        ctx.arc_target_angle = (other_angle - 45) % 360
-                        ctx.arc_direction = -1
-                        ctx.path.clear()
-                        break
-                    elif -25 <= diff < -5:
+                    if -25 <= diff <= 5:
                         ctx.arc_target_angle = (other_angle + 45) % 360
                         ctx.arc_direction = 1
+                        ctx.path.clear()
+                        break
+                    elif 5 < diff <= 25:
+                        ctx.arc_target_angle = (other_angle - 45) % 360
+                        ctx.arc_direction = -1
                         ctx.path.clear()
                         break
 

@@ -483,6 +483,15 @@ class BattlefieldEngine:
                     unique_armies.append(army)
 
         for army in unique_armies:
+            if (
+                army.army_used_rage_skill_this_round_for_rage_gain_block
+                or army.hero1_rage_skill_cast_blocked_by_silence_this_round
+            ):
+                army.base_rage_awarded_this_round = False
+            else:
+                army.current_rage += 100
+                army.rage_added_this_round += 100
+                army.base_rage_awarded_this_round = True
             army.commit_pending_healing_and_damage()
             self._queue_state_update(army)
 
@@ -520,11 +529,10 @@ class BattlefieldEngine:
         for name in defeated:
             self._remove_army(name)
 
-        # Update internal round counters for armies that fought recently.  The
-        # actual rage gain is handled within ``_simulate_one_round`` via the
-        # simulator's internal logic which mirrors the behaviour of the full
-        # duel simulator.  Armies that have been idle for more than two seconds
-        # lose their round progress and rage.
+        # Update internal round counters for armies that fought recently.
+        # Armies that have been idle for more than two seconds lose their round
+        # progress and rage.  Those that did not participate in a round still
+        # receive base rage during the two second grace period after leaving combat.
         for ctx in self._armies.values():
             army = ctx.army
             time_since = self.time_elapsed - ctx.last_engaged_time
@@ -536,13 +544,23 @@ class BattlefieldEngine:
                 # only updated when a round is actually simulated, so a smaller
                 # value indicates we didn't fight this tick.
                 if army.rage_added_this_round == 0 and ctx.last_engaged_time < self.time_elapsed:
-                    army.current_rage += 100
-                    army.rage_added_this_round += 100
+                    if (
+                        army.army_used_rage_skill_this_round_for_rage_gain_block
+                        or army.hero1_rage_skill_cast_blocked_by_silence_this_round
+                    ):
+                        army.base_rage_awarded_this_round = False
+                    else:
+                        army.current_rage += 100
+                        army.rage_added_this_round += 100
+                        army.base_rage_awarded_this_round = True
                 army.rage_gained_history.append(army.rage_added_this_round)
             else:
                 ctx.internal_round = 0
                 army.current_rage = 0.0
+                army.base_rage_awarded_this_round = False
 
+            army.army_used_rage_skill_this_round_for_rage_gain_block = False
+            army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
             self._queue_state_update(army)
 
     def _simulate_one_round(self, sim: GameSimulator) -> None:
@@ -675,17 +693,12 @@ class BattlefieldEngine:
                 sim._calculate_and_log_attack(atk, dfd, is_counter=True)
 
 
-        # End of round processing and base rage gain
+        # End of round processing
         for army, opponent in ((atk, dfd), (dfd, atk)):
             if army.current_troop_count <= 0:
                 continue
             army.process_periodic_effects('end_of_round', opponent=opponent)
             army.activate_queued_effects()
-
-        sim._apply_base_rage_gain()
-        for army in (atk, dfd):
-            army.army_used_rage_skill_this_round_for_rage_gain_block = False
-            army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
 
         # Record latest engagement time for both armies
         self._armies[atk.name].last_engaged_time = self.time_elapsed

@@ -1419,7 +1419,51 @@ def handle_talent_low_whispers(
             created_rage = triggering_army._create_and_add_single_effect(
                 rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
             )
-            if created_rage:
+        if created_rage:
+            an_effect_happened = True
+            log_details.append((f"Gains {rage_gain:.0f} rage next round.", None))
+    return an_effect_happened, log_details
+
+
+# --- Ivor Talent Handlers ---
+def handle_talent_specter_lycan_assault(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                                        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+                                        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    damage_factor = cfg.get("damage_factor", 0.0)
+    trigger_interval = cfg.get("trigger_interval", 9)
+
+    if simulator.round > 0 and simulator.round % trigger_interval == 0:
+        if damage_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, damage_factor, source_skill_def=skill_def)
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
                 an_effect_happened = True
-                log_details.append((f"Gains {rage_gain:.0f} rage next round.", None))
+            log_details.append((f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                               {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed),
+                                "potential_kills": kills}))
+    return an_effect_happened, log_details
+
+
+def handle_talent_amazing_attack(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                                 skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+                                 simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    threshold = cfg.get("troop_threshold", 350000)
+    magnitude = cfg.get("damage_boost", 0.05)
+
+    if opponent_army.current_troop_count > threshold:
+        buff_data = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_AMAZING_ATTACK_BUFF,
+                     "stat_to_mod": StatType.GENERAL_DAMAGE_MODIFIER, "magnitude": magnitude, "duration": 0}
+        created_buff = triggering_army._create_and_add_single_effect(buff_data, skill_def["id"],
+                                                                     triggering_army, triggering_army, opponent_army)
+        if created_buff:
+            an_effect_happened = True
+            log_details.append((f"Gains '{EFFECT_NAME_AMAZING_ATTACK_BUFF}' for this round.", None))
     return an_effect_happened, log_details

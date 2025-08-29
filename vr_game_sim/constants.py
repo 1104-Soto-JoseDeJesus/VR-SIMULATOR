@@ -178,3 +178,8 @@ EFFECT_NAME_LOW_WHISPERS_REDUCTION = "Low Whispers Damage Reduction"
 EFFECT_NAME_PLAGUE_POISON = "Plague Poison"
 EFFECT_NAME_PLAGUE_DAMAGE_TAKEN_DEBUFF = "Plague Damage Taken Debuff"
 EFFECT_NAME_UNDEAD_HARVEST_HP_REDUCTION = "Undead Harvest HP Reduction"
+
+# --- Ivor Skill Effect Names ---
+EFFECT_NAME_TACTICAL_RULES_RAGE_BUFF = "Tactical Rules Rage Buff"
+EFFECT_NAME_AMAZING_ATTACK_BUFF = "Amazing Attack Damage Buff"
+EFFECT_NAME_ALL_KILL_ATTACK_BUFF = "All Kill Attack Buff"

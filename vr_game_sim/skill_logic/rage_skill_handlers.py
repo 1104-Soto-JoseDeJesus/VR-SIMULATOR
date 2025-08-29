@@ -718,6 +718,46 @@ def handle_rage_desperate_strike(
     return an_effect_happened, log_details, damage_dealt_flag
 
 
+# --- Ivor Rage Skill Handler ---
+def handle_rage_all_kill(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                         skill_def: SkillDefinition, event_data: Dict[str, Any],
+                         simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    damage_dealt_flag = False
+    cfg = skill_def.get("config", {})
+    dmg_factor = cfg.get("damage_factor", 0.0)
+
+    if dmg_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, dmg_factor,
+            is_hero2_rage_skill=event_data.get("is_hero2_delayed_rage", False),
+            source_skill_def=skill_def)
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_dealt_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append((f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
+                           {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed),
+                            "potential_kills": kills}))
+
+    atk_buff = cfg.get("attack_buff", 0.0)
+    atk_dur = cfg.get("attack_duration", 2)
+    if atk_buff != 0:
+        buff_data = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_ALL_KILL_ATTACK_BUFF,
+                     "stat_to_mod": StatType.BASE_ATTACK_MULTIPLIER, "magnitude": atk_buff,
+                     "duration": atk_dur, "activate_next_round": True}
+        created_buff = triggering_army._create_and_add_single_effect(buff_data, skill_def["id"],
+                                                                    triggering_army, triggering_army, opponent_army)
+        if created_buff:
+            an_effect_happened = True
+            log_details.append((f"Gains '{EFFECT_NAME_ALL_KILL_ATTACK_BUFF}' for {atk_dur + 1} rounds (starting next round).",
+                               None))
+
+    return an_effect_happened, log_details, damage_dealt_flag
+
+
 # --- Yulmi Rage Skill Handler ---
 def handle_rage_undead_harvest(
         triggering_army: ArmyRef, opponent_army: ArmyRef,

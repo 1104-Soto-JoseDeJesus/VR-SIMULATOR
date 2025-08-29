@@ -839,6 +839,29 @@ def handle_base_skill_plague(
 
     return an_effect_happened, log_details
 
+
+# --- Ivor Base Skill Handlers ---
+def handle_base_skill_throwing_axe(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                                   skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+                                   simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    dmg = cfg.get("damage_factor", 0.0)
+    buffed = cfg.get("buffed_damage_factor", dmg)
+    has_buff = any(eff.effect_type != EffectType.DEBUFF and eff.duration != -1 for eff in triggering_army.active_effects)
+    dmg_factor = buffed if has_buff else dmg
+    if dmg_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, dmg_factor, source_skill_def=skill_def)
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((f"Deals damage to {opponent_army.name}.",
+                     {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+    return happened, logs
+
 def handle_rage_raging_smash(triggering_army: ArmyRef, opponent_army: ArmyRef,
                               skill_def: SkillDefinition, event_data: Dict[str, Any], simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
     happened = False

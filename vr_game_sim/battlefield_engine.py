@@ -60,6 +60,7 @@ class _ArmyContext:
     team: str
     position: Tuple[float, float] = (0.0, 0.0)
     path: List[Tuple[float, float]] = field(default_factory=list)
+    path_start: Optional[Tuple[float, float]] = None
     speed: float = 50.0
     # Name of the army this one is directly targeting.
     direct_target: Optional[str] = None
@@ -194,7 +195,9 @@ class BattlefieldEngine:
     def set_path(self, army_name: str, path: List[Tuple[float, float]]) -> None:
         """Assign a full waypoint ``path`` to ``army_name``."""
         if army_name in self._armies:
-            self._armies[army_name].path = list(path)
+            ctx = self._armies[army_name]
+            ctx.path = list(path)
+            ctx.path_start = ctx.position
 
     def _remove_army(self, name: str) -> None:
         """Remove ``name`` from the engine and clean up references."""
@@ -325,16 +328,20 @@ class BattlefieldEngine:
                 target_y = dy_ - norm_y * ENGAGEMENT_DISTANCE
                 if dist > ENGAGEMENT_DISTANCE:
                     atk_ctx.path = [(target_x, target_y)]
+                    atk_ctx.path_start = atk_ctx.position
                 else:
                     # Already within the desired distance; reposition immediately
                     atk_ctx.position = (target_x, target_y)
                     atk_ctx.path.clear()
+                    atk_ctx.path_start = atk_ctx.position
             else:
                 # Overlapping positions; choose arbitrary offset
                 atk_ctx.position = (dx_ - ENGAGEMENT_DISTANCE, dy_)
                 atk_ctx.path.clear()
+                atk_ctx.path_start = atk_ctx.position
         else:
             atk_ctx.path.clear()
+            atk_ctx.path_start = None
 
         start_time = int(self.time_elapsed) + 1
         self._pending_engagements[(attacker, defender)] = float(start_time)
@@ -469,12 +476,14 @@ class BattlefieldEngine:
             attackers.sort(key=lambda c: c.engaged_at)
             for idx in range(1, len(attackers)):
                 ctx = attackers[idx]
-                ax, ay = ctx.position
+                ax, ay = ctx.path_start if ctx.path_start is not None else ctx.position
                 curr_angle = degrees(atan2(ay - dy, ax - dx))
                 curr_angle = (curr_angle + 360) % 360
                 for j in range(idx):
                     other = attackers[j]
-                    ox, oy = other.position
+                    ox, oy = (
+                        other.path_start if other.path_start is not None else other.position
+                    )
                     other_angle = degrees(atan2(oy - dy, ox - dx))
                     other_angle = (other_angle + 360) % 360
                     diff = (curr_angle - other_angle + 180) % 360 - 180
@@ -540,6 +549,7 @@ class BattlefieldEngine:
             if step == remaining:
                 ctx.arc_target_angle = None
                 ctx.arc_direction = 0
+                ctx.path_start = ctx.position
 
     def _commit_rounds(self) -> None:
         """Execute a single round for all direct engagements."""

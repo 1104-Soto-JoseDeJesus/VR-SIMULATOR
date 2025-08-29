@@ -29,6 +29,7 @@ engine coordinates multiple duels at a higher level.
 from __future__ import annotations
 
 from collections import defaultdict, deque
+import random
 from dataclasses import dataclass, field
 from math import atan2, cos, sin, hypot, pi, degrees, radians
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -199,6 +200,25 @@ class BattlefieldEngine:
             ctx.path = list(path)
             ctx.path_start = ctx.position
 
+    def _auto_select_closest_enemy(self, army_name: str) -> None:
+        """Retarget ``army_name`` to the closest enemy if available."""
+        ctx = self._armies.get(army_name)
+        if ctx is None:
+            return
+        ax, ay = ctx.position
+        enemies: List[Tuple[float, str]] = []
+        for name, other in self._armies.items():
+            if other.team == ctx.team or other.army.current_troop_count <= 0:
+                continue
+            dist = hypot(other.position[0] - ax, other.position[1] - ay)
+            enemies.append((dist, name))
+        if not enemies:
+            return
+        min_dist = min(d for d, _ in enemies)
+        candidates = [n for d, n in enemies if abs(d - min_dist) <= _ENGAGE_EPS]
+        target = random.choice(candidates)
+        self.set_direct_target(army_name, target)
+
     def _remove_army(self, name: str) -> None:
         """Remove ``name`` from the engine and clean up references."""
         ctx = self._armies.pop(name, None)
@@ -210,13 +230,18 @@ class BattlefieldEngine:
         for key in list(self._pending_engagements.keys()):
             if name in key:
                 self._pending_engagements.pop(key, None)
-        for other in self._armies.values():
+        lost: List[str] = []
+        for other_name, other in self._armies.items():
             if other.direct_target == name:
                 other.direct_target = None
                 other.pursue_target = False
                 other.path.clear()
+                lost.append(other_name)
         self._state_cache.pop(name, None)
         self._pending_state_updates.pop(name, None)
+
+        for other_name in lost:
+            self._auto_select_closest_enemy(other_name)
 
     # ------------------------------------------------------------------
     # State broadcasting
@@ -549,7 +574,17 @@ class BattlefieldEngine:
 
     def _commit_rounds(self) -> None:
         """Execute a single round for all direct engagements."""
+        # Retarget armies whose current target vanished before resolution.
+        for name, ctx in list(self._armies.items()):
+            tgt = ctx.direct_target
+            if tgt and tgt not in self._armies:
+                ctx.direct_target = None
+                ctx.pursue_target = False
+                ctx.path.clear()
+                self._auto_select_closest_enemy(name)
+
         # Activate any pending engagements scheduled for this second.
+        new_engagements: Dict[str, List[str]] = defaultdict(list)
         for (atk, dfd), start in list(self._pending_engagements.items()):
             if self.time_elapsed >= start:
                 atk_ctx = self._armies.get(atk)
@@ -566,7 +601,6 @@ class BattlefieldEngine:
                 rb = None
                 if self._report_builder is not None:
                     rb = self._report_builder.get_builder(atk, dfd)
-                old_def_target = def_ctx.direct_target
                 simulator = GameSimulator(atk_ctx.army, def_ctx.army, rb, track_stats=False)
                 self._engagements[(atk, dfd)] = simulator
                 self._graph[atk].add(dfd)
@@ -575,14 +609,15 @@ class BattlefieldEngine:
                 atk_ctx.engaged_at = self.time_elapsed
                 if def_ctx.engaged_at == 0.0:
                     def_ctx.engaged_at = self.time_elapsed
+                new_engagements[dfd].append(atk)
 
-                # Assign defender's direct target to the first attacker that
-                # actually reaches combat range.  If the defender is already
-                # engaged with another army we retain the existing target.
-                if old_def_target is None or (old_def_target, dfd) not in self._engagements:
-                    def_ctx.direct_target = atk
-                    def_ctx.pursue_target = False
-                    def_ctx.path.clear()
+        for dfd, attackers in new_engagements.items():
+            def_ctx = self._armies[dfd]
+            if def_ctx.direct_target is None or (def_ctx.direct_target, dfd) not in self._engagements:
+                chosen = random.choice(attackers)
+                def_ctx.direct_target = chosen
+                def_ctx.pursue_target = False
+                def_ctx.path.clear()
 
         # Reset per-round bookkeeping so reactive/round based skills only
         # fire once across all engagements and rage gain can be tracked.

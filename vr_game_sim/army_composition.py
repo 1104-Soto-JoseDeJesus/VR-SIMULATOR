@@ -412,29 +412,47 @@ class Army:
                      f"{created_effect_instance.get_functionality_description()} for {created_effect_instance.duration + 1} rounds"))
         return applied_effect_logs
 
-    def process_periodic_effects(self, phase: str, opponent: Optional['Army'] = None):
-        if phase not in ['start_of_round', 'end_of_round']: return
-        if not self.simulator: return
+    def process_periodic_effects(
+        self,
+        phase: str,
+        opponent: Optional["Army"] = None,
+        skip_dot_at_start: bool = False,
+    ):
+        if phase not in ["start_of_round", "end_of_round"]:
+            return
+        if not self.simulator:
+            return
 
         for effect in list(self.active_effects):
             is_immediate_custom_effect = effect.name in [
-                EFFECT_NAME_FIRST_STRIKE_RAGE_AURA, EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
-                EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL, EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
-                EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE, EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
+                EFFECT_NAME_FIRST_STRIKE_RAGE_AURA,
+                EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
+                EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
+                EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
+                EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
+                EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
                 EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Add Olena's custom rage gain effect
                 EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
-                EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
-                EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL
+                EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
+                EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
+                EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
             ]
-            if effect.applied_this_round and phase == 'start_of_round' and not is_immediate_custom_effect:
+            if (
+                effect.applied_this_round
+                and phase == "start_of_round"
+                and not is_immediate_custom_effect
+            ):
                 continue
 
             if effect.effect_type == EffectType.DAMAGE_OVER_TIME:
-                if phase == 'start_of_round':
+                if skip_dot_at_start and phase == "start_of_round":
                     continue
-                dot_type = effect.config.get('dot_type')
-                is_special_dot = isinstance(dot_type, DoTType) and dot_type in [DoTType.BLEED, DoTType.POISON,
-                                                                                DoTType.BURN]
+                dot_type = effect.config.get("dot_type")
+                is_special_dot = isinstance(dot_type, DoTType) and dot_type in [
+                    DoTType.BLEED,
+                    DoTType.POISON,
+                    DoTType.BURN,
+                ]
                 potential_dot_damage_tick = 0.0
                 base_dot_damage_for_log = 0.0
                 final_dot_multiplier_for_log = 1.0

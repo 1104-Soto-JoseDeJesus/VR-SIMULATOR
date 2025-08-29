@@ -121,3 +121,67 @@ def test_defender_retarget_after_kill():
 
     assert "A1" not in engine._armies
     assert engine._armies[b1.name].direct_target == a2.name
+
+
+def test_four_column_pairing_and_fallback():
+    engine = ArenaEngine()
+
+    a0f = make_army("A0F")
+    a0b = make_army("A0B")
+    a1f = make_army("A1F")
+    a1b = make_army("A1B")
+    a2b = make_army("A2B")
+    a3f = make_army("A3F")
+    a3b = make_army("A3B")
+
+    b0f = make_army("B0F")
+    b0b = make_army("B0B")
+    b1f = make_army("B1F")
+    b2f = make_army("B2F")
+    b2b = make_army("B2B")
+
+    r_front_y = 0.0
+    r_back_y = -ENGAGEMENT_DISTANCE * 2
+    b_front_y = ENGAGEMENT_DISTANCE * 2
+    b_back_y = ENGAGEMENT_DISTANCE * 4
+
+    layout = {
+        "red": [
+            {"army": a0f, "position": (0.0, r_front_y), "index": 0},
+            {"army": a0b, "position": (0.0, r_back_y), "index": 4},
+            {"army": a1f, "position": (300.0, r_front_y), "index": 1},
+            {"army": a1b, "position": (300.0, r_back_y), "index": 5},
+            {"army": a2b, "position": (600.0, r_back_y), "index": 6},
+            {"army": a3f, "position": (900.0, r_front_y), "index": 3},
+            {"army": a3b, "position": (900.0, r_back_y), "index": 7},
+        ],
+        "blue": [
+            {"army": b0f, "position": (0.0, b_front_y), "index": 0},
+            {"army": b0b, "position": (0.0, b_back_y), "index": 4},
+            {"army": b1f, "position": (300.0, b_front_y), "index": 1},
+            {"army": b2f, "position": (600.0, b_front_y), "index": 2},
+            {"army": b2b, "position": (600.0, b_back_y), "index": 6},
+        ],
+    }
+
+    engine.start_arena_battle(layout)
+
+    # Column 0: full pairing
+    assert engine._armies[a0f.name].direct_target == b0f.name
+    assert engine._armies[a0b.name].direct_target == b0b.name
+    assert engine._armies[b0f.name].direct_target == a0f.name
+    assert engine._armies[b0b.name].direct_target == a0b.name
+
+    # Column 1: red back falls back to blue front
+    assert engine._armies[a1f.name].direct_target == b1f.name
+    assert engine._armies[a1b.name].direct_target == b1f.name
+    assert engine._armies[b1f.name].direct_target == a1f.name
+
+    # Column 2: blue front falls back to red back
+    assert engine._armies[a2b.name].direct_target == b2b.name
+    assert engine._armies[b2b.name].direct_target == a2b.name
+    assert engine._armies[b2f.name].direct_target == a2b.name
+
+    # Column 3: no blue armies -> red units retarget to nearest enemy (column 2 front)
+    assert engine._armies[a3f.name].direct_target == b2f.name
+    assert engine._armies[a3b.name].direct_target == b2f.name

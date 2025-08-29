@@ -216,7 +216,7 @@ class BattlefieldEngine:
             return
         min_dist = min(d for d, _ in enemies)
         candidates = [n for d, n in enemies if abs(d - min_dist) <= _ENGAGE_EPS]
-        target = random.choice(candidates)
+        target = candidates[0]
         self.set_direct_target(army_name, target)
 
     def _remove_army(self, name: str) -> None:
@@ -614,7 +614,7 @@ class BattlefieldEngine:
         for dfd, attackers in new_engagements.items():
             def_ctx = self._armies[dfd]
             if def_ctx.direct_target is None or (def_ctx.direct_target, dfd) not in self._engagements:
-                chosen = random.choice(attackers)
+                chosen = attackers[0]
                 def_ctx.direct_target = chosen
                 def_ctx.pursue_target = False
                 def_ctx.path.clear()

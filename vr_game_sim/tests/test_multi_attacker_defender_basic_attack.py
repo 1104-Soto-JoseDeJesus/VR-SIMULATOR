@@ -1,4 +1,5 @@
 import pytest
+import random
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.army_composition import Army
 from vr_game_sim.battlefield_engine import BattlefieldEngine
@@ -50,6 +51,7 @@ def test_defender_basic_attacks_only_direct_target():
 
 
 def test_multiple_attackers_damage_applied_simultaneously():
+    random.seed(1)
     report_builder = BattlefieldReportBuilder()
     engine = BattlefieldEngine(report_builder)
 

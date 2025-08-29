@@ -2249,6 +2249,7 @@ class ArenaTab(QtWidgets.QWidget):
         # Prepare engine and tracking structures for armies placed in slots.
         self.report_builder = BattlefieldReportBuilder()
         self.engine = ArenaEngine(report_builder=self.report_builder)
+        self.engine.add_state_listener(self._on_engine_state)
         self._icons: dict[str, ArmyIcon] = {}
         self._slot_items: dict[tuple[str, int], SlotItem] = {}
         self._slot_army: dict[tuple[str, int], dict[str, Any] | None] = {}
@@ -2278,25 +2279,26 @@ class ArenaTab(QtWidgets.QWidget):
         """Return coordinates for each deployment slot of both teams."""
 
         default_speed = 50.0
-        base_dist = 2 * default_speed * 2  # 200.0 units
-        half = base_dist / 2.0
+        engage_dist = 2 * default_speed * 2  # 200.0 units between opposing fronts
+        to_mid = engage_dist / 2.0  # distance from front line to map centre
+        back_offset = default_speed * 3  # 150.0 units between front and back rows
 
         cx = self.view.sceneRect().width() / 2.0
         cy = self.view.sceneRect().height() / 2.0
 
-        # Horizontal offsets for the four columns relative to the centre.
+        # Vertical offsets for the four columns relative to the centre.
         offsets = [
-            -1.5 * base_dist,
-            -0.5 * base_dist,
-            0.5 * base_dist,
-            1.5 * base_dist,
+            -1.5 * engage_dist,
+            -0.5 * engage_dist,
+            0.5 * engage_dist,
+            1.5 * engage_dist,
         ]
 
-        team1 = [(cx + dx, cy - half) for dx in offsets]
-        team1 += [(cx + dx, cy - half - base_dist) for dx in offsets]
+        team1 = [(cx - to_mid, cy + dy) for dy in offsets]
+        team1 += [(cx - to_mid - back_offset, cy + dy) for dy in offsets]
 
-        team2 = [(cx + dx, cy + half) for dx in offsets]
-        team2 += [(cx + dx, cy + half + base_dist) for dx in offsets]
+        team2 = [(cx + to_mid, cy + dy) for dy in offsets]
+        team2 += [(cx + to_mid + back_offset, cy + dy) for dy in offsets]
 
         return {"team1": team1, "team2": team2}
 
@@ -2502,6 +2504,18 @@ class ArenaTab(QtWidgets.QWidget):
             item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.NoButton)
         self._last_tick = time.perf_counter()
         self._timer.start()
+
+    def _on_engine_state(self, name: str, state: dict) -> None:
+        """Update health bars in response to engine state broadcasts."""
+        icon = self._icons.get(name)
+        if not icon:
+            return
+        ctx = self.engine._armies.get(name)
+        if not ctx:
+            return
+        army = ctx.army
+        initial = max(1.0, army.unit.initial_count)
+        icon.set_health(army.current_troop_count / initial)
 
     def _on_timer_tick(self) -> None:
         """Advance the arena battle and update icon positions."""

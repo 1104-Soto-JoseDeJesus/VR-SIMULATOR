@@ -17,33 +17,39 @@ def test_slot_coordinates_symmetry():
     cx = scene.width() / 2.0
     cy = scene.height() / 2.0
     speed = 50.0
-    base_dist = 2 * speed * 2
-    half = base_dist / 2.0
+    engage_dist = 2 * speed * 2
+    to_mid = engage_dist / 2.0
+    back_offset = speed * 3
 
-    left_outer = cx - 1.5 * base_dist
-    left_inner = cx - 0.5 * base_dist
-    right_inner = cx + 0.5 * base_dist
-    right_outer = cx + 1.5 * base_dist
+    top_outer = cy - 1.5 * engage_dist
+    top_inner = cy - 0.5 * engage_dist
+    bottom_inner = cy + 0.5 * engage_dist
+    bottom_outer = cy + 1.5 * engage_dist
+
+    front_x1 = cx - to_mid
+    back_x1 = cx - to_mid - back_offset
+    front_x2 = cx + to_mid
+    back_x2 = cx + to_mid + back_offset
 
     expected_team1 = [
-        (left_outer, cy - half),
-        (left_inner, cy - half),
-        (right_inner, cy - half),
-        (right_outer, cy - half),
-        (left_outer, cy - half - base_dist),
-        (left_inner, cy - half - base_dist),
-        (right_inner, cy - half - base_dist),
-        (right_outer, cy - half - base_dist),
+        (front_x1, top_outer),
+        (front_x1, top_inner),
+        (front_x1, bottom_inner),
+        (front_x1, bottom_outer),
+        (back_x1, top_outer),
+        (back_x1, top_inner),
+        (back_x1, bottom_inner),
+        (back_x1, bottom_outer),
     ]
     expected_team2 = [
-        (left_outer, cy + half),
-        (left_inner, cy + half),
-        (right_inner, cy + half),
-        (right_outer, cy + half),
-        (left_outer, cy + half + base_dist),
-        (left_inner, cy + half + base_dist),
-        (right_inner, cy + half + base_dist),
-        (right_outer, cy + half + base_dist),
+        (front_x2, top_outer),
+        (front_x2, top_inner),
+        (front_x2, bottom_inner),
+        (front_x2, bottom_outer),
+        (back_x2, top_outer),
+        (back_x2, top_inner),
+        (back_x2, bottom_inner),
+        (back_x2, bottom_outer),
     ]
 
     assert tab.slot_coords["team1"] == expected_team1

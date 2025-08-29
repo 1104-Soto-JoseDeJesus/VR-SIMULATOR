@@ -27,17 +27,18 @@ def test_slot_distances():
     coords2 = tab.slot_coords["team2"]
 
     speed = 50.0
-    base_dist = 2 * speed * 2
-    lateral = base_dist
+    engage_dist = 2 * speed * 2
+    back_dist = speed * 3
+    lateral = engage_dist
 
     def dist(a, b):
         return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
 
-    # vertical distance between opposing front slots
-    assert dist(coords1[1], coords2[1]) == pytest.approx(base_dist)
-    # vertical distance between front and back slots of same team
-    assert dist(coords1[1], coords1[5]) == pytest.approx(base_dist)
-    # lateral distance between columns
+    # horizontal distance between opposing front slots
+    assert dist(coords1[1], coords2[1]) == pytest.approx(engage_dist)
+    # horizontal distance between front and back slots of same team
+    assert dist(coords1[1], coords1[5]) == pytest.approx(back_dist)
+    # vertical distance between columns
     assert dist(coords1[0], coords1[1]) == pytest.approx(lateral)
 
 

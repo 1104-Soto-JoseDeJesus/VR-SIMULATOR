@@ -631,6 +631,7 @@ class BattlefieldEngine:
         for ctx in self._armies.values():
             army = ctx.army
             army.triggered_skills_this_round.clear()
+            army.healing_hymn_triggered_this_round = False
             army.pending_hp_damage_this_round = 0.0
             army.pending_hp_healing_this_round = 0.0
             army.rage_added_this_round = 0.0

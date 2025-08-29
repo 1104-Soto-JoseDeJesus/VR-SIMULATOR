@@ -169,9 +169,9 @@ def test_four_column_pairing_and_fallback():
 
     # Column 0: full pairing
     assert engine._armies[a0f.name].direct_target == b0f.name
-    assert engine._armies[a0b.name].direct_target == b0b.name
+    assert engine._armies[a0b.name].direct_target == b0f.name
     assert engine._armies[b0f.name].direct_target == a0f.name
-    assert engine._armies[b0b.name].direct_target == a0b.name
+    assert engine._armies[b0b.name].direct_target == a0f.name
 
     # Column 1: red back falls back to blue front
     assert engine._armies[a1f.name].direct_target == b1f.name
@@ -179,7 +179,7 @@ def test_four_column_pairing_and_fallback():
     assert engine._armies[b1f.name].direct_target == a1f.name
 
     # Column 2: blue front falls back to red back
-    assert engine._armies[a2b.name].direct_target == b2b.name
+    assert engine._armies[a2b.name].direct_target == b2f.name
     assert engine._armies[b2b.name].direct_target == a2b.name
     assert engine._armies[b2f.name].direct_target == a2b.name
 

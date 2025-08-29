@@ -19,6 +19,11 @@ from .battlefield_engine import BattlefieldEngine
 class ArenaEngine(BattlefieldEngine):
     """Specialised engine coordinating arena style battles."""
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialise the engine and prepare row fallback mappings."""
+        super().__init__(*args, **kwargs)
+        self._row_fallbacks: Dict[str, List[str]] = {}
+
     def start_arena_battle(self, layout_slots: Any) -> None:
         """Register armies in ``layout_slots`` and queue march orders.
 
@@ -107,6 +112,7 @@ class ArenaEngine(BattlefieldEngine):
                 columns[team][col]["front" if row == 0 else "back"] = entry
 
         # Pair columns across teams to assign default targets and march orders
+        self._row_fallbacks.clear()
         team_names = list(columns.keys())
         if len(team_names) == 2:
             t1, t2 = team_names
@@ -115,6 +121,23 @@ class ArenaEngine(BattlefieldEngine):
                 col1 = columns[t1].get(col, {})
                 col2 = columns[t2].get(col, {})
 
+                # Determine target priority for each team: front opponent then back
+                targets1: List[str] = []
+                opp_front = col2.get("front")
+                opp_back = col2.get("back")
+                if opp_front:
+                    targets1.append(opp_front["army"].name)
+                if opp_back:
+                    targets1.append(opp_back["army"].name)
+
+                targets2: List[str] = []
+                opp_front = col1.get("front")
+                opp_back = col1.get("back")
+                if opp_front:
+                    targets2.append(opp_front["army"].name)
+                if opp_back:
+                    targets2.append(opp_back["army"].name)
+
                 for row_key in ("front", "back"):
                     e1 = col1.get(row_key)
                     if e1 and not (
@@ -122,11 +145,11 @@ class ArenaEngine(BattlefieldEngine):
                         or e1.get("target")
                         or e1.get("march_to")
                     ):
-                        opp = col2.get(row_key) or col2.get(
-                            "front" if row_key == "back" else "back"
-                        )
-                        if opp:
-                            self.set_direct_target(e1["army"].name, opp["army"].name)
+                        if targets1:
+                            self.set_direct_target(e1["army"].name, targets1[0])
+                            self._row_fallbacks[e1["army"].name] = list(targets1)
+                        else:
+                            self._auto_select_closest_enemy(e1["army"].name)
 
                     e2 = col2.get(row_key)
                     if e2 and not (
@@ -134,11 +157,11 @@ class ArenaEngine(BattlefieldEngine):
                         or e2.get("target")
                         or e2.get("march_to")
                     ):
-                        opp = col1.get(row_key) or col1.get(
-                            "front" if row_key == "back" else "back"
-                        )
-                        if opp:
-                            self.set_direct_target(e2["army"].name, opp["army"].name)
+                        if targets2:
+                            self.set_direct_target(e2["army"].name, targets2[0])
+                            self._row_fallbacks[e2["army"].name] = list(targets2)
+                        else:
+                            self._auto_select_closest_enemy(e2["army"].name)
 
                 front1 = col1.get("front")
                 front2 = col2.get("front")
@@ -159,23 +182,6 @@ class ArenaEngine(BattlefieldEngine):
                     ):
                         self.set_waypoint(front2["army"].name, midpoint)
 
-                if not col2:
-                    for e in col1.values():
-                        if not (
-                            e.get("target_army")
-                            or e.get("target")
-                            or e.get("march_to")
-                        ):
-                            self._auto_select_closest_enemy(e["army"].name)
-                if not col1:
-                    for e in col2.values():
-                        if not (
-                            e.get("target_army")
-                            or e.get("target")
-                            or e.get("march_to")
-                        ):
-                            self._auto_select_closest_enemy(e["army"].name)
-
         # Queue march orders (either waypoints or direct engagements)
         for entry in entries:
             army = entry["army"]
@@ -186,3 +192,18 @@ class ArenaEngine(BattlefieldEngine):
             target = entry.get("target") or entry.get("march_to")
             if target is not None:
                 self.set_waypoint(army.name, target)
+
+    def _remove_army(self, name: str) -> None:
+        """Override to honour row based fallback targeting."""
+        affected = [a for a, targets in self._row_fallbacks.items() if name in targets]
+        super()._remove_army(name)
+        self._row_fallbacks.pop(name, None)
+        for attacker in affected:
+            targets = [t for t in self._row_fallbacks.get(attacker, []) if t != name]
+            while targets and targets[0] not in self._armies:
+                targets.pop(0)
+            if targets:
+                self._row_fallbacks[attacker] = targets
+                self.set_direct_target(attacker, targets[0])
+            else:
+                self._row_fallbacks.pop(attacker, None)

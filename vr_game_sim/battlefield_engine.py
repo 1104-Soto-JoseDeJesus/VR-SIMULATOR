@@ -39,6 +39,13 @@ from .enums import SkillTriggerType
 from .battlefield_report_builder import BattlefieldReportBuilder
 
 
+# Minimum centre-to-centre separation at which armies begin fighting.  Using a
+# module level constant allows tests and other modules to align their
+# expectations with the engine's behaviour.
+ENGAGEMENT_DISTANCE: float = 3.0
+_ENGAGE_EPS: float = 0.01  # small tolerance for floating point comparisons
+
+
 @dataclass
 class _ArmyContext:
     """Container storing metadata about an army within the battlefield."""
@@ -284,7 +291,8 @@ class BattlefieldEngine:
         atk_ctx.direct_target = defender
         atk_ctx.pursue_target = pursue
 
-        # Compute initial path that stops 2 units short of the defender when pursuing.
+        # Compute initial path that stops ``ENGAGEMENT_DISTANCE`` units short of
+        # the defender when pursuing.
         if pursue:
             ax, ay = atk_ctx.position
             dx_, dy_ = def_ctx.position
@@ -292,9 +300,9 @@ class BattlefieldEngine:
             dist = hypot(vec_x, vec_y)
             if dist > 0:
                 norm_x, norm_y = vec_x / dist, vec_y / dist
-                target_x = dx_ - norm_x * 2
-                target_y = dy_ - norm_y * 2
-                if dist > 2:
+                target_x = dx_ - norm_x * ENGAGEMENT_DISTANCE
+                target_y = dy_ - norm_y * ENGAGEMENT_DISTANCE
+                if dist > ENGAGEMENT_DISTANCE:
                     atk_ctx.path = [(target_x, target_y)]
                 else:
                     # Already within the desired distance; reposition immediately
@@ -302,7 +310,7 @@ class BattlefieldEngine:
                     atk_ctx.path.clear()
             else:
                 # Overlapping positions; choose arbitrary offset
-                atk_ctx.position = (dx_ - 2, dy_)
+                atk_ctx.position = (dx_ - ENGAGEMENT_DISTANCE, dy_)
                 atk_ctx.path.clear()
         else:
             atk_ctx.path.clear()
@@ -357,8 +365,8 @@ class BattlefieldEngine:
         """Update paths for armies that have a direct target.
 
         This recomputes the waypoint leading to the defender's current
-        position minus two units.  By running every sub‑tick attackers will
-        continuously follow moving defenders.
+        position minus ``ENGAGEMENT_DISTANCE`` units.  By running every
+        sub‑tick attackers will continuously follow moving defenders.
         """
         for ctx in self._armies.values():
             if not ctx.direct_target or not ctx.pursue_target:
@@ -372,15 +380,15 @@ class BattlefieldEngine:
             dist = hypot(vec_x, vec_y)
             if dist > 0:
                 norm_x, norm_y = vec_x / dist, vec_y / dist
-                target_x = dx - norm_x * 2
-                target_y = dy - norm_y * 2
-                if dist > 2:
+                target_x = dx - norm_x * ENGAGEMENT_DISTANCE
+                target_y = dy - norm_y * ENGAGEMENT_DISTANCE
+                if dist > ENGAGEMENT_DISTANCE:
                     ctx.path = [(target_x, target_y)]
                 else:
                     ctx.position = (target_x, target_y)
                     ctx.path.clear()
             else:
-                ctx.position = (dx - 2, dy)
+                ctx.position = (dx - ENGAGEMENT_DISTANCE, dy)
                 ctx.path.clear()
 
     def _step_movements(self, dt: float) -> None:
@@ -403,7 +411,8 @@ class BattlefieldEngine:
             else:
                 ctx.position = (x + dx / dist * step, y + dy / dist * step)
 
-        # Maintain a minimum distance of 2 units between engaged armies.
+        # Maintain a minimum distance of ``ENGAGEMENT_DISTANCE`` units between
+        # engaged armies.
         for (atk, dfd), _ in self._engagements.items():
             atk_ctx = self._armies[atk]
             dfd_ctx = self._armies[dfd]
@@ -411,12 +420,15 @@ class BattlefieldEngine:
             dx_, dy_ = dfd_ctx.position
             vec_x, vec_y = ax - dx_, ay - dy_
             dist = hypot(vec_x, vec_y)
-            if dist < 2:
+            if dist < ENGAGEMENT_DISTANCE:
                 if dist > 0:
                     norm_x, norm_y = vec_x / dist, vec_y / dist
                 else:
                     norm_x, norm_y = 1.0, 0.0
-                atk_ctx.position = (dx_ + norm_x * 2, dy_ + norm_y * 2)
+                atk_ctx.position = (
+                    dx_ + norm_x * ENGAGEMENT_DISTANCE,
+                    dy_ + norm_y * ENGAGEMENT_DISTANCE,
+                )
                 atk_ctx.path.clear()
                 dfd_ctx.path.clear()
 
@@ -433,7 +445,7 @@ class BattlefieldEngine:
                 def_ctx = self._armies[dfd]
                 ax, ay = atk_ctx.position
                 dx_, dy_ = def_ctx.position
-                if hypot(ax - dx_, ay - dy_) > 2.01:
+                if hypot(ax - dx_, ay - dy_) > ENGAGEMENT_DISTANCE + _ENGAGE_EPS:
                     # Still too far away; keep engagement pending
                     continue
                 rb = None

@@ -1509,7 +1509,13 @@ class ArmySetupDialog(QtWidgets.QDialog):
         speed_row = QtWidgets.QHBoxLayout()
         speed_row.addWidget(QtWidgets.QLabel("Speed:"))
         self.speed_spin = QtWidgets.QDoubleSpinBox()
-        self.speed_spin.setRange(0.0, 10.0)
+        # Allow armies to move significantly faster when desired.  The original
+        # implementation capped the configurable movement speed at ``10`` which
+        # proved too limiting when experimenting with battlefield scenarios.
+        # Increasing the upper bound to ``100`` lets users rapidly reposition
+        # armies across the map while still permitting fine grained slow
+        # movement via the single step value.
+        self.speed_spin.setRange(0.0, 100.0)
         self.speed_spin.setSingleStep(0.1)
         self.speed_spin.setValue(10.0)
         speed_row.addWidget(self.speed_spin)
@@ -1696,6 +1702,11 @@ class BattlefieldTab(QtWidgets.QWidget):
 
         # Mapping of army name -> icon for quick updates from engine state
         self._icons: dict[str, ArmyIcon] = {}
+        # Track QGraphicsItems used to visualise movement paths for each army.
+        # Each entry contains the line segments and final destination marker
+        # associated with an army.  Storing them allows easy removal when the
+        # path changes or the army is destroyed.
+        self._paths: dict[str, list[QtWidgets.QGraphicsItem]] = {}
         self.engine.add_state_listener(self._on_engine_state)
 
         self.add_army_btn.clicked.connect(self._add_army)
@@ -1737,9 +1748,11 @@ class BattlefieldTab(QtWidgets.QWidget):
             if ctx is None or ctx.army.current_troop_count <= 0:
                 self.scene.removeItem(icon)
                 self._icons.pop(name, None)
+                self._clear_path(name)
                 continue
             x, y = ctx.position
             icon.setPos(x, y)
+            self._update_path_visual(name, ctx.position, ctx.path)
         window = self.window()
         if window is not None and hasattr(window, "update_battlefield_reports"):
             window.update_battlefield_reports()
@@ -1797,6 +1810,48 @@ class BattlefieldTab(QtWidgets.QWidget):
         if not cells:
             return []
         return [self._point_from_cell(c) for c in cells[1:]]
+
+    def _clear_path(self, name: str) -> None:
+        """Remove any previously drawn movement path for ``name``."""
+        for item in self._paths.pop(name, []):
+            self.scene.removeItem(item)
+
+    def _update_path_visual(
+        self, name: str, start: tuple[float, float], path: list[tuple[float, float]]
+    ) -> None:
+        """Draw ``path`` for ``name`` as dotted lines ending in a marker.
+
+        ``start`` denotes the current position of the army; ``path`` is expected
+        to contain the remaining waypoints.  Existing visuals are cleared before
+        drawing the new path.  If ``path`` is empty any previous visuals are
+        removed and nothing is drawn."""
+
+        self._clear_path(name)
+        if not path:
+            return
+
+        pen = QtGui.QPen(
+            QtCore.Qt.GlobalColor.green, 2, QtCore.Qt.PenStyle.DotLine
+        )
+        items: list[QtWidgets.QGraphicsItem] = []
+        points = [start, *path]
+        for a, b in zip(points, points[1:]):
+            line = self.scene.addLine(a[0], a[1], b[0], b[1], pen)
+            line.setZValue(-1)
+            items.append(line)
+        end = points[-1]
+        radius = 4.0
+        circle = self.scene.addEllipse(
+            end[0] - radius,
+            end[1] - radius,
+            radius * 2,
+            radius * 2,
+            pen,
+            QtGui.QBrush(QtCore.Qt.GlobalColor.transparent),
+        )
+        circle.setZValue(-1)
+        items.append(circle)
+        self._paths[name] = items
 
     def _add_army(self) -> None:
         dlg = ArmySetupDialog(self)
@@ -1891,6 +1946,7 @@ class BattlefieldTab(QtWidgets.QWidget):
         """Clear all armies and reset the battlefield engine."""
         self.scene.clear()
         self._icons.clear()
+        self._paths.clear()
         self._draw_navmesh()
         self._next_x = 0
         self.report_builder = BattlefieldReportBuilder()
@@ -1985,6 +2041,9 @@ class BattlefieldTab(QtWidgets.QWidget):
                         self._dragging_icon.army_name or "",
                         self._snap_target.army_name or "",
                     )
+                    self._update_path_visual(
+                        self._dragging_icon.army_name or "", start, path
+                    )
                     self._snap_target.setOpacity(1.0)
                 else:
                     end = (pos.x(), pos.y())
@@ -1997,6 +2056,9 @@ class BattlefieldTab(QtWidgets.QWidget):
                         self._dragging_icon.setPos(*path[-1])
                     else:
                         self._dragging_icon.setPos(pos)
+                    self._update_path_visual(
+                        self._dragging_icon.army_name or "", start, path
+                    )
                 self._dragging_icon = None
                 self._drag_path = []
                 self._snap_target = None

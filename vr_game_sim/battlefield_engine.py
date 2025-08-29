@@ -47,8 +47,8 @@ from .battlefield_report_builder import BattlefieldReportBuilder
 # attackers to circle around a defender.  ``ENGAGEMENT_DISTANCE`` therefore
 # acts as the radius of the combat ring rather than a mere straight-line
 # separation.
-ENGAGEMENT_DISTANCE: float = 100.0
-_ARC_PUSH_SPEED: float = 10.0  # speed in units/s when sliding around radius
+ENGAGEMENT_DISTANCE: float = 70.0
+_ARC_PUSH_SPEED: float = 15.0  # speed in units/s when sliding around radius
 _ENGAGE_EPS: float = 0.01  # small tolerance for floating point comparisons
 
 
@@ -478,7 +478,12 @@ class BattlefieldEngine:
                     other_angle = degrees(atan2(oy - dy, ox - dx))
                     other_angle = (other_angle + 360) % 360
                     diff = (curr_angle - other_angle + 180) % 360 - 180
-                    if 0 <= diff < 20:
+                    if diff == 0:
+                        ctx.arc_target_angle = (other_angle + 45) % 360
+                        ctx.arc_direction = 1
+                        ctx.path.clear()
+                        break
+                    if 0 < diff < 20:
                         ctx.arc_target_angle = (other_angle + 45) % 360
                         ctx.arc_direction = 1
                         ctx.path.clear()

@@ -74,3 +74,26 @@ def test_later_attacker_slides_clockwise_when_too_close():
     ang2 = angle_between(engine, 'A2', 'D')
     diff = (ang2 - ang1 + 180) % 360 - 180
     assert diff == pytest.approx(-45, abs=1)
+
+
+def test_same_angle_attacker_slides_anticlockwise():
+    engine = BattlefieldEngine()
+    atk1 = make_army('A1')
+    atk2 = make_army('A2')
+    dfd = make_army('D')
+
+    engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    engine.add_army(atk2, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    engine.add_army(dfd, 'blue', position=(0, 0), speed=0)
+
+    engine.engage('A1', 'D')
+    engine.tick(1.0)
+    engine.engage('A2', 'D')
+    engine.tick(1.0)
+
+    engine.tick(8.0)
+
+    ang1 = angle_between(engine, 'A1', 'D')
+    ang2 = angle_between(engine, 'A2', 'D')
+    diff = (ang2 - ang1 + 180) % 360 - 180
+    assert diff == pytest.approx(45, abs=1)

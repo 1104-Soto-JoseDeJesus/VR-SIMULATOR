@@ -29,9 +29,9 @@ def test_front_rows_target_and_meet_midpoint():
     engine.start_arena_battle(layout)
 
     assert engine._armies[a_front.name].direct_target == b_front.name
-    assert engine._armies[a_back.name].direct_target == b_front.name
+    assert engine._armies[a_back.name].direct_target == b_back.name
     assert engine._armies[b_front.name].direct_target == a_front.name
-    assert engine._armies[b_back.name].direct_target == a_front.name
+    assert engine._armies[b_back.name].direct_target == a_back.name
 
     midpoint = (0.0, 100.0)
     assert engine._armies[a_front.name].path == [midpoint]
@@ -58,4 +58,4 @@ def test_fallback_to_back_slot_when_front_missing():
 
     assert engine._armies[a_front.name].direct_target == b_back.name
     assert engine._armies[a_back.name].direct_target == b_back.name
-    assert engine._armies[b_back.name].direct_target == a_front.name
+    assert engine._armies[b_back.name].direct_target == a_back.name

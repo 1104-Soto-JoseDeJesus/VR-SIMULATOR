@@ -115,38 +115,30 @@ class ArenaEngine(BattlefieldEngine):
                 col1 = columns[t1].get(col, {})
                 col2 = columns[t2].get(col, {})
 
-                def _pick_target(col_data: Dict[str, Dict[str, Any]]) -> Optional[str]:
-                    target_entry = col_data.get("front") or col_data.get("back")
-                    if target_entry is None:
-                        return None
-                    return target_entry["army"].name
-
-                target1 = _pick_target(col2)
-                target2 = _pick_target(col1)
-
                 for row_key in ("front", "back"):
                     e1 = col1.get(row_key)
-                    if (
-                        e1
-                        and not (
-                            e1.get("target_army")
-                            or e1.get("target")
-                            or e1.get("march_to")
-                        )
-                        and target1
+                    if e1 and not (
+                        e1.get("target_army")
+                        or e1.get("target")
+                        or e1.get("march_to")
                     ):
-                        self.set_direct_target(e1["army"].name, target1)
+                        opp = col2.get(row_key) or col2.get(
+                            "front" if row_key == "back" else "back"
+                        )
+                        if opp:
+                            self.set_direct_target(e1["army"].name, opp["army"].name)
+
                     e2 = col2.get(row_key)
-                    if (
-                        e2
-                        and not (
-                            e2.get("target_army")
-                            or e2.get("target")
-                            or e2.get("march_to")
-                        )
-                        and target2
+                    if e2 and not (
+                        e2.get("target_army")
+                        or e2.get("target")
+                        or e2.get("march_to")
                     ):
-                        self.set_direct_target(e2["army"].name, target2)
+                        opp = col1.get(row_key) or col1.get(
+                            "front" if row_key == "back" else "back"
+                        )
+                        if opp:
+                            self.set_direct_target(e2["army"].name, opp["army"].name)
 
                 front1 = col1.get("front")
                 front2 = col2.get("front")
@@ -166,6 +158,23 @@ class ArenaEngine(BattlefieldEngine):
                         or front2.get("march_to")
                     ):
                         self.set_waypoint(front2["army"].name, midpoint)
+
+                if not col2:
+                    for e in col1.values():
+                        if not (
+                            e.get("target_army")
+                            or e.get("target")
+                            or e.get("march_to")
+                        ):
+                            self._auto_select_closest_enemy(e["army"].name)
+                if not col1:
+                    for e in col2.values():
+                        if not (
+                            e.get("target_army")
+                            or e.get("target")
+                            or e.get("march_to")
+                        ):
+                            self._auto_select_closest_enemy(e["army"].name)
 
         # Queue march orders (either waypoints or direct engagements)
         for entry in entries:

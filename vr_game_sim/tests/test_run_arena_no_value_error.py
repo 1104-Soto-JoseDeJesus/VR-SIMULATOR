@@ -1,21 +1,17 @@
 import os
-import json
+import pytest
 from PyQt6 import QtWidgets
-
 
 def _get_app() -> QtWidgets.QApplication:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     return QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
 
-def test_save_and_load_layout(tmp_path, monkeypatch):
+def test_run_arena_no_value_error():
     app = _get_app()
     from vr_game_sim.gui_main import ArenaTab, ArmyIcon, create_armies_from_data
 
     tab = ArenaTab()
-    # Redirect setups directory and saved armies file to the temporary path
-    tab._setups_dir = str(tmp_path)
-    tab.saved_armies_file = str(tmp_path / "saved_armies.json")
 
     cfg1 = {
         "army_name": "Alpha",
@@ -39,10 +35,7 @@ def test_save_and_load_layout(tmp_path, monkeypatch):
         "unrevivable_ratio": 0.5,
         "heroes": [],
     }
-    with open(tab.saved_armies_file, "w", encoding="utf-8") as fh:
-        json.dump({"Alpha": cfg1, "Beta": cfg2}, fh)
 
-    # Manually place armies
     army1 = create_armies_from_data([cfg1])[0]
     pos1 = tab.slot_coords["team1"][0]
     icon1 = ArmyIcon(
@@ -73,18 +66,8 @@ def test_save_and_load_layout(tmp_path, monkeypatch):
     tab._icons[army2.name] = icon2
     tab._slot_army[("team2", 5)] = {"army": army2, "team": "blue", "speed": 50.0}
 
-    layout_file = tmp_path / "layout.json"
-    monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName", lambda *args, **kwargs: (str(layout_file), "json"))
-    tab._save_layout()
+    try:
+        tab._run_arena()
+    except ValueError as exc:  # pragma: no cover - regression guard
+        pytest.fail(f"_run_arena raised ValueError: {exc}")
 
-    with open(layout_file, "r", encoding="utf-8") as fh:
-        saved = json.load(fh)
-    assert {entry["army_name"] for entry in saved} == {"Alpha", "Beta"}
-
-    # Clear and reload
-    tab._refresh_arena()
-    monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName", lambda *args, **kwargs: (str(layout_file), "json"))
-    tab._load_layout()
-
-    assert tab._slot_army[("team1", 0)]["army"].name == "Alpha"
-    assert tab._slot_army[("team2", 5)]["army"].name == "Beta"

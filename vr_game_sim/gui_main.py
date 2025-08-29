@@ -2251,8 +2251,7 @@ class ArenaTab(QtWidgets.QWidget):
         self.engine = ArenaEngine(report_builder=self.report_builder)
         self._icons: dict[str, ArmyIcon] = {}
         self._slot_items: dict[tuple[str, int], SlotItem] = {}
-        self._slot_army: dict[tuple[str, int], str | None] = {}
-        self._army_slot: dict[str, tuple[str, int, int]] = {}
+        self._slot_army: dict[tuple[str, int], dict[str, Any] | None] = {}
 
         self._running = False
         self._last_tick = time.perf_counter()
@@ -2320,12 +2319,6 @@ class ArenaTab(QtWidgets.QWidget):
         cfg["team"] = default_team
         army = create_armies_from_data([cfg])[0]
         pos = self.slot_coords[team][index]
-        self.engine.add_army(
-            army,
-            cfg["team"],
-            position=pos,
-            speed=cfg.get("speed", 50.0),
-        )
 
         heroes = cfg.get("heroes", [])
         main_path = (
@@ -2359,22 +2352,28 @@ class ArenaTab(QtWidgets.QWidget):
         icon.setPos(*pos)
         self.scene.addItem(icon)
         self._icons[army.name] = icon
-        self._slot_army[key] = army.name
-        col = index % 4
-        row = index // 4
-        self._army_slot[army.name] = (team, col, row)
+        self._slot_army[key] = {
+            "army": army,
+            "team": cfg["team"],
+            "speed": cfg.get("speed", 50.0),
+        }
     def _save_layout(self) -> None:
         """Persist current slot assignments to a JSON file."""
 
-        data = [
-            {
-                "army_name": name,
-                "team": team,
-                "column": col,
-                "row": row,
-            }
-            for name, (team, col, row) in self._army_slot.items()
-        ]
+        data = []
+        for (team, idx), info in self._slot_army.items():
+            if not info:
+                continue
+            col = idx % 4
+            row = idx // 4
+            data.append(
+                {
+                    "army_name": info["army"].name,
+                    "team": team,
+                    "column": col,
+                    "row": row,
+                }
+            )
         if not data:
             QtWidgets.QMessageBox.information(
                 self, "Nothing to save", "No armies are placed in the arena."
@@ -2435,12 +2434,6 @@ class ArenaTab(QtWidgets.QWidget):
             army = create_armies_from_data([cfg])[0]
             index = row * 4 + col
             pos = self.slot_coords[team][index]
-            self.engine.add_army(
-                army,
-                cfg["team"],
-                position=pos,
-                speed=cfg.get("speed", 50.0),
-            )
 
             heroes = cfg.get("heroes", [])
             main_path = (
@@ -2472,29 +2465,36 @@ class ArenaTab(QtWidgets.QWidget):
             icon.setPos(*pos)
             self.scene.addItem(icon)
             self._icons[army.name] = icon
-            self._slot_army[(team, index)] = army.name
-            self._army_slot[army.name] = (team, col, row)
+            self._slot_army[(team, index)] = {
+                "army": army,
+                "team": cfg["team"],
+                "speed": cfg.get("speed", 50.0),
+            }
 
     def _run_arena(self) -> None:
         """Start the arena battle and disable slot manipulation."""
 
-        if self._running or not self._army_slot:
+        if self._running:
             return
         layout: dict[str, list[dict[str, Any]]] = {}
-        for name, (team, col, row) in self._army_slot.items():
-            ctx = self.engine._armies.get(name)
-            if ctx is None:
+        for (slot_team, idx), info in self._slot_army.items():
+            if not info:
                 continue
-            layout.setdefault(team, []).append(
+            col = idx % 4
+            row = idx // 4
+            pos = self.slot_coords[slot_team][idx]
+            layout.setdefault(info["team"], []).append(
                 {
-                    "army": ctx.army,
-                    "position": ctx.position,
+                    "army": info["army"],
+                    "position": pos,
                     "column": col,
                     "row": row,
+                    "speed": info.get("speed", 50.0),
                 }
             )
         if not layout:
             return
+        self.engine.reset(report_builder=self.report_builder)
         self.engine.start_arena_battle(layout)
         self._running = True
         self.run_btn.setEnabled(False)
@@ -2537,7 +2537,6 @@ class ArenaTab(QtWidgets.QWidget):
         self._icons.clear()
         self._slot_items.clear()
         self._slot_army.clear()
-        self._army_slot.clear()
         self._draw_navmesh()
         self.report_builder = BattlefieldReportBuilder()
         self.engine.reset(report_builder=self.report_builder)

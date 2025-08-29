@@ -2131,6 +2131,39 @@ class SimulationWorker(QtCore.QThread):
             self.error.emit(str(exc))
 
 
+class ArenaTab(QtWidgets.QWidget):
+    """Simplified tab for arena maps with army controls.
+
+    The layout mirrors :class:`BattlefieldTab` by providing a basic control
+    bar and a graphics view for rendering an arena.  Actual arena mechanics
+    are implemented elsewhere; this widget primarily establishes the
+    structure so a dedicated tab can be added to the interface.
+    """
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        layout = QtWidgets.QVBoxLayout(self)
+
+        controls = QtWidgets.QHBoxLayout()
+        self.add_army_btn = QtWidgets.QPushButton("Add Army")
+        self.load_army_btn = QtWidgets.QPushButton("Load Army")
+        self.refresh_btn = QtWidgets.QPushButton("Refresh Arena")
+        for btn in (self.add_army_btn, self.load_army_btn, self.refresh_btn):
+            controls.addWidget(btn)
+        controls.addStretch()
+        layout.addLayout(controls)
+
+        self.scene = QtWidgets.QGraphicsScene(self)
+        self.view = QtWidgets.QGraphicsView(self.scene)
+        self.view.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        self.view.setHorizontalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.view.setVerticalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        layout.addWidget(self.view, 1)
+
 def display_histograms(
     scroll: QtWidgets.QScrollArea,
     army1_name: str = "Army 1",
@@ -2407,6 +2440,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # --- Battlefield tab ---
         self.battlefield_tab = BattlefieldTab()
 
+        # --- Arena tab ---
+        self.arena_tab = ArenaTab()
+
         # --- Battlefield Reports tab ---
         self.battlefield_report_tab = QtWidgets.QWidget()
         bf_layout = QtWidgets.QVBoxLayout(self.battlefield_report_tab)
@@ -2504,6 +2540,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Multi-army tabs
         self.tabs.addTab(self.battlefield_tab, "Battlefield")
         self.tabs.addTab(self.battlefield_report_tab, "Battlefield Reports")
+        self.tabs.addTab(self.arena_tab, "Arena")
 
         self.tabs.currentChanged.connect(self._on_tab_changed)
 

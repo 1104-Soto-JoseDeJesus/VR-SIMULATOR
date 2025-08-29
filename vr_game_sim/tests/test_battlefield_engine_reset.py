@@ -9,8 +9,8 @@ def test_engine_reset_clears_state_and_clock() -> None:
     unit_b = Unit('archers', 5, initial_count=1000)
     army_b = Army('B', unit_b)
     engine = BattlefieldEngine()
-    engine.add_army(army_a, 'red', position=(1.0, 0.0))
-    engine.add_army(army_b, 'blue', position=(2.0, 0.0))
+    engine.add_army(army_a, 'red', position=(1.0, 0.0), speed=0)
+    engine.add_army(army_b, 'blue', position=(2.0, 0.0), speed=0)
     engine.engage('A', 'B')
     engine.tick(1.0)
 

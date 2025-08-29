@@ -13,7 +13,7 @@ def test_cannot_target_same_team():
     engine = BattlefieldEngine()
     a = make_army('A')
     b = make_army('B')
-    engine.add_army(a, 'red')
-    engine.add_army(b, 'red')
+    engine.add_army(a, 'red', speed=0)
+    engine.add_army(b, 'red', speed=0)
     with pytest.raises(ValueError):
         engine.set_direct_target('A', 'B')

@@ -20,7 +20,10 @@ def test_attackers_follow_moving_defenders():
         army_b, 'blue', position=(ENGAGEMENT_DISTANCE + 5, 0), speed=1
     )
     engine.add_army(
-        army_c, 'red', position=(ENGAGEMENT_DISTANCE + 25, 0), speed=0
+        army_c,
+        'red',
+        position=(2 * ENGAGEMENT_DISTANCE + 25, 0),
+        speed=0,
     )
 
     engine.set_direct_target('B', 'C')

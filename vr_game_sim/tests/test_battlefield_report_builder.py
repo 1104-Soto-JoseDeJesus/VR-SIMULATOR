@@ -25,8 +25,8 @@ def test_builder_tracks_each_engagement():
     engine = BattlefieldEngine(report_builder=builder)
     army_a = make_army("A")
     army_b = make_army("B")
-    engine.add_army(army_a, "red")
-    engine.add_army(army_b, "blue")
+    engine.add_army(army_a, "red", speed=0)
+    engine.add_army(army_b, "blue", speed=0)
     engine.tick(0.3)
     engine.engage("A", "B")
     engine.tick(0.7)  # start engagement at t=1
@@ -55,9 +55,9 @@ def test_builder_records_defender_global_rounds():
     atk_a = make_army("A")
     atk_c = make_army("C")
     dfd_b = make_army("B")
-    engine.add_army(atk_a, "red")
-    engine.add_army(atk_c, "red")
-    engine.add_army(dfd_b, "blue")
+    engine.add_army(atk_a, "red", speed=0)
+    engine.add_army(atk_c, "red", speed=0)
+    engine.add_army(dfd_b, "blue", speed=0)
     engine.tick(0.3)
     engine.engage("A", "B")
     engine.tick(0.7)  # start A-B at t=1

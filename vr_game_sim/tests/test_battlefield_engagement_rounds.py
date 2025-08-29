@@ -13,8 +13,8 @@ def test_engagement_gated_and_rage_round_updates():
     engine = BattlefieldEngine()
     army_a = make_army('A')
     army_b = make_army('B')
-    engine.add_army(army_a, 'red')
-    engine.add_army(army_b, 'blue')
+    engine.add_army(army_a, 'red', speed=0)
+    engine.add_army(army_b, 'blue', speed=0)
 
     engine.tick(0.3)
     engine.engage('A', 'B')  # schedule for t=1
@@ -33,7 +33,7 @@ def test_internal_rounds_are_per_attacker():
     army_b = make_army('B')
     army_c = make_army('C')
     for army, team in [(army_a, 'red'), (army_b, 'blue'), (army_c, 'red')]:
-        engine.add_army(army, team)
+        engine.add_army(army, team, speed=0)
 
     engine.tick(0.3)
     engine.engage('A', 'B')
@@ -53,8 +53,8 @@ def test_round_and_rage_stop_after_two_seconds_idle():
     engine = BattlefieldEngine()
     army_a = make_army('A')
     army_b = make_army('B')
-    engine.add_army(army_a, 'red')
-    engine.add_army(army_b, 'blue')
+    engine.add_army(army_a, 'red', speed=0)
+    engine.add_army(army_b, 'blue', speed=0)
 
     engine.tick(0.3)
     engine.engage('A', 'B')

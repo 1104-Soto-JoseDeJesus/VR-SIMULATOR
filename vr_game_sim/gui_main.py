@@ -1517,7 +1517,7 @@ class ArmySetupDialog(QtWidgets.QDialog):
         # movement via the single step value.
         self.speed_spin.setRange(0.0, 100.0)
         self.speed_spin.setSingleStep(0.1)
-        self.speed_spin.setValue(10.0)
+        self.speed_spin.setValue(50.0)
         speed_row.addWidget(self.speed_spin)
         layout.addLayout(speed_row)
 
@@ -1870,7 +1870,7 @@ class BattlefieldTab(QtWidgets.QWidget):
             army,
             cfg.get("team", ""),
             position=pos,
-            speed=cfg.get("speed", 10.0),
+            speed=cfg.get("speed", 50.0),
         )
 
         heroes = cfg.get("heroes", [])
@@ -1916,7 +1916,7 @@ class BattlefieldTab(QtWidgets.QWidget):
             army,
             cfg.get("team", ""),
             position=pos,
-            speed=cfg.get("speed", 10.0),
+            speed=cfg.get("speed", 50.0),
         )
 
         heroes = cfg.get("heroes", [])

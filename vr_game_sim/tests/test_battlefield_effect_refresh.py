@@ -20,8 +20,8 @@ def test_fatal_bleeding_waits_and_refreshes():
         hero = Hero("Bleeder", ["talent_fatal_bleeding"], [], [], SKILL_REGISTRY_GLOBAL)
         atk = Army("A", Unit("pikemen", 5, initial_count=1000), heroes=[hero])
         dfd = Army("B", Unit("pikemen", 5, initial_count=1000))
-        engine.add_army(atk, "red")
-        engine.add_army(dfd, "blue")
+        engine.add_army(atk, "red", speed=0)
+        engine.add_army(dfd, "blue", speed=0)
         engine.engage("A", "B")
 
         engine.tick(1.0)  # Round 1: effect queued for next round

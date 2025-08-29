@@ -2162,7 +2162,67 @@ class ArenaTab(QtWidgets.QWidget):
         self.view.setVerticalScrollBarPolicy(
             QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
+
+        # Load the same battlefield background so the arena map aligns with
+        # the navigation mesh.  Fall back to a default size if the image is
+        # missing which may be the case in tests.
+        bg_path = os.path.join(
+            os.path.dirname(__file__), "Icons", "BattlefieldBackground.png"
+        )
+        self._background = QtGui.QPixmap(bg_path)
+        if not self._background.isNull():
+            self.view.setSceneRect(
+                0, 0, self._background.width(), self._background.height()
+            )
+        else:  # pragma: no cover - image may be absent in CI
+            self.view.setSceneRect(0, 0, 800, 600)
         layout.addWidget(self.view, 1)
+
+        # --------------------------------------------------------------
+        # Navigation mesh setup
+        # --------------------------------------------------------------
+        grid_path = os.path.join(os.path.dirname(__file__), "navmesh_grid.txt")
+        try:
+            with open(grid_path, "r", encoding="utf-8") as fh:
+                grid = [line.rstrip("\n") for line in fh if line.strip()]
+        except OSError:
+            cols = int(self.view.sceneRect().width() // 40)
+            rows = int(self.view.sceneRect().height() // 40)
+            grid = ["." * cols for _ in range(rows)]
+
+        self.navmesh = NavMesh.from_grid(grid)
+        self._grid = grid
+        self._cell_w = self.view.sceneRect().width() / len(grid[0])
+        self._cell_h = self.view.sceneRect().height() / len(grid)
+        self._icon_size = int(min(self._cell_w, self._cell_h) * 0.8 * 3 * 0.75)
+        self._draw_navmesh()
+
+    # ------------------------------------------------------------------
+    # Navigation mesh helpers
+    # ------------------------------------------------------------------
+    def _draw_navmesh(self) -> None:
+        """Render the arena background and keep it scaled to the view."""
+
+        if hasattr(self, "_background") and not self._background.isNull():
+            scaled = self._background.scaled(
+                int(self.view.sceneRect().width()),
+                int(self.view.sceneRect().height()),
+                QtCore.Qt.AspectRatioMode.IgnoreAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+            bg_item = self.scene.addPixmap(scaled)
+            bg_item.setZValue(-2)
+
+        self.view.fitInView(
+            self.view.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio
+        )
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # type: ignore[override]
+        """Keep the entire arena visible when the widget is resized."""
+        super().resizeEvent(event)
+        self.view.fitInView(
+            self.view.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio
+        )
 
 def display_histograms(
     scroll: QtWidgets.QScrollArea,

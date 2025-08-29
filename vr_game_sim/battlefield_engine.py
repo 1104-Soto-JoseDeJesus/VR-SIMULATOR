@@ -568,28 +568,19 @@ class BattlefieldEngine:
 
         atk, dfd = sim.army1, sim.army2
 
+        # Activate any effects queued from the previous round and decrement durations
+        for army in (atk, dfd):
+            if army.effects_to_activate_next_round:
+                army.upcoming_effects.extend(army.effects_to_activate_next_round)
+                army.effects_to_activate_next_round.clear()
+            army.activate_queued_effects()
+            army.decrement_effect_durations()
+
         # --- Start of round housekeeping & round based skill triggers ---
         for army, opponent in ((atk, dfd), (dfd, atk)):
             if army.name in start_processed:
                 continue
             start_processed.add(army.name)
-
-            next_effects = []
-            for eff in army.active_effects:
-                if eff.duration == -1:
-                    eff.applied_this_round = False
-                    next_effects.append(eff)
-                    continue
-                eff.duration -= 1
-                eff.applied_this_round = False
-                if eff.duration >= 0:
-                    next_effects.append(eff)
-            army.active_effects = next_effects
-
-            if army.effects_to_activate_next_round:
-                army.upcoming_effects.extend(army.effects_to_activate_next_round)
-                army.effects_to_activate_next_round.clear()
-            army.activate_queued_effects()
 
             if army.current_troop_count <= 0:
                 continue
@@ -718,6 +709,8 @@ class BattlefieldEngine:
             if army.current_troop_count > 0:
                 army.process_periodic_effects("end_of_round", opponent=opponent)
                 army.activate_queued_effects()
+                for eff in army.active_effects:
+                    eff.applied_this_round = False
 
         sim._apply_base_rage_gain()
         for army in (atk, dfd):

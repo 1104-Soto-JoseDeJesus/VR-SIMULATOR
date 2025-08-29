@@ -30,13 +30,15 @@ def test_battlefield_path_stops_before_enemy():
 
     engine = BattlefieldEngine()
     engine.add_army(army_a, 'red', position=(0.0, 0.0), speed=3.0)
-    engine.add_army(army_b, 'blue', position=(5.0, 0.0), speed=0.0)
+    engine.add_army(
+        army_b, 'blue', position=(ENGAGEMENT_DISTANCE + 2, 0.0), speed=0.0
+    )
     engine.engage('A1', 'A2')
 
     engine.tick(1.0)  # move for 1 second; engagement activates at the boundary
     engine.tick(0.1)  # ensure post-engagement updates run
 
-    expected = 5.0 - ENGAGEMENT_DISTANCE
+    expected = (ENGAGEMENT_DISTANCE + 2) - ENGAGEMENT_DISTANCE
     assert engine._armies['A1'].position == (approx(expected), approx(0.0))
     assert engine._armies['A1'].path == []
 
@@ -48,13 +50,17 @@ def test_battlefield_repositions_when_too_close():
     army_b = Army('A2', unit_b)
 
     engine = BattlefieldEngine()
-    engine.add_army(army_a, 'red', position=(4.5, 0.0), speed=0.0)
-    engine.add_army(army_b, 'blue', position=(5.0, 0.0), speed=0.0)
+    engine.add_army(
+        army_a, 'red', position=(ENGAGEMENT_DISTANCE + 1.5, 0.0), speed=0.0
+    )
+    engine.add_army(
+        army_b, 'blue', position=(ENGAGEMENT_DISTANCE + 2, 0.0), speed=0.0
+    )
     engine.engage('A1', 'A2')
 
     engine.tick(0.1)  # reposition to maintain minimum distance
 
-    expected = 5.0 - ENGAGEMENT_DISTANCE
+    expected = (ENGAGEMENT_DISTANCE + 2) - ENGAGEMENT_DISTANCE
     assert engine._armies['A1'].position == (approx(expected), approx(0.0))
 
 

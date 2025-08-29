@@ -1,7 +1,7 @@
 import pytest
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.army_composition import Army
-from vr_game_sim.battlefield_engine import BattlefieldEngine
+from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
 
 
 def make_army(name: str) -> Army:
@@ -14,7 +14,9 @@ def test_long_distance_march_delays_engagement():
     army_a = make_army('A')
     army_b = make_army('B')
     engine.add_army(army_a, 'red', position=(0, 0), speed=1)
-    engine.add_army(army_b, 'blue', position=(5, 0), speed=0)
+    engine.add_army(
+        army_b, 'blue', position=(ENGAGEMENT_DISTANCE + 2, 0), speed=0
+    )
 
     engine.engage('A', 'B')
     assert ('A', 'B') in engine._pending_engagements
@@ -33,7 +35,9 @@ def test_mutual_approach_engages_when_close():
     army_a = make_army('A')
     army_b = make_army('B')
     engine.add_army(army_a, 'red', position=(0, 0), speed=1)
-    engine.add_army(army_b, 'blue', position=(10, 0), speed=1)
+    engine.add_army(
+        army_b, 'blue', position=(ENGAGEMENT_DISTANCE + 7, 0), speed=1
+    )
 
     engine.engage('A', 'B')
     engine.engage('B', 'A')

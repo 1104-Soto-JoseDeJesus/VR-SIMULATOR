@@ -495,15 +495,15 @@ class BattlefieldEngine:
                     # angle as an existing one – but just a hair on the
                     # clockwise side – would move in the opposite direction than
                     # intended.  To treat these near-identical approaches as the
-                    # same angle we allow a small 5° clockwise tolerance and
+                    # same angle we allow a small 15° clockwise tolerance and
                     # still push the newcomer anti-clockwise in that case.
 
-                    if -5 <= diff < 20:
+                    if -15 <= diff < 20:
                         ctx.arc_target_angle = (other_angle + 45) % 360
                         ctx.arc_direction = 1
                         ctx.path.clear()
                         break
-                    if -20 < diff < -5:
+                    if -20 < diff < -15:
                         ctx.arc_target_angle = (other_angle - 45) % 360
                         ctx.arc_direction = -1
                         ctx.path.clear()

@@ -1791,6 +1791,7 @@ class BattlefieldTab(QtWidgets.QWidget):
             start_cell = self._cell_from_point(start)
             end_cell = self._cell_from_point(end)
             cells = self.navmesh.astar(start_cell, end_cell)
+            cells = self.navmesh.simplify_path(cells)
         except Exception:
             return []
         if not cells:

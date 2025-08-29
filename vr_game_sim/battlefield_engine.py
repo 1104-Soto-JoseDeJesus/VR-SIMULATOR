@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from math import hypot
+from math import atan2, cos, sin, hypot, pi, degrees, radians
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .army_composition import Army
@@ -42,7 +42,13 @@ from .battlefield_report_builder import BattlefieldReportBuilder
 # Minimum centre-to-centre separation at which armies begin fighting.  Using a
 # module level constant allows tests and other modules to align their
 # expectations with the engine's behaviour.
-ENGAGEMENT_DISTANCE: float = 50.0
+#
+# Battlefield mode now operates on a wider engagement radius and allows
+# attackers to circle around a defender.  ``ENGAGEMENT_DISTANCE`` therefore
+# acts as the radius of the combat ring rather than a mere straight-line
+# separation.
+ENGAGEMENT_DISTANCE: float = 100.0
+_ARC_PUSH_SPEED: float = 10.0  # speed in units/s when sliding around radius
 _ENGAGE_EPS: float = 0.01  # small tolerance for floating point comparisons
 
 
@@ -63,6 +69,15 @@ class _ArmyContext:
     internal_round: int = 0
     # Timestamp of the last round this army actually fought in.
     last_engaged_time: float = field(default=float('-inf'))
+    # Timestamp when this army entered its current engagement.  Used to order
+    # attackers around the engagement radius.
+    engaged_at: float = 0.0
+    # When an army needs to slide along the engagement radius to make room for
+    # others these fields describe the target angle and movement direction
+    # (``+1`` for anti-clockwise, ``-1`` for clockwise).  A ``None`` target
+    # indicates no pending repositioning.
+    arc_target_angle: Optional[float] = None
+    arc_direction: int = 0
 
 
 class BattlefieldEngine:
@@ -279,6 +294,9 @@ class BattlefieldEngine:
                     rev_ctx.direct_target = None
             atk_ctx.direct_target = None
             atk_ctx.pursue_target = False
+            atk_ctx.arc_target_angle = None
+            atk_ctx.arc_direction = 0
+            atk_ctx.engaged_at = 0.0
             return
 
         if defender not in self._armies:
@@ -290,6 +308,9 @@ class BattlefieldEngine:
 
         atk_ctx.direct_target = defender
         atk_ctx.pursue_target = pursue
+        atk_ctx.arc_target_angle = None
+        atk_ctx.arc_direction = 0
+        atk_ctx.engaged_at = 0.0
 
         # Compute initial path that stops ``ENGAGEMENT_DISTANCE`` units short of
         # the defender when pursuing.
@@ -432,6 +453,83 @@ class BattlefieldEngine:
                 atk_ctx.path.clear()
                 dfd_ctx.path.clear()
 
+        # Reposition attackers on the engagement radius if they cluster too
+        # closely in angle around their defender.  Later arrivals slide along
+        # the circle to maintain at least 20 degrees separation and end up 45
+        # degrees away from the unit they were crowding.
+        defenders: Dict[str, List[_ArmyContext]] = defaultdict(list)
+        for (atk, dfd), _ in self._engagements.items():
+            defenders[dfd].append(self._armies[atk])
+
+        for dfd, attackers in defenders.items():
+            if len(attackers) < 2:
+                continue
+            def_ctx = self._armies[dfd]
+            dx, dy = def_ctx.position
+            attackers.sort(key=lambda c: c.engaged_at)
+            for idx in range(1, len(attackers)):
+                ctx = attackers[idx]
+                ax, ay = ctx.position
+                curr_angle = degrees(atan2(ay - dy, ax - dx))
+                curr_angle = (curr_angle + 360) % 360
+                for j in range(idx):
+                    other = attackers[j]
+                    ox, oy = other.position
+                    other_angle = degrees(atan2(oy - dy, ox - dx))
+                    other_angle = (other_angle + 360) % 360
+                    diff = (curr_angle - other_angle + 180) % 360 - 180
+                    if 0 <= diff < 20:
+                        ctx.arc_target_angle = (other_angle + 45) % 360
+                        ctx.arc_direction = 1
+                        ctx.path.clear()
+                        break
+                    if -20 < diff < 0:
+                        ctx.arc_target_angle = (other_angle - 45) % 360
+                        ctx.arc_direction = -1
+                        ctx.path.clear()
+                        break
+
+        # Progress any pending angular repositioning along the engagement
+        # radius.  Combat continues while armies slide along the circle.
+        angular_speed = _ARC_PUSH_SPEED / ENGAGEMENT_DISTANCE * (180 / pi)
+        for ctx in self._armies.values():
+            if ctx.arc_target_angle is None or not ctx.direct_target:
+                continue
+            def_ctx = self._armies.get(ctx.direct_target)
+            if def_ctx is None:
+                ctx.arc_target_angle = None
+                ctx.arc_direction = 0
+                continue
+            dx, dy = def_ctx.position
+            ax, ay = ctx.position
+            curr_angle = degrees(atan2(ay - dy, ax - dx))
+            curr_angle = (curr_angle + 360) % 360
+            target = ctx.arc_target_angle % 360
+            if ctx.arc_direction == 1:
+                remaining = (target - curr_angle + 360) % 360
+                if remaining == 0:
+                    ctx.arc_target_angle = None
+                    ctx.arc_direction = 0
+                    continue
+                step = min(remaining, angular_speed * dt)
+                new_angle = curr_angle + step
+            else:
+                remaining = (curr_angle - target + 360) % 360
+                if remaining == 0:
+                    ctx.arc_target_angle = None
+                    ctx.arc_direction = 0
+                    continue
+                step = min(remaining, angular_speed * dt)
+                new_angle = curr_angle - step
+            rad = radians(new_angle)
+            ctx.position = (
+                dx + cos(rad) * ENGAGEMENT_DISTANCE,
+                dy + sin(rad) * ENGAGEMENT_DISTANCE,
+            )
+            if step == remaining:
+                ctx.arc_target_angle = None
+                ctx.arc_direction = 0
+
     def _commit_rounds(self) -> None:
         """Execute a single round for all direct engagements."""
         # Activate any pending engagements scheduled for this second.
@@ -457,6 +555,9 @@ class BattlefieldEngine:
                 self._graph[atk].add(dfd)
                 self._graph[dfd].add(atk)
                 self._pending_engagements.pop((atk, dfd), None)
+                atk_ctx.engaged_at = self.time_elapsed
+                if def_ctx.engaged_at == 0.0:
+                    def_ctx.engaged_at = self.time_elapsed
 
                 # Assign defender's direct target to the first attacker that
                 # actually reaches combat range.  If the defender is already

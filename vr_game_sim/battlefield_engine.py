@@ -462,6 +462,7 @@ class BattlefieldEngine:
             army.pending_hp_damage_this_round = 0.0
             army.pending_hp_healing_this_round = 0.0
             army.rage_added_this_round = 0.0
+            army.base_rage_awarded_this_round = False
 
         unique_armies: List[Army] = []
         for key, sim in self._engagements.items():

@@ -416,6 +416,15 @@ class GameSimulator:
             return
 
         for army in [self.army1, self.army2]:
+            # In battlefield mode a defender may participate in multiple
+            # engagements within the same global round.  ``_apply_base_rage_gain``
+            # can therefore be invoked multiple times for the same army which
+            # previously caused base rage to stack erroneously.  Guard against
+            # this by skipping processing if base rage has already been awarded
+            # for the current round.
+            if army.base_rage_awarded_this_round:
+                continue
+
             if (army.hero1_rage_skill_used_round == self.round or
                     army.hero1_rage_skill_cast_blocked_by_silence_this_round):
                 army.base_rage_awarded_this_round = False

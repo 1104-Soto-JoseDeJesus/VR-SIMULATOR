@@ -465,8 +465,10 @@ class BattlefieldEngine:
             army.base_rage_awarded_this_round = False
 
         unique_armies: List[Army] = []
+        start_processed: set[str] = set()
+        end_processed: set[str] = set()
         for key, sim in self._engagements.items():
-            self._simulate_one_round(sim)
+            self._simulate_one_round(sim, start_processed, end_processed)
             atk, dfd = key
             if (
                 self._report_builder is not None
@@ -546,24 +548,32 @@ class BattlefieldEngine:
 
             self._queue_state_update(army)
 
-    def _simulate_one_round(self, sim: GameSimulator) -> None:
-        """Very small round simulation using :class:`GameSimulator` internals."""
+    def _simulate_one_round(
+        self,
+        sim: GameSimulator,
+        start_processed: set[str],
+        end_processed: set[str],
+    ) -> None:
+        """Very small round simulation using :class:`GameSimulator` internals.
+
+        ``start_processed`` and ``end_processed`` track armies that already had
+        their start- or end-of-round housekeeping executed this global round.
+        This ensures effects such as DoTs are only evaluated once per round even
+        when an army is involved in multiple engagements simultaneously.
+        """
+
         if sim.army1.current_troop_count <= 0 or sim.army2.current_troop_count <= 0:
             return
         sim.round += 1
 
         atk, dfd = sim.army1, sim.army2
 
-        # --- Start of round housekeeping ---
-        # GameSimulator's 1v1 logic decrements durations in a way that skips
-        # effects applied in the current round.  For the battlefield engine we
-        # want newly triggered effects to begin counting down immediately on the
-        # following round.  To keep the duel simulator behaviour untouched while
-        # still providing consistent countdowns for multi‑army battles we perform
-        # the duration management inline instead of calling
-        # ``Army.decrement_effect_durations`` which contains the 1v1 specific
-        # semantics.
-        for army in (atk, dfd):
+        # --- Start of round housekeeping & round based skill triggers ---
+        for army, opponent in ((atk, dfd), (dfd, atk)):
+            if army.name in start_processed:
+                continue
+            start_processed.add(army.name)
+
             next_effects = []
             for eff in army.active_effects:
                 if eff.duration == -1:
@@ -581,19 +591,17 @@ class BattlefieldEngine:
                 army.effects_to_activate_next_round.clear()
             army.activate_queued_effects()
 
-        # --- Start of round processing & round based skill triggers ---
-        for army, opponent in ((atk, dfd), (dfd, atk)):
             if army.current_troop_count <= 0:
                 continue
             army.activate_queued_effects()
             army.apply_start_of_round_rage_deductions()
-            army.process_periodic_effects('start_of_round', opponent=opponent)
+            army.process_periodic_effects("start_of_round", opponent=opponent)
             army.activate_queued_effects()
             sim._process_skill_triggers(
                 army,
                 opponent,
                 SkillTriggerType.CHANCE_PER_ROUND,
-                event_data={'opponent_for_shield_calc': opponent},
+                event_data={"opponent_for_shield_calc": opponent},
             )
             army.activate_queued_effects()
 
@@ -678,10 +686,12 @@ class BattlefieldEngine:
 
         # End of round processing and base rage gain
         for army, opponent in ((atk, dfd), (dfd, atk)):
-            if army.current_troop_count <= 0:
+            if army.name in end_processed:
                 continue
-            army.process_periodic_effects('end_of_round', opponent=opponent)
-            army.activate_queued_effects()
+            end_processed.add(army.name)
+            if army.current_troop_count > 0:
+                army.process_periodic_effects("end_of_round", opponent=opponent)
+                army.activate_queued_effects()
 
         sim._apply_base_rage_gain()
         for army in (atk, dfd):

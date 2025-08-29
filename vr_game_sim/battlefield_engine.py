@@ -699,16 +699,16 @@ class BattlefieldEngine:
         # Update internal round counters for armies that fought recently.  The
         # actual rage gain is handled within ``_simulate_one_round`` via the
         # simulator's internal logic which mirrors the behaviour of the full
-        # duel simulator.  Armies that have been idle for more than two seconds
+        # duel simulator. Armies that have been idle for 0.9 seconds or more
         # lose their round progress and rage.
         for ctx in self._armies.values():
             army = ctx.army
             time_since = self.time_elapsed - ctx.last_engaged_time
-            if time_since <= 2:
+            if time_since < 0.9:
                 ctx.internal_round += 1
                 # Armies that were idle this round (no simulator processed
-                # combat for them) still receive base rage during the two second
-                # grace period after leaving combat.  ``last_engaged_time`` is
+                # combat for them) still receive base rage during the brief
+                # grace period after leaving combat. ``last_engaged_time`` is
                 # only updated when a round is actually simulated, so a smaller
                 # value indicates we didn't fight this tick.
                 if army.rage_added_this_round == 0 and ctx.last_engaged_time < self.time_elapsed:

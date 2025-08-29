@@ -2174,11 +2174,22 @@ class ArenaTab(QtWidgets.QWidget):
         controls = QtWidgets.QHBoxLayout()
         self.add_army_btn = QtWidgets.QPushButton("Add Army")
         self.load_army_btn = QtWidgets.QPushButton("Load Army")
+        self.save_layout_btn = QtWidgets.QPushButton("Save Layout")
+        self.load_layout_btn = QtWidgets.QPushButton("Load Layout")
         self.refresh_btn = QtWidgets.QPushButton("Refresh Arena")
-        for btn in (self.add_army_btn, self.load_army_btn, self.refresh_btn):
+        for btn in (
+            self.add_army_btn,
+            self.load_army_btn,
+            self.save_layout_btn,
+            self.load_layout_btn,
+            self.refresh_btn,
+        ):
             controls.addWidget(btn)
         controls.addStretch()
         layout.addLayout(controls)
+
+        self._setups_dir = os.path.join(os.path.dirname(__file__), "setups")
+        self.saved_armies_file = os.path.join(self._setups_dir, "saved_armies.json")
 
         self.scene = QtWidgets.QGraphicsScene(self)
         self.view = QtWidgets.QGraphicsView(self.scene)
@@ -2250,6 +2261,8 @@ class ArenaTab(QtWidgets.QWidget):
                 self._slot_army[(team, idx)] = None
 
         self.refresh_btn.clicked.connect(self._refresh_arena)
+        self.save_layout_btn.clicked.connect(self._save_layout)
+        self.load_layout_btn.clicked.connect(self._load_layout)
 
     # ------------------------------------------------------------------
     def _compute_slot_coords(self) -> dict[str, list[tuple[float, float]]]:
@@ -2343,6 +2356,117 @@ class ArenaTab(QtWidgets.QWidget):
         col = index % 3
         row = index // 3
         self._army_slot[army.name] = (team, col, row)
+    def _save_layout(self) -> None:
+        """Persist current slot assignments to a JSON file."""
+
+        data = [
+            {
+                "army_name": name,
+                "team": team,
+                "column": col,
+                "row": row,
+            }
+            for name, (team, col, row) in self._army_slot.items()
+        ]
+        if not data:
+            QtWidgets.QMessageBox.information(
+                self, "Nothing to save", "No armies are placed in the arena."
+            )
+            return
+
+        os.makedirs(self._setups_dir, exist_ok=True)
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Save Arena Layout", self._setups_dir, "JSON Files (*.json)"
+        )
+        if not file_path:
+            return
+        try:
+            with open(file_path, "w", encoding="utf-8") as fh:
+                json.dump(data, fh, indent=2)
+        except OSError as exc:  # pragma: no cover - GUI feedback
+            QtWidgets.QMessageBox.warning(self, "Save failed", str(exc))
+
+    def _load_layout(self) -> None:
+        """Load slot assignments from disk and rebuild armies."""
+
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Load Arena Layout", self._setups_dir, "JSON Files (*.json)"
+        )
+        if not file_path:
+            return
+        try:
+            with open(file_path, "r", encoding="utf-8") as fh:
+                layout_data = json.load(fh)
+        except (OSError, json.JSONDecodeError) as exc:  # pragma: no cover - GUI feedback
+            QtWidgets.QMessageBox.warning(self, "Load failed", str(exc))
+            return
+        try:
+            with open(self.saved_armies_file, "r", encoding="utf-8") as fh:
+                saved_armies = json.load(fh)
+        except (OSError, json.JSONDecodeError) as exc:  # pragma: no cover - GUI feedback
+            QtWidgets.QMessageBox.warning(self, "Load failed", str(exc))
+            return
+
+        self._refresh_arena()
+        for entry in layout_data:
+            name = entry.get("army_name")
+            team = entry.get("team")
+            col = entry.get("column")
+            row = entry.get("row")
+            if (
+                not isinstance(name, str)
+                or team not in self.slot_coords
+                or not isinstance(col, int)
+                or not isinstance(row, int)
+            ):
+                continue
+            cfg = saved_armies.get(name)
+            if not cfg:
+                continue
+            cfg = dict(cfg)
+            cfg["team"] = "red" if team == "team1" else "blue"
+            army = create_armies_from_data([cfg])[0]
+            index = row * 3 + col
+            pos = self.slot_coords[team][index]
+            self.engine.add_army(
+                army,
+                cfg["team"],
+                position=pos,
+                speed=cfg.get("speed", 50.0),
+            )
+
+            heroes = cfg.get("heroes", [])
+            main_path = (
+                os.path.join(
+                    os.path.dirname(__file__),
+                    "Hero Images",
+                    f"{heroes[0]['hero_name_or_preset'].capitalize()}.png",
+                )
+                if heroes
+                else os.path.join(
+                    os.path.dirname(__file__), "Icons", f"{cfg['unit_type'].capitalize()}.png"
+                )
+            )
+            secondary_path = None
+            if len(heroes) > 1:
+                secondary_path = os.path.join(
+                    os.path.dirname(__file__),
+                    "Hero Images",
+                    f"{heroes[1]['hero_name_or_preset'].capitalize()}.png",
+                )
+            icon = ArmyIcon(
+                main_path,
+                secondary_path,
+                1.0,
+                army_name=army.name,
+                team=cfg["team"],
+                max_size=self._icon_size,
+            )
+            icon.setPos(*pos)
+            self.scene.addItem(icon)
+            self._icons[army.name] = icon
+            self._slot_army[(team, index)] = army.name
+            self._army_slot[army.name] = (team, col, row)
 
     def _refresh_arena(self) -> None:
         """Clear armies and reset slot occupancy."""

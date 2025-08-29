@@ -430,6 +430,8 @@ class Army:
                 continue
 
             if effect.effect_type == EffectType.DAMAGE_OVER_TIME:
+                if phase == 'start_of_round':
+                    continue
                 dot_type = effect.config.get('dot_type')
                 is_special_dot = isinstance(dot_type, DoTType) and dot_type in [DoTType.BLEED, DoTType.POISON,
                                                                                 DoTType.BURN]

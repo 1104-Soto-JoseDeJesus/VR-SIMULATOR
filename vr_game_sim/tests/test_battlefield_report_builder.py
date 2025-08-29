@@ -112,3 +112,37 @@ def test_dot_effects_logged_in_reports():
 
     report_text = builder.get_reports()[("A", "B")]
     assert "Damage Over Time" in report_text
+
+
+def test_dot_effects_logged_for_all_attackers_and_single_tick():
+    builder = BattlefieldReportBuilder()
+    engine = BattlefieldEngine(report_builder=builder)
+    atk_a = make_army("A")
+    atk_c = make_army("C")
+    dfd_b = make_army("B")
+    engine.add_army(atk_a, "red", position=(0, 0), speed=0)
+    engine.add_army(atk_c, "red", position=(0, 0), speed=0)
+    engine.add_army(dfd_b, "blue", position=(2, 0), speed=0)
+
+    dot = EffectInstance(
+        id=uuid.uuid4(),
+        source_skill_id="test",
+        effect_type=EffectType.DAMAGE_OVER_TIME,
+        duration=1,
+        config={"dot_type": DoTType.GENERIC, "dot_damage_per_round": 169},
+    )
+    dfd_b.active_effects.append(dot)
+
+    engine.engage("A", "B")
+    engine.engage("C", "B")
+    engine.tick(1.0)
+
+    rounds = builder.get_rounds()
+    eff_a = rounds[("A", "B")][0]["active_effects"]
+    eff_c = rounds[("C", "B")][0]["active_effects"]
+    assert any("damage per round" in e for e in eff_a)
+    assert any("damage per round" in e for e in eff_c)
+    trig_a = rounds[("A", "B")][0]["skill_triggers"]["B"]
+    trig_c = rounds[("C", "B")][0]["skill_triggers"]["B"]
+    total_dot = sum(1 for tr in (trig_a + trig_c) if "damage (pending)" in tr.get("effect_description", "") and "GENERIC" in tr.get("effect_description", ""))
+    assert total_dot == 1

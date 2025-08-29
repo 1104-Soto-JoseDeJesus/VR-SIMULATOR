@@ -718,6 +718,7 @@ class BattlefieldEngine:
             else:
                 ctx.internal_round = 0
                 army.current_rage = 0.0
+                army.skill_last_triggered_round.clear()
 
             self._queue_state_update(army)
 

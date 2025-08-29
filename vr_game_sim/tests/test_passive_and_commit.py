@@ -26,8 +26,8 @@ def test_passive_effects_and_commit_logged_same_round():
     engine = BattlefieldEngine(report_builder=builder)
     atk = make_army_with_laird('A')
     dfd = Army('B', Unit('archers', 5, initial_count=1000))
-    engine.add_army(atk, 'red')
-    engine.add_army(dfd, 'blue')
+    engine.add_army(atk, 'red', speed=0)
+    engine.add_army(dfd, 'blue', speed=0)
     engine.engage('A', 'B')
     engine.tick(1.1)
     rounds = builder.get_rounds()[('A', 'B')]

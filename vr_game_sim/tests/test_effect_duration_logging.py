@@ -21,8 +21,8 @@ def test_battle_preparation_applies_and_counts_down():
     atk = make_army("A", harald)
     dfd = make_army("B")
 
-    engine.add_army(atk, "red")
-    engine.add_army(dfd, "blue")
+    engine.add_army(atk, "red", speed=0)
+    engine.add_army(dfd, "blue", speed=0)
     engine.tick(0.3)
     engine.engage("A", "B")
     engine.tick(0.7)  # start engagement at t=1

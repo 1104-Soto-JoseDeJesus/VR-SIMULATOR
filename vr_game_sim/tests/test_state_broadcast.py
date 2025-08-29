@@ -15,8 +15,8 @@ def test_state_broadcast_on_effect_and_shield_change():
     engine = BattlefieldEngine()
     army_a = make_army('A')
     army_b = make_army('B')
-    engine.add_army(army_a, 'red')
-    engine.add_army(army_b, 'blue')
+    engine.add_army(army_a, 'red', speed=0)
+    engine.add_army(army_b, 'blue', speed=0)
 
     events = []
     engine.add_state_listener(lambda name, state: events.append((name, state)))

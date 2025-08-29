@@ -42,7 +42,7 @@ from .battlefield_report_builder import BattlefieldReportBuilder
 # Minimum centre-to-centre separation at which armies begin fighting.  Using a
 # module level constant allows tests and other modules to align their
 # expectations with the engine's behaviour.
-ENGAGEMENT_DISTANCE: float = 10.0
+ENGAGEMENT_DISTANCE: float = 50.0
 _ENGAGE_EPS: float = 0.01  # small tolerance for floating point comparisons
 
 
@@ -54,7 +54,7 @@ class _ArmyContext:
     team: str
     position: Tuple[float, float] = (0.0, 0.0)
     path: List[Tuple[float, float]] = field(default_factory=list)
-    speed: float = 0.0
+    speed: float = 50.0
     # Name of the army this one is directly targeting.
     direct_target: Optional[str] = None
     # Whether the army should actively pursue its target.
@@ -138,7 +138,7 @@ class BattlefieldEngine:
     # Army management
     # ------------------------------------------------------------------
     def add_army(self, army: Army, team: str, *, position: Tuple[float, float] = (0.0, 0.0),
-                 speed: float = 0.0, shared_effects: Optional[List] = None) -> None:
+                 speed: float = 50.0, shared_effects: Optional[List] = None) -> None:
         """Register ``army`` on the battlefield.
 
         ``shared_effects`` – if provided – are added to the team's shared effect

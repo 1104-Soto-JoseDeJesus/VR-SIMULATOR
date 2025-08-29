@@ -68,9 +68,9 @@ def test_defender_with_existing_target_does_not_auto_target():
     army_a = make_army('A')
     army_b = make_army('B')
     army_c = make_army('C')
-    engine.add_army(army_a, 'red')
-    engine.add_army(army_b, 'blue')
-    engine.add_army(army_c, 'red')
+    engine.add_army(army_a, 'red', speed=0)
+    engine.add_army(army_b, 'blue', speed=0)
+    engine.add_army(army_c, 'red', speed=0)
 
     engine.engage('B', 'C')  # B already targets C
     engine.engage('A', 'B')  # A attacks B

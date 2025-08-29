@@ -478,17 +478,23 @@ class BattlefieldEngine:
                     other_angle = degrees(atan2(oy - dy, ox - dx))
                     other_angle = (other_angle + 360) % 360
                     diff = (curr_angle - other_angle + 180) % 360 - 180
-                    if diff == 0:
+                    # ``diff`` represents how many degrees ``ctx`` sits
+                    # clockwise (negative) or anti-clockwise (positive) from
+                    # ``other``.  Previously any slight clockwise offset would
+                    # cause the later attacker to slide further clockwise.  This
+                    # meant that an attacker arriving from almost the exact same
+                    # angle as an existing one – but just a hair on the
+                    # clockwise side – would move in the opposite direction than
+                    # intended.  To treat these near-identical approaches as the
+                    # same angle we allow a small 5° clockwise tolerance and
+                    # still push the newcomer anti-clockwise in that case.
+
+                    if -5 <= diff < 20:
                         ctx.arc_target_angle = (other_angle + 45) % 360
                         ctx.arc_direction = 1
                         ctx.path.clear()
                         break
-                    if 0 < diff < 20:
-                        ctx.arc_target_angle = (other_angle + 45) % 360
-                        ctx.arc_direction = 1
-                        ctx.path.clear()
-                        break
-                    if -20 < diff < 0:
+                    if -20 < diff < -5:
                         ctx.arc_target_angle = (other_angle - 45) % 360
                         ctx.arc_direction = -1
                         ctx.path.clear()

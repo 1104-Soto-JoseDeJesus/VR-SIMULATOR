@@ -1,0 +1,50 @@
+[
+  {
+    "army_name": "ftygvhb",
+    "team": "team1",
+    "column": 2,
+    "row": 0
+  },
+  {
+    "army_name": "oiuygfdsedfgvb",
+    "team": "team1",
+    "column": 3,
+    "row": 0
+  },
+  {
+    "army_name": "qwertyhnjgfd",
+    "team": "team1",
+    "column": 2,
+    "row": 1
+  },
+  {
+    "army_name": "qwedfgbhbn",
+    "team": "team1",
+    "column": 3,
+    "row": 1
+  },
+  {
+    "army_name": "fdfghgfdcv",
+    "team": "team2",
+    "column": 2,
+    "row": 0
+  },
+  {
+    "army_name": "fhtrgfetgrfs",
+    "team": "team2",
+    "column": 3,
+    "row": 0
+  },
+  {
+    "army_name": "efrefregtrfe",
+    "team": "team2",
+    "column": 2,
+    "row": 1
+  },
+  {
+    "army_name": "rf3efwdfef",
+    "team": "team2",
+    "column": 3,
+    "row": 1
+  }
+]

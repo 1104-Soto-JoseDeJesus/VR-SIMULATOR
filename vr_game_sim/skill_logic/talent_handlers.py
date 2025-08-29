@@ -1408,6 +1408,7 @@ def handle_talent_low_whispers(
             eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BURN
             for eff in opponent_army.active_effects
         )
+        created_rage = None
         if enemy_burning and rage_gain > 0:
             rage_effect = {
                 "effect_type": EffectType.CUSTOM_SKILL_EFFECT,

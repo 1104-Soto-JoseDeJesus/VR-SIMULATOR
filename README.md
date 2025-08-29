@@ -49,6 +49,20 @@ army preview along with all histograms.
 You will be prompted to create a new setup or load a saved one from the
 `vr_game_sim/setups` directory. Setups can be saved as JSON files for later use.
 
+### Arena Mode
+
+The Arena tab provides a streamlined map for quick skirmishes. Each team has six
+deployment slots arranged in a symmetrical 3×2 grid. Click a slot to configure
+an army and place it on the field.
+
+Use **Save Layout** to write the current slot assignments to a JSON file and
+**Load Layout** to restore a previously saved arrangement from the
+`vr_game_sim/setups` directory.
+
+When your armies are positioned, press **Run Arena** to launch the battle. Slot
+editing is disabled during the match; once it finishes you can refresh the arena
+and set up another encounter.
+
 ### Non-interactive mode
 
 You can bypass the interactive prompts by providing the `--setup` option with a

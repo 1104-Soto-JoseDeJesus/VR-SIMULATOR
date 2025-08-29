@@ -595,15 +595,21 @@ class BattlefieldEngine:
                 continue
             army.activate_queued_effects()
             army.apply_start_of_round_rage_deductions()
+            # Determine the primary opponent for non-reactive skills –
+            # defenders should only aim such skills at their direct target.
+            primary_opponent = opponent
+            ctx = self._armies.get(army.name)
+            if ctx and ctx.direct_target and ctx.direct_target in self._armies:
+                primary_opponent = self._armies[ctx.direct_target].army
             army.process_periodic_effects(
-                "start_of_round", opponent=opponent, skip_dot_at_start=True
+                "start_of_round", opponent=primary_opponent, skip_dot_at_start=True
             )
             army.activate_queued_effects()
             sim._process_skill_triggers(
                 army,
-                opponent,
+                primary_opponent,
                 SkillTriggerType.CHANCE_PER_ROUND,
-                event_data={"opponent_for_shield_calc": opponent},
+                event_data={"opponent_for_shield_calc": primary_opponent},
             )
             army.activate_queued_effects()
 
@@ -624,13 +630,31 @@ class BattlefieldEngine:
 
         # Execute any queued rage skills.
         if atk.current_troop_count > 0 and dfd.current_troop_count > 0:
-            if atk.hero1_rage_skill_queued_this_round:
+            atk_ctx = self._armies.get(atk.name)
+            dfd_ctx = self._armies.get(dfd.name)
+            if (
+                atk.hero1_rage_skill_queued_this_round
+                and atk_ctx
+                and atk_ctx.direct_target == dfd.name
+            ):
                 sim._execute_rage_skills(atk, dfd, is_hero2_delayed_trigger=False)
-            if dfd.hero1_rage_skill_queued_this_round:
+            if (
+                dfd.hero1_rage_skill_queued_this_round
+                and dfd_ctx
+                and dfd_ctx.direct_target == atk.name
+            ):
                 sim._execute_rage_skills(dfd, atk, is_hero2_delayed_trigger=False)
-            if atk.hero2_rage_skill_primed_for_round == sim.round:
+            if (
+                atk.hero2_rage_skill_primed_for_round == sim.round
+                and atk_ctx
+                and atk_ctx.direct_target == dfd.name
+            ):
                 sim._execute_rage_skills(atk, dfd, is_hero2_delayed_trigger=True)
-            if dfd.hero2_rage_skill_primed_for_round == sim.round:
+            if (
+                dfd.hero2_rage_skill_primed_for_round == sim.round
+                and dfd_ctx
+                and dfd_ctx.direct_target == atk.name
+            ):
                 sim._execute_rage_skills(dfd, atk, is_hero2_delayed_trigger=True)
 
         # --- Basic attack sequences ---

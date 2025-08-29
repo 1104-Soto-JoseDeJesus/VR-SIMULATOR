@@ -47,14 +47,14 @@ def test_later_attacker_slides_anticlockwise_when_too_close():
     assert diff == pytest.approx(45, abs=1)
 
 
-def test_clockwise_arrival_within_5_degrees_still_slides_anticlockwise():
+def test_clockwise_arrival_within_15_degrees_still_slides_anticlockwise():
     engine = BattlefieldEngine()
     atk1 = make_army('A1')
     atk2 = make_army('A2')
     dfd = make_army('D')
 
     engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
-    angle = math.radians(-4)
+    angle = math.radians(-14)
     engine.add_army(
         atk2,
         'red',
@@ -76,14 +76,14 @@ def test_clockwise_arrival_within_5_degrees_still_slides_anticlockwise():
     assert diff == pytest.approx(45, abs=1)
 
 
-def test_later_attacker_slides_clockwise_when_more_than_5_degrees_clockwise():
+def test_later_attacker_slides_clockwise_when_more_than_15_degrees_clockwise():
     engine = BattlefieldEngine()
     atk1 = make_army('A1')
     atk2 = make_army('A2')
     dfd = make_army('D')
 
     engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
-    angle = math.radians(-6)
+    angle = math.radians(-16)
     engine.add_army(
         atk2,
         'red',

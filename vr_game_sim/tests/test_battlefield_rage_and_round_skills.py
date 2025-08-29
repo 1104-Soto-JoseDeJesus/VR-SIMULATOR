@@ -1,4 +1,5 @@
 from vr_game_sim.battlefield_engine import BattlefieldEngine
+from vr_game_sim.arena_engine import ArenaEngine
 from vr_game_sim.hero_definition import Hero
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
 from vr_game_sim.army_composition import Army
@@ -68,9 +69,33 @@ def test_round_dependent_skill_resets_after_idle():
     engine.set_direct_target("A", None)
     engine.tick(0.9)  # idle but below reset threshold
     engine.tick(0.1)  # exceed threshold and reset rounds/rage
+    assert attacker.skill_last_triggered_round == {}
     engine.engage("A", "B")
     engine.tick(1.0)  # new round 1
     engine.tick(1.0)  # new round 2
+
+    assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 2
+
+
+def test_round_dependent_skill_resets_after_idle_in_arena():
+    engine = ArenaEngine()
+    attacker = make_round_skill_army("A")
+    defender = make_basic_army("B")
+    engine.add_army(attacker, "red", position=(0, 0), speed=0)
+    engine.add_army(defender, "blue", position=(2, 0), speed=0)
+
+    engine.engage("A", "B")
+    engine.tick(1.0)  # round 1
+    engine.tick(1.0)  # round 2 triggers once
+    assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 1
+
+    engine.set_direct_target("A", None)
+    engine.tick(0.9)
+    engine.tick(0.1)
+    assert attacker.skill_last_triggered_round == {}
+    engine.engage("A", "B")
+    engine.tick(1.0)
+    engine.tick(1.0)
 
     assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 2
 

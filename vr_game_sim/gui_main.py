@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import Any, Callable
 import threading
 import math
 import json
@@ -1624,6 +1624,33 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
         self.update()
 
 
+class SlotItem(QtWidgets.QGraphicsEllipseItem):
+    """Clickable marker representing a deployment slot."""
+
+    def __init__(
+        self,
+        team: str,
+        index: int,
+        radius: float,
+        on_click: Callable[[str, int], None],
+    ) -> None:
+        super().__init__(-radius, -radius, radius * 2, radius * 2)
+        self.team = team
+        self.index = index
+        self._on_click = on_click
+        color = QtGui.QColor(255, 0, 0) if team == "team1" else QtGui.QColor(0, 255, 0)
+        pen = QtGui.QPen(color)
+        pen.setWidth(2)
+        self.setPen(pen)
+        self.setBrush(QtGui.QBrush(QtCore.Qt.GlobalColor.transparent))
+        self.setZValue(-1)  # Above background but below army icons
+
+    def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self._on_click(self.team, self.index)
+        super().mousePressEvent(event)
+
+
 class BattlefieldTab(QtWidgets.QWidget):
     """Tab showing a battlefield map with army controls."""
 
@@ -2205,6 +2232,25 @@ class ArenaTab(QtWidgets.QWidget):
         # columns are spaced ``1.5 * D`` apart laterally.
         self.slot_coords = self._compute_slot_coords()
 
+        # Prepare engine and tracking structures for armies placed in slots.
+        self.report_builder = BattlefieldReportBuilder()
+        self.engine = BattlefieldEngine(report_builder=self.report_builder)
+        self._icons: dict[str, ArmyIcon] = {}
+        self._slot_items: dict[tuple[str, int], SlotItem] = {}
+        self._slot_army: dict[tuple[str, int], str | None] = {}
+        self._army_slot: dict[str, tuple[str, int, int]] = {}
+
+        radius = min(self._cell_w, self._cell_h) * 0.15
+        for team, coords in self.slot_coords.items():
+            for idx, (x, y) in enumerate(coords):
+                item = SlotItem(team, idx, radius, self._slot_clicked)
+                item.setPos(x, y)
+                self.scene.addItem(item)
+                self._slot_items[(team, idx)] = item
+                self._slot_army[(team, idx)] = None
+
+        self.refresh_btn.clicked.connect(self._refresh_arena)
+
     # ------------------------------------------------------------------
     def _compute_slot_coords(self) -> dict[str, list[tuple[float, float]]]:
         """Return coordinates for each deployment slot of both teams."""
@@ -2236,6 +2282,88 @@ class ArenaTab(QtWidgets.QWidget):
         ]
 
         return {"team1": team1, "team2": team2}
+
+    def _slot_clicked(self, team: str, index: int) -> None:
+        """Handle clicks on deployment slots to add armies."""
+
+        key = (team, index)
+        if self._slot_army.get(key):
+            QtWidgets.QMessageBox.warning(self, "Slot occupied", "This slot already has an army.")
+            return
+
+        dlg = ArmySetupDialog(self)
+        default_team = "red" if team == "team1" else "blue"
+        dlg.team_combo.setCurrentText(default_team)
+        if dlg.exec() != int(QtWidgets.QDialog.DialogCode.Accepted):
+            return
+        cfg = dlg.get_config()
+        cfg["team"] = default_team
+        army = create_armies_from_data([cfg])[0]
+        pos = self.slot_coords[team][index]
+        self.engine.add_army(
+            army,
+            cfg["team"],
+            position=pos,
+            speed=cfg.get("speed", 50.0),
+        )
+
+        heroes = cfg.get("heroes", [])
+        main_path = (
+            os.path.join(
+                os.path.dirname(__file__),
+                "Hero Images",
+                f"{heroes[0]['hero_name_or_preset'].capitalize()}.png",
+            )
+            if heroes
+            else os.path.join(
+                os.path.dirname(__file__),
+                "Icons",
+                f"{cfg['unit_type'].capitalize()}.png",
+            )
+        )
+        secondary_path = None
+        if len(heroes) > 1:
+            secondary_path = os.path.join(
+                os.path.dirname(__file__),
+                "Hero Images",
+                f"{heroes[1]['hero_name_or_preset'].capitalize()}.png",
+            )
+        icon = ArmyIcon(
+            main_path,
+            secondary_path,
+            1.0,
+            army_name=army.name,
+            team=cfg["team"],
+            max_size=self._icon_size,
+        )
+        icon.setPos(*pos)
+        self.scene.addItem(icon)
+        self._icons[army.name] = icon
+        self._slot_army[key] = army.name
+        col = index % 3
+        row = index // 3
+        self._army_slot[army.name] = (team, col, row)
+
+    def _refresh_arena(self) -> None:
+        """Clear armies and reset slot occupancy."""
+
+        self.scene.clear()
+        self._icons.clear()
+        self._slot_items.clear()
+        self._slot_army.clear()
+        self._army_slot.clear()
+        self._draw_navmesh()
+        self.report_builder = BattlefieldReportBuilder()
+        self.engine.reset(report_builder=self.report_builder)
+
+        radius = min(self._cell_w, self._cell_h) * 0.15
+        for team, coords in self.slot_coords.items():
+            for idx, (x, y) in enumerate(coords):
+                item = SlotItem(team, idx, radius, self._slot_clicked)
+                item.setPos(x, y)
+                self.scene.addItem(item)
+                self._slot_items[(team, idx)] = item
+                self._slot_army[(team, idx)] = None
 
     # ------------------------------------------------------------------
     # Navigation mesh helpers

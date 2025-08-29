@@ -476,6 +476,8 @@ class BattlefieldEngine:
             attackers.sort(key=lambda c: c.engaged_at)
             for idx in range(1, len(attackers)):
                 ctx = attackers[idx]
+                if ctx.arc_target_angle is not None:
+                    continue
                 ax, ay = ctx.position
                 curr_angle = degrees(atan2(ay - dy, ax - dx))
                 curr_angle = (curr_angle + 360) % 360
@@ -488,17 +490,18 @@ class BattlefieldEngine:
                     # ``diff`` represents how many degrees ``ctx`` sits
                     # clockwise (negative) or anti-clockwise (positive) from
                     # ``other`` based on their current centre positions.  Late
-                    # arrivals within ±25° slide 45° anti-clockwise to make
-                    # room; those 26–44° clockwise instead slide 45° clockwise.
+                    # arrivals 5° clockwise to 25° anti-clockwise slide 45°
+                    # clockwise to make room; those 5.1–25° clockwise instead
+                    # slide 45° anti-clockwise.
 
-                    if -25 <= diff <= 25:
-                        ctx.arc_target_angle = (other_angle + 45) % 360
-                        ctx.arc_direction = 1
-                        ctx.path.clear()
-                        break
-                    elif -44 <= diff <= -26:
+                    if -5 <= diff <= 25:
                         ctx.arc_target_angle = (other_angle - 45) % 360
                         ctx.arc_direction = -1
+                        ctx.path.clear()
+                        break
+                    elif -25 <= diff < -5:
+                        ctx.arc_target_angle = (other_angle + 45) % 360
+                        ctx.arc_direction = 1
                         ctx.path.clear()
                         break
 

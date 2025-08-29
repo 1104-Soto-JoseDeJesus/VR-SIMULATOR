@@ -2197,6 +2197,46 @@ class ArenaTab(QtWidgets.QWidget):
         self._icon_size = int(min(self._cell_w, self._cell_h) * 0.8 * 3 * 0.75)
         self._draw_navmesh()
 
+        # Pre-compute default arena slot coordinates for both teams.  The
+        # layout is symmetrical around the scene centre.  ``D`` represents the
+        # base separation which is derived from the default army speed
+        # (``50`` units/s).  Front rows are positioned ``±D/2`` from the
+        # centre while back rows are a further ``D`` behind the fronts.  Three
+        # columns are spaced ``1.5 * D`` apart laterally.
+        self.slot_coords = self._compute_slot_coords()
+
+    # ------------------------------------------------------------------
+    def _compute_slot_coords(self) -> dict[str, list[tuple[float, float]]]:
+        """Return coordinates for each deployment slot of both teams."""
+
+        default_speed = 50.0
+        base_dist = 2 * default_speed * 2  # 200.0 units
+        half = base_dist / 2.0
+        lateral = 1.5 * base_dist
+
+        cx = self.view.sceneRect().width() / 2.0
+        cy = self.view.sceneRect().height() / 2.0
+
+        team1 = [
+            (cx - lateral, cy - half),
+            (cx, cy - half),
+            (cx + lateral, cy - half),
+            (cx - lateral, cy - half - base_dist),
+            (cx, cy - half - base_dist),
+            (cx + lateral, cy - half - base_dist),
+        ]
+
+        team2 = [
+            (cx - lateral, cy + half),
+            (cx, cy + half),
+            (cx + lateral, cy + half),
+            (cx - lateral, cy + half + base_dist),
+            (cx, cy + half + base_dist),
+            (cx + lateral, cy + half + base_dist),
+        ]
+
+        return {"team1": team1, "team2": team2}
+
     # ------------------------------------------------------------------
     # Navigation mesh helpers
     # ------------------------------------------------------------------

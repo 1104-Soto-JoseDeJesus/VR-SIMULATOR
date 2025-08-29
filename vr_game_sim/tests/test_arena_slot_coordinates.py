@@ -19,23 +19,31 @@ def test_slot_coordinates_symmetry():
     speed = 50.0
     base_dist = 2 * speed * 2
     half = base_dist / 2.0
-    lateral = 1.5 * base_dist
+
+    left_outer = cx - 1.5 * base_dist
+    left_inner = cx - 0.5 * base_dist
+    right_inner = cx + 0.5 * base_dist
+    right_outer = cx + 1.5 * base_dist
 
     expected_team1 = [
-        (cx - lateral, cy - half),
-        (cx, cy - half),
-        (cx + lateral, cy - half),
-        (cx - lateral, cy - half - base_dist),
-        (cx, cy - half - base_dist),
-        (cx + lateral, cy - half - base_dist),
+        (left_outer, cy - half),
+        (left_inner, cy - half),
+        (right_inner, cy - half),
+        (right_outer, cy - half),
+        (left_outer, cy - half - base_dist),
+        (left_inner, cy - half - base_dist),
+        (right_inner, cy - half - base_dist),
+        (right_outer, cy - half - base_dist),
     ]
     expected_team2 = [
-        (cx - lateral, cy + half),
-        (cx, cy + half),
-        (cx + lateral, cy + half),
-        (cx - lateral, cy + half + base_dist),
-        (cx, cy + half + base_dist),
-        (cx + lateral, cy + half + base_dist),
+        (left_outer, cy + half),
+        (left_inner, cy + half),
+        (right_inner, cy + half),
+        (right_outer, cy + half),
+        (left_outer, cy + half + base_dist),
+        (left_inner, cy + half + base_dist),
+        (right_inner, cy + half + base_dist),
+        (right_outer, cy + half + base_dist),
     ]
 
     assert tab.slot_coords["team1"] == expected_team1

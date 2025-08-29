@@ -2242,8 +2242,8 @@ class ArenaTab(QtWidgets.QWidget):
         # layout is symmetrical around the scene centre.  ``D`` represents the
         # base separation which is derived from the default army speed
         # (``50`` units/s).  Front rows are positioned ``±D/2`` from the
-        # centre while back rows are a further ``D`` behind the fronts.  Three
-        # columns are spaced ``1.5 * D`` apart laterally.
+        # centre while back rows are a further ``D`` behind the fronts.  Four
+        # columns are spaced ``D`` apart laterally.
         self.slot_coords = self._compute_slot_coords()
 
         # Prepare engine and tracking structures for armies placed in slots.
@@ -2281,28 +2281,23 @@ class ArenaTab(QtWidgets.QWidget):
         default_speed = 50.0
         base_dist = 2 * default_speed * 2  # 200.0 units
         half = base_dist / 2.0
-        lateral = 1.5 * base_dist
 
         cx = self.view.sceneRect().width() / 2.0
         cy = self.view.sceneRect().height() / 2.0
 
-        team1 = [
-            (cx - lateral, cy - half),
-            (cx, cy - half),
-            (cx + lateral, cy - half),
-            (cx - lateral, cy - half - base_dist),
-            (cx, cy - half - base_dist),
-            (cx + lateral, cy - half - base_dist),
+        # Horizontal offsets for the four columns relative to the centre.
+        offsets = [
+            -1.5 * base_dist,
+            -0.5 * base_dist,
+            0.5 * base_dist,
+            1.5 * base_dist,
         ]
 
-        team2 = [
-            (cx - lateral, cy + half),
-            (cx, cy + half),
-            (cx + lateral, cy + half),
-            (cx - lateral, cy + half + base_dist),
-            (cx, cy + half + base_dist),
-            (cx + lateral, cy + half + base_dist),
-        ]
+        team1 = [(cx + dx, cy - half) for dx in offsets]
+        team1 += [(cx + dx, cy - half - base_dist) for dx in offsets]
+
+        team2 = [(cx + dx, cy + half) for dx in offsets]
+        team2 += [(cx + dx, cy + half + base_dist) for dx in offsets]
 
         return {"team1": team1, "team2": team2}
 
@@ -2365,8 +2360,8 @@ class ArenaTab(QtWidgets.QWidget):
         self.scene.addItem(icon)
         self._icons[army.name] = icon
         self._slot_army[key] = army.name
-        col = index % 3
-        row = index // 3
+        col = index % 4
+        row = index // 4
         self._army_slot[army.name] = (team, col, row)
     def _save_layout(self) -> None:
         """Persist current slot assignments to a JSON file."""
@@ -2438,7 +2433,7 @@ class ArenaTab(QtWidgets.QWidget):
             cfg = dict(cfg)
             cfg["team"] = "red" if team == "team1" else "blue"
             army = create_armies_from_data([cfg])[0]
-            index = row * 3 + col
+            index = row * 4 + col
             pos = self.slot_coords[team][index]
             self.engine.add_army(
                 army,

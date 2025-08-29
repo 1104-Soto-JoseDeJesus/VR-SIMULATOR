@@ -28,7 +28,7 @@ def test_slot_distances():
 
     speed = 50.0
     base_dist = 2 * speed * 2
-    lateral = 1.5 * base_dist
+    lateral = base_dist
 
     def dist(a, b):
         return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
@@ -36,7 +36,7 @@ def test_slot_distances():
     # vertical distance between opposing front slots
     assert dist(coords1[1], coords2[1]) == pytest.approx(base_dist)
     # vertical distance between front and back slots of same team
-    assert dist(coords1[1], coords1[4]) == pytest.approx(base_dist)
+    assert dist(coords1[1], coords1[5]) == pytest.approx(base_dist)
     # lateral distance between columns
     assert dist(coords1[0], coords1[1]) == pytest.approx(lateral)
 

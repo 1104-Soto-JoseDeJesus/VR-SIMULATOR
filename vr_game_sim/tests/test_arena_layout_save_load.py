@@ -54,13 +54,13 @@ def test_save_and_load_layout(tmp_path, monkeypatch):
     tab._army_slot[army1.name] = ("team1", 0, 0)
 
     army2 = create_armies_from_data([cfg2])[0]
-    pos2 = tab.slot_coords["team2"][4]
+    pos2 = tab.slot_coords["team2"][5]
     tab.engine.add_army(army2, "blue", position=pos2, speed=50.0)
     icon2 = ArmyIcon(os.path.join(os.path.dirname(__file__), "..", "Icons", "infantry.png"), None, 1.0, army_name=army2.name, team="blue", max_size=tab._icon_size)
     icon2.setPos(*pos2)
     tab.scene.addItem(icon2)
     tab._icons[army2.name] = icon2
-    tab._slot_army[("team2", 4)] = army2.name
+    tab._slot_army[("team2", 5)] = army2.name
     tab._army_slot[army2.name] = ("team2", 1, 1)
 
     layout_file = tmp_path / "layout.json"
@@ -77,4 +77,4 @@ def test_save_and_load_layout(tmp_path, monkeypatch):
     tab._load_layout()
 
     assert tab._slot_army[("team1", 0)] == "Alpha"
-    assert tab._slot_army[("team2", 4)] == "Beta"
+    assert tab._slot_army[("team2", 5)] == "Beta"

@@ -99,8 +99,8 @@ class ArenaEngine(BattlefieldEngine):
             if col is None or row is None:
                 idx = entry.get("index")
                 if idx is not None:
-                    col = idx % 3
-                    row = 0 if idx < 3 else 1
+                    col = idx % 4
+                    row = 0 if idx < 4 else 1
             if col is not None and row is not None:
                 entry["column"] = col
                 entry["row"] = row

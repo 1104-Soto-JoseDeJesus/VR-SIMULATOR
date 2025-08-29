@@ -51,6 +51,7 @@ from .battlefield_report_builder import BattlefieldReportBuilder
 ENGAGEMENT_DISTANCE: float = 70.0
 _ARC_PUSH_SPEED: float = 20.0  # speed in units/s when sliding around radius
 _ENGAGE_EPS: float = 0.01  # small tolerance for floating point comparisons
+_IDLE_GRACE_PERIOD: float = 0.9  # seconds armies retain round/rage after combat
 
 
 @dataclass
@@ -699,16 +700,16 @@ class BattlefieldEngine:
         # Update internal round counters for armies that fought recently.  The
         # actual rage gain is handled within ``_simulate_one_round`` via the
         # simulator's internal logic which mirrors the behaviour of the full
-        # duel simulator.  Armies that have been idle for more than two seconds
-        # lose their round progress and rage.
+        # duel simulator.  Armies idle for more than ``_IDLE_GRACE_PERIOD``
+        # seconds lose their round progress, rage and round-based skill timers.
         for ctx in self._armies.values():
             army = ctx.army
             time_since = self.time_elapsed - ctx.last_engaged_time
-            if time_since <= 2:
+            if time_since <= _IDLE_GRACE_PERIOD:
                 ctx.internal_round += 1
                 # Armies that were idle this round (no simulator processed
-                # combat for them) still receive base rage during the two second
-                # grace period after leaving combat.  ``last_engaged_time`` is
+                # combat for them) still receive base rage during the grace
+                # period after leaving combat.  ``last_engaged_time`` is
                 # only updated when a round is actually simulated, so a smaller
                 # value indicates we didn't fight this tick.
                 if army.rage_added_this_round == 0 and ctx.last_engaged_time < self.time_elapsed:
@@ -718,6 +719,13 @@ class BattlefieldEngine:
             else:
                 ctx.internal_round = 0
                 army.current_rage = 0.0
+                army.rage_added_this_round = 0.0
+                army.skill_trigger_counts.clear()
+                army.skill_last_triggered_round.clear()
+                army.hero1_rage_skill_queued_this_round = False
+                army.hero1_rage_skill_used_round = None
+                army.hero2_rage_skill_primed_for_round = None
+                army.triggered_skills_this_round.clear()
 
             self._queue_state_update(army)
 

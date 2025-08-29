@@ -53,6 +53,28 @@ def test_chance_per_round_skill_triggers():
     assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 1
 
 
+def test_round_skill_resets_after_idle():
+    engine = BattlefieldEngine()
+    attacker = make_round_skill_army("A")
+    defender = make_basic_army("B")
+    engine.add_army(attacker, "red", position=(0, 0), speed=0)
+    engine.add_army(defender, "blue", position=(2, 0), speed=0)
+
+    engine.engage("A", "B")
+    engine.tick(1.0)  # round 1
+    engine.tick(1.0)  # round 2
+    assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 1
+
+    engine.set_direct_target("A", None)
+    engine.tick(1.0)  # wait >0.9s so round counters reset
+    assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 0
+
+    engine.engage("A", "B")
+    engine.tick(1.0)  # round 1 again
+    engine.tick(1.0)  # round 2 again, talent should trigger once more
+    assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 1
+
+
 def test_defender_attacks_even_if_targeting_other():
     engine = BattlefieldEngine()
     army_a = make_basic_army("A")

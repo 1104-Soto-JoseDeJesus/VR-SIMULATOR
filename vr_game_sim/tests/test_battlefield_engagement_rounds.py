@@ -49,7 +49,7 @@ def test_internal_rounds_are_per_attacker():
     assert ctx_c.internal_round == 1
 
 
-def test_round_and_rage_stop_after_two_seconds_idle():
+def test_round_and_rage_stop_after_idle_timeout():
     engine = BattlefieldEngine()
     army_a = make_army('A')
     army_b = make_army('B')
@@ -66,13 +66,7 @@ def test_round_and_rage_stop_after_two_seconds_idle():
     assert army_a.current_rage == 300
 
     engine.set_direct_target('A', None)  # disengage at t=3
-    engine.tick(1.0)  # t=4, still considered in combat
-    assert ctx_a.internal_round == 4
-    assert army_a.current_rage == 400
-    engine.tick(1.0)  # t=5, last second of lingering combat
-    assert ctx_a.internal_round == 5
-    assert army_a.current_rage == 500
-    engine.tick(1.0)  # t=6, out of combat
+    engine.tick(1.0)  # t=4, idle for >0.9s so combat ends
     assert ctx_a.internal_round == 0
     assert army_a.current_rage == 0
     assert ctx_a.last_engaged_time == pytest.approx(3.0)

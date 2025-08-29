@@ -10,6 +10,7 @@ these slots, registers the armies with the underlying battlefield engine
 and schedules their initial movement commands.
 """
 
+from collections import defaultdict
 from typing import Any, Dict, List, Mapping, Optional
 
 from .battlefield_engine import BattlefieldEngine
@@ -46,6 +47,9 @@ class ArenaEngine(BattlefieldEngine):
         """
 
         entries: List[Dict[str, Any]] = []
+        columns: Dict[str, Dict[int, Dict[str, Dict[str, Any]]]] = defaultdict(
+            lambda: defaultdict(dict)
+        )
 
         def _add_entry(item: Any, default_team: Optional[str] = None) -> None:
             if item is None:
@@ -73,7 +77,7 @@ class ArenaEngine(BattlefieldEngine):
             for data in layout_slots:  # type: ignore[arg-type]
                 _add_entry(data, None)
 
-        # Register all armies with their positions
+        # Register all armies with their positions and track slot columns
         for entry in entries:
             army = entry["army"]
             team = entry["team"]
@@ -87,6 +91,81 @@ class ArenaEngine(BattlefieldEngine):
                 raise ValueError("Each slot entry must define a position")
             speed = entry.get("speed", 50.0)
             self.add_army(army, team, position=position, speed=speed)
+            entry["position"] = position
+
+            # Normalise column/row information for later pairing
+            col = entry.get("column")
+            row = entry.get("row")
+            if col is None or row is None:
+                idx = entry.get("index")
+                if idx is not None:
+                    col = idx % 3
+                    row = 0 if idx < 3 else 1
+            if col is not None and row is not None:
+                entry["column"] = col
+                entry["row"] = row
+                columns[team][col]["front" if row == 0 else "back"] = entry
+
+        # Pair columns across teams to assign default targets and march orders
+        team_names = list(columns.keys())
+        if len(team_names) == 2:
+            t1, t2 = team_names
+            all_cols = set(columns[t1].keys()) | set(columns[t2].keys())
+            for col in all_cols:
+                col1 = columns[t1].get(col, {})
+                col2 = columns[t2].get(col, {})
+
+                def _pick_target(col_data: Dict[str, Dict[str, Any]]) -> Optional[str]:
+                    target_entry = col_data.get("front") or col_data.get("back")
+                    if target_entry is None:
+                        return None
+                    return target_entry["army"].name
+
+                target1 = _pick_target(col2)
+                target2 = _pick_target(col1)
+
+                for row_key in ("front", "back"):
+                    e1 = col1.get(row_key)
+                    if (
+                        e1
+                        and not (
+                            e1.get("target_army")
+                            or e1.get("target")
+                            or e1.get("march_to")
+                        )
+                        and target1
+                    ):
+                        self.set_direct_target(e1["army"].name, target1)
+                    e2 = col2.get(row_key)
+                    if (
+                        e2
+                        and not (
+                            e2.get("target_army")
+                            or e2.get("target")
+                            or e2.get("march_to")
+                        )
+                        and target2
+                    ):
+                        self.set_direct_target(e2["army"].name, target2)
+
+                front1 = col1.get("front")
+                front2 = col2.get("front")
+                if front1 and front2:
+                    p1 = front1["position"]
+                    p2 = front2["position"]
+                    midpoint = ((p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0)
+                    if not (
+                        front1.get("target_army")
+                        or front1.get("target")
+                        or front1.get("march_to")
+                    ):
+                        self.set_waypoint(front1["army"].name, midpoint)
+                    if not (
+                        front2.get("target_army")
+                        or front2.get("target")
+                        or front2.get("march_to")
+                    ):
+                        self.set_waypoint(front2["army"].name, midpoint)
 
         # Queue march orders (either waypoints or direct engagements)
         for entry in entries:

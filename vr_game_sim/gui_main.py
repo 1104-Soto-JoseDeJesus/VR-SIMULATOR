@@ -31,6 +31,7 @@ from vr_game_sim.main import (
 )
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.battlefield_engine import BattlefieldEngine
+from vr_game_sim.arena_engine import ArenaEngine
 from vr_game_sim.navmesh import NavMesh
 
 
@@ -2177,12 +2178,14 @@ class ArenaTab(QtWidgets.QWidget):
         self.save_layout_btn = QtWidgets.QPushButton("Save Layout")
         self.load_layout_btn = QtWidgets.QPushButton("Load Layout")
         self.refresh_btn = QtWidgets.QPushButton("Refresh Arena")
+        self.run_btn = QtWidgets.QPushButton("Run Arena")
         for btn in (
             self.add_army_btn,
             self.load_army_btn,
             self.save_layout_btn,
             self.load_layout_btn,
             self.refresh_btn,
+            self.run_btn,
         ):
             controls.addWidget(btn)
         controls.addStretch()
@@ -2245,11 +2248,17 @@ class ArenaTab(QtWidgets.QWidget):
 
         # Prepare engine and tracking structures for armies placed in slots.
         self.report_builder = BattlefieldReportBuilder()
-        self.engine = BattlefieldEngine(report_builder=self.report_builder)
+        self.engine = ArenaEngine(report_builder=self.report_builder)
         self._icons: dict[str, ArmyIcon] = {}
         self._slot_items: dict[tuple[str, int], SlotItem] = {}
         self._slot_army: dict[tuple[str, int], str | None] = {}
         self._army_slot: dict[str, tuple[str, int, int]] = {}
+
+        self._running = False
+        self._last_tick = time.perf_counter()
+        self._timer = QtCore.QTimer(self)
+        self._timer.setInterval(16)
+        self._timer.timeout.connect(self._on_timer_tick)
 
         radius = min(self._cell_w, self._cell_h) * 0.15
         for team, coords in self.slot_coords.items():
@@ -2263,6 +2272,7 @@ class ArenaTab(QtWidgets.QWidget):
         self.refresh_btn.clicked.connect(self._refresh_arena)
         self.save_layout_btn.clicked.connect(self._save_layout)
         self.load_layout_btn.clicked.connect(self._load_layout)
+        self.run_btn.clicked.connect(self._run_arena)
 
     # ------------------------------------------------------------------
     def _compute_slot_coords(self) -> dict[str, list[tuple[float, float]]]:
@@ -2299,6 +2309,8 @@ class ArenaTab(QtWidgets.QWidget):
     def _slot_clicked(self, team: str, index: int) -> None:
         """Handle clicks on deployment slots to add armies."""
 
+        if self._running:
+            return
         key = (team, index)
         if self._slot_army.get(key):
             QtWidgets.QMessageBox.warning(self, "Slot occupied", "This slot already has an army.")
@@ -2468,6 +2480,61 @@ class ArenaTab(QtWidgets.QWidget):
             self._slot_army[(team, index)] = army.name
             self._army_slot[army.name] = (team, col, row)
 
+    def _run_arena(self) -> None:
+        """Start the arena battle and disable slot manipulation."""
+
+        if self._running or not self._army_slot:
+            return
+        layout: dict[str, list[dict[str, Any]]] = {}
+        for name, (team, col, row) in self._army_slot.items():
+            ctx = self.engine._armies.get(name)
+            if ctx is None:
+                continue
+            layout.setdefault(team, []).append(
+                {
+                    "army": ctx.army,
+                    "position": ctx.position,
+                    "column": col,
+                    "row": row,
+                }
+            )
+        if not layout:
+            return
+        self.engine.start_arena_battle(layout)
+        self._running = True
+        self.run_btn.setEnabled(False)
+        for item in self._slot_items.values():
+            item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.NoButton)
+        self._last_tick = time.perf_counter()
+        self._timer.start()
+
+    def _on_timer_tick(self) -> None:
+        """Advance the arena battle and update icon positions."""
+
+        now = time.perf_counter()
+        dt = now - self._last_tick
+        self._last_tick = now
+        self.engine.tick(dt)
+        for name, icon in list(self._icons.items()):
+            ctx = self.engine._armies.get(name)
+            if ctx is None or ctx.army.current_troop_count <= 0:
+                self.scene.removeItem(icon)
+                self._icons.pop(name, None)
+                continue
+            x, y = ctx.position
+            icon.setPos(x, y)
+        alive = {
+            ctx.team
+            for ctx in self.engine._armies.values()
+            if ctx.army.current_troop_count > 0
+        }
+        if len(alive) <= 1:
+            self._timer.stop()
+            self._running = False
+            self.run_btn.setEnabled(True)
+            for item in self._slot_items.values():
+                item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
+
     def _refresh_arena(self) -> None:
         """Clear armies and reset slot occupancy."""
 
@@ -2479,6 +2546,9 @@ class ArenaTab(QtWidgets.QWidget):
         self._draw_navmesh()
         self.report_builder = BattlefieldReportBuilder()
         self.engine.reset(report_builder=self.report_builder)
+        self._timer.stop()
+        self._running = False
+        self.run_btn.setEnabled(True)
 
         radius = min(self._cell_w, self._cell_h) * 0.15
         for team, coords in self.slot_coords.items():

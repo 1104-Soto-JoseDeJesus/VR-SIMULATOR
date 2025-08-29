@@ -2354,10 +2354,14 @@ class ArenaTab(QtWidgets.QWidget):
         icon.setPos(*pos)
         self.scene.addItem(icon)
         self._icons[army.name] = icon
+        # Store the full configuration for later persistence so layouts can be
+        # reloaded without requiring a separate ``saved_armies`` file.  This
+        # also retains the custom movement speed configured for the army.
         self._slot_army[key] = {
             "army": army,
             "team": cfg["team"],
             "speed": cfg.get("speed", 50.0),
+            "config": cfg,
         }
     def _save_layout(self) -> None:
         """Persist current slot assignments to a JSON file."""
@@ -2368,14 +2372,17 @@ class ArenaTab(QtWidgets.QWidget):
                 continue
             col = idx % 4
             row = idx // 4
-            data.append(
-                {
-                    "army_name": info["army"].name,
-                    "team": team,
-                    "column": col,
-                    "row": row,
-                }
-            )
+            entry = {
+                "army_name": info["army"].name,
+                "team": team,
+                "column": col,
+                "row": row,
+                "speed": info.get("speed", 50.0),
+            }
+            cfg = info.get("config")
+            if cfg:
+                entry["config"] = cfg
+            data.append(entry)
         if not data:
             QtWidgets.QMessageBox.information(
                 self, "Nothing to save", "No armies are placed in the arena."
@@ -2411,9 +2418,10 @@ class ArenaTab(QtWidgets.QWidget):
         try:
             with open(self.saved_armies_file, "r", encoding="utf-8") as fh:
                 saved_armies = json.load(fh)
-        except (OSError, json.JSONDecodeError) as exc:  # pragma: no cover - GUI feedback
-            QtWidgets.QMessageBox.warning(self, "Load failed", str(exc))
-            return
+        except (OSError, json.JSONDecodeError):
+            # Missing or invalid ``saved_armies`` should not block loading –
+            # layouts now embed full army configs so we can continue without it.
+            saved_armies = {}
 
         self._refresh_arena()
         for entry in layout_data:
@@ -2428,11 +2436,12 @@ class ArenaTab(QtWidgets.QWidget):
                 or not isinstance(row, int)
             ):
                 continue
-            cfg = saved_armies.get(name)
+            cfg = entry.get("config") or saved_armies.get(name)
             if not cfg:
                 continue
             cfg = dict(cfg)
             cfg["team"] = "red" if team == "team1" else "blue"
+            cfg["speed"] = entry.get("speed", cfg.get("speed", 50.0))
             army = create_armies_from_data([cfg])[0]
             index = row * 4 + col
             pos = self.slot_coords[team][index]
@@ -2471,6 +2480,7 @@ class ArenaTab(QtWidgets.QWidget):
                 "army": army,
                 "team": cfg["team"],
                 "speed": cfg.get("speed", 50.0),
+                "config": cfg,
             }
 
     def _run_arena(self) -> None:

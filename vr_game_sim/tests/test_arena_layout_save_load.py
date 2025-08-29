@@ -56,7 +56,7 @@ def test_save_and_load_layout(tmp_path, monkeypatch):
     icon1.setPos(*pos1)
     tab.scene.addItem(icon1)
     tab._icons[army1.name] = icon1
-    tab._slot_army[("team1", 0)] = {"army": army1, "team": "red", "speed": 50.0}
+    tab._slot_army[("team1", 0)] = {"army": army1, "team": "red", "speed": 50.0, "config": cfg1}
 
     army2 = create_armies_from_data([cfg2])[0]
     pos2 = tab.slot_coords["team2"][5]
@@ -71,7 +71,7 @@ def test_save_and_load_layout(tmp_path, monkeypatch):
     icon2.setPos(*pos2)
     tab.scene.addItem(icon2)
     tab._icons[army2.name] = icon2
-    tab._slot_army[("team2", 5)] = {"army": army2, "team": "blue", "speed": 50.0}
+    tab._slot_army[("team2", 5)] = {"army": army2, "team": "blue", "speed": 50.0, "config": cfg2}
 
     layout_file = tmp_path / "layout.json"
     monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName", lambda *args, **kwargs: (str(layout_file), "json"))
@@ -80,9 +80,13 @@ def test_save_and_load_layout(tmp_path, monkeypatch):
     with open(layout_file, "r", encoding="utf-8") as fh:
         saved = json.load(fh)
     assert {entry["army_name"] for entry in saved} == {"Alpha", "Beta"}
+    # Layout file now embeds full army configurations for standalone loading
+    assert all("config" in entry for entry in saved)
 
     # Clear and reload
     tab._refresh_arena()
+    # Remove the saved armies file to confirm layouts can reload without it
+    os.remove(tab.saved_armies_file)
     monkeypatch.setattr(QtWidgets.QFileDialog, "getOpenFileName", lambda *args, **kwargs: (str(layout_file), "json"))
     tab._load_layout()
 

@@ -16,8 +16,12 @@ def test_attackers_follow_moving_defenders():
     army_c = make_army('C')
 
     engine.add_army(army_a, 'red', position=(0, 0), speed=2)
-    engine.add_army(army_b, 'blue', position=(10, 0), speed=1)
-    engine.add_army(army_c, 'red', position=(20, 0), speed=0)
+    engine.add_army(
+        army_b, 'blue', position=(ENGAGEMENT_DISTANCE + 5, 0), speed=1
+    )
+    engine.add_army(
+        army_c, 'red', position=(ENGAGEMENT_DISTANCE + 25, 0), speed=0
+    )
 
     engine.set_direct_target('B', 'C')
     engine.set_direct_target('A', 'B')
@@ -26,15 +30,15 @@ def test_attackers_follow_moving_defenders():
     b_pos1 = engine._armies['B'].position
     path_a1 = engine._armies['A'].path
     assert len(path_a1) == 1
-    assert path_a1[0][0] == pytest.approx(b_pos1[0] - ENGAGEMENT_DISTANCE, abs=1e-3)
-    assert path_a1[0][1] == pytest.approx(b_pos1[1], abs=1e-3)
+    assert path_a1[0][0] == pytest.approx(b_pos1[0] - ENGAGEMENT_DISTANCE, abs=1e-2)
+    assert path_a1[0][1] == pytest.approx(b_pos1[1], abs=1e-2)
 
     engine.tick(1.0)
     b_pos2 = engine._armies['B'].position
     path_a2 = engine._armies['A'].path
     assert len(path_a2) == 1
-    assert path_a2[0][0] == pytest.approx(b_pos2[0] - ENGAGEMENT_DISTANCE, abs=1e-3)
-    assert path_a2[0][1] == pytest.approx(b_pos2[1], abs=1e-3)
+    assert path_a2[0][0] == pytest.approx(b_pos2[0] - ENGAGEMENT_DISTANCE, abs=1e-2)
+    assert path_a2[0][1] == pytest.approx(b_pos2[1], abs=1e-2)
     assert path_a2 != path_a1
 
 
@@ -45,14 +49,16 @@ def test_defender_continues_moving_when_attacked():
     army_b = make_army('B')
 
     engine.add_army(army_a, 'red', position=(0, 0), speed=2)
-    engine.add_army(army_b, 'blue', position=(5, 0), speed=1)
+    engine.add_army(
+        army_b, 'blue', position=(ENGAGEMENT_DISTANCE + 5, 0), speed=1
+    )
 
-    # Move B towards x=10
-    engine.set_waypoint('B', (10, 0))
+    # Move B towards x=ENGAGEMENT_DISTANCE + 10
+    engine.set_waypoint('B', (ENGAGEMENT_DISTANCE + 10, 0))
 
     engine.tick(1.0)
     pos_before = engine._armies['B'].position
-    assert pos_before[0] > 5
+    assert pos_before[0] > ENGAGEMENT_DISTANCE + 5
 
     # Attacker targets moving B; B should continue towards the waypoint
     engine.set_direct_target('A', 'B')

@@ -42,7 +42,7 @@ from .battlefield_report_builder import BattlefieldReportBuilder
 # Minimum centre-to-centre separation at which armies begin fighting.  Using a
 # module level constant allows tests and other modules to align their
 # expectations with the engine's behaviour.
-ENGAGEMENT_DISTANCE: float = 3.0
+ENGAGEMENT_DISTANCE: float = 10.0
 _ENGAGE_EPS: float = 0.01  # small tolerance for floating point comparisons
 
 

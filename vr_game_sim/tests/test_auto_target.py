@@ -15,7 +15,9 @@ def test_defender_targets_attacker_on_first_engagement():
     army_a = make_army('A')
     army_b = make_army('B')
     engine.add_army(army_a, 'red', position=(0, 0), speed=1)
-    engine.add_army(army_b, 'blue', position=(5, 0), speed=1)
+    engine.add_army(
+        army_b, 'blue', position=(ENGAGEMENT_DISTANCE + 2, 0), speed=1
+    )
 
     engine.engage('A', 'B')
     # Defender should remain idle without a target until combat begins
@@ -27,13 +29,13 @@ def test_defender_targets_attacker_on_first_engagement():
     engine.tick(0.5)
     # Still waiting for attacker to arrive
     assert engine._armies['B'].direct_target is None
-    assert engine._armies['B'].position == (5.0, 0.0)
+    assert engine._armies['B'].position == (ENGAGEMENT_DISTANCE + 2, 0.0)
 
     engine.tick(2.5)
     # After attacker moves into range defender targets the attacker
     assert engine._armies['B'].direct_target == 'A'
-    assert engine._armies['B'].position == (5.0, 0.0)
-    expected = 5.0 - ENGAGEMENT_DISTANCE
+    assert engine._armies['B'].position == (ENGAGEMENT_DISTANCE + 2, 0.0)
+    expected = (ENGAGEMENT_DISTANCE + 2) - ENGAGEMENT_DISTANCE
     assert engine._armies['A'].position[0] == pytest.approx(expected, abs=1e-3)
 
 
@@ -43,8 +45,10 @@ def test_first_arrival_becomes_direct_target():
     slow = make_army('S')
     defender = make_army('D')
     engine.add_army(fast, 'red', position=(0, 0), speed=3)
-    engine.add_army(slow, 'red', position=(10, 0), speed=1)
-    engine.add_army(defender, 'blue', position=(5, 0), speed=0)
+    engine.add_army(
+        slow, 'red', position=(2 * ENGAGEMENT_DISTANCE + 6, 0), speed=1
+    )
+    engine.add_army(defender, 'blue', position=(ENGAGEMENT_DISTANCE + 2, 0), speed=0)
 
     engine.engage('S', 'D')  # Slow engages first
     engine.engage('F', 'D')  # Fast engages second but will arrive first

@@ -206,17 +206,24 @@ class BattlefieldEngine:
         if ctx is None:
             return
         ax, ay = ctx.position
+        attackers: List[str] = []
         enemies: List[Tuple[float, str]] = []
         for name, other in self._armies.items():
             if other.team == ctx.team or other.army.current_troop_count <= 0:
                 continue
+            if other.direct_target == army_name:
+                attackers.append(name)
             dist = hypot(other.position[0] - ax, other.position[1] - ay)
             enemies.append((dist, name))
-        if not enemies:
+        target: Optional[str]
+        if attackers:
+            target = random.choice(attackers)
+        elif enemies:
+            min_dist = min(d for d, _ in enemies)
+            candidates = [n for d, n in enemies if abs(d - min_dist) <= _ENGAGE_EPS]
+            target = candidates[0]
+        else:
             return
-        min_dist = min(d for d, _ in enemies)
-        candidates = [n for d, n in enemies if abs(d - min_dist) <= _ENGAGE_EPS]
-        target = candidates[0]
         self.set_direct_target(army_name, target)
 
     def _remove_army(self, name: str) -> None:

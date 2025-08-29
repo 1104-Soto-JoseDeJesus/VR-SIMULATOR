@@ -1,0 +1,46 @@
+{
+    "army_name": "PikemenBF",
+    "unit_type": "pikemen",
+    "tier": 7,
+    "count": 300000,
+    "atk_mod": 2.5,
+    "def_mod": 2.5,
+    "hp_mod": 1.0,
+    "unrevivable_ratio": 0.5,
+    "heroes": [
+        {
+            "hero_name_or_preset": "Helgar",
+            "talent_ids": [
+                "talent_saintly_guardian",
+                "talent_war_blessing",
+                "talent_judgement_mark"
+            ],
+            "base_skill_ids": [
+                "base_skill_judgements_fury",
+                "rage_skill_ruling_trial"
+            ],
+            "plugin_skill_ids": [
+                "plugin_divine_blessing",
+                "plugin_rest_and_counterattack"
+            ]
+        },
+        {
+            "hero_name_or_preset": "Heahmund",
+            "talent_ids": [
+                "talent_hold_fast",
+                "talent_tit_for_tat",
+                "talent_determined_defense"
+            ],
+            "base_skill_ids": [
+                "base_skill_zeal",
+                "base_skill_vanquishing_blade"
+            ],
+            "plugin_skill_ids": [
+                "plugin_hymn_of_life",
+                "plugin_freyas_blessing"
+            ]
+        }
+    ],
+    "team": "blue",
+    "speed": 50.0
+}

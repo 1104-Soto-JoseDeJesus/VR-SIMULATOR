@@ -595,15 +595,17 @@ class BattlefieldEngine:
                 continue
             army.activate_queued_effects()
             army.apply_start_of_round_rage_deductions()
+
+            primary_opponent = self._get_direct_target_army(army.name) or opponent
             army.process_periodic_effects(
-                "start_of_round", opponent=opponent, skip_dot_at_start=True
+                "start_of_round", opponent=primary_opponent, skip_dot_at_start=True
             )
             army.activate_queued_effects()
             sim._process_skill_triggers(
                 army,
-                opponent,
+                primary_opponent,
                 SkillTriggerType.CHANCE_PER_ROUND,
-                event_data={"opponent_for_shield_calc": opponent},
+                event_data={"opponent_for_shield_calc": primary_opponent},
             )
             army.activate_queued_effects()
 
@@ -627,11 +629,15 @@ class BattlefieldEngine:
             if atk.hero1_rage_skill_queued_this_round:
                 sim._execute_rage_skills(atk, dfd, is_hero2_delayed_trigger=False)
             if dfd.hero1_rage_skill_queued_this_round:
-                sim._execute_rage_skills(dfd, atk, is_hero2_delayed_trigger=False)
+                target_army = self._get_direct_target_army(dfd.name)
+                if target_army:
+                    sim._execute_rage_skills(dfd, target_army, is_hero2_delayed_trigger=False)
             if atk.hero2_rage_skill_primed_for_round == sim.round:
                 sim._execute_rage_skills(atk, dfd, is_hero2_delayed_trigger=True)
             if dfd.hero2_rage_skill_primed_for_round == sim.round:
-                sim._execute_rage_skills(dfd, atk, is_hero2_delayed_trigger=True)
+                target_army = self._get_direct_target_army(dfd.name)
+                if target_army:
+                    sim._execute_rage_skills(dfd, target_army, is_hero2_delayed_trigger=True)
 
         # --- Basic attack sequences ---
         sim._process_skill_triggers(
@@ -692,7 +698,8 @@ class BattlefieldEngine:
                 continue
             end_processed.add(army.name)
             if army.current_troop_count > 0:
-                army.process_periodic_effects("end_of_round", opponent=opponent)
+                primary_opponent = self._get_direct_target_army(army.name) or opponent
+                army.process_periodic_effects("end_of_round", opponent=primary_opponent)
                 army.activate_queued_effects()
 
         sim._apply_base_rage_gain()
@@ -720,3 +727,18 @@ class BattlefieldEngine:
                     queue.append(neighbour)
         visited.remove(army_name)
         return list(visited)
+
+    def _get_direct_target_army(self, army_name: str) -> Optional[Army]:
+        """Return the :class:`Army` that ``army_name`` is directly targeting.
+
+        This helper is used to ensure defenders always aim their non‑reactive
+        skills at their chosen primary opponent rather than whichever army
+        happens to be processed first when multiple engagements exist.
+        """
+        ctx = self._armies.get(army_name)
+        if not ctx:
+            return None
+        tgt = ctx.direct_target
+        if tgt and tgt in self._armies:
+            return self._armies[tgt].army
+        return None

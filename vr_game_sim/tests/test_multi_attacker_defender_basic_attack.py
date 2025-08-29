@@ -69,3 +69,26 @@ def test_multiple_attackers_damage_applied_simultaneously():
     assert dfd.current_troop_count == 0
     assert atk1.current_troop_count == 996
     assert atk2.current_troop_count == 998
+
+
+def test_defender_receives_base_rage_only_once():
+    """Ensure defenders do not gain duplicate base rage when attacked by multiple armies."""
+    engine = BattlefieldEngine()
+
+    atk1 = make_army('A1')
+    atk2 = make_army('A2')
+    dfd = make_army('D')
+
+    engine.add_army(atk1, 'red', position=(0, 0), speed=0)
+    engine.add_army(atk2, 'red', position=(4, 0), speed=0)
+    engine.add_army(dfd, 'blue', position=(2, 0), speed=0)
+
+    engine.engage('A1', 'D')
+    engine.engage('A2', 'D')
+
+    engine.tick(1.0)
+
+    # Each army should receive exactly 100 base rage for the round
+    assert atk1.current_rage == 100
+    assert atk2.current_rage == 100
+    assert dfd.current_rage == 100

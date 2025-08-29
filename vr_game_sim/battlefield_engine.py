@@ -595,7 +595,9 @@ class BattlefieldEngine:
                 continue
             army.activate_queued_effects()
             army.apply_start_of_round_rage_deductions()
-            army.process_periodic_effects("start_of_round", opponent=opponent)
+            army.process_periodic_effects(
+                "start_of_round", opponent=opponent, skip_dot_at_start=True
+            )
             army.activate_queued_effects()
             sim._process_skill_triggers(
                 army,

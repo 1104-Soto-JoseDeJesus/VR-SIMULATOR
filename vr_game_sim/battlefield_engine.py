@@ -476,34 +476,27 @@ class BattlefieldEngine:
             attackers.sort(key=lambda c: c.engaged_at)
             for idx in range(1, len(attackers)):
                 ctx = attackers[idx]
-                ax, ay = ctx.path_start if ctx.path_start is not None else ctx.position
+                ax, ay = ctx.position
                 curr_angle = degrees(atan2(ay - dy, ax - dx))
                 curr_angle = (curr_angle + 360) % 360
                 for j in range(idx):
                     other = attackers[j]
-                    ox, oy = (
-                        other.path_start if other.path_start is not None else other.position
-                    )
+                    ox, oy = other.position
                     other_angle = degrees(atan2(oy - dy, ox - dx))
                     other_angle = (other_angle + 360) % 360
                     diff = (curr_angle - other_angle + 180) % 360 - 180
                     # ``diff`` represents how many degrees ``ctx`` sits
                     # clockwise (negative) or anti-clockwise (positive) from
-                    # ``other``.  Previously any slight clockwise offset would
-                    # cause the later attacker to slide further clockwise.  This
-                    # meant that an attacker arriving from almost the exact same
-                    # angle as an existing one – but just a hair on the
-                    # clockwise side – would move in the opposite direction than
-                    # intended.  To treat these near-identical approaches as the
-                    # same angle we allow a small 15° clockwise tolerance and
-                    # still push the newcomer anti-clockwise in that case.
+                    # ``other`` based on their current centre positions.  Late
+                    # arrivals within ±25° slide 45° anti-clockwise to make
+                    # room; those 26–44° clockwise instead slide 45° clockwise.
 
-                    if -15 <= diff < 20:
+                    if -25 <= diff <= 25:
                         ctx.arc_target_angle = (other_angle + 45) % 360
                         ctx.arc_direction = 1
                         ctx.path.clear()
                         break
-                    if -20 < diff < -15:
+                    elif -44 <= diff <= -26:
                         ctx.arc_target_angle = (other_angle - 45) % 360
                         ctx.arc_direction = -1
                         ctx.path.clear()

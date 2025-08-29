@@ -47,14 +47,14 @@ def test_later_attacker_slides_anticlockwise_when_too_close():
     assert diff == pytest.approx(45, abs=1)
 
 
-def test_clockwise_arrival_within_15_degrees_still_slides_anticlockwise():
+def test_clockwise_arrival_within_25_degrees_slides_anticlockwise():
     engine = BattlefieldEngine()
     atk1 = make_army('A1')
     atk2 = make_army('A2')
     dfd = make_army('D')
 
     engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
-    angle = math.radians(-14)
+    angle = math.radians(-24)
     engine.add_army(
         atk2,
         'red',
@@ -76,14 +76,14 @@ def test_clockwise_arrival_within_15_degrees_still_slides_anticlockwise():
     assert diff == pytest.approx(45, abs=1)
 
 
-def test_later_attacker_slides_clockwise_when_more_than_15_degrees_clockwise():
+def test_between_26_and_44_degrees_clockwise_slides_clockwise():
     engine = BattlefieldEngine()
     atk1 = make_army('A1')
     atk2 = make_army('A2')
     dfd = make_army('D')
 
     engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
-    angle = math.radians(-16)
+    angle = math.radians(-30)
     engine.add_army(
         atk2,
         'red',
@@ -103,6 +103,64 @@ def test_later_attacker_slides_clockwise_when_more_than_15_degrees_clockwise():
     ang2 = angle_between(engine, 'A2', 'D')
     diff = (ang2 - ang1 + 180) % 360 - 180
     assert diff == pytest.approx(-45, abs=1)
+
+
+def test_no_slide_when_more_than_44_degrees_clockwise():
+    engine = BattlefieldEngine()
+    atk1 = make_army('A1')
+    atk2 = make_army('A2')
+    dfd = make_army('D')
+
+    engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    angle = math.radians(-50)
+    engine.add_army(
+        atk2,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    engine.add_army(dfd, 'blue', position=(0, 0), speed=0)
+
+    engine.engage('A1', 'D')
+    engine.tick(1.0)
+    engine.engage('A2', 'D')
+    engine.tick(1.0)
+
+    engine.tick(8.0)
+
+    ang1 = angle_between(engine, 'A1', 'D')
+    ang2 = angle_between(engine, 'A2', 'D')
+    diff = (ang2 - ang1 + 180) % 360 - 180
+    assert diff == pytest.approx(-50, abs=1)
+
+
+def test_no_slide_when_more_than_25_degrees_anticlockwise():
+    engine = BattlefieldEngine()
+    atk1 = make_army('A1')
+    atk2 = make_army('A2')
+    dfd = make_army('D')
+
+    engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    angle = math.radians(30)
+    engine.add_army(
+        atk2,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    engine.add_army(dfd, 'blue', position=(0, 0), speed=0)
+
+    engine.engage('A1', 'D')
+    engine.tick(1.0)
+    engine.engage('A2', 'D')
+    engine.tick(1.0)
+
+    engine.tick(8.0)
+
+    ang1 = angle_between(engine, 'A1', 'D')
+    ang2 = angle_between(engine, 'A2', 'D')
+    diff = (ang2 - ang1 + 180) % 360 - 180
+    assert diff == pytest.approx(30, abs=1)
 
 
 def test_same_angle_attacker_slides_anticlockwise():
@@ -128,25 +186,26 @@ def test_same_angle_attacker_slides_anticlockwise():
     assert diff == pytest.approx(45, abs=1)
 
 
-def test_waypoint_start_angle_used_for_reposition():
+def test_current_position_used_for_reposition():
     engine = BattlefieldEngine()
     atk1 = make_army('A1')
     atk2 = make_army('A2')
     dfd = make_army('D')
 
     engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    engine.add_army(atk2, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    # Simulate a different approach path; the engine should ignore this
+    engine._armies['A2'].path_start = (0, 2 * ENGAGEMENT_DISTANCE)
     engine.add_army(dfd, 'blue', position=(0, 0), speed=0)
+
     engine.engage('A1', 'D')
     engine.tick(1.0)
+    engine.engage('A2', 'D')
+    engine.tick(1.0)
 
-    engine.add_army(atk2, 'red', position=(0, 2 * ENGAGEMENT_DISTANCE), speed=140)
-    engine.set_direct_target('A2', 'D', pursue=False)
-    engine.set_waypoint('A2', (ENGAGEMENT_DISTANCE, 0))
-
-    engine.tick(2.0)
-    engine.tick(0.1)
+    engine.tick(8.0)
 
     ang1 = angle_between(engine, 'A1', 'D')
     ang2 = angle_between(engine, 'A2', 'D')
     diff = (ang2 - ang1 + 180) % 360 - 180
-    assert diff == pytest.approx(0, abs=1)
+    assert diff == pytest.approx(45, abs=1)

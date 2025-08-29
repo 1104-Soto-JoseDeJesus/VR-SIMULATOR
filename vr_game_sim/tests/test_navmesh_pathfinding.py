@@ -65,3 +65,39 @@ def test_battlefield_follow_multiple_waypoints():
     engine.tick(2.1)  # traverse both segments with some slack
     assert engine._armies['A'].position == (approx(1.0, abs=1e-3), approx(1.0, abs=1e-3))
     assert engine._armies['A'].path == []
+
+
+def test_navmesh_simplify_path_reduces_waypoints():
+    grid = [
+        "....",
+        "....",
+        "....",
+        "....",
+    ]
+    mesh = NavMesh.from_grid(grid)
+    raw = mesh.astar((0, 0), (3, 3))
+    assert len(raw) > 2  # diagonal path includes intermediate cells
+    simplified = mesh.simplify_path(raw)
+    assert simplified == [(0, 0), (3, 3)]
+
+
+def test_battlefield_takes_straight_route_without_obstacles():
+    unit = Unit('pikemen', 5, initial_count=10)
+    army = Army('A', unit)
+    engine = BattlefieldEngine()
+    engine.add_army(army, 'red', position=(0.0, 0.0), speed=1.0)
+
+    grid = [
+        "....",
+        "....",
+        "....",
+        "....",
+    ]
+    mesh = NavMesh.from_grid(grid)
+    cells = mesh.simplify_path(mesh.astar((0, 0), (3, 3)))
+    path = [(float(x), float(y)) for x, y in cells[1:]]
+    assert path == [(3.0, 3.0)]  # path reduced to destination only
+    engine.set_path('A', path)
+    engine.tick(5.0)  # plenty of time to reach destination
+    assert engine._armies['A'].position == (approx(3.0, abs=1e-3), approx(3.0, abs=1e-3))
+    assert engine._armies['A'].path == []

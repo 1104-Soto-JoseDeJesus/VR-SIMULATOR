@@ -95,3 +95,58 @@ class NavMesh:
             cur = came_from[cur]
         path.reverse()
         return path
+
+    # ------------------------------------------------------------------
+    # Path smoothing utilities
+    # ------------------------------------------------------------------
+    def line_of_sight(self, a: Tuple[int, int], b: Tuple[int, int]) -> bool:
+        """Return ``True`` if the straight line from ``a`` to ``b`` does not
+        cross any non-walkable cells.
+
+        A simple integer based Bresenham implementation is used so the check
+        works for all 8 movement directions supported by :meth:`astar`.
+        """
+
+        x0, y0 = a
+        x1, y1 = b
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        x, y = x0, y0
+        n = 1 + max(dx, dy)
+        x_inc = 1 if x1 > x0 else -1 if x1 < x0 else 0
+        y_inc = 1 if y1 > y0 else -1 if y1 < y0 else 0
+        error = dx - dy
+        dx *= 2
+        dy *= 2
+
+        for _ in range(n):
+            if (x, y) not in self.walkable:
+                return False
+            if x == x1 and y == y1:
+                return True
+            if error > 0:
+                x += x_inc
+                error -= dy
+            elif error < 0:
+                y += y_inc
+                error += dx
+            else:  # perfectly diagonal step
+                x += x_inc
+                y += y_inc
+                error += dx - dy
+        return True
+
+    def simplify_path(self, path: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
+        """Collapse intermediate waypoints when a clear line of sight exists."""
+
+        if not path:
+            return []
+        result = [path[0]]
+        i = 0
+        while i < len(path) - 1:
+            j = i + 1
+            while j < len(path) and self.line_of_sight(result[-1], path[j]):
+                j += 1
+            result.append(path[j - 1])
+            i = j - 1
+        return result

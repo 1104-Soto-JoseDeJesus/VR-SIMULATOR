@@ -1809,7 +1809,13 @@ class BattlefieldTab(QtWidgets.QWidget):
             return []
         if not cells:
             return []
-        return [self._point_from_cell(c) for c in cells[1:]]
+        # Convert intermediate cells back to scene coordinates but keep the
+        # final waypoint exactly where the user clicked rather than snapping to
+        # the centre of the grid cell.  This avoids armies drifting towards the
+        # middle of a cell and allows precise positioning anywhere on the map.
+        points = [self._point_from_cell(c) for c in cells[1:-1]]
+        points.append(end)
+        return points
 
     def _clear_path(self, name: str) -> None:
         """Remove any previously drawn movement path for ``name``."""

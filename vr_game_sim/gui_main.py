@@ -15,6 +15,10 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
 from PIL import Image, ImageQt
 import numpy as np
+import matplotlib
+
+matplotlib.use("Agg")
+from matplotlib import pyplot as plt
 
 from vr_game_sim.hero_definition import HERO_PRESETS
 from vr_game_sim.unit_definition import Unit
@@ -2196,6 +2200,7 @@ class ArenaTab(QtWidgets.QWidget):
         self.last_run_btn = QtWidgets.QPushButton("Last Run")
         self.refresh_btn = QtWidgets.QPushButton("Refresh Arena")
         self.run_btn = QtWidgets.QPushButton("Run Arena")
+        self.run_batch_btn = QtWidgets.QPushButton("Run Batch")
         self.speed_btn = QtWidgets.QPushButton("Speed 1x")
         self.time_label = QtWidgets.QLabel("00:00")
         for btn in (
@@ -2205,6 +2210,7 @@ class ArenaTab(QtWidgets.QWidget):
             self.last_run_btn,
             self.refresh_btn,
             self.run_btn,
+            self.run_batch_btn,
             self.speed_btn,
         ):
             controls.addWidget(btn)
@@ -2298,6 +2304,7 @@ class ArenaTab(QtWidgets.QWidget):
         self.load_layout_btn.clicked.connect(self._load_layout)
         self.last_run_btn.clicked.connect(self._run_last_layout)
         self.run_btn.clicked.connect(self._run_arena)
+        self.run_batch_btn.clicked.connect(self._run_batch)
         self.speed_btn.clicked.connect(self._toggle_speed)
 
     # ------------------------------------------------------------------
@@ -2582,6 +2589,61 @@ class ArenaTab(QtWidgets.QWidget):
         self._battle_time = 0.0
         self._update_time_label()
         self._timer.start()
+
+    def _run_batch(self, count: int = 300) -> None:
+        """Run multiple arena battles and record victory distribution."""
+
+        layout_entries: list[dict[str, Any]] = []
+        for (slot_team, idx), info in self._slot_army.items():
+            if not info or not info.get("config"):
+                continue
+            col = idx % 4
+            row = idx // 4
+            pos = self.slot_coords[slot_team][idx]
+            layout_entries.append(
+                {
+                    "cfg": info["config"],
+                    "team": info["team"],
+                    "position": pos,
+                    "column": col,
+                    "row": row,
+                    "speed": info.get("speed", 50.0),
+                }
+            )
+        if not layout_entries:
+            return
+
+        results: dict[str, int] = {}
+        for _ in range(count):
+            armies = create_armies_from_data([dict(e["cfg"]) for e in layout_entries])
+            battle_layout: dict[str, list[dict[str, Any]]] = {}
+            for army, entry in zip(armies, layout_entries):
+                battle_layout.setdefault(entry["team"], []).append(
+                    {
+                        "army": army,
+                        "position": entry["position"],
+                        "column": entry["column"],
+                        "row": entry["row"],
+                        "speed": entry["speed"],
+                    }
+                )
+            engine = ArenaEngine()
+            engine.start_arena_battle(battle_layout)
+            while True:
+                engine.tick(0.016)
+                alive = {
+                    ctx.team
+                    for ctx in engine._armies.values()
+                    if ctx.army.current_troop_count > 0
+                }
+                if len(alive) <= 1:
+                    break
+            winner = next(iter(alive)) if alive else "None"
+            results[winner] = results.get(winner, 0) + 1
+
+        window = self.window()
+        if window is not None and hasattr(window, "update_arena_figures"):
+            window.update_arena_figures(results)
 
     def _on_engine_state(self, name: str, state: dict) -> None:
         """Update health bars in response to engine state broadcasts."""
@@ -3075,6 +3137,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         ar_layout.addWidget(self.ar_report_stack)
 
+        # --- Arena Figures tab ---
+        self.arena_figures_tab = QtWidgets.QWidget()
+        ar_fig_layout = QtWidgets.QVBoxLayout(self.arena_figures_tab)
+        self.arena_fig_label = QtWidgets.QLabel("Run Batch to generate figures")
+        self.arena_fig_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        ar_fig_layout.addWidget(self.arena_fig_label)
+
         # --- Report tab ---
         report_tab = QtWidgets.QWidget()
         report_layout = QtWidgets.QVBoxLayout(report_tab)
@@ -3126,6 +3195,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.addTab(self.battlefield_report_tab, "Battlefield Reports")
         self.tabs.addTab(self.arena_tab, "Arena")
         self.tabs.addTab(self.arena_report_tab, "Arena Reports")
+        self.tabs.addTab(self.arena_figures_tab, "Arena Figures")
 
         self.tabs.currentChanged.connect(self._on_tab_changed)
 
@@ -3314,6 +3384,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ar_report_list.clear()
         self.ar_output_tree.clear()
         self.ar_output_text.clear()
+
+    def update_arena_figures(self, results: dict[str, int]) -> None:
+        """Display a victory distribution pie chart for arena batches."""
+
+        if not results:
+            return
+        base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+        os.makedirs(base_hist_dir, exist_ok=True)
+        path = os.path.join(base_hist_dir, "arena_victory_distribution.png")
+        labels = [k.capitalize() for k in results.keys()]
+        sizes = list(results.values())
+        fig, ax = plt.subplots()
+        ax.pie(sizes, labels=labels, autopct="%1.1f%%")
+        ax.set_title("Arena Victory Distribution")
+        fig.savefig(path)
+        plt.close(fig)
+        self.arena_fig_label.setPixmap(QtGui.QPixmap(path))
 
     def _display_selected_bf_report(
         self, current: QtWidgets.QListWidgetItem | None

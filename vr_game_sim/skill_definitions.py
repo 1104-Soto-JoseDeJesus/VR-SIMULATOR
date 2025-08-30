@@ -1221,7 +1221,10 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "labels": [PluginSkillLabel.COMMAND],
         "config": {"trigger_interval": 9, "buff_magnitude": 2.25, "buff_duration": 1,
                    "buff_activate_next_round": True, "buff_stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
-                   "buff_name": EFFECT_NAME_THORS_DETERMINATION_BUFF}
+                   "buff_name": EFFECT_NAME_THORS_DETERMINATION_BUFF,
+                   "damage_reduction_magnitude": -0.15, "damage_reduction_duration": 2,
+                   "damage_reduction_activate_next_round": True,
+                   "damage_reduction_name": EFFECT_NAME_THORS_DETERMINATION_DMG_REDUCTION}
     },
     "plugin_disarmament": {
         "id": "plugin_disarmament", "name": "Disarmament", "type": SkillType.PLUGIN_SKILL,

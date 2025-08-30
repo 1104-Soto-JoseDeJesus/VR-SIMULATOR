@@ -892,10 +892,15 @@ class BattlefieldEngine:
                 continue
             end_processed.add(army.name)
             if army.current_troop_count > 0:
+                # Capture currently active effects so that newly applied
+                # effects during the end-of-round phase retain their
+                # ``applied_this_round`` flag until the next start-of-round.
+                pre_existing = {id(eff) for eff in army.active_effects}
                 army.process_periodic_effects("end_of_round", opponent=opponent)
                 army.activate_queued_effects()
                 for eff in army.active_effects:
-                    eff.applied_this_round = False
+                    if id(eff) in pre_existing:
+                        eff.applied_this_round = False
 
         sim._apply_base_rage_gain()
         for army in (atk, dfd):

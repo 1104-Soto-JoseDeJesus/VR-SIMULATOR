@@ -746,7 +746,12 @@ class BattlefieldEngine:
         atk, dfd = sim.army1, sim.army2
 
         # Activate any effects queued from the previous round and decrement durations
+        processed_now: List[Army] = []
         for army in (atk, dfd):
+            if army.name in start_processed:
+                continue
+            start_processed.add(army.name)
+            processed_now.append(army)
             if army.effects_to_activate_next_round:
                 army.upcoming_effects.extend(army.effects_to_activate_next_round)
                 army.effects_to_activate_next_round.clear()
@@ -759,10 +764,8 @@ class BattlefieldEngine:
         dfd.started_round_with_active_shield = dfd.get_current_shield_hp() > 0
 
         # --- Start of round housekeeping & round based skill triggers ---
-        for army, opponent in ((atk, dfd), (dfd, atk)):
-            if army.name in start_processed:
-                continue
-            start_processed.add(army.name)
+        for army in processed_now:
+            opponent = dfd if army is atk else atk
 
             if army.current_troop_count <= 0:
                 continue

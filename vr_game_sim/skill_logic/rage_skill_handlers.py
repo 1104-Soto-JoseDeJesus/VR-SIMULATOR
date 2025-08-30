@@ -1,5 +1,6 @@
 from typing import Tuple, List, Optional, Dict, Any
 import random
+from math import atan2, degrees
 
 from ..enums import EffectType, StatType, SkillTriggerType, DoTType
 from ..skill_system import SkillDefinition, ArmyRef, GameSimulatorRef
@@ -48,12 +49,28 @@ def handle_rage_sacred_blade(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinitio
     dmg_fctr = sk_cfg.get("damage_factor", 0.0)
     if dmg_fctr > 0:
         hp_dmg, absrb, kills, raw_dmg = sim._calculate_generic_skill_damage(army, opp, dmg_fctr,
-                                                                            is_hero2_rage_skill=is_h2_delay,
-                                                                            source_skill_def=sk_def)
+                                                                           is_hero2_rage_skill=is_h2_delay,
+                                                                           source_skill_def=sk_def)
         if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg; dmg_dealt_flag = True
         if hp_dmg > 0 or absrb > 0: eff_hpnd = True
         logs.append((f"Deals damage to {opp.name}.",
                      {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
+        if sim.mode in ("battlefield", "arena"):
+            engine = getattr(sim, "parent_engine", None)
+            if engine:
+                enemies = engine.get_engaged_enemies(army.name)
+                indirect = [e for e in enemies if e.name != opp.name]
+                if len(indirect) > 2:
+                    indirect = random.sample(indirect, 2)
+                for other in indirect:
+                    hp_dmg2, absrb2, kills2, raw_dmg2 = sim._calculate_generic_skill_damage(
+                        army, other, dmg_fctr,
+                        is_hero2_rage_skill=is_h2_delay,
+                        source_skill_def=sk_def)
+                    if hp_dmg2 > 0: other.pending_hp_damage_this_round += hp_dmg2; dmg_dealt_flag = True
+                    if hp_dmg2 > 0 or absrb2 > 0: eff_hpnd = True
+                    logs.append((f"Deals damage to {other.name}.",
+                                 {"damage_done_hp": round(raw_dmg2), "absorbed_hp": round(absrb2), "potential_kills": kills2}))
     buff_dets = sk_cfg.get("buff_details")
     if buff_dets and army.unit.unit_type == buff_dets.get("unit_type_condition"):
         buff_data_copy = buff_dets.copy()
@@ -215,6 +232,46 @@ def handle_rage_skill_paralyzing_terror(
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
         ))
+        if simulator.mode in ("battlefield", "arena"):
+            engine = getattr(simulator, "parent_engine", None)
+            if engine:
+                enemies = engine.get_engaged_enemies(triggering_army.name)
+                candidates = [e for e in enemies if e.name != opponent_army.name]
+                ctx_self = engine._armies.get(triggering_army.name)
+                ctx_direct = engine._armies.get(opponent_army.name)
+                if ctx_self and ctx_direct:
+                    hx, hy = ctx_self.position
+                    dx, dy = ctx_direct.position
+                    direct_ang = degrees(atan2(dy - hy, dx - hx))
+                    filtered: List[ArmyRef] = []
+                    for other in candidates:
+                        ctx_o = engine._armies.get(other.name)
+                        if not ctx_o:
+                            continue
+                        ox, oy = ctx_o.position
+                        ang = degrees(atan2(oy - hy, ox - hx))
+                        diff = abs((ang - direct_ang + 180) % 360 - 180)
+                        if diff <= 60:
+                            filtered.append(other)
+                    if len(filtered) > 2:
+                        filtered = random.sample(filtered, 2)
+                    for other in filtered:
+                        hp_dmg2, absorbed2, kills2, raw2 = simulator._calculate_generic_skill_damage(
+                            triggering_army, other, damage_factor,
+                            is_hero2_rage_skill=is_hero2_delayed_rage,
+                            source_skill_def=skill_def
+                        )
+                        if hp_dmg2 > 0:
+                            other.pending_hp_damage_this_round += hp_dmg2
+                            damage_dealt_flag = True
+                        if hp_dmg2 > 0 or absorbed2 > 0:
+                            an_effect_happened = True
+                        log_details.append(
+                            (
+                                f"Deals damage (Factor: {damage_factor}) to {other.name}.",
+                                {"damage_done_hp": round(raw2), "absorbed_hp": round(absorbed2), "potential_kills": kills2}
+                            )
+                        )
 
     shield_factor = skill_config.get("shield_factor", 0.0)
     shield_duration = skill_config.get("shield_duration", 2)
@@ -629,6 +686,29 @@ def handle_rage_incineration(
             (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
              {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
         )
+
+        if simulator.mode in ("battlefield", "arena"):
+            engine = getattr(simulator, "parent_engine", None)
+            if engine:
+                enemies = engine.get_engaged_enemies(triggering_army.name)
+                indirect = [e for e in enemies if e.name != opponent_army.name]
+                if len(indirect) > 2:
+                    indirect = random.sample(indirect, 2)
+                for other in indirect:
+                    hp_dmg2, absorbed2, kills2, raw2 = simulator._calculate_generic_skill_damage(
+                        triggering_army, other, damage_factor,
+                        is_hero2_rage_skill=is_hero2_delayed_rage,
+                        source_skill_def=skill_def
+                    )
+                    if hp_dmg2 > 0:
+                        other.pending_hp_damage_this_round += hp_dmg2
+                        damage_dealt_flag = True
+                    if hp_dmg2 > 0 or absorbed2 > 0:
+                        an_effect_happened = True
+                    log_details.append(
+                        (f"Deals damage (Factor: {damage_factor}) to {other.name}.",
+                         {"damage_done_hp": round(raw2), "absorbed_hp": round(absorbed2), "potential_kills": kills2})
+                    )
 
     if random.random() < skill_config.get("burn_boost_chance", 0.0):
         boost_magnitude = skill_config.get("burn_boost_magnitude", 0.0)

@@ -18,3 +18,16 @@ def test_gui_lists_arena_reports():
     window.ar_report_list.setCurrentItem(item)
     assert "Round 1" in window.ar_output_text.toPlainText()
     window.close()
+
+
+def test_clear_arena_reports_button():
+    window = MainWindow()
+    rb = window.arena_tab.report_builder
+    b = rb.get_builder("A", "B")
+    b.emit_round(1, [], {"A": [], "B": []})
+    window.update_arena_reports()
+    assert window.ar_report_list.count() == 1
+    window._clear_arena_reports()
+    window.update_arena_reports()
+    assert window.ar_report_list.count() == 0
+    window.close()

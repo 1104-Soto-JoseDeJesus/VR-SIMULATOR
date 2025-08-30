@@ -247,11 +247,6 @@ class BattlefieldEngine:
         self._state_cache.pop(name, None)
         self._pending_state_updates.pop(name, None)
 
-        if self._report_builder is not None:
-            for key in list(self._report_builder._builders.keys()):
-                if name in key:
-                    self._report_builder.clear_builder(*key)
-
         for other_name in lost:
             self._auto_select_closest_enemy(other_name)
 
@@ -716,8 +711,6 @@ class BattlefieldEngine:
             self._graph[atk].discard(dfd)
             self._graph[dfd].discard(atk)
             self._engagements.pop(key, None)
-            if self._report_builder is not None:
-                self._report_builder.clear_builder(atk, dfd)
 
         defeated = [name for name, ctx in list(self._armies.items())
                      if ctx.army.current_troop_count <= 0]

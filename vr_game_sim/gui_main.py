@@ -2542,6 +2542,9 @@ class ArenaTab(QtWidgets.QWidget):
                 continue
             x, y = ctx.position
             icon.setPos(x, y)
+        window = self.window()
+        if window is not None and hasattr(window, "update_arena_reports"):
+            window.update_arena_reports()
         alive = {
             ctx.team
             for ctx in self.engine._armies.values()
@@ -2931,6 +2934,54 @@ class MainWindow(QtWidgets.QMainWindow):
 
         bf_layout.addWidget(self.bf_report_stack)
 
+        # --- Arena Reports tab ---
+        self.arena_report_tab = QtWidgets.QWidget()
+        ar_layout = QtWidgets.QVBoxLayout(self.arena_report_tab)
+
+        self.ar_report_list = QtWidgets.QListWidget()
+        self.ar_report_list.currentItemChanged.connect(
+            self._display_selected_ar_report
+        )
+        ar_layout.addWidget(self.ar_report_list)
+
+        self.ar_toggle_report_view_btn = QtWidgets.QPushButton(
+            "Show Text Report"
+        )
+        self.ar_toggle_report_view_btn.setCheckable(True)
+        self.ar_toggle_report_view_btn.toggled.connect(
+            self._toggle_ar_report_view
+        )
+        ar_layout.addWidget(
+            self.ar_toggle_report_view_btn,
+            alignment=QtCore.Qt.AlignmentFlag.AlignLeft,
+        )
+
+        self.ar_report_stack = QtWidgets.QStackedWidget()
+
+        ar_fixed_font = QtGui.QFontDatabase.systemFont(
+            QtGui.QFontDatabase.SystemFont.FixedFont
+        )
+
+        self.ar_output_tree = QtWidgets.QTreeWidget()
+        self.ar_output_tree.setHeaderHidden(True)
+        self.ar_output_tree.setFont(ar_fixed_font)
+        self.ar_output_tree.setStyleSheet(
+            "QTreeWidget { background-color: #1e1e1e; color: #ffffff; "
+            "border: 1px solid #444444; }"
+        )
+        self.ar_report_stack.addWidget(self.ar_output_tree)
+
+        self.ar_output_text = QtWidgets.QTextEdit()
+        self.ar_output_text.setReadOnly(True)
+        self.ar_output_text.setFont(ar_fixed_font)
+        self.ar_output_text.setStyleSheet(
+            "QTextEdit { background-color: #1e1e1e; color: #ffffff; "
+            "border: 1px solid #444444; }"
+        )
+        self.ar_report_stack.addWidget(self.ar_output_text)
+
+        ar_layout.addWidget(self.ar_report_stack)
+
         # --- Report tab ---
         report_tab = QtWidgets.QWidget()
         report_layout = QtWidgets.QVBoxLayout(report_tab)
@@ -2981,6 +3032,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.addTab(self.battlefield_tab, "Battlefield")
         self.tabs.addTab(self.battlefield_report_tab, "Battlefield Reports")
         self.tabs.addTab(self.arena_tab, "Arena")
+        self.tabs.addTab(self.arena_report_tab, "Arena Reports")
 
         self.tabs.currentChanged.connect(self._on_tab_changed)
 
@@ -3088,6 +3140,14 @@ class MainWindow(QtWidgets.QMainWindow):
             self.bf_report_stack.setCurrentWidget(self.bf_output_tree)
             self.bf_toggle_report_view_btn.setText("Show Text Report")
 
+    def _toggle_ar_report_view(self, checked: bool) -> None:
+        if checked:
+            self.ar_report_stack.setCurrentWidget(self.ar_output_text)
+            self.ar_toggle_report_view_btn.setText("Show Round View")
+        else:
+            self.ar_report_stack.setCurrentWidget(self.ar_output_tree)
+            self.ar_toggle_report_view_btn.setText("Show Text Report")
+
     def update_battlefield_reports(self) -> None:
         """Populate the battlefield report list from the engine."""
         builder = getattr(self.battlefield_tab, "report_builder", None)
@@ -3123,6 +3183,36 @@ class MainWindow(QtWidgets.QMainWindow):
             if key == current_key:
                 self.bf_report_list.setCurrentItem(item)
 
+    def update_arena_reports(self) -> None:
+        """Populate the arena report list from the arena engine."""
+        builder = getattr(self.arena_tab, "report_builder", None)
+        if not builder:
+            return
+
+        current_item = self.ar_report_list.currentItem()
+        current_key = (
+            current_item.data(QtCore.Qt.ItemDataRole.UserRole)
+            if current_item is not None
+            else None
+        )
+
+        existing_keys = [
+            self.ar_report_list.item(i).data(QtCore.Qt.ItemDataRole.UserRole)
+            for i in range(self.ar_report_list.count())
+        ]
+        new_keys = list(builder.get_reports().keys())
+        if existing_keys == new_keys:
+            return
+
+        self.ar_report_list.clear()
+        for key in new_keys:
+            atk, dfd = key
+            item = QtWidgets.QListWidgetItem(f"{atk} vs {dfd}")
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, key)
+            self.ar_report_list.addItem(item)
+            if key == current_key:
+                self.ar_report_list.setCurrentItem(item)
+
     def _display_selected_bf_report(
         self, current: QtWidgets.QListWidgetItem | None
     ) -> None:
@@ -3152,10 +3242,40 @@ class MainWindow(QtWidgets.QMainWindow):
         self.bf_output_text.setPlainText(text)
         self._populate_round_tree(rounds, tree=self.bf_output_tree)
 
+    def _display_selected_ar_report(
+        self, current: QtWidgets.QListWidgetItem | None
+    ) -> None:
+        if current is None:
+            self.ar_output_tree.clear()
+            self.ar_output_text.clear()
+            return
+        key = current.data(QtCore.Qt.ItemDataRole.UserRole)
+        builder = getattr(self.arena_tab, "report_builder", None)
+        if not builder:
+            return
+        rounds = builder.get_rounds().get(key, [])
+        text = builder.get_reports().get(key, "")
+
+        if text:
+            lines = text.splitlines()
+            for idx, line in enumerate(lines):
+                stripped = line.strip()
+                for r in rounds:
+                    gr = r.get("defender_global_round")
+                    if gr is not None and stripped == f"Round {r['round']}":
+                        lines[idx] = f"Round {r['round']} (Defender Round {gr})"
+                        break
+            text = "\n".join(lines)
+
+        self.ar_output_text.setPlainText(text)
+        self._populate_round_tree(rounds, tree=self.ar_output_tree)
+
     def _on_tab_changed(self, index: int) -> None:
         widget = self.tabs.widget(index)
         if widget is self.battlefield_report_tab:
             self.update_battlefield_reports()
+        if widget is self.arena_report_tab:
+            self.update_arena_reports()
 
     def export_report(self) -> None:
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(

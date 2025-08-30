@@ -67,8 +67,8 @@ def test_round_dependent_skill_resets_after_idle():
     assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 1
 
     engine.set_direct_target("A", None)
-    engine.tick(0.9)  # idle but below reset threshold
-    engine.tick(0.1)  # exceed threshold and reset rounds/rage
+    engine.tick(0.8)  # idle but below reset threshold
+    engine.tick(0.2)  # exceed threshold and reset rounds/rage
     assert attacker.skill_last_triggered_round == {}
     engine.engage("A", "B")
     engine.tick(1.0)  # new round 1
@@ -90,8 +90,8 @@ def test_round_dependent_skill_resets_after_idle_in_arena():
     assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 1
 
     engine.set_direct_target("A", None)
-    engine.tick(0.9)
-    engine.tick(0.1)
+    engine.tick(0.8)
+    engine.tick(0.2)
     assert attacker.skill_last_triggered_round == {}
     engine.engage("A", "B")
     engine.tick(1.0)

@@ -2194,7 +2194,6 @@ class ArenaTab(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
 
         controls = QtWidgets.QHBoxLayout()
-        self.load_army_btn = QtWidgets.QPushButton("Load Army")
         self.save_layout_btn = QtWidgets.QPushButton("Save Layout")
         self.load_layout_btn = QtWidgets.QPushButton("Load Layout")
         self.last_run_btn = QtWidgets.QPushButton("Last Run")
@@ -2204,7 +2203,6 @@ class ArenaTab(QtWidgets.QWidget):
         self.speed_btn = QtWidgets.QPushButton("Speed 1x")
         self.time_label = QtWidgets.QLabel("00:00")
         for btn in (
-            self.load_army_btn,
             self.save_layout_btn,
             self.load_layout_btn,
             self.last_run_btn,

@@ -675,8 +675,7 @@ def handle_plugin_silencer(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
-        if hp_damage > 0 or absorbed > 0:
-            an_effect_happened = True
+        an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}

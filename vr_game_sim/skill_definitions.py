@@ -156,7 +156,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
     },
     "talent_sacred_counter": {
         "id": "talent_sacred_counter", "name": "Sacred Counter", "type": SkillType.TALENT,
-        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_generic_single_damage_skill,
         "labels": [PluginSkillLabel.REACTIVE],
         "config": {"damage_factor": 600.0}
@@ -1031,7 +1031,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
     # ... (All existing plugin skills) ...
     "plugin_silencer": {
         "id": "plugin_silencer", "name": "Silencer", "type": SkillType.PLUGIN_SKILL,
-        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_plugin_silencer,
         "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_factor": 450.0, "silence_duration": 1}

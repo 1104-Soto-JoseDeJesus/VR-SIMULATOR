@@ -57,6 +57,7 @@ class Army:
 
     skill_trigger_counts: Dict[str, int] = field(init=False, default_factory=dict)
     skill_last_triggered_round: Dict[str, int] = field(init=False, default_factory=dict)
+    debuff_last_applied_round: Dict[str, int] = field(init=False, default_factory=dict)
 
     current_rage: float = field(init=False, default=0.0)
     hero1_rage_skill_id: Optional[str] = field(init=False, default=None)
@@ -269,6 +270,21 @@ class Army:
                 if self.simulator: self.simulator._log_skill_trigger(target_army, active_immunity_effect.name,
                                                                      f"Immune to '{canonical_effect_name}' from skill '{source_skill_id}'.")
                 return None
+
+        debuff_limit_names = {
+            EFFECT_NAME_DISARM_DEBUFF,
+            EFFECT_NAME_BROKEN_BLADE_DEBUFF,
+            EFFECT_NAME_SILENCE_DEBUFF,
+        }
+        if canonical_effect_name in debuff_limit_names:
+            if any(eff.name == canonical_effect_name for eff in target_army.active_effects):
+                return None
+            if target_army.simulator:
+                current_round = target_army.simulator.round
+                last_round = target_army.debuff_last_applied_round.get(canonical_effect_name, -999)
+                if current_round < last_round + 2:
+                    return None
+                target_army.debuff_last_applied_round[canonical_effect_name] = current_round
 
         new_effect_duration = effect_data.get("duration", 1)
         activate_next_round_flag = effect_data.get("activate_next_round", False)
@@ -826,6 +842,7 @@ class Army:
         self.unrevivable_troops = 0.0
         self.skill_trigger_counts.clear()
         self.skill_last_triggered_round.clear()
+        self.debuff_last_applied_round.clear()
         self.current_rage = 0.0
         self.hero1_rage_skill_queued_this_round = False
         self.hero1_rage_skill_used_round = None

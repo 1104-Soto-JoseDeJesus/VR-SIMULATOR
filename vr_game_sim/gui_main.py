@@ -1529,7 +1529,11 @@ class ArmySetupDialog(QtWidgets.QDialog):
         self.save_army_btn = buttons.addButton(
             "Save Army", QtWidgets.QDialogButtonBox.ButtonRole.ActionRole
         )
+        self.load_army_btn = buttons.addButton(
+            "Load Army", QtWidgets.QDialogButtonBox.ButtonRole.ActionRole
+        )
         self.save_army_btn.clicked.connect(self._save_army)
+        self.load_army_btn.clicked.connect(self._load_army)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -1541,6 +1545,19 @@ class ArmySetupDialog(QtWidgets.QDialog):
         )
         if file_path:
             save_army_to_file(cfg, file_path)
+
+    def _load_army(self) -> None:
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Load Army", "", "JSON Files (*.json)"
+        )
+        if not file_path:
+            return
+        cfg = load_army_from_file(file_path)
+        if not cfg:
+            return
+        self.frame.populate_from_config(cfg)
+        self.team_combo.setCurrentText(cfg.get("team", "red"))
+        self.speed_spin.setValue(float(cfg.get("speed", 50.0)))
 
     def get_config(self) -> dict:
         cfg = self.frame.build_config()
@@ -2173,19 +2190,19 @@ class ArenaTab(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
 
         controls = QtWidgets.QHBoxLayout()
-        self.add_army_btn = QtWidgets.QPushButton("Add Army")
         self.load_army_btn = QtWidgets.QPushButton("Load Army")
         self.save_layout_btn = QtWidgets.QPushButton("Save Layout")
         self.load_layout_btn = QtWidgets.QPushButton("Load Layout")
+        self.last_run_btn = QtWidgets.QPushButton("Last Run")
         self.refresh_btn = QtWidgets.QPushButton("Refresh Arena")
         self.run_btn = QtWidgets.QPushButton("Run Arena")
         self.speed_btn = QtWidgets.QPushButton("Speed 1x")
         self.time_label = QtWidgets.QLabel("00:00")
         for btn in (
-            self.add_army_btn,
             self.load_army_btn,
             self.save_layout_btn,
             self.load_layout_btn,
+            self.last_run_btn,
             self.refresh_btn,
             self.run_btn,
             self.speed_btn,
@@ -2197,6 +2214,7 @@ class ArenaTab(QtWidgets.QWidget):
 
         self._setups_dir = os.path.join(os.path.dirname(__file__), "setups")
         self.saved_armies_file = os.path.join(self._setups_dir, "saved_armies.json")
+        self.last_layout_file = os.path.join(self._setups_dir, "_last_arena_layout.json")
 
         self.scene = QtWidgets.QGraphicsScene(self)
         self.view = QtWidgets.QGraphicsView(self.scene)
@@ -2278,6 +2296,7 @@ class ArenaTab(QtWidgets.QWidget):
         self.refresh_btn.clicked.connect(self._refresh_arena)
         self.save_layout_btn.clicked.connect(self._save_layout)
         self.load_layout_btn.clicked.connect(self._load_layout)
+        self.last_run_btn.clicked.connect(self._run_last_layout)
         self.run_btn.clicked.connect(self._run_arena)
         self.speed_btn.clicked.connect(self._toggle_speed)
 
@@ -2370,16 +2389,17 @@ class ArenaTab(QtWidgets.QWidget):
             "speed": cfg.get("speed", 50.0),
             "config": cfg,
         }
-    def _save_layout(self) -> None:
-        """Persist current slot assignments to a JSON file."""
 
-        data = []
+    def _collect_layout_data(self) -> list[dict[str, Any]]:
+        """Return layout entries for all occupied slots."""
+
+        data: list[dict[str, Any]] = []
         for (team, idx), info in self._slot_army.items():
             if not info:
                 continue
             col = idx % 4
             row = idx // 4
-            entry = {
+            entry: dict[str, Any] = {
                 "army_name": info["army"].name,
                 "team": team,
                 "column": col,
@@ -2390,6 +2410,25 @@ class ArenaTab(QtWidgets.QWidget):
             if cfg:
                 entry["config"] = cfg
             data.append(entry)
+        return data
+
+    def _save_last_layout(self) -> None:
+        """Persist the current layout for quick access later."""
+
+        data = self._collect_layout_data()
+        if not data:
+            return
+        os.makedirs(self._setups_dir, exist_ok=True)
+        try:
+            with open(self.last_layout_file, "w", encoding="utf-8") as fh:
+                json.dump(data, fh, indent=2)
+        except OSError:
+            pass
+
+    def _save_layout(self) -> None:
+        """Persist current slot assignments to a JSON file."""
+
+        data = self._collect_layout_data()
         if not data:
             QtWidgets.QMessageBox.information(
                 self, "Nothing to save", "No armies are placed in the arena."
@@ -2422,6 +2461,11 @@ class ArenaTab(QtWidgets.QWidget):
         except (OSError, json.JSONDecodeError) as exc:  # pragma: no cover - GUI feedback
             QtWidgets.QMessageBox.warning(self, "Load failed", str(exc))
             return
+        self._apply_layout(layout_data)
+
+    def _apply_layout(self, layout_data: list[dict[str, Any]]) -> None:
+        """Apply a previously saved layout to the arena."""
+
         try:
             with open(self.saved_armies_file, "r", encoding="utf-8") as fh:
                 saved_armies = json.load(fh)
@@ -2490,6 +2534,20 @@ class ArenaTab(QtWidgets.QWidget):
                 "config": cfg,
             }
 
+    def _run_last_layout(self) -> None:
+        """Load the last saved layout and immediately run it."""
+
+        try:
+            with open(self.last_layout_file, "r", encoding="utf-8") as fh:
+                layout_data = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            QtWidgets.QMessageBox.information(
+                self, "No Layout", "No previous arena layout found."
+            )
+            return
+        self._apply_layout(layout_data)
+        self._run_arena()
+
     def _run_arena(self) -> None:
         """Start the arena battle and disable slot manipulation."""
 
@@ -2513,6 +2571,7 @@ class ArenaTab(QtWidgets.QWidget):
             )
         if not layout:
             return
+        self._save_last_layout()
         self.engine.reset(report_builder=self.report_builder)
         self.engine.start_arena_battle(layout)
         self._running = True

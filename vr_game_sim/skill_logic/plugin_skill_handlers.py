@@ -585,7 +585,7 @@ def handle_plugin_thors_determination(
     trigger_interval = skill_config.get("trigger_interval", 9)
     if simulator.round > 0 and simulator.round % trigger_interval == 0:
         buff_name = skill_config.get("buff_name", EFFECT_NAME_THORS_DETERMINATION_BUFF)
-        buff_magnitude = skill_config.get("buff_magnitude", 2.25);
+        buff_magnitude = skill_config.get("buff_magnitude", 2.25)
         buff_duration = skill_config.get("buff_duration", 1)
         buff_activate_next = skill_config.get("buff_activate_next_round", True)
         buff_stat_enum_or_str = skill_config.get("buff_stat_to_mod",
@@ -600,7 +600,7 @@ def handle_plugin_thors_determination(
                     buff_stat = StatType(buff_stat_enum_or_str)  # Try direct value match
                 except ValueError:
                     print(
-                        f"Warning: Invalid stat type string '{buff_stat_enum_or_str}' in Thor's Determination. Defaulting to BASIC_DAMAGE_ADJUST.");
+                        f"Warning: Invalid stat type string '{buff_stat_enum_or_str}' in Thor's Determination. Defaulting to BASIC_DAMAGE_ADJUST.")
                     buff_stat = StatType.BASIC_DAMAGE_ADJUST
 
         effect_data = {"effect_type": EffectType.STAT_MOD, "name": buff_name, "stat_to_mod": buff_stat,
@@ -609,11 +609,38 @@ def handle_plugin_thors_determination(
         created_buff = triggering_army._create_and_add_single_effect(effect_data, skill_id, triggering_army,
                                                                      triggering_army, opponent_army)
         if created_buff:
-            an_effect_happened = True;
+            an_effect_happened = True
             activation_time = "next round" if buff_activate_next else "this round"
             log_details.append(
                 (f"Gains buff: {created_buff.get_functionality_description()}, starting {activation_time} for {buff_duration + 1} rounds.",
                  None))
+
+        # Conditional damage reduction buff if outnumbered
+        if opponent_army and triggering_army.current_troop_count < opponent_army.current_troop_count:
+            red_name = skill_config.get("damage_reduction_effect_name", EFFECT_NAME_THORS_DETERMINATION_DMG_REDUCTION)
+            red_mag = skill_config.get("damage_reduction_magnitude", -0.15)
+            red_dur = skill_config.get("damage_reduction_duration", 2)
+            red_activate_next = skill_config.get("damage_reduction_activate_next_round", True)
+            reduction_data = {
+                "effect_type": EffectType.STAT_MOD,
+                "name": red_name,
+                "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+                "magnitude": red_mag,
+                "duration": red_dur,
+                "activate_next_round": red_activate_next,
+            }
+            red_buff = triggering_army._create_and_add_single_effect(
+                reduction_data, skill_id, triggering_army, triggering_army, opponent_army
+            )
+            if red_buff:
+                an_effect_happened = True
+                red_activation = "next round" if red_activate_next else "this round"
+                log_details.append(
+                    (
+                        f"Gains buff: {red_buff.get_functionality_description()}, starting {red_activation} for {red_dur + 1} rounds.",
+                        None,
+                    )
+                )
     return an_effect_happened, log_details
 
 

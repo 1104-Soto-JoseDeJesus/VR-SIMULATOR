@@ -661,7 +661,9 @@ class BattlefieldEngine:
         unique_armies: List[Army] = []
         start_processed: set[str] = set()
         end_processed: set[str] = set()
-        for key, sim in self._engagements.items():
+        engagement_items = list(self._engagements.items())
+        random.shuffle(engagement_items)
+        for key, sim in engagement_items:
             self._simulate_one_round(sim, start_processed, end_processed)
             atk, dfd = key
             if (
@@ -803,6 +805,8 @@ class BattlefieldEngine:
                 skill_def = sim.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
                 if skill_def and army.current_rage >= skill_def.get("rage_cost", 1000):
                     army.hero1_rage_skill_queued_this_round = True
+                    if army.hero1_rage_skill_scheduled_round is None:
+                        army.hero1_rage_skill_scheduled_round = sim.round
 
         # Execute any queued rage skills.
         if atk.current_troop_count > 0 and dfd.current_troop_count > 0:

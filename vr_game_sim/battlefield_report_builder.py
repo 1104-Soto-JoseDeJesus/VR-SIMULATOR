@@ -48,3 +48,9 @@ class BattlefieldReportBuilder:
         """Record mapping of local round to defender's global round."""
         key = (attacker, defender)
         self._defender_rounds[key][local_round] = defender_round
+
+    def clear_builder(self, attacker: str, defender: str) -> None:
+        """Remove stored reports for the engagement between ``attacker`` and ``defender``."""
+        key = (attacker, defender)
+        self._builders.pop(key, None)
+        self._defender_rounds.pop(key, None)

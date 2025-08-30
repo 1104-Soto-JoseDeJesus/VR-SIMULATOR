@@ -146,3 +146,27 @@ def test_dot_effects_logged_for_all_attackers_and_single_tick():
     trig_c = rounds[("C", "B")][0]["skill_triggers"]["B"]
     total_dot = sum(1 for tr in (trig_a + trig_c) if "damage (pending)" in tr.get("effect_description", "") and "GENERIC" in tr.get("effect_description", ""))
     assert total_dot == 1
+
+
+def test_report_resets_after_disengage():
+    builder = BattlefieldReportBuilder()
+    engine = BattlefieldEngine(report_builder=builder)
+    army_a = make_army("A")
+    army_b = make_army("B")
+    engine.add_army(army_a, "red", speed=0)
+    engine.add_army(army_b, "blue", speed=0)
+
+    engine.tick(0.3)
+    engine.engage("A", "B")
+    engine.tick(0.7)
+    engine.tick(1.0)
+
+    engine.set_direct_target("A", None)
+    engine.tick(0.1)
+
+    engine.engage("A", "B")
+    engine.tick(0.9)
+
+    report_text = builder.get_reports()[("A", "B")]
+    assert report_text.count("Round 1") == 1
+    assert "Round 2" not in report_text

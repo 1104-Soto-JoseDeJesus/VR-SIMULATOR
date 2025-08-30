@@ -247,6 +247,11 @@ class BattlefieldEngine:
         self._state_cache.pop(name, None)
         self._pending_state_updates.pop(name, None)
 
+        if self._report_builder is not None:
+            for key in list(self._report_builder._builders.keys()):
+                if name in key:
+                    self._report_builder.clear_builder(*key)
+
         for other_name in lost:
             self._auto_select_closest_enemy(other_name)
 
@@ -315,6 +320,8 @@ class BattlefieldEngine:
                 self._engagements.pop((attacker, old_target), None)
                 self._graph[attacker].discard(old_target)
                 self._graph[old_target].discard(attacker)
+                if self._report_builder is not None:
+                    self._report_builder.clear_builder(attacker, old_target)
             # Remove any pending engagement for the old target
             self._pending_engagements.pop((attacker, old_target), None)
 
@@ -326,6 +333,8 @@ class BattlefieldEngine:
                     self._pending_engagements.pop((old_target, attacker), None)
                     self._graph[old_target].discard(attacker)
                     self._graph[attacker].discard(old_target)
+                    if self._report_builder is not None:
+                        self._report_builder.clear_builder(old_target, attacker)
                     rev_ctx.direct_target = None
             atk_ctx.direct_target = None
             atk_ctx.pursue_target = False
@@ -415,12 +424,29 @@ class BattlefieldEngine:
             self._commit_rounds()
             self._round_accumulator -= 1.0
 
+        # Reset rage and round based counters for armies out of combat.
+        self._reset_idle_armies()
+
         # Push any queued defender state updates to listeners.
         self._flush_state_updates()
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+    def _army_in_combat(self, name: str) -> bool:
+        return any(name == atk or name == dfd for atk, dfd in self._engagements)
+
+    def _reset_idle_armies(self) -> None:
+        for nm, ctx in self._armies.items():
+            if self._army_in_combat(nm):
+                continue
+            if self.time_elapsed > ctx.last_engaged_time:
+                ctx.internal_round = 0
+                army = ctx.army
+                army.current_rage = 0.0
+                army.skill_last_triggered_round.clear()
+                self._queue_state_update(army)
+
     def _refresh_target_waypoints(self) -> None:
         """Update paths for armies that have a direct target.
 
@@ -690,36 +716,20 @@ class BattlefieldEngine:
             self._graph[atk].discard(dfd)
             self._graph[dfd].discard(atk)
             self._engagements.pop(key, None)
+            if self._report_builder is not None:
+                self._report_builder.clear_builder(atk, dfd)
 
         defeated = [name for name, ctx in list(self._armies.items())
                      if ctx.army.current_troop_count <= 0]
         for name in defeated:
             self._remove_army(name)
 
-        # Update internal round counters for armies that fought recently.  The
-        # actual rage gain is handled within ``_simulate_one_round`` via the
-        # simulator's internal logic which mirrors the behaviour of the full
-        # duel simulator. Armies that have been idle for 0.9 seconds or more
-        # lose their round progress and rage.
+        # Update internal round counters for armies that fought this round.
         for ctx in self._armies.values():
             army = ctx.army
-            time_since = self.time_elapsed - ctx.last_engaged_time
-            if time_since < 0.9:
+            if abs(self.time_elapsed - ctx.last_engaged_time) < 1e-6:
                 ctx.internal_round += 1
-                # Armies that were idle this round (no simulator processed
-                # combat for them) still receive base rage during the brief
-                # grace period after leaving combat. ``last_engaged_time`` is
-                # only updated when a round is actually simulated, so a smaller
-                # value indicates we didn't fight this tick.
-                if army.rage_added_this_round == 0 and ctx.last_engaged_time < self.time_elapsed:
-                    army.current_rage += 100
-                    army.rage_added_this_round += 100
                 army.rage_gained_history.append(army.rage_added_this_round)
-            else:
-                ctx.internal_round = 0
-                army.current_rage = 0.0
-                army.skill_last_triggered_round.clear()
-
             self._queue_state_update(army)
 
     def _simulate_one_round(

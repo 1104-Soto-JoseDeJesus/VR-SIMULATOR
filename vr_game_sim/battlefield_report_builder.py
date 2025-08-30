@@ -54,3 +54,8 @@ class BattlefieldReportBuilder:
         key = (attacker, defender)
         self._builders.pop(key, None)
         self._defender_rounds.pop(key, None)
+
+    def clear_all(self) -> None:
+        """Remove all stored reports and round mappings."""
+        self._builders.clear()
+        self._defender_rounds.clear()

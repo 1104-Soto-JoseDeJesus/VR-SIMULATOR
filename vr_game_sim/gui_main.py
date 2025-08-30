@@ -2944,6 +2944,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         ar_layout.addWidget(self.ar_report_list)
 
+        ar_btn_layout = QtWidgets.QHBoxLayout()
         self.ar_toggle_report_view_btn = QtWidgets.QPushButton(
             "Show Text Report"
         )
@@ -2951,10 +2952,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ar_toggle_report_view_btn.toggled.connect(
             self._toggle_ar_report_view
         )
-        ar_layout.addWidget(
-            self.ar_toggle_report_view_btn,
-            alignment=QtCore.Qt.AlignmentFlag.AlignLeft,
-        )
+        ar_btn_layout.addWidget(self.ar_toggle_report_view_btn)
+        self.ar_clear_reports_btn = QtWidgets.QPushButton("Clear Reports")
+        self.ar_clear_reports_btn.clicked.connect(self._clear_arena_reports)
+        ar_btn_layout.addWidget(self.ar_clear_reports_btn)
+        ar_btn_layout.addStretch()
+        ar_layout.addLayout(ar_btn_layout)
 
         self.ar_report_stack = QtWidgets.QStackedWidget()
 
@@ -3212,6 +3215,15 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ar_report_list.addItem(item)
             if key == current_key:
                 self.ar_report_list.setCurrentItem(item)
+
+    def _clear_arena_reports(self) -> None:
+        """Clear all arena battle reports."""
+        builder = getattr(self.arena_tab, "report_builder", None)
+        if builder:
+            builder.clear_all()
+        self.ar_report_list.clear()
+        self.ar_output_tree.clear()
+        self.ar_output_text.clear()
 
     def _display_selected_bf_report(
         self, current: QtWidgets.QListWidgetItem | None

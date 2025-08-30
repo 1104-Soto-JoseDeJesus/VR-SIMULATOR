@@ -15,14 +15,28 @@ def handle_base_skill_planned_attack(trig_army: ArmyRef, opp_army: ArmyRef, sk_d
     sk_cfg = sk_def.get("config", {})
     dmg_fctrs = [sk_cfg.get("hit1_damage_factor", 0.0), sk_cfg.get("hit2_damage_factor", 0.0)]
     for i, dmg_fctr in enumerate(dmg_fctrs):
-        if dmg_fctr == 0.0: continue
-        if opp_army.current_troop_count <= 0: break
-        hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(trig_army, opp_army, dmg_fctr,
-                                                                                source_skill_def=sk_def)
-        if hp_dmg > 0: opp_army.pending_hp_damage_this_round += hp_dmg
-        if hp_dmg > 0 or absrb > 0: eff_hpnd = True
-        logs.append((f"Hit {i + 1} deals damage to {opp_army.name}.",
-                     {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
+        if dmg_fctr == 0.0:
+            continue
+        if opp_army.current_troop_count <= 0:
+            break
+        calc_target = ev_data.get('actual_opponent_for_calc', opp_army) if ev_data else opp_army
+        hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(
+            trig_army,
+            calc_target,
+            dmg_fctr,
+            source_skill_def=sk_def,
+            damage_application_target=opp_army,
+        )
+        if hp_dmg > 0:
+            opp_army.pending_hp_damage_this_round += hp_dmg
+        if hp_dmg > 0 or absrb > 0:
+            eff_hpnd = True
+        logs.append(
+            (
+                f"Hit {i + 1} deals damage to {opp_army.name}.",
+                {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills},
+            )
+        )
     return eff_hpnd, logs
 
 
@@ -35,13 +49,27 @@ def handle_base_skill_flame_guardian(trig_army: ArmyRef, opp_army: ArmyRef, sk_d
     dmg_fctr = sk_cfg.get("damage_factor", 0.0);
     dmg_dealt = False
     if dmg_fctr > 0:
-        hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(trig_army, opp_army, dmg_fctr,
-                                                                                source_skill_def=sk_def)
-        if hp_dmg > 0: opp_army.pending_hp_damage_this_round += hp_dmg; dmg_dealt = True
-        if absrb > 0 and not dmg_dealt: dmg_dealt = True
-        if hp_dmg > 0 or absrb > 0: eff_hpnd = True
-        logs.append((f"Deals damage to {opp_army.name}.",
-                     {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
+        calc_target = ev_data.get('actual_opponent_for_calc', opp_army) if ev_data else opp_army
+        hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(
+            trig_army,
+            calc_target,
+            dmg_fctr,
+            source_skill_def=sk_def,
+            damage_application_target=opp_army,
+        )
+        if hp_dmg > 0:
+            opp_army.pending_hp_damage_this_round += hp_dmg
+            dmg_dealt = True
+        if absrb > 0 and not dmg_dealt:
+            dmg_dealt = True
+        if hp_dmg > 0 or absrb > 0:
+            eff_hpnd = True
+        logs.append(
+            (
+                f"Deals damage to {opp_army.name}.",
+                {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills},
+            )
+        )
     if dmg_dealt and random.random() < sk_cfg.get("shield_chance", 0.0):
         sh_fctr_fg = sk_cfg.get("shield_factor", 0.0);
         sh_dur_fg = sk_cfg.get("self_shield_duration", 1);

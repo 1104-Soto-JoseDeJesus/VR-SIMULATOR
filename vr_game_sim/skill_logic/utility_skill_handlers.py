@@ -21,19 +21,31 @@ def handle_generic_single_damage_skill(
     damage_factor = skill_config.get("damage_factor", 0.0)
 
     if damage_factor > 0:
-        # CORRECTED: Pass source_skill_def instead of current_skill_trigger_type
+        calc_target = opponent_army
+        if event_data and event_data.get('actual_opponent_for_calc'):
+            calc_target = event_data['actual_opponent_for_calc']
+
         hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
-            triggering_army, opponent_army, damage_factor,
-            source_skill_def=skill_def # Pass the full skill definition
+            triggering_army,
+            calc_target,
+            damage_factor,
+            source_skill_def=skill_def,
+            damage_application_target=opponent_army,
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
-        if hp_damage > 0 or absorbed > 0: # Effect happened if damage was dealt or absorbed
+        if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
-        log_details.append((
-            f"Deals damage to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
-        ))
+        log_details.append(
+            (
+                f"Deals damage to {opponent_army.name}.",
+                {
+                    "damage_done_hp": round(raw_logged_damage),
+                    "absorbed_hp": round(absorbed),
+                    "potential_kills": kills,
+                },
+            )
+        )
     return an_effect_happened, log_details
 
 def handle_generic_heal_skill(

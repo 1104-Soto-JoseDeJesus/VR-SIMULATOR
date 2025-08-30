@@ -55,12 +55,24 @@ def handle_talent_revenge_echo(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: Sk
     sk_id = sk_def["id"];
     dmg_fctr = sk_cfg.get("damage_factor", 0.0)
     if dmg_fctr > 0:
-        hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(trig_army, opp_army, dmg_fctr,
-                                                                                source_skill_def=sk_def)
-        if hp_dmg > 0: opp_army.pending_hp_damage_this_round += hp_dmg
-        if hp_dmg > 0 or absrb > 0: eff_hpnd = True
-        logs.append((f"Deals damage to {opp_army.name}.",
-                     {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
+        calc_target = ev_data.get('actual_opponent_for_calc', opp_army) if ev_data else opp_army
+        hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(
+            trig_army,
+            calc_target,
+            dmg_fctr,
+            source_skill_def=sk_def,
+            damage_application_target=opp_army,
+        )
+        if hp_dmg > 0:
+            opp_army.pending_hp_damage_this_round += hp_dmg
+        if hp_dmg > 0 or absrb > 0:
+            eff_hpnd = True
+        logs.append(
+            (
+                f"Deals damage to {opp_army.name}.",
+                {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills},
+            )
+        )
     if trig_army.started_round_with_active_shield:
         cond_buff_data = sk_cfg.get("conditional_buff")
         if cond_buff_data:
@@ -77,17 +89,29 @@ def handle_talent_healing_hymn(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: Sk
                                ev_data: Optional[Dict[str, Any]], sim: GameSimulatorRef) -> Tuple[
     bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
     eff_hpnd, logs = False, [];
-    act_target = ev_data.get('actual_opponent_for_calc', opp_army) if ev_data else opp_army
+    calc_target = ev_data.get('actual_opponent_for_calc', opp_army) if ev_data else opp_army
     if not trig_army.healing_hymn_triggered_this_round:
         sk_cfg = sk_def.get("config", {});
         dmg_fctr = sk_cfg.get("damage_factor", 0.0)
-        if dmg_fctr > 0 and act_target:
-            hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(trig_army, act_target, dmg_fctr,
-                                                                                    source_skill_def=sk_def)
-            if hp_dmg > 0: act_target.pending_hp_damage_this_round += hp_dmg
-            if hp_dmg > 0 or absrb > 0: eff_hpnd = True; trig_army.healing_hymn_triggered_this_round = True
-            logs.append((f"Deals damage to {act_target.name}.",
-                         {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
+        if dmg_fctr > 0 and calc_target:
+            hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(
+                trig_army,
+                calc_target,
+                dmg_fctr,
+                source_skill_def=sk_def,
+                damage_application_target=opp_army,
+            )
+            if hp_dmg > 0:
+                opp_army.pending_hp_damage_this_round += hp_dmg
+            if hp_dmg > 0 or absrb > 0:
+                eff_hpnd = True
+                trig_army.healing_hymn_triggered_this_round = True
+            logs.append(
+                (
+                    f"Deals damage to {opp_army.name}.",
+                    {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills},
+                )
+            )
     return eff_hpnd, logs
 
 
@@ -123,12 +147,24 @@ def handle_talent_determined_defense(trig_army: ArmyRef, opp_army: ArmyRef, sk_d
     sk_id = sk_def["id"]
     dmg_fctr = sk_cfg.get("damage_factor", 0.0)
     if dmg_fctr > 0:
-        hp_dmg, absrb, kills, raw_dmg = sim._calculate_generic_skill_damage(trig_army, opp_army, dmg_fctr,
-                                                                            source_skill_def=sk_def)
-        if hp_dmg > 0: opp_army.pending_hp_damage_this_round += hp_dmg
-        if hp_dmg > 0 or absrb > 0: eff_hpnd = True
-        logs.append((f"Deals damage to {opp_army.name}.",
-                     {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
+        calc_target = ev_data.get('actual_opponent_for_calc', opp_army) if ev_data else opp_army
+        hp_dmg, absrb, kills, raw_dmg = sim._calculate_generic_skill_damage(
+            trig_army,
+            calc_target,
+            dmg_fctr,
+            source_skill_def=sk_def,
+            damage_application_target=opp_army,
+        )
+        if hp_dmg > 0:
+            opp_army.pending_hp_damage_this_round += hp_dmg
+        if hp_dmg > 0 or absrb > 0:
+            eff_hpnd = True
+        logs.append(
+            (
+                f"Deals damage to {opp_army.name}.",
+                {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absrb), "potential_kills": kills},
+            )
+        )
     heal_fctr = sk_cfg.get("heal_factor", 0.0)
     if heal_fctr > 0:
         healed_amount = trig_army.calculate_and_add_pending_healing(heal_fctr, trig_army, opp_army)
@@ -159,15 +195,27 @@ def handle_talent_tit_for_tat(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: Ski
     sk_cfg = sk_def.get("config", {});
     sk_id = sk_def["id"]
     act_attkr = ev_data.get('attacking_army_for_tit_for_tat', opp_army) if ev_data else opp_army
-    if not act_attkr: act_attkr = opp_army
+    if not act_attkr:
+        act_attkr = opp_army
     dmg_fctr = sk_cfg.get("damage_factor", 0.0)
     if dmg_fctr > 0 and act_attkr:
-        hp_dmg, absrb, kills, raw_dmg = sim._calculate_generic_skill_damage(trig_army, act_attkr, dmg_fctr,
-                                                                            source_skill_def=sk_def)
-        if hp_dmg > 0: act_attkr.pending_hp_damage_this_round += hp_dmg
-        if hp_dmg > 0 or absrb > 0: eff_hpnd = True
-        logs.append((f"Deals damage back to {act_attkr.name}.",
-                     {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
+        hp_dmg, absrb, kills, raw_dmg = sim._calculate_generic_skill_damage(
+            trig_army,
+            act_attkr,
+            dmg_fctr,
+            source_skill_def=sk_def,
+            damage_application_target=opp_army,
+        )
+        if hp_dmg > 0:
+            opp_army.pending_hp_damage_this_round += hp_dmg
+        if hp_dmg > 0 or absrb > 0:
+            eff_hpnd = True
+        logs.append(
+            (
+                f"Deals damage to {opp_army.name}.",
+                {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absrb), "potential_kills": kills},
+            )
+        )
     if not trig_army.started_round_with_active_shield:
         rdct_mag = sk_cfg.get("reduction_magnitude", -0.30);
         rdct_dur = sk_cfg.get("reduction_duration", 0);
@@ -227,19 +275,32 @@ def handle_talent_full_focus(
         return False, []
 
     if damage_factor > 0:
+        calc_target = opponent_army
+        if event_data and event_data.get('actual_opponent_for_calc'):
+            calc_target = event_data['actual_opponent_for_calc']
+
         hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
-            triggering_army, opponent_army, damage_factor,
-            source_skill_def=skill_def
+            triggering_army,
+            calc_target,
+            damage_factor,
+            source_skill_def=skill_def,
+            damage_application_target=opponent_army,
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
             triggering_army.triggered_skills_this_round.append(skill_id)
-            log_details.append((
-                f"Deals damage to {opponent_army.name} (Factor: {damage_factor}) due to {skill_def['name']}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
-            ))
+            log_details.append(
+                (
+                    f"Deals damage to {opponent_army.name} (Factor: {damage_factor}) due to {skill_def['name']}.",
+                    {
+                        "damage_done_hp": round(raw_logged_damage),
+                        "absorbed_hp": round(absorbed),
+                        "potential_kills": kills,
+                    },
+                )
+            )
     return an_effect_happened, log_details
 
 

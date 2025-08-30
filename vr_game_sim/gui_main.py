@@ -10,6 +10,7 @@ import json
 from functools import partial
 import time
 import re
+import concurrent.futures
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
@@ -2196,9 +2197,8 @@ class ArenaBatchWorker(QtCore.QThread):
 
     def run(self) -> None:
         results: dict[str, int] = {}
-        for i in range(self.runs):
-            if self._cancelled.is_set():
-                break
+
+        def _simulate(_: int) -> str:
             armies = create_armies_from_data([dict(e["cfg"]) for e in self.layout_entries])
             battle_layout: dict[str, list[dict[str, Any]]] = {}
             for army, entry in zip(armies, self.layout_entries):
@@ -2222,9 +2222,17 @@ class ArenaBatchWorker(QtCore.QThread):
                 }
                 if len(alive) <= 1:
                     break
-            winner = next(iter(alive)) if alive else "None"
-            results[winner] = results.get(winner, 0) + 1
-            self.progress_update.emit(i + 1, self.runs)
+            return next(iter(alive)) if alive else "None"
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.num_workers) as pool:
+            futures = [pool.submit(_simulate, i) for i in range(self.runs)]
+            for i, fut in enumerate(concurrent.futures.as_completed(futures), 1):
+                if self._cancelled.is_set():
+                    break
+                winner = fut.result()
+                results[winner] = results.get(winner, 0) + 1
+                self.progress_update.emit(i, self.runs)
+
         self.finished_dict.emit(results)
 
 
@@ -3016,6 +3024,16 @@ class MainWindow(QtWidgets.QMainWindow):
         duplicate_btn.setMenu(dup_menu)
         duplicate_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
         controls.addWidget(duplicate_btn)
+        debug_btn = QtWidgets.QToolButton()
+        debug_btn.setText("Debug")
+        dbg_menu = QtWidgets.QMenu(debug_btn)
+        pdf_action = dbg_menu.addAction("PDF Layout")
+        pdf_action.triggered.connect(self.open_pdf_layout_tool)
+        star_action = dbg_menu.addAction("Star Layout")
+        star_action.triggered.connect(self.open_star_overlay_tuner)
+        debug_btn.setMenu(dbg_menu)
+        debug_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
+        controls.addWidget(debug_btn)
         controls.addStretch()
         setup_layout.addLayout(controls)
 

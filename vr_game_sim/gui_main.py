@@ -2180,6 +2180,54 @@ class SimulationWorker(QtCore.QThread):
             self.error.emit(str(exc))
 
 
+class ArenaBatchWorker(QtCore.QThread):
+    progress_update = QtCore.pyqtSignal(int, int)
+    finished_dict = QtCore.pyqtSignal(dict)
+
+    def __init__(self, layout_entries: list[dict[str, Any]], runs: int, num_workers: int) -> None:
+        super().__init__()
+        self.layout_entries = layout_entries
+        self.runs = runs
+        self.num_workers = num_workers
+        self._cancelled = threading.Event()
+
+    def cancel(self) -> None:
+        self._cancelled.set()
+
+    def run(self) -> None:
+        results: dict[str, int] = {}
+        for i in range(self.runs):
+            if self._cancelled.is_set():
+                break
+            armies = create_armies_from_data([dict(e["cfg"]) for e in self.layout_entries])
+            battle_layout: dict[str, list[dict[str, Any]]] = {}
+            for army, entry in zip(armies, self.layout_entries):
+                battle_layout.setdefault(entry["team"], []).append(
+                    {
+                        "army": army,
+                        "position": entry["position"],
+                        "column": entry["column"],
+                        "row": entry["row"],
+                        "speed": entry["speed"],
+                    }
+                )
+            engine = ArenaEngine()
+            engine.start_arena_battle(battle_layout)
+            while True:
+                engine.tick(0.016)
+                alive = {
+                    ctx.team
+                    for ctx in engine._armies.values()
+                    if ctx.army.current_troop_count > 0
+                }
+                if len(alive) <= 1:
+                    break
+            winner = next(iter(alive)) if alive else "None"
+            results[winner] = results.get(winner, 0) + 1
+            self.progress_update.emit(i + 1, self.runs)
+        self.finished_dict.emit(results)
+
+
 class ArenaTab(QtWidgets.QWidget):
     """Simplified tab for arena maps with army controls.
 
@@ -2588,8 +2636,13 @@ class ArenaTab(QtWidgets.QWidget):
         self._update_time_label()
         self._timer.start()
 
-    def _run_batch(self, count: int = 300) -> None:
-        """Run multiple arena battles and record victory distribution."""
+    def _run_batch(self, count: int | None = None) -> None:
+        """Run multiple arena battles and record victory distribution.
+
+        If ``count`` is given the batch runs synchronously for tests. When
+        called without a count the batch is executed in a worker thread and
+        progress is reported via the main window's progress bar.
+        """
 
         layout_entries: list[dict[str, Any]] = []
         for (slot_team, idx), info in self._slot_army.items():
@@ -2611,37 +2664,64 @@ class ArenaTab(QtWidgets.QWidget):
         if not layout_entries:
             return
 
-        results: dict[str, int] = {}
-        for _ in range(count):
-            armies = create_armies_from_data([dict(e["cfg"]) for e in layout_entries])
-            battle_layout: dict[str, list[dict[str, Any]]] = {}
-            for army, entry in zip(armies, layout_entries):
-                battle_layout.setdefault(entry["team"], []).append(
-                    {
-                        "army": army,
-                        "position": entry["position"],
-                        "column": entry["column"],
-                        "row": entry["row"],
-                        "speed": entry["speed"],
+        if count is not None:
+            results: dict[str, int] = {}
+            for _ in range(count):
+                armies = create_armies_from_data([dict(e["cfg"]) for e in layout_entries])
+                battle_layout: dict[str, list[dict[str, Any]]] = {}
+                for army, entry in zip(armies, layout_entries):
+                    battle_layout.setdefault(entry["team"], []).append(
+                        {
+                            "army": army,
+                            "position": entry["position"],
+                            "column": entry["column"],
+                            "row": entry["row"],
+                            "speed": entry["speed"],
+                        }
+                    )
+                engine = ArenaEngine()
+                engine.start_arena_battle(battle_layout)
+                while True:
+                    engine.tick(0.016)
+                    alive = {
+                        ctx.team
+                        for ctx in engine._armies.values()
+                        if ctx.army.current_troop_count > 0
                     }
-                )
-            engine = ArenaEngine()
-            engine.start_arena_battle(battle_layout)
-            while True:
-                engine.tick(0.016)
-                alive = {
-                    ctx.team
-                    for ctx in engine._armies.values()
-                    if ctx.army.current_troop_count > 0
-                }
-                if len(alive) <= 1:
-                    break
-            winner = next(iter(alive)) if alive else "None"
-            results[winner] = results.get(winner, 0) + 1
+                    if len(alive) <= 1:
+                        break
+                winner = next(iter(alive)) if alive else "None"
+                results[winner] = results.get(winner, 0) + 1
+            window = self.window()
+            if window is not None and hasattr(window, "update_arena_figures"):
+                window.update_arena_figures(results)
+            return
 
         window = self.window()
-        if window is not None and hasattr(window, "update_arena_figures"):
-            window.update_arena_figures(results)
+        if window is None:
+            return
+        runs = window.runs_spin.value()
+        workers = window.workers_spin.value()
+        window.status.setText("Running arena batch...")
+        window.progress.setRange(0, runs)
+        window.progress.setValue(0)
+        self.run_batch_btn.setEnabled(False)
+        worker = ArenaBatchWorker(layout_entries, runs, workers)
+        self._batch_worker = worker
+        worker.progress_update.connect(
+            lambda d, t: (window.progress.setMaximum(t), window.progress.setValue(d))
+        )
+        worker.finished_dict.connect(lambda res: window.update_arena_figures(res))
+
+        def _finished() -> None:
+            window.progress.setValue(0)
+            window.status.setText("Ready")
+            self.run_batch_btn.setEnabled(True)
+            self._batch_worker = None
+            worker.deleteLater()
+
+        worker.finished.connect(_finished)
+        worker.start()
 
     def _on_engine_state(self, name: str, state: dict) -> None:
         """Update health bars in response to engine state broadcasts."""
@@ -2882,7 +2962,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Battle Simulator")
-        self.toolbar = self._init_menu_toolbar()
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
         self.pdf_layout = load_pdf_layout()
@@ -2898,86 +2977,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if dlg.exec():
             self.pdf_layout = load_pdf_layout()
 
-    def _init_menu_toolbar(self) -> QtWidgets.QToolBar:
-        """Create the main toolbar."""
-        toolbar = self.addToolBar("Actions")
-
-        self.run_action = QtGui.QAction("Run Simulation", self)
-        self.run_action.setShortcut(QtGui.QKeySequence("Ctrl+R"))
-        self.run_action.triggered.connect(self.run_simulation)
-        toolbar.addAction(self.run_action)
-
-        save_action = QtGui.QAction("Save Setup", self)
-        save_action.setShortcut(QtGui.QKeySequence("Ctrl+S"))
-        save_action.triggered.connect(self.save_setup)
-        toolbar.addAction(save_action)
-
-        load_action = QtGui.QAction("Load Setup", self)
-        load_action.setShortcut(QtGui.QKeySequence("Ctrl+O"))
-        load_action.triggered.connect(self.load_setup)
-        toolbar.addAction(load_action)
-
-        export_report_action = QtGui.QAction("Export Report", self)
-        export_report_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+R"))
-        export_report_action.triggered.connect(self.export_report)
-
-        export_fig_action = QtGui.QAction("Export Figures", self)
-        export_fig_action.setShortcut(QtGui.QKeySequence("Ctrl+E"))
-        export_fig_action.triggered.connect(self.export_figures)
-
-        export_summary_action = QtGui.QAction("Export Summary Image", self)
-        export_summary_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+E"))
-        export_summary_action.triggered.connect(self.export_summary_image)
-
-        export_pdf_action = QtGui.QAction("Export PDF", self)
-        export_pdf_action.triggered.connect(self.export_pdf)
-
-        swap_action = QtGui.QAction("Swap Armies", self)
-        swap_action.setShortcut(QtGui.QKeySequence("Ctrl+W"))
-        swap_action.triggered.connect(self.swap_armies)
-        toolbar.addAction(swap_action)
-
-        clear_action = QtGui.QAction("Clear Output", self)
-        clear_action.triggered.connect(self._clear_report)
-        toolbar.addAction(clear_action)
-
-        duplicate_btn = QtWidgets.QToolButton()
-        duplicate_btn.setText("Duplicate Army")
-        dup_menu = QtWidgets.QMenu(duplicate_btn)
-        dup1_action = dup_menu.addAction("1 \u2192 2")
-        dup1_action.triggered.connect(lambda: self.duplicate_army(1, 2))
-        dup2_action = dup_menu.addAction("2 \u2192 1")
-        dup2_action.triggered.connect(lambda: self.duplicate_army(2, 1))
-        duplicate_btn.setMenu(dup_menu)
-        duplicate_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
-        toolbar.addWidget(duplicate_btn)
-
-        export_btn = QtWidgets.QToolButton()
-        export_btn.setText("Export")
-        export_menu = QtWidgets.QMenu(export_btn)
-        export_menu.addAction(export_report_action)
-        export_menu.addAction(export_fig_action)
-        export_menu.addAction(export_summary_action)
-        export_menu.addAction(export_pdf_action)
-        export_btn.setMenu(export_menu)
-        export_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
-        toolbar.addWidget(export_btn)
-
-        quit_action = QtGui.QAction("Quit", self)
-        quit_action.setShortcut(QtGui.QKeySequence("Ctrl+Q"))
-        quit_action.triggered.connect(self.close)
-        toolbar.addAction(quit_action)
-
-        # Debug menu for developer tools
-        debug_menu = self.menuBar().addMenu("Debug")
-        star_action = debug_menu.addAction("Star Overlay Tuner")
-        star_action.triggered.connect(self.open_star_overlay_tuner)
-
-        pdf_layout_action = debug_menu.addAction("PDF Layout Tool")
-        pdf_layout_action.triggered.connect(self.open_pdf_layout_tool)
-
-        return toolbar
-
     def _init_tabs(self) -> QtWidgets.QVBoxLayout:
         """Create the central widget and all tabs."""
         central = QtWidgets.QWidget()
@@ -2991,8 +2990,34 @@ class MainWindow(QtWidgets.QMainWindow):
         self.last_setup_dir = os.path.join(os.path.dirname(__file__), "setups")
 
         # --- Army Setup tab ---
-        setup_tab = QtWidgets.QWidget()
-        setup_layout = QtWidgets.QVBoxLayout(setup_tab)
+        self.setup_tab = QtWidgets.QWidget()
+        setup_layout = QtWidgets.QVBoxLayout(self.setup_tab)
+
+        controls = QtWidgets.QHBoxLayout()
+        self.run_btn = QtWidgets.QPushButton("Run Simulation")
+        self.run_btn.clicked.connect(self.run_simulation)
+        controls.addWidget(self.run_btn)
+        save_btn = QtWidgets.QPushButton("Save Setup")
+        save_btn.clicked.connect(self.save_setup)
+        controls.addWidget(save_btn)
+        load_btn = QtWidgets.QPushButton("Load Setup")
+        load_btn.clicked.connect(self.load_setup)
+        controls.addWidget(load_btn)
+        swap_btn = QtWidgets.QPushButton("Swap Armies")
+        swap_btn.clicked.connect(self.swap_armies)
+        controls.addWidget(swap_btn)
+        duplicate_btn = QtWidgets.QToolButton()
+        duplicate_btn.setText("Duplicate Army")
+        dup_menu = QtWidgets.QMenu(duplicate_btn)
+        dup1_action = dup_menu.addAction("1 → 2")
+        dup1_action.triggered.connect(lambda: self.duplicate_army(1, 2))
+        dup2_action = dup_menu.addAction("2 → 1")
+        dup2_action.triggered.connect(lambda: self.duplicate_army(2, 1))
+        duplicate_btn.setMenu(dup_menu)
+        duplicate_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
+        controls.addWidget(duplicate_btn)
+        controls.addStretch()
+        setup_layout.addLayout(controls)
 
         armies_row = QtWidgets.QHBoxLayout()
         self.army1_frame = ArmyFrame(1)
@@ -3028,7 +3053,7 @@ class MainWindow(QtWidgets.QMainWindow):
         setup_layout.addWidget(preview_group)
 
         # 1v1 tabs
-        self.tabs.addTab(setup_tab, "Army Setup")
+        self.tabs.addTab(self.setup_tab, "Army Setup")
 
         # --- Battlefield tab ---
         self.battlefield_tab = BattlefieldTab()
@@ -3143,16 +3168,19 @@ class MainWindow(QtWidgets.QMainWindow):
         ar_fig_layout.addWidget(self.arena_fig_label)
 
         # --- Report tab ---
-        report_tab = QtWidgets.QWidget()
-        report_layout = QtWidgets.QVBoxLayout(report_tab)
+        self.report_tab = QtWidgets.QWidget()
+        report_layout = QtWidgets.QVBoxLayout(self.report_tab)
 
+        report_controls = QtWidgets.QHBoxLayout()
         self.toggle_report_view_btn = QtWidgets.QPushButton("Show Text Report")
         self.toggle_report_view_btn.setCheckable(True)
         self.toggle_report_view_btn.toggled.connect(self._toggle_report_view)
-        report_layout.addWidget(
-            self.toggle_report_view_btn,
-            alignment=QtCore.Qt.AlignmentFlag.AlignLeft,
-        )
+        report_controls.addWidget(self.toggle_report_view_btn)
+        clear_report_btn = QtWidgets.QPushButton("Clear Output")
+        clear_report_btn.clicked.connect(self._clear_report)
+        report_controls.addWidget(clear_report_btn)
+        report_controls.addStretch()
+        report_layout.addLayout(report_controls)
 
         self.report_stack = QtWidgets.QStackedWidget()
 
@@ -3179,14 +3207,49 @@ class MainWindow(QtWidgets.QMainWindow):
         self.report_stack.addWidget(self.output_text)
 
         report_layout.addWidget(self.report_stack)
-        self.tabs.addTab(report_tab, "Report")
+        self.tabs.addTab(self.report_tab, "Report")
 
         # --- Figures tab ---
+        self.figures_tab = QtWidgets.QWidget()
+        fig_layout = QtWidgets.QVBoxLayout(self.figures_tab)
+        fig_controls = QtWidgets.QHBoxLayout()
+        export_btn = QtWidgets.QToolButton()
+        export_btn.setText("Export")
+        export_menu = QtWidgets.QMenu(export_btn)
+        export_report_action = QtGui.QAction("Export Report", self)
+        export_report_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+R"))
+        export_report_action.triggered.connect(self.export_report)
+        export_fig_action = QtGui.QAction("Export Figures", self)
+        export_fig_action.setShortcut(QtGui.QKeySequence("Ctrl+E"))
+        export_fig_action.triggered.connect(self.export_figures)
+        export_summary_action = QtGui.QAction("Export Summary Image", self)
+        export_summary_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+E"))
+        export_summary_action.triggered.connect(self.export_summary_image)
+        export_pdf_action = QtGui.QAction("Export PDF", self)
+        export_pdf_action.triggered.connect(self.export_pdf)
+        for act in (
+            export_report_action,
+            export_fig_action,
+            export_summary_action,
+            export_pdf_action,
+        ):
+            self.addAction(act)
+            export_menu.addAction(act)
+        export_btn.setMenu(export_menu)
+        export_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
+        fig_controls.addWidget(export_btn)
+        clear_fig_btn = QtWidgets.QPushButton("Clear Output")
+        clear_fig_btn.clicked.connect(self._clear_figures)
+        fig_controls.addWidget(clear_fig_btn)
+        fig_controls.addStretch()
+        fig_layout.addLayout(fig_controls)
+
         self.hist_container = QtWidgets.QWidget()
         self.hist_scroll = QtWidgets.QScrollArea()
         self.hist_scroll.setWidgetResizable(True)
         self.hist_scroll.setWidget(self.hist_container)
-        self.tabs.addTab(self.hist_scroll, "Figures")
+        fig_layout.addWidget(self.hist_scroll)
+        self.tabs.addTab(self.figures_tab, "Figures")
 
         # Multi-army tabs
         self.tabs.addTab(self.battlefield_tab, "Battlefield")
@@ -3208,8 +3271,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress.setRange(0, 0)
         main_layout.addWidget(self.progress)
 
-        opts_layout = QtWidgets.QHBoxLayout()
-        main_layout.addLayout(opts_layout)
+        self.opts_widget = QtWidgets.QWidget()
+        opts_layout = QtWidgets.QHBoxLayout(self.opts_widget)
+        main_layout.addWidget(self.opts_widget)
 
         opts_layout.addWidget(QtWidgets.QLabel("Additional Runs:"))
         self.runs_spin = QtWidgets.QSpinBox()
@@ -3284,6 +3348,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def _clear_report(self) -> None:
         self.output_text.clear()
         self.output_tree.clear()
+
+    def _clear_figures(self) -> None:
+        old_widget = self.hist_scroll.takeWidget()
+        if old_widget is not None:
+            old_widget.deleteLater()
+        self.hist_container = QtWidgets.QWidget()
+        self.hist_scroll.setWidget(self.hist_container)
 
     def _toggle_report_view(self, checked: bool) -> None:
         if checked:
@@ -3463,6 +3534,18 @@ class MainWindow(QtWidgets.QMainWindow):
             self.update_battlefield_reports()
         if widget is self.arena_report_tab:
             self.update_arena_reports()
+        visible_tabs = {
+            self.setup_tab,
+            self.report_tab,
+            self.figures_tab,
+            self.arena_tab,
+            self.arena_report_tab,
+            self.arena_figures_tab,
+        }
+        visible = widget in visible_tabs
+        self.status.setVisible(visible)
+        self.progress.setVisible(visible)
+        self.opts_widget.setVisible(visible)
 
     def export_report(self) -> None:
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -4059,8 +4142,8 @@ class MainWindow(QtWidgets.QMainWindow):
             try:
                 if worker.isRunning():
                     worker.cancel()
-                    self.run_action.setText("Run Simulation")
-                    self.run_action.setEnabled(True)
+                    self.run_btn.setText("Run Simulation")
+                    self.run_btn.setEnabled(True)
                     return
             except RuntimeError:
                 self.worker = None
@@ -4071,7 +4154,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status.setText("Running simulation...")
         self.progress.setRange(0, runs)
         self.progress.setValue(0)
-        self.run_action.setText("Cancel")
+        self.run_btn.setText("Cancel")
         self.worker = SimulationWorker(setup_data, runs, workers)
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
@@ -4134,16 +4217,16 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         self.progress.setValue(0)
         self.status.setText("Ready")
-        self.run_action.setEnabled(True)
-        self.run_action.setText("Run Simulation")
+        self.run_btn.setEnabled(True)
+        self.run_btn.setText("Run Simulation")
         self.worker = None
 
     def _sim_error(self, msg: str) -> None:  # pragma: no cover - GUI feedback
         QtWidgets.QMessageBox.critical(self, "Error", msg)
         self.progress.setValue(0)
         self.status.setText("Ready")
-        self.run_action.setEnabled(True)
-        self.run_action.setText("Run Simulation")
+        self.run_btn.setEnabled(True)
+        self.run_btn.setText("Run Simulation")
         self.worker = None
 
 

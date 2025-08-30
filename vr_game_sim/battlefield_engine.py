@@ -747,6 +747,12 @@ class BattlefieldEngine:
 
         atk, dfd = sim.army1, sim.army2
 
+        # Determine if any rage skills were scheduled for this round
+        for army in (atk, dfd):
+            army.hero1_rage_skill_queued_this_round = (
+                army.hero1_rage_skill_scheduled_round == sim.round
+            )
+
         # Activate any effects queued from the previous round and decrement durations
         processed_now: List[Army] = []
         for army in (atk, dfd):
@@ -791,22 +797,20 @@ class BattlefieldEngine:
             )
             army.activate_queued_effects()
 
-        # Queue rage skills if the threshold has been reached after start of round
+        # Schedule rage skills if the threshold has been reached after start of round
         for army in (atk, dfd):
             if (
                 army.current_troop_count > 0
                 and army.hero1_rage_skill_id
-                and not army.hero1_rage_skill_queued_this_round
+                and army.hero1_rage_skill_scheduled_round is None
                 and (
                     army.hero2_rage_skill_primed_for_round is None
-                    or army.hero2_rage_skill_primed_for_round != sim.round
+                    or army.hero2_rage_skill_primed_for_round != sim.round + 1
                 )
             ):
                 skill_def = sim.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
                 if skill_def and army.current_rage >= skill_def.get("rage_cost", 1000):
-                    army.hero1_rage_skill_queued_this_round = True
-                    if army.hero1_rage_skill_scheduled_round is None:
-                        army.hero1_rage_skill_scheduled_round = sim.round
+                    army.hero1_rage_skill_scheduled_round = sim.round + 1
 
         # Execute any queued rage skills.
         if atk.current_troop_count > 0 and dfd.current_troop_count > 0:
@@ -910,6 +914,21 @@ class BattlefieldEngine:
         for army in (atk, dfd):
             army.army_used_rage_skill_this_round_for_rage_gain_block = False
             army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+
+        # Schedule primary hero rage skills for the next round if threshold met
+        for army in (atk, dfd):
+            if (
+                army.current_troop_count > 0
+                and army.hero1_rage_skill_id
+                and army.hero1_rage_skill_scheduled_round is None
+                and (
+                    army.hero2_rage_skill_primed_for_round is None
+                    or army.hero2_rage_skill_primed_for_round != sim.round + 1
+                )
+            ):
+                skill_def = sim.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
+                if skill_def and army.current_rage >= skill_def.get("rage_cost", 1000):
+                    army.hero1_rage_skill_scheduled_round = sim.round + 1
 
         # Record latest engagement time for both armies
         self._armies[atk.name].last_engaged_time = self.time_elapsed

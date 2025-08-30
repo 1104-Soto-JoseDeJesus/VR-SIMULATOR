@@ -47,12 +47,20 @@ class GameSimulator:
         if adv.get(def_type) == atk_type: return 0.95
         return 1.0
 
-    def __init__(self, army1: Army, army2: Army, report_builder: Optional[ReportBuilder] = None, track_stats: bool = True):
+    def __init__(
+        self,
+        army1: Army,
+        army2: Army,
+        report_builder: Optional[ReportBuilder] = None,
+        track_stats: bool = True,
+        mode: str = "standard",
+    ):
         self.army1: Army = army1
         self.army2: Army = army2
         self.army1.simulator = self
         self.army2.simulator = self
         self.round: int = 0
+        self.mode: str = mode
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
             self.army1.name: [], self.army2.name: []
@@ -238,8 +246,23 @@ class GameSimulator:
                         if is_on_cooldown:
                             continue
 
-                        if skill_id in triggering_army.triggered_skills_this_round:
-                            continue
+                        max_triggers = 1
+                        max_triggers_per_target = 1
+                        current_triggers = 0
+                        targets_triggered = triggering_army.skill_triggers_against_this_round.get(skill_id, set())
+                        if self.mode in ("battlefield", "arena"):
+                            max_triggers = skill_cfg.get("max_triggers_per_round", 1)
+                            max_triggers_per_target = skill_cfg.get("max_triggers_per_target_per_round", 1)
+                            current_triggers = triggering_army.skill_trigger_counts_this_round.get(skill_id, 0)
+
+                        if max_triggers > 1:
+                            if current_triggers >= max_triggers or (
+                                opponent_army.name in targets_triggered and max_triggers_per_target == 1
+                            ):
+                                continue
+                        else:
+                            if skill_id in triggering_army.triggered_skills_this_round:
+                                continue
 
                         logic_handler: Optional[SkillLogicHandler] = skill_def.get("logic_handler")
                         if logic_handler:
@@ -290,8 +313,13 @@ class GameSimulator:
                             if cooldown is not None:
                                 triggering_army.skill_last_triggered_round[skill_id] = self.round
 
-                            if skill_id not in triggering_army.triggered_skills_this_round:
-                                triggering_army.triggered_skills_this_round.append(skill_id)
+                            if max_triggers > 1:
+                                triggering_army.skill_trigger_counts_this_round[skill_id] = current_triggers + 1
+                                targets_triggered.add(opponent_army.name)
+                                triggering_army.skill_triggers_against_this_round[skill_id] = targets_triggered
+                            else:
+                                if skill_id not in triggering_army.triggered_skills_this_round:
+                                    triggering_army.triggered_skills_this_round.append(skill_id)
 
     def _execute_rage_skills(self, army: Army, opponent: Army, is_hero2_delayed_trigger: bool = False):
         skill_to_execute_id: Optional[str] = None
@@ -557,6 +585,8 @@ class GameSimulator:
             # flags are reset later so we can inspect last round's values.
             for army in [self.army1, self.army2]:
                 army.triggered_skills_this_round.clear()
+                army.skill_trigger_counts_this_round.clear()
+                army.skill_triggers_against_this_round.clear()
                 army.healing_hymn_triggered_this_round = False
                 army.base_rage_awarded_this_round = False
 

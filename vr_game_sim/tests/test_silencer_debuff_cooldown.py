@@ -39,6 +39,8 @@ def test_silencer_triggers_on_basic_attack_and_respects_existing_silence():
         army2.effects_to_activate_next_round.clear()
     army2.activate_queued_effects()
     army1.triggered_skills_this_round.clear()
+    army1.skill_trigger_counts_this_round.clear()
+    army1.skill_triggers_against_this_round.clear()
     sim.round = 2
     army2.pending_hp_damage_this_round = 0
     sim._process_skill_triggers(army1, army2, SkillTriggerType.ON_BASIC_ATTACK)

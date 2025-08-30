@@ -21,6 +21,7 @@ class ArenaEngine(BattlefieldEngine):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialise the engine and prepare row fallback mappings."""
+        kwargs.setdefault("mode", "arena")
         super().__init__(*args, **kwargs)
         self._row_fallbacks: Dict[str, List[str]] = {}
 

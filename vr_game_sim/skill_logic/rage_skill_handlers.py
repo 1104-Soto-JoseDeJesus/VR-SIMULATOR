@@ -938,7 +938,7 @@ def handle_rage_ruling_trial(
         log_details.append((f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
                            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
 
-    marker_count = sum(1 for eff in opponent_army.active_effects if eff.name == EFFECT_NAME_JUDGEMENT_MARKER)
+    marker_count = sum(1 for eff in triggering_army.active_effects if eff.name == EFFECT_NAME_JUDGEMENT_MARKER)
     if marker_count > 5 and extra_factor > 0:
         hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, extra_factor,
@@ -952,6 +952,30 @@ def handle_rage_ruling_trial(
             an_effect_happened = True
         log_details.append((f"Deals extra damage (Factor: {extra_factor}) to {opponent_army.name}.",
                            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+
+    # Apply base damage to up to three indirect targets in battlefield/arena modes
+    if simulator.mode in ("battlefield", "arena") and base_factor > 0:
+        engine = getattr(simulator, "parent_engine", None)
+        if engine:
+            enemies = engine.get_engaged_enemies(triggering_army.name)
+            indirect_targets = [e for e in enemies if e.name != opponent_army.name]
+            if len(indirect_targets) > 3:
+                indirect_targets = random.sample(indirect_targets, 3)
+            for other in indirect_targets:
+                hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                    triggering_army, other, base_factor,
+                    is_hero2_rage_skill=is_hero2_delayed_rage,
+                    source_skill_def=skill_def,
+                )
+                if hp_damage > 0:
+                    other.pending_hp_damage_this_round += hp_damage
+                    damage_dealt_flag = True
+                if hp_damage > 0 or absorbed > 0:
+                    an_effect_happened = True
+                log_details.append((f"Deals damage (Factor: {base_factor}) to {other.name}.",
+                                   {"damage_done_hp": round(raw_logged_damage),
+                                    "absorbed_hp": round(absorbed),
+                                    "potential_kills": kills}))
 
     return an_effect_happened, log_details, damage_dealt_flag
 

@@ -263,26 +263,36 @@ def handle_plugin_first_strike_control(
     skill_config = skill_def.get("config", {})
     apply_on_round = skill_config.get("apply_aura_on_round", 1)
     aura_def = skill_config.get("aura_effect_definition")
-    if not aura_def: return False, []
+    if not aura_def:
+        return False, []
     aura_name = aura_def.get("name", EFFECT_NAME_FIRST_STRIKE_RAGE_AURA)
-    if not aura_name: return False, []
-    if triggering_army.skill_trigger_counts.get(skill_id, 0) > 0: return False, []
+    if not aura_name:
+        return False, []
+    last_round = triggering_army.skill_last_triggered_round.get(skill_id)
+    if last_round is not None and last_round == simulator.round:
+        return False, []
     if simulator.round == apply_on_round:
         is_aura_already_active = any(
-            eff.name == aura_name for eff_list in
-            [triggering_army.active_effects, triggering_army.upcoming_effects,
-             triggering_army.effects_to_activate_next_round]
+            eff.name == aura_name
+            for eff_list in [
+                triggering_army.active_effects,
+                triggering_army.upcoming_effects,
+                triggering_army.effects_to_activate_next_round,
+            ]
             for eff in eff_list
         )
         if not is_aura_already_active:
             effect_data_copy = aura_def.copy()
             effect_data_copy["config"] = aura_def.get("config", {}).copy()
             created_aura = triggering_army._create_and_add_single_effect(
-                effect_data_copy, skill_id, triggering_army, triggering_army, opponent_army)
+                effect_data_copy, skill_id, triggering_army, triggering_army, opponent_army
+            )
             if created_aura:
                 an_effect_happened = True
-                log_details.append((f"Applies aura: {created_aura.get_functionality_description()}.", None))
-                triggering_army.skill_trigger_counts[skill_id] = 1  # Mark as triggered once per battle
+                log_details.append(
+                    (f"Applies aura: {created_aura.get_functionality_description()}.", None)
+                )
+                triggering_army.skill_last_triggered_round[skill_id] = simulator.round
     return an_effect_happened, log_details
 
 

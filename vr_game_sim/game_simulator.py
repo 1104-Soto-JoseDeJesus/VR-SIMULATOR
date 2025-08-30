@@ -433,8 +433,10 @@ class GameSimulator:
             if army.base_rage_awarded_this_round:
                 continue
 
-            if (army.hero1_rage_skill_used_round == self.round or
-                    army.hero1_rage_skill_cast_blocked_by_silence_this_round):
+            if (
+                army.army_used_rage_skill_this_round_for_rage_gain_block
+                or army.hero1_rage_skill_cast_blocked_by_silence_this_round
+            ):
                 army.base_rage_awarded_this_round = False
             else:
                 army.current_rage += 100

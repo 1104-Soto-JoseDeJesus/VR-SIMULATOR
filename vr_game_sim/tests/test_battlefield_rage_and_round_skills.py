@@ -23,6 +23,12 @@ def make_round_skill_army(name: str) -> Army:
     return Army(name, unit, heroes=[hero])
 
 
+def make_first_strike_army(name: str) -> Army:
+    hero = Hero("Tester", [], [], ["plugin_first_strike"], SKILL_REGISTRY_GLOBAL)
+    unit = Unit("pikemen", 5, initial_count=1000)
+    return Army(name, unit, heroes=[hero])
+
+
 def test_rage_skill_executes_in_battlefield():
     engine = BattlefieldEngine()
     attacker = make_rage_army("A")
@@ -37,6 +43,7 @@ def test_rage_skill_executes_in_battlefield():
     engine.tick(1.0)  # round 2 – execute rage skill
 
     assert attacker.current_rage == 100
+    assert attacker.rage_added_this_round == 0
     assert attacker.skill_trigger_counts.get("base_skill_snakes_frenzy", 0) == 1
     assert defender.current_troop_count < 1000
 
@@ -71,11 +78,12 @@ def test_round_dependent_skill_resets_after_idle():
     engine.tick(0.8)  # idle but below reset threshold
     engine.tick(0.2)  # exceed threshold and reset rounds/rage
     assert attacker.skill_last_triggered_round == {}
+    assert attacker.skill_trigger_counts == {}
     engine.engage("A", "B")
     engine.tick(1.0)  # new round 1
     engine.tick(1.0)  # new round 2
 
-    assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 2
+    assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 1
 
 
 def test_round_dependent_skill_resets_after_idle_in_arena():
@@ -94,11 +102,50 @@ def test_round_dependent_skill_resets_after_idle_in_arena():
     engine.tick(0.8)
     engine.tick(0.2)
     assert attacker.skill_last_triggered_round == {}
+    assert attacker.skill_trigger_counts == {}
     engine.engage("A", "B")
     engine.tick(1.0)
     engine.tick(1.0)
 
-    assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 2
+    assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 1
+
+
+def test_rage_skill_blocks_base_rage_in_arena():
+    engine = ArenaEngine()
+    attacker = make_rage_army("A")
+    defender = make_basic_army("B")
+    engine.add_army(attacker, "red", position=(0, 0), speed=0)
+    engine.add_army(defender, "blue", position=(2, 0), speed=0)
+
+    attacker.current_rage = 1000
+
+    engine.engage("A", "B")
+    engine.tick(1.0)
+    engine.tick(1.0)
+
+    assert attacker.current_rage == 100
+    assert attacker.rage_added_this_round == 0
+
+
+def test_first_strike_resets_after_idle():
+    engine = BattlefieldEngine()
+    attacker = make_first_strike_army("A")
+    defender = make_basic_army("B")
+    engine.add_army(attacker, "red", position=(0, 0), speed=0)
+    engine.add_army(defender, "blue", position=(2, 0), speed=0)
+
+    engine.engage("A", "B")
+    engine.tick(1.0)
+    assert attacker.skill_trigger_counts.get("plugin_first_strike", 0) == 1
+
+    engine.set_direct_target("A", None)
+    engine.tick(0.8)
+    engine.tick(0.2)
+    assert attacker.skill_trigger_counts.get("plugin_first_strike", 0) == 0
+
+    engine.engage("A", "B")
+    engine.tick(1.0)
+    assert attacker.skill_trigger_counts.get("plugin_first_strike", 0) == 1
 
 
 def test_defender_attacks_even_if_targeting_other():

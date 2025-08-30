@@ -2395,19 +2395,33 @@ class ArenaTab(QtWidgets.QWidget):
         if self._running:
             return
         key = (team, index)
-        if self._slot_army.get(key):
-            QtWidgets.QMessageBox.warning(self, "Slot occupied", "This slot already has an army.")
-            return
+
+        existing = self._slot_army.get(key)
 
         dlg = ArmySetupDialog(self)
         default_team = "red" if team == "team1" else "blue"
-        dlg.team_combo.setCurrentText(default_team)
+        if existing:
+            # Pre-populate the dialog with the existing army configuration so
+            # users can edit armies already placed on the battlefield.
+            cfg = existing.get("config", {})
+            dlg.frame.populate_from_config(cfg)
+            dlg.team_combo.setCurrentText(existing.get("team", default_team))
+            dlg.speed_spin.setValue(existing.get("speed", 50.0))
+        else:
+            dlg.team_combo.setCurrentText(default_team)
+
         if dlg.exec() != int(QtWidgets.QDialog.DialogCode.Accepted):
             return
         cfg = dlg.get_config()
         cfg["team"] = default_team
         army = create_armies_from_data([cfg])[0]
         pos = self.slot_coords[team][index]
+
+        # Remove any existing icon if the slot is being edited.
+        if existing:
+            old_icon = self._icons.pop(existing["army"].name, None)
+            if old_icon is not None:
+                self.scene.removeItem(old_icon)
 
         heroes = cfg.get("heroes", [])
         main_path = (

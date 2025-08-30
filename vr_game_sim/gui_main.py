@@ -1667,12 +1667,16 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
             self._dragging = True
             self._drag_offset = event.pos()
             self.setZValue(10)
-        super().mousePressEvent(event)
+            event.accept()
+        else:
+            super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
         if self._dragging:
             self.setPos(event.scenePos() - self._drag_offset)
-        super().mouseMoveEvent(event)
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
         if self._dragging:
@@ -1680,7 +1684,9 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
             self._dragging = False
             if self._on_drop is not None:
                 self._on_drop(self.army_name or "", event.scenePos())
-        super().mouseReleaseEvent(event)
+            event.accept()
+        else:
+            super().mouseReleaseEvent(event)
 
 
 class SlotItem(QtWidgets.QGraphicsEllipseItem):
@@ -1703,11 +1709,14 @@ class SlotItem(QtWidgets.QGraphicsEllipseItem):
         self.setPen(pen)
         self.setBrush(QtGui.QBrush(QtCore.Qt.GlobalColor.transparent))
         self.setZValue(-1)  # Above background but below army icons
+        self.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
 
-    def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
+    def mouseDoubleClickEvent(
+        self, event: QtWidgets.QGraphicsSceneMouseEvent
+    ) -> None:  # type: ignore[override]
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self._on_click(self.team, self.index)
-        super().mousePressEvent(event)
+        super().mouseDoubleClickEvent(event)
 
 
 class BattlefieldTab(QtWidgets.QWidget):

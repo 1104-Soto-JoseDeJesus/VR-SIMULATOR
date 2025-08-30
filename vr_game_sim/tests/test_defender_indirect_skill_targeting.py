@@ -46,7 +46,8 @@ def test_defender_rage_skill_does_not_hit_indirect_attacker():
     defender.current_rage = 1000
     apply_broken_blade(defender)
     engine, atk1, atk2 = setup_battlefield(defender)
-    engine.tick(1.0)
+    engine.tick(1.0)  # round 1 – schedule rage skill
+    engine.tick(1.0)  # round 2 – execute rage skill
     assert atk1.current_troop_count < atk1.unit.initial_count
     assert atk2.current_troop_count == atk2.unit.initial_count
 

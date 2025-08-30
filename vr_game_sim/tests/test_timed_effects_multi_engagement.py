@@ -26,7 +26,7 @@ def test_timed_buff_activation_and_global_decrement():
     atk1 = make_army("A1")
     atk2 = make_army("A2")
 
-    dfd.current_rage = 1000  # allow immediate rage skill cast
+    dfd.current_rage = 1000  # rage skill will cast next round
 
     engine.add_army(atk1, "red", position=(0, 0), speed=0)
     engine.add_army(atk2, "red", position=(4, 0), speed=0)
@@ -35,7 +35,7 @@ def test_timed_buff_activation_and_global_decrement():
     engine.engage("A1", "D")
     engine.engage("A2", "D")
 
-    for _ in range(3):
+    for _ in range(4):
         engine.tick(1.0)
 
     rounds = builder.get_rounds()
@@ -49,24 +49,13 @@ def test_timed_buff_activation_and_global_decrement():
         EFFECT_NAME_VITAL_BLESSING_COUNTER_BOOST in line for line in r_a2[0]["active_effects"]
     )
 
-    line_a1_r2 = next(
-        (
-            l
-            for l in r_a1[1]["active_effects"]
-            if EFFECT_NAME_VITAL_BLESSING_COUNTER_BOOST in l
-        ),
-        None,
+    # Effect activates one round after the rage skill casts
+    assert not any(
+        EFFECT_NAME_VITAL_BLESSING_COUNTER_BOOST in line for line in r_a1[1]["active_effects"]
     )
-    line_a2_r2 = next(
-        (
-            l
-            for l in r_a2[1]["active_effects"]
-            if EFFECT_NAME_VITAL_BLESSING_COUNTER_BOOST in l
-        ),
-        None,
+    assert not any(
+        EFFECT_NAME_VITAL_BLESSING_COUNTER_BOOST in line for line in r_a2[1]["active_effects"]
     )
-    assert line_a1_r2 and "Dur: 5 rounds" in line_a1_r2
-    assert line_a2_r2 and "Dur: 5 rounds" in line_a2_r2
 
     line_a1_r3 = next(
         (
@@ -84,8 +73,27 @@ def test_timed_buff_activation_and_global_decrement():
         ),
         None,
     )
-    assert line_a1_r3 and "Dur: 4 rounds" in line_a1_r3
-    assert line_a2_r3 and "Dur: 4 rounds" in line_a2_r3
+    assert line_a1_r3 and "Dur: 5 rounds" in line_a1_r3
+    assert line_a2_r3 and "Dur: 5 rounds" in line_a2_r3
+
+    line_a1_r4 = next(
+        (
+            l
+            for l in r_a1[3]["active_effects"]
+            if EFFECT_NAME_VITAL_BLESSING_COUNTER_BOOST in l
+        ),
+        None,
+    )
+    line_a2_r4 = next(
+        (
+            l
+            for l in r_a2[3]["active_effects"]
+            if EFFECT_NAME_VITAL_BLESSING_COUNTER_BOOST in l
+        ),
+        None,
+    )
+    assert line_a1_r4 and "Dur: 4 rounds" in line_a1_r4
+    assert line_a2_r4 and "Dur: 4 rounds" in line_a2_r4
 
 
 def test_end_of_round_dot_applies_once():

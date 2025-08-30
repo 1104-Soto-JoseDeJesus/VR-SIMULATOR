@@ -570,6 +570,12 @@ class GameSimulator:
             self.army1.started_round_with_active_shield = self.army1.get_current_shield_hp() > 0
             self.army2.started_round_with_active_shield = self.army2.get_current_shield_hp() > 0
 
+            # Determine if any rage skills were scheduled for this round
+            for army in (self.army1, self.army2):
+                army.hero1_rage_skill_queued_this_round = (
+                    army.hero1_rage_skill_scheduled_round == self.round
+                )
+
             # Rage skills will be executed after start-of-round effects
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
                 break
@@ -583,22 +589,20 @@ class GameSimulator:
                 self._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND,
                                              event_data={'opponent_for_shield_calc': opponent})
                 army.activate_queued_effects()
-            # Queue rage skills if rage threshold reached after start-of-round effects
+            # Schedule rage skills if rage threshold reached after start-of-round effects
             for army in (self.army1, self.army2):
                 if (
                     army.current_troop_count > 0
                     and army.hero1_rage_skill_id
-                    and not army.hero1_rage_skill_queued_this_round
+                    and army.hero1_rage_skill_scheduled_round is None
                     and (
                         army.hero2_rage_skill_primed_for_round is None
-                        or army.hero2_rage_skill_primed_for_round != self.round
+                        or army.hero2_rage_skill_primed_for_round != self.round + 1
                     )
                 ):
                     skill_def = self.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
                     if skill_def and army.current_rage >= skill_def.get("rage_cost", 1000):
-                        army.hero1_rage_skill_queued_this_round = True
-                        if army.hero1_rage_skill_scheduled_round is None:
-                            army.hero1_rage_skill_scheduled_round = self.round
+                        army.hero1_rage_skill_scheduled_round = self.round + 1
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
                 break
@@ -699,16 +703,19 @@ class GameSimulator:
                 self.army2.rage_gained_history.append(self.army2.rage_added_this_round)
 
             for army in [self.army1, self.army2]:
-                if army.current_troop_count <= 0: continue
-                if army.hero1_rage_skill_id and \
-                        not army.hero1_rage_skill_queued_this_round and \
-                        (
-                                army.hero2_rage_skill_primed_for_round is None or army.hero2_rage_skill_primed_for_round != self.round + 1):
+                if army.current_troop_count <= 0:
+                    continue
+                if (
+                    army.hero1_rage_skill_id
+                    and army.hero1_rage_skill_scheduled_round is None
+                    and (
+                        army.hero2_rage_skill_primed_for_round is None
+                        or army.hero2_rage_skill_primed_for_round != self.round + 1
+                    )
+                ):
                     skill_def_h1_rage = self.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
-                    if skill_def_h1_rage and army.current_rage >= skill_def_h1_rage.get("rage_cost", 1001):
-                        army.hero1_rage_skill_queued_this_round = True
-                        if army.hero1_rage_skill_scheduled_round is None:
-                            army.hero1_rage_skill_scheduled_round = self.round
+                    if skill_def_h1_rage and army.current_rage >= skill_def_h1_rage.get("rage_cost", 1000):
+                        army.hero1_rage_skill_scheduled_round = self.round + 1
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 

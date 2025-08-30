@@ -1590,6 +1590,7 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
         army_name: str | None = None,
         team: str | None = None,
         max_size: int = 64,
+        on_drop: Callable[[str, QtCore.QPointF], None] | None = None,
     ) -> None:
         super().__init__()
         # Scale the main portrait so that extremely large source images do not
@@ -1614,6 +1615,11 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
         self.health_ratio = max(0.0, min(1.0, health_ratio))
         self.army_name = army_name
         self.team = team
+        self._on_drop = on_drop
+        self._drag_offset = QtCore.QPointF()
+        self._dragging = False
+        if self._on_drop is not None:
+            self.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
 
     def boundingRect(self) -> QtCore.QRectF:  # type: ignore[override]
         """Return the bounding rectangle for the icon including the health bar."""
@@ -1652,6 +1658,29 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
     def set_health(self, ratio: float) -> None:
         self.health_ratio = max(0.0, min(1.0, ratio))
         self.update()
+
+    # ------------------------------------------------------------------
+    # Drag and drop support
+    # ------------------------------------------------------------------
+    def mousePressEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
+        if self._on_drop is not None and event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self._dragging = True
+            self._drag_offset = event.pos()
+            self.setZValue(10)
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
+        if self._dragging:
+            self.setPos(event.scenePos() - self._drag_offset)
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
+        if self._dragging:
+            self.setZValue(0)
+            self._dragging = False
+            if self._on_drop is not None:
+                self._on_drop(self.army_name or "", event.scenePos())
+        super().mouseReleaseEvent(event)
 
 
 class SlotItem(QtWidgets.QGraphicsEllipseItem):
@@ -2260,6 +2289,7 @@ class ArenaTab(QtWidgets.QWidget):
         self.save_layout_btn = QtWidgets.QPushButton("Save Layout")
         self.load_layout_btn = QtWidgets.QPushButton("Load Layout")
         self.last_run_btn = QtWidgets.QPushButton("Last Run")
+        self.swap_btn = QtWidgets.QPushButton("Swap Teams")
         self.refresh_btn = QtWidgets.QPushButton("Refresh Arena")
         self.run_btn = QtWidgets.QPushButton("Run Arena")
         self.run_batch_btn = QtWidgets.QPushButton("Run Batch")
@@ -2269,6 +2299,7 @@ class ArenaTab(QtWidgets.QWidget):
             self.save_layout_btn,
             self.load_layout_btn,
             self.last_run_btn,
+            self.swap_btn,
             self.refresh_btn,
             self.run_btn,
             self.run_batch_btn,
@@ -2364,6 +2395,7 @@ class ArenaTab(QtWidgets.QWidget):
         self.save_layout_btn.clicked.connect(self._save_layout)
         self.load_layout_btn.clicked.connect(self._load_layout)
         self.last_run_btn.clicked.connect(self._run_last_layout)
+        self.swap_btn.clicked.connect(self._swap_teams)
         self.run_btn.clicked.connect(self._run_arena)
         self.run_batch_btn.clicked.connect(self._run_batch)
         self.speed_btn.clicked.connect(self._toggle_speed)
@@ -2458,6 +2490,7 @@ class ArenaTab(QtWidgets.QWidget):
             army_name=army.name,
             team=cfg["team"],
             max_size=self._icon_size,
+            on_drop=self._on_icon_drop,
         )
         icon.setPos(*pos)
         self.scene.addItem(icon)
@@ -2471,6 +2504,94 @@ class ArenaTab(QtWidgets.QWidget):
             "speed": cfg.get("speed", 50.0),
             "config": cfg,
         }
+
+    def _assign_team(self, info: dict[str, Any], team: str) -> None:
+        """Update team information in the army info structure."""
+
+        new_team = "red" if team == "team1" else "blue"
+        info["team"] = new_team
+        cfg = info.get("config")
+        if cfg is not None:
+            cfg["team"] = new_team
+
+    def _on_icon_drop(self, army_name: str, pos: QtCore.QPointF) -> None:
+        """Handle an army icon being dropped somewhere in the scene."""
+
+        if self._running:
+            return
+        target: tuple[str, int] | None = None
+        for (team, idx), item in self._slot_items.items():
+            if item.contains(item.mapFromScene(pos)):
+                target = (team, idx)
+                break
+        if target is None:
+            # Snap back to original slot
+            key = next(
+                (k for k, info in self._slot_army.items() if info and info["army"].name == army_name),
+                None,
+            )
+            if key:
+                icon = self._icons[army_name]
+                icon.setPos(*self.slot_coords[key[0]][key[1]])
+            return
+        self._relocate_army(army_name, target)
+
+    def _relocate_army(self, army_name: str, target: tuple[str, int]) -> None:
+        """Move an army to a new slot, swapping if necessary."""
+
+        current_key = next(
+            (k for k, info in self._slot_army.items() if info and info["army"].name == army_name),
+            None,
+        )
+        if current_key is None:
+            return
+        if current_key == target:
+            icon = self._icons[army_name]
+            icon.setPos(*self.slot_coords[target[0]][target[1]])
+            return
+
+        moving = self._slot_army[current_key]
+        other = self._slot_army.get(target)
+
+        self._slot_army[target] = moving
+        self._assign_team(moving, target[0])
+        icon = self._icons[army_name]
+        icon.setPos(*self.slot_coords[target[0]][target[1]])
+        icon.team = moving["team"]
+
+        if other:
+            self._slot_army[current_key] = other
+            self._assign_team(other, current_key[0])
+            other_icon = self._icons[other["army"].name]
+            other_icon.setPos(*self.slot_coords[current_key[0]][current_key[1]])
+            other_icon.team = other["team"]
+        else:
+            self._slot_army[current_key] = None
+
+    def _swap_teams(self) -> None:
+        """Swap armies between teams while mirroring their positions."""
+
+        if self._running:
+            return
+        total = len(self.slot_coords["team1"])
+        for idx in range(total):
+            key1 = ("team1", idx)
+            key2 = ("team2", idx)
+            info1 = self._slot_army.get(key1)
+            info2 = self._slot_army.get(key2)
+            self._slot_army[key1], self._slot_army[key2] = info2, info1
+            if info1:
+                icon1 = self._icons.get(info1["army"].name)
+                if icon1:
+                    icon1.setPos(*self.slot_coords["team2"][idx])
+                    self._assign_team(info1, "team2")
+                    icon1.team = info1["team"]
+            if info2:
+                icon2 = self._icons.get(info2["army"].name)
+                if icon2:
+                    icon2.setPos(*self.slot_coords["team1"][idx])
+                    self._assign_team(info2, "team1")
+                    icon2.team = info2["team"]
 
     def _collect_layout_data(self) -> list[dict[str, Any]]:
         """Return layout entries for all occupied slots."""
@@ -2605,16 +2726,20 @@ class ArenaTab(QtWidgets.QWidget):
                 army_name=army.name,
                 team=cfg["team"],
                 max_size=self._icon_size,
+                on_drop=self._on_icon_drop,
             )
             icon.setPos(*pos)
             self.scene.addItem(icon)
             self._icons[army.name] = icon
-            self._slot_army[(team, index)] = {
+            info = {
                 "army": army,
                 "team": cfg["team"],
                 "speed": cfg.get("speed", 50.0),
                 "config": cfg,
             }
+            self._assign_team(info, team)
+            icon.team = info["team"]
+            self._slot_army[(team, index)] = info
 
     def _run_last_layout(self) -> None:
         """Load the last saved layout and immediately run it."""

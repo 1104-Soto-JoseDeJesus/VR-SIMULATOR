@@ -878,15 +878,29 @@ class BattlefieldEngine:
         sim._calculate_and_log_attack(atk, dfd, is_counter=False)
 
         if dfd.current_troop_count > 0:
+            dfd_ctx = self._armies.get(dfd.name)
+            reactive_target = atk
+            if dfd_ctx and dfd_ctx.direct_target and dfd_ctx.direct_target in self._armies:
+                reactive_target = self._armies[dfd_ctx.direct_target].army
             sim._process_skill_triggers(
-                dfd, atk, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
-                event_data={'opponent_for_shield_calc': atk}
+                dfd,
+                reactive_target,
+                SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+                event_data={
+                    'opponent_for_shield_calc': atk,
+                    'attacking_army_for_tit_for_tat': atk,
+                }
             )
             dfd.activate_queued_effects()
             atk.activate_queued_effects()
             sim._process_skill_triggers(
-                dfd, atk, SkillTriggerType.ON_COUNTER_ATTACK,
-                event_data={'opponent_for_shield_calc': atk}
+                dfd,
+                reactive_target,
+                SkillTriggerType.ON_COUNTER_ATTACK,
+                event_data={
+                    'opponent_for_shield_calc': atk,
+                    'attacking_army_for_tit_for_tat': atk,
+                }
             )
             dfd.activate_queued_effects()
             atk.activate_queued_effects()
@@ -906,15 +920,29 @@ class BattlefieldEngine:
             sim._calculate_and_log_attack(dfd, atk, is_counter=False)
 
             if atk.current_troop_count > 0:
+                atk_ctx = self._armies.get(atk.name)
+                reactive_target2 = dfd
+                if atk_ctx and atk_ctx.direct_target and atk_ctx.direct_target in self._armies:
+                    reactive_target2 = self._armies[atk_ctx.direct_target].army
                 sim._process_skill_triggers(
-                    atk, dfd, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
-                    event_data={'opponent_for_shield_calc': dfd},
+                    atk,
+                    reactive_target2,
+                    SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+                    event_data={
+                        'opponent_for_shield_calc': dfd,
+                        'attacking_army_for_tit_for_tat': dfd,
+                    },
                 )
                 atk.activate_queued_effects()
                 dfd.activate_queued_effects()
                 sim._process_skill_triggers(
-                    atk, dfd, SkillTriggerType.ON_COUNTER_ATTACK,
-                    event_data={'opponent_for_shield_calc': dfd},
+                    atk,
+                    reactive_target2,
+                    SkillTriggerType.ON_COUNTER_ATTACK,
+                    event_data={
+                        'opponent_for_shield_calc': dfd,
+                        'attacking_army_for_tit_for_tat': dfd,
+                    },
                 )
                 atk.activate_queued_effects()
                 dfd.activate_queued_effects()

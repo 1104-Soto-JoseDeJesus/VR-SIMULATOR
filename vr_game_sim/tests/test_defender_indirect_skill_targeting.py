@@ -7,7 +7,7 @@ from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
 from vr_game_sim.enums import SkillTriggerType, SkillType, EffectType
 from vr_game_sim.skill_logic.utility_skill_handlers import handle_generic_single_damage_skill
 from vr_game_sim.effect_system import EffectInstance
-from vr_game_sim.constants import EFFECT_NAME_BROKEN_BLADE_DEBUFF
+from vr_game_sim.constants import EFFECT_NAME_BROKEN_BLADE_DEBUFF, EFFECT_NAME_DISARM_DEBUFF
 from vr_game_sim.battlefield_engine import BattlefieldEngine
 
 
@@ -74,3 +74,48 @@ def test_defender_non_reactive_skill_does_not_hit_indirect_attacker():
         assert atk2.current_troop_count == atk2.unit.initial_count
     finally:
         SKILL_REGISTRY_GLOBAL.pop(dummy_skill["id"], None)
+
+
+def test_reactive_skill_damage_hits_direct_target_with_indirect_attacker_stats():
+    reactive_skill = {
+        "id": "test_reactive_damage",
+        "name": "Test Reactive Damage",
+        "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+        "trigger_chance": 1.0,
+        "target": "ENEMY",
+        "logic_handler": handle_generic_single_damage_skill,
+        "labels": [],
+        "config": {"damage_factor": 1000.0},
+    }
+    SKILL_REGISTRY_GLOBAL[reactive_skill["id"]] = reactive_skill
+    try:
+        hero = create_hero_with_skills(talent_ids=[reactive_skill["id"], "dummy_talent_empty", "dummy_talent_empty"])
+        defender = Army("Def3", Unit("pikemen", 5, initial_count=1000), heroes=[hero])
+        apply_broken_blade(defender)
+
+        atk1 = Army(
+            "A1",
+            Unit("pikemen", 5, initial_count=1000, initial_def_modifier=5.0),
+        )
+        atk1.active_effects.append(
+            EffectInstance(uuid.uuid4(), "t", EffectType.DEBUFF, 1, magnitude=0, name=EFFECT_NAME_DISARM_DEBUFF)
+        )
+        atk2 = Army(
+            "A2",
+            Unit("pikemen", 5, initial_count=1000, initial_def_modifier=-0.9),
+        )
+
+        engine = BattlefieldEngine()
+        engine.add_army(atk1, "red", position=(3, 0), speed=0)
+        engine.add_army(atk2, "red", position=(7, 0), speed=0)
+        engine.add_army(defender, "blue", position=(5, 0), speed=0)
+        engine.engage("A1", defender.name)
+        engine.engage("A2", defender.name)
+        engine.set_direct_target(defender.name, "A1")
+        engine.tick(1.0)
+
+        assert atk1.current_troop_count < atk1.unit.initial_count
+        assert atk2.current_troop_count == atk2.unit.initial_count
+    finally:
+        SKILL_REGISTRY_GLOBAL.pop(reactive_skill["id"], None)

@@ -113,15 +113,23 @@ class GameSimulator:
         if damage_details: log_entry.update(damage_details)
         self.round_skill_triggers_log[triggered_army.name].append(log_entry)
 
-    def _calculate_generic_skill_damage(self, source_army: Army, target_army: Army,
-                                        damage_factor: float,
-                                        is_hero2_rage_skill: bool = False,
-                                        source_skill_def: Optional[SkillDefinition] = None
-                                        ) -> Tuple[float, float, int, float]:
-        if source_army.current_troop_count <= 0: return 0.0, 0.0, 0, 0.0
+    def _calculate_generic_skill_damage(
+        self,
+        source_army: Army,
+        target_army: Army,
+        damage_factor: float,
+        is_hero2_rage_skill: bool = False,
+        source_skill_def: Optional[SkillDefinition] = None,
+        damage_application_target: Optional[Army] = None,
+    ) -> Tuple[float, float, int, float]:
+        if source_army.current_troop_count <= 0:
+            return 0.0, 0.0, 0, 0.0
+
+        calc_target = target_army
+        apply_target = damage_application_target or target_army
 
         own_total_attack = source_army.unit.effective_attack(source_army.active_effects)
-        enemy_total_defense = target_army.unit.effective_defense(target_army.active_effects)
+        enemy_total_defense = calc_target.unit.effective_defense(calc_target.active_effects)
         if enemy_total_defense <= 0: enemy_total_defense = 1
 
         own_troop_scalar = GameSimulator.troop_scalar(source_army.current_troop_count)
@@ -165,8 +173,9 @@ class GameSimulator:
             skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
                 StatType.COOPERATION_SKILL_DAMAGE_MODIFIER)
 
-        damage_taken_percent_mods = target_army.get_sum_stat_magnitudes(StatType.DAMAGE_TAKEN_MULTIPLIER,
-                                                                        attack_type_filter="SKILL")
+        damage_taken_percent_mods = calc_target.get_sum_stat_magnitudes(
+            StatType.DAMAGE_TAKEN_MULTIPLIER, attack_type_filter="SKILL"
+        )
         total_skill_percentage_points = skill_damage_percent_boosts + damage_taken_percent_mods
         final_skill_damage_multiplier = max(0.05, 1.0 + total_skill_percentage_points)
 
@@ -174,16 +183,22 @@ class GameSimulator:
                     damage_factor / 200.0)
         damage_after_percent_mods_no_advantage = skill_hp_damage_potential * final_skill_damage_multiplier
 
-        advantage_multiplier = GameSimulator.advantage_adjust(source_army.unit, target_army.unit)
+        advantage_multiplier = GameSimulator.advantage_adjust(
+            source_army.unit, calc_target.unit
+        )
         damage_after_all_mods = damage_after_percent_mods_no_advantage * advantage_multiplier
 
         raw_damage_for_logging = damage_after_all_mods
 
-        damage_result_skill = target_army.apply_shields_and_get_hp_damage(damage_after_all_mods)
-        actual_skill_hp_damage_to_troops = damage_result_skill['hp_damage_to_troops']
-        skill_damage_absorbed_by_shield = damage_result_skill['absorbed_by_shield']
+        damage_result_skill = apply_target.apply_shields_and_get_hp_damage(
+            damage_after_all_mods
+        )
+        actual_skill_hp_damage_to_troops = damage_result_skill["hp_damage_to_troops"]
+        skill_damage_absorbed_by_shield = damage_result_skill["absorbed_by_shield"]
 
-        enemy_hp_per_troop = target_army.unit.effective_hp_per_troop(target_army.active_effects)
+        enemy_hp_per_troop = apply_target.unit.effective_hp_per_troop(
+            apply_target.active_effects
+        )
         if enemy_hp_per_troop <= 0: enemy_hp_per_troop = 1
 
         potential_skill_kills = 0

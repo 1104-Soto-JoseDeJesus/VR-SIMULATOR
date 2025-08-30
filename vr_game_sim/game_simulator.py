@@ -323,6 +323,7 @@ class GameSimulator:
             rage_cost = skill_def.get("rage_cost", 1000)
             if army.current_rage < rage_cost:
                 army.hero1_rage_skill_queued_this_round = False
+                army.hero1_rage_skill_scheduled_round = None
                 self._log_skill_trigger(
                     army,
                     skill_def['name'],
@@ -356,9 +357,16 @@ class GameSimulator:
             army.army_used_rage_skill_this_round_for_rage_gain_block = True
             army.hero1_rage_skill_used_round = self.round
             army.hero1_rage_skill_queued_this_round = False
+            delay_rounds = 0
+            if army.hero1_rage_skill_scheduled_round is not None:
+                delay_rounds = self.round - army.hero1_rage_skill_scheduled_round
+            army.hero1_rage_skill_scheduled_round = None
 
             if army.hero2_rage_skill_id and len(army.heroes) > 1:
-                army.hero2_rage_skill_primed_for_round = self.round + 2
+                if delay_rounds >= 2:
+                    army.hero2_rage_skill_primed_for_round = None
+                else:
+                    army.hero2_rage_skill_primed_for_round = self.round + 2
         else:
             if army.hero2_rage_skill_primed_for_round == self.round:
                 army.hero2_rage_skill_primed_for_round = None
@@ -589,6 +597,8 @@ class GameSimulator:
                     skill_def = self.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
                     if skill_def and army.current_rage >= skill_def.get("rage_cost", 1000):
                         army.hero1_rage_skill_queued_this_round = True
+                        if army.hero1_rage_skill_scheduled_round is None:
+                            army.hero1_rage_skill_scheduled_round = self.round
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
                 break
@@ -697,6 +707,8 @@ class GameSimulator:
                     skill_def_h1_rage = self.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
                     if skill_def_h1_rage and army.current_rage >= skill_def_h1_rage.get("rage_cost", 1001):
                         army.hero1_rage_skill_queued_this_round = True
+                        if army.hero1_rage_skill_scheduled_round is None:
+                            army.hero1_rage_skill_scheduled_round = self.round
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 

@@ -718,6 +718,11 @@ class BattlefieldEngine:
             else:
                 ctx.internal_round = 0
                 army.current_rage = 0.0
+                # Clear round dependent tracking so future engagements start fresh.
+                army.skill_last_triggered_round.clear()
+                army.hero1_rage_skill_used_round = None
+                army.hero2_rage_skill_primed_for_round = None
+                army.army_used_rage_skill_this_round_for_rage_gain_block = False
 
             self._queue_state_update(army)
 

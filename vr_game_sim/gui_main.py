@@ -2644,12 +2644,18 @@ class ArenaTab(QtWidgets.QWidget):
         self._update_time_label()
         self._timer.start()
 
-    def _run_batch(self, count: int | None = None) -> None:
+    def _run_batch(self, checked: bool = False, *, count: int | None = None) -> None:
         """Run multiple arena battles and record victory distribution.
 
-        If ``count`` is given the batch runs synchronously for tests. When
-        called without a count the batch is executed in a worker thread and
-        progress is reported via the main window's progress bar.
+        Parameters
+        ----------
+        checked:
+            Unused. Accepts the ``clicked`` signal's boolean argument so the
+            method can be connected directly to :py:meth:`QPushButton.clicked`.
+        count:
+            When provided the batch runs synchronously for tests.  When ``None``
+            (the default for GUI usage) the batch is executed in a worker thread
+            and progress is reported via the main window's progress bar.
         """
 
         layout_entries: list[dict[str, Any]] = []

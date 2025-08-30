@@ -92,7 +92,11 @@ class BattlefieldEngine:
     a defender are automatically visible to all attackers.
     """
 
-    def __init__(self, report_builder: Optional[BattlefieldReportBuilder] = None) -> None:
+    def __init__(
+        self,
+        report_builder: Optional[BattlefieldReportBuilder] = None,
+        mode: str = "battlefield",
+    ) -> None:
         # Registry of armies keyed by name.
         self._armies: Dict[str, _ArmyContext] = {}
 
@@ -102,6 +106,7 @@ class BattlefieldEngine:
 
         # Mapping of (attacker, defender) -> GameSimulator
         self._engagements: Dict[Tuple[str, str], GameSimulator] = {}
+        self.mode = mode
 
         # Optional report builder aggregating per-engagement logs
         self._report_builder = report_builder
@@ -125,6 +130,10 @@ class BattlefieldEngine:
         self._state_cache: Dict[str, Tuple] = {}
         self._pending_state_updates: Dict[str, Dict[str, Any]] = {}
         self._state_listeners: List[Callable[[str, Dict[str, Any]], None]] = []
+
+    def get_engaged_enemies(self, army_name: str) -> List[Army]:
+        """Return list of armies currently engaged with ``army_name``."""
+        return [self._armies[nm].army for nm in self._graph.get(army_name, set()) if nm in self._armies]
 
     # ------------------------------------------------------------------
     # Reset
@@ -442,9 +451,12 @@ class BattlefieldEngine:
                 army.skill_last_triggered_round.clear()
                 army.skill_trigger_counts.clear()
                 army.triggered_skills_this_round.clear()
-                army.active_effects.clear()
-                army.upcoming_effects.clear()
-                army.effects_to_activate_next_round.clear()
+                army.skill_trigger_counts_this_round.clear()
+                army.skill_triggers_against_this_round.clear()
+                if ctx.last_engaged_time > 0:
+                    army.active_effects.clear()
+                    army.upcoming_effects.clear()
+                    army.effects_to_activate_next_round.clear()
                 army.hero1_rage_skill_used_round = None
                 army.hero1_rage_skill_scheduled_round = None
                 army.hero1_rage_skill_queued_this_round = False
@@ -639,7 +651,8 @@ class BattlefieldEngine:
                 rb = None
                 if self._report_builder is not None:
                     rb = self._report_builder.get_builder(atk, dfd)
-                simulator = GameSimulator(atk_ctx.army, def_ctx.army, rb, track_stats=False)
+                simulator = GameSimulator(atk_ctx.army, def_ctx.army, rb, track_stats=False, mode=self.mode)
+                simulator.parent_engine = self
                 self._engagements[(atk, dfd)] = simulator
                 self._graph[atk].add(dfd)
                 self._graph[dfd].add(atk)
@@ -662,6 +675,8 @@ class BattlefieldEngine:
         for ctx in self._armies.values():
             army = ctx.army
             army.triggered_skills_this_round.clear()
+            army.skill_trigger_counts_this_round.clear()
+            army.skill_triggers_against_this_round.clear()
             army.healing_hymn_triggered_this_round = False
             army.pending_hp_damage_this_round = 0.0
             army.pending_hp_healing_this_round = 0.0

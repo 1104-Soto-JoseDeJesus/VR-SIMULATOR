@@ -2,7 +2,7 @@
 import uuid
 import random
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any, Tuple, Set
 
 from .enums import EffectType, SkillTriggerType, StatType, DoTType
 from .unit_definition import Unit
@@ -51,6 +51,8 @@ class Army:
     effects_to_activate_next_round: List[EffectInstance] = field(init=False, default_factory=list)
 
     triggered_skills_this_round: List[str] = field(init=False, default_factory=list)
+    skill_trigger_counts_this_round: Dict[str, int] = field(init=False, default_factory=dict)
+    skill_triggers_against_this_round: Dict[str, Set[str]] = field(init=False, default_factory=dict)
     pending_hp_damage_this_round: float = field(init=False, default=0.0)
     pending_hp_healing_this_round: float = field(init=False, default=0.0)
     unrevivable_troops: float = field(init=False, default=0.0)
@@ -838,6 +840,8 @@ class Army:
         self.upcoming_effects.clear()
         self.effects_to_activate_next_round.clear()
         self.triggered_skills_this_round.clear()
+        self.skill_trigger_counts_this_round.clear()
+        self.skill_triggers_against_this_round.clear()
         self.pending_hp_damage_this_round = 0.0  # Reset here is good
         self.pending_hp_healing_this_round = 0.0  # Reset here is good
         self.unrevivable_troops = 0.0

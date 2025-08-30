@@ -440,6 +440,16 @@ class BattlefieldEngine:
                 army = ctx.army
                 army.current_rage = 0.0
                 army.skill_last_triggered_round.clear()
+                army.skill_trigger_counts.clear()
+                army.triggered_skills_this_round.clear()
+                army.active_effects.clear()
+                army.upcoming_effects.clear()
+                army.effects_to_activate_next_round.clear()
+                army.hero1_rage_skill_used_round = None
+                army.hero1_rage_skill_scheduled_round = None
+                army.hero1_rage_skill_queued_this_round = False
+                army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+                army.army_used_rage_skill_this_round_for_rage_gain_block = False
                 self._queue_state_update(army)
 
     def _refresh_target_waypoints(self) -> None:
@@ -657,6 +667,8 @@ class BattlefieldEngine:
             army.pending_hp_healing_this_round = 0.0
             army.rage_added_this_round = 0.0
             army.base_rage_awarded_this_round = False
+            army.army_used_rage_skill_this_round_for_rage_gain_block = False
+            army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
 
         unique_armies: List[Army] = []
         start_processed: set[str] = set()
@@ -911,9 +923,6 @@ class BattlefieldEngine:
                         eff.applied_this_round = False
 
         sim._apply_base_rage_gain()
-        for army in (atk, dfd):
-            army.army_used_rage_skill_this_round_for_rage_gain_block = False
-            army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
 
         # Schedule primary hero rage skills for the next round if threshold met
         for army in (atk, dfd):

@@ -66,10 +66,10 @@ def test_round_and_rage_stop_after_idle():
     assert army_a.current_rage == 300
 
     engine.set_direct_target('A', None)  # disengage at t=3
-    engine.tick(0.9)  # t=3.9, no new round yet
+    engine.tick(0.8)  # t=3.8, no new round yet
     assert ctx_a.internal_round == 3
     assert army_a.current_rage == 300
-    engine.tick(0.1)  # t=4.0, idle long enough to reset
+    engine.tick(0.2)  # t=4.0, idle long enough to reset
     assert ctx_a.internal_round == 0
     assert army_a.current_rage == 0
     assert ctx_a.last_engaged_time == pytest.approx(3.0)

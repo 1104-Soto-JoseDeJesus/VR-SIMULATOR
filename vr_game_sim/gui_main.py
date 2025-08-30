@@ -2288,7 +2288,7 @@ class ArenaTab(QtWidgets.QWidget):
         default_speed = 50.0
         engage_dist = 2 * default_speed * 2  # 200.0 units between opposing fronts
         to_mid = engage_dist / 2.0  # distance from front line to map centre
-        back_offset = default_speed * 3  # 150.0 units between front and back rows
+        back_offset = default_speed * 3 * 0.7  # 105.0 units between front and back rows
 
         cx = self.view.sceneRect().width() / 2.0
         cy = self.view.sceneRect().height() / 2.0

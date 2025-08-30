@@ -1444,8 +1444,15 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 self.custom_heroes[idx] = {k: v for k, v in hero_cfg.items() if k != "skill_overrides"}
                 self.hero_overrides[idx] = overrides
                 self._add_custom_option(name)
-            hero_combos[idx - 1].setCurrentText(hero_name_display)
+            combo = hero_combos[idx - 1]
+            # ``setCurrentText`` emits ``currentTextChanged`` which would in
+            # turn invoke ``_hero_selected`` and clear any overrides.  Block
+            # signals while populating and explicitly update the info labels
+            # afterwards.
             self._hero_names[idx] = hero_name_display
+            block = combo.blockSignals(True)
+            combo.setCurrentText(hero_name_display)
+            combo.blockSignals(block)
             self._hero_selected(idx, hero_name_display)
         for idx, combo in enumerate(hero_combos, start=1):
             self._hero_selected(idx, combo.currentText())

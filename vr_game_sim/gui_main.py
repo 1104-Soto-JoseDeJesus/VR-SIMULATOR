@@ -2179,6 +2179,8 @@ class ArenaTab(QtWidgets.QWidget):
         self.load_layout_btn = QtWidgets.QPushButton("Load Layout")
         self.refresh_btn = QtWidgets.QPushButton("Refresh Arena")
         self.run_btn = QtWidgets.QPushButton("Run Arena")
+        self.speed_btn = QtWidgets.QPushButton("Speed 1x")
+        self.time_label = QtWidgets.QLabel("00:00")
         for btn in (
             self.add_army_btn,
             self.load_army_btn,
@@ -2186,8 +2188,10 @@ class ArenaTab(QtWidgets.QWidget):
             self.load_layout_btn,
             self.refresh_btn,
             self.run_btn,
+            self.speed_btn,
         ):
             controls.addWidget(btn)
+        controls.addWidget(self.time_label)
         controls.addStretch()
         layout.addLayout(controls)
 
@@ -2256,6 +2260,8 @@ class ArenaTab(QtWidgets.QWidget):
 
         self._running = False
         self._last_tick = time.perf_counter()
+        self._speed_multiplier = 1.0
+        self._battle_time = 0.0
         self._timer = QtCore.QTimer(self)
         self._timer.setInterval(16)
         self._timer.timeout.connect(self._on_timer_tick)
@@ -2273,6 +2279,7 @@ class ArenaTab(QtWidgets.QWidget):
         self.save_layout_btn.clicked.connect(self._save_layout)
         self.load_layout_btn.clicked.connect(self._load_layout)
         self.run_btn.clicked.connect(self._run_arena)
+        self.speed_btn.clicked.connect(self._toggle_speed)
 
     # ------------------------------------------------------------------
     def _compute_slot_coords(self) -> dict[str, list[tuple[float, float]]]:
@@ -2513,6 +2520,8 @@ class ArenaTab(QtWidgets.QWidget):
         for item in self._slot_items.values():
             item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.NoButton)
         self._last_tick = time.perf_counter()
+        self._battle_time = 0.0
+        self._update_time_label()
         self._timer.start()
 
     def _on_engine_state(self, name: str, state: dict) -> None:
@@ -2533,7 +2542,10 @@ class ArenaTab(QtWidgets.QWidget):
         now = time.perf_counter()
         dt = now - self._last_tick
         self._last_tick = now
-        self.engine.tick(dt)
+        sim_dt = dt * self._speed_multiplier
+        self.engine.tick(sim_dt)
+        self._battle_time += sim_dt
+        self._update_time_label()
         for name, icon in list(self._icons.items()):
             ctx = self.engine._armies.get(name)
             if ctx is None or ctx.army.current_troop_count <= 0:
@@ -2570,6 +2582,10 @@ class ArenaTab(QtWidgets.QWidget):
         self._timer.stop()
         self._running = False
         self.run_btn.setEnabled(True)
+        self._battle_time = 0.0
+        self._speed_multiplier = 1.0
+        self.speed_btn.setText("Speed 1x")
+        self._update_time_label()
 
         radius = min(self._cell_w, self._cell_h) * 0.15
         for team, coords in self.slot_coords.items():
@@ -2579,6 +2595,21 @@ class ArenaTab(QtWidgets.QWidget):
                 self.scene.addItem(item)
                 self._slot_items[(team, idx)] = item
                 self._slot_army[(team, idx)] = None
+
+    def _toggle_speed(self) -> None:
+        """Cycle through speed multipliers for the arena simulation."""
+
+        speeds = [1.0, 2.0, 4.0, 6.0]
+        idx = speeds.index(self._speed_multiplier)
+        self._speed_multiplier = speeds[(idx + 1) % len(speeds)]
+        self.speed_btn.setText(f"Speed {int(self._speed_multiplier)}x")
+
+    def _update_time_label(self) -> None:
+        """Display the elapsed battle time in minutes and seconds."""
+
+        minutes = int(self._battle_time // 60)
+        seconds = int(self._battle_time % 60)
+        self.time_label.setText(f"{minutes:02d}:{seconds:02d}")
 
     # ------------------------------------------------------------------
     # Navigation mesh helpers

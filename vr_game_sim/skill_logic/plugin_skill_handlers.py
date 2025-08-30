@@ -614,6 +614,24 @@ def handle_plugin_thors_determination(
             log_details.append(
                 (f"Gains buff: {created_buff.get_functionality_description()}, starting {activation_time} for {buff_duration + 1} rounds.",
                  None))
+
+        if opponent_army and triggering_army.current_troop_count < opponent_army.current_troop_count:
+            dmg_red_name = skill_config.get("damage_reduction_name", EFFECT_NAME_THORS_DETERMINATION_DMG_REDUCTION)
+            dmg_red_mag = skill_config.get("damage_reduction_magnitude", -0.15)
+            dmg_red_dur = skill_config.get("damage_reduction_duration", 2)
+            dmg_red_activate_next = skill_config.get("damage_reduction_activate_next_round", True)
+            dmg_red_data = {"effect_type": EffectType.STAT_MOD, "name": dmg_red_name,
+                           "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+                           "magnitude": dmg_red_mag, "duration": dmg_red_dur,
+                           "activate_next_round": dmg_red_activate_next}
+            created_reduction = triggering_army._create_and_add_single_effect(
+                dmg_red_data, skill_id, triggering_army, triggering_army, opponent_army)
+            if created_reduction:
+                an_effect_happened = True
+                activation_time = "next round" if dmg_red_activate_next else "this round"
+                log_details.append(
+                    (f"Condition met: gains damage reduction ({created_reduction.get_functionality_description()}) starting {activation_time} for {dmg_red_dur + 1} rounds.",
+                     None))
     return an_effect_happened, log_details
 
 

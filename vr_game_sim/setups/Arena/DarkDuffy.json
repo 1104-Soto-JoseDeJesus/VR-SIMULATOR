@@ -304,7 +304,7 @@
               "config": {
                 "damage_factor": 926.0,
                 "shield_factor": 280.0,
-                "buff_removal_count": 1.0
+                "buff_removal_count": 1
               }
             },
             "plugin_blessed_by_fate": {

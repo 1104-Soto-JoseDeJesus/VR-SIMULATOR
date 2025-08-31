@@ -209,8 +209,21 @@ class Army:
             unrevivable_increase = round(lost_round * self.unrevivable_ratio)
             self.unrevivable_troops += unrevivable_increase
 
-            if self.simulator: self.simulator._log_skill_trigger(self, "Damage Commitment",
-                                                                 f"Commits {self.pending_hp_damage_this_round:.0f} pending HP damage, resulting in {lost_round} troops lost. {unrevivable_increase} unrevivable.")
+            if self.simulator:
+                contributors: Dict[str, float] = {}
+                for action in self.simulator.round_combat_actions_log:
+                    if action.get("defender_name") == self.name:
+                        dmg = action.get("final_hp_damage", 0)
+                        if dmg > 0:
+                            atk = action.get("attacker_name", "Unknown")
+                            contributors[atk] = contributors.get(atk, 0.0) + dmg
+                self.simulator._log_skill_trigger(
+                    self,
+                    "Damage Commitment",
+                    f"Commits {self.pending_hp_damage_this_round:.0f} pending HP damage, resulting in {lost_round} troops lost. {unrevivable_increase} unrevivable.",
+                )
+                for src, dmg in contributors.items():
+                    self.simulator._log_skill_trigger(self, "  ↳", f"{src} committed {dmg:.0f} damage")
             self.current_troop_count = max(0, self.current_troop_count - lost_round)
         # self.pending_hp_damage_this_round = 0.0 # Resetting this at start of round in game_simulator.py
 

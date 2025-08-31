@@ -203,8 +203,15 @@ class ArenaEngine(BattlefieldEngine):
             targets = [t for t in self._row_fallbacks.get(attacker, []) if t != name]
             while targets and targets[0] not in self._armies:
                 targets.pop(0)
-            if targets:
-                self._row_fallbacks[attacker] = targets
-                self.set_direct_target(attacker, targets[0])
-            else:
+            if not targets:
                 self._row_fallbacks.pop(attacker, None)
+                continue
+            self._row_fallbacks[attacker] = targets
+            atk_ctx = self._armies.get(attacker)
+            if atk_ctx:
+                has_attackers = any(
+                    other.team != atk_ctx.team and other.direct_target == attacker
+                    for other in self._armies.values()
+                )
+                if not has_attackers:
+                    self.set_direct_target(attacker, targets[0])

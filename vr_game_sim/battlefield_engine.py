@@ -210,7 +210,7 @@ class BattlefieldEngine:
             ctx.path_start = ctx.position
 
     def _auto_select_closest_enemy(self, army_name: str) -> None:
-        """Retarget ``army_name`` to the closest enemy if available."""
+        """Retarget ``army_name`` based on attackers or proximity."""
         ctx = self._armies.get(army_name)
         if ctx is None:
             return
@@ -224,15 +224,17 @@ class BattlefieldEngine:
                 attackers.append(name)
             dist = hypot(other.position[0] - ax, other.position[1] - ay)
             enemies.append((dist, name))
+
         target: Optional[str]
         if attackers:
             target = random.choice(attackers)
-        elif enemies:
+        elif self.mode != "battlefield" and enemies:
             min_dist = min(d for d, _ in enemies)
             candidates = [n for d, n in enemies if abs(d - min_dist) <= _ENGAGE_EPS]
             target = candidates[0]
         else:
             return
+
         self.set_direct_target(army_name, target)
 
     def _remove_army(self, name: str) -> None:

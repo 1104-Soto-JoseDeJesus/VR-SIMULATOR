@@ -354,6 +354,23 @@ class BattlefieldEngine:
         if def_ctx.team == atk_ctx.team:
             raise ValueError("Cannot engage armies on the same team")
 
+        # Ensure an army cannot maintain engagements with multiple direct
+        # opponents.  If the attacker is currently being targeted by other
+        # armies, drop those engagements so only the new defender remains.
+        for (atk2, dfd2) in list(self._engagements.keys()):
+            if dfd2 == attacker and atk2 != defender:
+                self._engagements.pop((atk2, dfd2), None)
+                self._graph[atk2].discard(dfd2)
+                self._graph[dfd2].discard(atk2)
+                if self._report_builder is not None:
+                    self._report_builder.clear_builder(atk2, dfd2)
+                other_ctx = self._armies.get(atk2)
+                if other_ctx and other_ctx.direct_target == attacker:
+                    other_ctx.direct_target = None
+        for (atk2, dfd2) in list(self._pending_engagements.keys()):
+            if dfd2 == attacker and atk2 != defender:
+                self._pending_engagements.pop((atk2, dfd2), None)
+
         atk_ctx.direct_target = defender
         atk_ctx.pursue_target = pursue
         atk_ctx.arc_target_angle = None
@@ -547,8 +564,19 @@ class BattlefieldEngine:
         defenders: Dict[str, List[_ArmyContext]] = defaultdict(list)
         for (atk, dfd), _ in self._engagements.items():
             defenders[dfd].append(self._armies[atk])
-
         for dfd, attackers in defenders.items():
+            # Include all opposing armies linked via the engagement graph so a
+            # defender's attacker list reflects late-arriving allies that may
+            # have entered as defenders.
+            seen = {ctx.army.name for ctx in attackers}
+            for opponent in self._graph[dfd]:
+                if (
+                    opponent not in seen
+                    and self._armies[opponent].team != self._armies[dfd].team
+                ):
+                    attackers.append(self._armies[opponent])
+                    seen.add(opponent)
+
             if len(attackers) < 2:
                 continue
             def_ctx = self._armies[dfd]

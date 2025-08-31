@@ -735,9 +735,14 @@ class GameSimulator:
             self.army1.commit_pending_healing_and_damage()
             self.army2.commit_pending_healing_and_damage()
             active_lines = self._log_active_effects_for_report()
+            actions_for_report = [
+                a
+                for a in self.round_combat_actions_log
+                if a.get("action_type") in ("Basic Attack", "Counter Attack")
+            ]
             self.report_builder.emit_round(
                 self.round,
-                self.round_combat_actions_log,
+                actions_for_report,
                 self.round_skill_triggers_log,
                 active_effects=active_lines,
             )

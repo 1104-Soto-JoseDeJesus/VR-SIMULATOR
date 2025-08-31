@@ -212,7 +212,7 @@ class BattlefieldEngine:
     def _auto_select_closest_enemy(self, army_name: str) -> None:
         """Retarget ``army_name`` to the closest enemy if available."""
         ctx = self._armies.get(army_name)
-        if ctx is None:
+        if ctx is None or ctx.direct_target:
             return
         ax, ay = ctx.position
         attackers: List[str] = []
@@ -233,7 +233,8 @@ class BattlefieldEngine:
             target = candidates[0]
         else:
             return
-        self.set_direct_target(army_name, target)
+        if target:
+            self.set_direct_target(army_name, target)
 
     def _remove_army(self, name: str) -> None:
         """Remove ``name`` from the engine and clean up references."""
@@ -540,18 +541,27 @@ class BattlefieldEngine:
                 atk_ctx.path.clear()
                 dfd_ctx.path.clear()
 
-        # Reposition attackers on the engagement radius if they cluster too
-        # closely in angle around their defender.  Later arrivals slide along
-        # the circle to maintain at least 20 degrees separation and end up 45
-        # degrees away from the unit they were crowding.
-        defenders: Dict[str, List[_ArmyContext]] = defaultdict(list)
-        for (atk, dfd), _ in self._engagements.items():
-            defenders[dfd].append(self._armies[atk])
+        # Reposition armies on the engagement radius if they cluster too
+        # closely in angle around their current target.  This applies to
+        # all armies regardless of whether they were the initial attacker or
+        # defender.  Later arrivals slide along the circle to maintain at least
+        # 20 degrees separation and end up 45 degrees away from the unit they
+        # were crowding.
+        targets: Dict[str, List[_ArmyContext]] = defaultdict(list)
+        for ctx in self._armies.values():
+            if ctx.direct_target:
+                def_ctx = self._armies.get(ctx.direct_target)
+                if def_ctx is None:
+                    continue
+                ax, ay = ctx.position
+                dx, dy = def_ctx.position
+                if hypot(ax - dx, ay - dy) <= ENGAGEMENT_DISTANCE + _ENGAGE_EPS:
+                    targets[ctx.direct_target].append(ctx)
 
-        for dfd, attackers in defenders.items():
+        for tgt, attackers in targets.items():
             if len(attackers) < 2:
                 continue
-            def_ctx = self._armies[dfd]
+            def_ctx = self._armies[tgt]
             dx, dy = def_ctx.position
             attackers.sort(key=lambda c: c.engaged_at)
             for idx in range(1, len(attackers)):
@@ -722,9 +732,14 @@ class BattlefieldEngine:
         for sim in self._engagements.values():
             if sim.report_builder:
                 active_lines = sim._log_active_effects_for_report()
+                actions_for_report = [
+                    a
+                    for a in sim.round_combat_actions_log
+                    if a.get("action_type") in ("Basic Attack", "Counter Attack")
+                ]
                 sim.report_builder.emit_round(
                     sim.round,
-                    sim.round_combat_actions_log,
+                    actions_for_report,
                     sim.round_skill_triggers_log,
                     active_effects=active_lines,
                 )

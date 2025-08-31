@@ -145,7 +145,7 @@ class ArenaEngine(BattlefieldEngine):
                         e1.get("target_army")
                         or e1.get("target")
                         or e1.get("march_to")
-                    ):
+                    ) and self._armies[e1["army"].name].direct_target is None:
                         if targets1:
                             self.set_direct_target(e1["army"].name, targets1[0])
                             self._row_fallbacks[e1["army"].name] = list(targets1)
@@ -157,7 +157,7 @@ class ArenaEngine(BattlefieldEngine):
                         e2.get("target_army")
                         or e2.get("target")
                         or e2.get("march_to")
-                    ):
+                    ) and self._armies[e2["army"].name].direct_target is None:
                         if targets2:
                             self.set_direct_target(e2["army"].name, targets2[0])
                             self._row_fallbacks[e2["army"].name] = list(targets2)
@@ -187,7 +187,7 @@ class ArenaEngine(BattlefieldEngine):
         for entry in entries:
             army = entry["army"]
             target_army = entry.get("target_army")
-            if target_army is not None:
+            if target_army is not None and self._armies[army.name].direct_target is None:
                 self.engage(army.name, target_army.name)
                 continue
             target = entry.get("target") or entry.get("march_to")

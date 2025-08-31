@@ -57,8 +57,8 @@ class GameSimulator:
     ):
         self.army1: Army = army1
         self.army2: Army = army2
-        self.army1.simulator = self
-        self.army2.simulator = self
+        self.army1.register_simulator(self)
+        self.army2.register_simulator(self)
         self.round: int = 0
         self.mode: str = mode
         self.round_combat_actions_log: List[Dict[str, Any]] = []

@@ -21,7 +21,7 @@ def test_inspiring_dance_buffs_allies(monkeypatch):
     allies = [Army(f"A{i}", Unit("pikemen", 5, initial_count=10), heroes=[]) for i in range(1,7)]
     sim = GameSimulator(army, enemy, mode="battlefield")
     for a in [army, enemy] + allies:
-        a.simulator = sim
+        a.register_simulator(sim)
     engine = SimpleNamespace(_armies={})
     engine._armies[army.name] = SimpleNamespace(army=army, team="T1", position=(0.0, 0.0))
     engine._armies[enemy.name] = SimpleNamespace(army=enemy, team="T2", position=(100.0, 0.0))
@@ -43,7 +43,7 @@ def test_heavenly_descent_hits_extra_enemies(monkeypatch):
     extras = [Army(f"E{i}", Unit("archers", 5, initial_count=10), heroes=[]) for i in range(1,6)]
     sim = GameSimulator(army, direct, mode="battlefield")
     for a in [army, direct] + extras:
-        a.simulator = sim
+        a.register_simulator(sim)
     engine = SimpleNamespace(_armies={})
     engine._armies[army.name] = SimpleNamespace(army=army, team="T1", position=(0.0, 0.0))
     engine._armies[direct.name] = SimpleNamespace(army=direct, team="T2", position=(50.0, 0.0))
@@ -65,7 +65,7 @@ def test_vital_blessing_heals_allies(monkeypatch):
     allies = [Army(f"Y{i}", Unit("pikemen", 5, initial_count=10), heroes=[]) for i in range(1,6)]
     sim = GameSimulator(army, enemy, mode="battlefield")
     for a in [army, enemy] + allies:
-        a.simulator = sim
+        a.register_simulator(sim)
     engine = SimpleNamespace(_armies={})
     engine._armies[army.name] = SimpleNamespace(army=army, team="T1", position=(0.0, 0.0))
     engine._armies[enemy.name] = SimpleNamespace(army=enemy, team="T2", position=(100.0, 0.0))

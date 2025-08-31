@@ -79,7 +79,7 @@ def test_judgement_mark_multi_trigger_battlefield(monkeypatch):
     ]
     sim = GameSimulator(army, opponents[0], mode='battlefield')
     for opp in opponents:
-        opp.simulator = sim
+        opp.register_simulator(sim)
 
     sim._process_skill_triggers(army, opponents[0], SkillTriggerType.ON_COUNTER_ATTACK)
     sim._process_skill_triggers(army, opponents[1], SkillTriggerType.ON_COUNTER_ATTACK)
@@ -119,7 +119,7 @@ def test_ruling_trial_hits_indirect_targets_battlefield(monkeypatch):
     extras = [Army(f'E{i}', Unit('archers', 5, initial_count=10), heroes=[]) for i in range(2, 6)]
     sim = GameSimulator(army, direct, mode='battlefield')
     for a in [direct] + extras:
-        a.simulator = sim
+        a.register_simulator(sim)
     class DummyEngine:
         def get_engaged_enemies(self, name):
             return [direct] + extras

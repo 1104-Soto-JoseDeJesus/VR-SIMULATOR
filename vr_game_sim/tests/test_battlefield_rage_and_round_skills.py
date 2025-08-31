@@ -74,12 +74,14 @@ def test_round_dependent_skill_resets_after_idle():
     engine.tick(1.0)  # round 2 triggers once
     assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 1
 
-    engine.set_direct_target("A", None)
+    # Kill the defender to end combat and allow idle reset
+    engine._armies['B'].army.current_troop_count = 0
     engine.tick(0.8)  # idle but below reset threshold
     engine.tick(0.2)  # exceed threshold and reset rounds/rage
     assert attacker.skill_last_triggered_round == {}
     assert attacker.skill_trigger_counts == {}
-    engine.engage("A", "B")
+    engine.add_army(make_basic_army("B2"), "blue", position=(2, 0), speed=0)
+    engine.engage("A", "B2")
     engine.tick(1.0)  # new round 1
     engine.tick(1.0)  # new round 2
 
@@ -98,12 +100,14 @@ def test_round_dependent_skill_resets_after_idle_in_arena():
     engine.tick(1.0)  # round 2 triggers once
     assert attacker.skill_trigger_counts.get("talent_godly_wrath", 0) == 1
 
-    engine.set_direct_target("A", None)
+    # Kill the defender to end combat and allow idle reset
+    engine._armies['B'].army.current_troop_count = 0
     engine.tick(0.8)
     engine.tick(0.2)
     assert attacker.skill_last_triggered_round == {}
     assert attacker.skill_trigger_counts == {}
-    engine.engage("A", "B")
+    engine.add_army(make_basic_army("B2"), "blue", position=(2, 0), speed=0)
+    engine.engage("A", "B2")
     engine.tick(1.0)
     engine.tick(1.0)
 
@@ -138,12 +142,14 @@ def test_first_strike_resets_after_idle():
     engine.tick(1.0)
     assert attacker.skill_trigger_counts.get("plugin_first_strike", 0) == 1
 
-    engine.set_direct_target("A", None)
+    # Remove the defender to reset the once-per-battle skill
+    engine._armies['B'].army.current_troop_count = 0
     engine.tick(0.8)
     engine.tick(0.2)
     assert attacker.skill_trigger_counts.get("plugin_first_strike", 0) == 0
 
-    engine.engage("A", "B")
+    engine.add_army(make_basic_army("B2"), "blue", position=(2, 0), speed=0)
+    engine.engage("A", "B2")
     engine.tick(1.0)
     assert attacker.skill_trigger_counts.get("plugin_first_strike", 0) == 1
 

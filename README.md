@@ -3,6 +3,16 @@
 This project contains a simplified VR battle simulator. The code lives inside the
 `vr_game_sim` package.
 
+## Highlights
+
+* Armies slide around their engaged target to keep at least 45° of separation,
+  even when blue forces arrive after the fight has begun.
+* An army maintains a single direct target until that foe is defeated to avoid
+  unintended retargeting.
+* Skill activations are listed under their own triggers section; combat action
+  tables now show only basic and counter attacks while still counting skill
+  damage in the totals.
+
 ## Requirements
 
 * Python 3.10+

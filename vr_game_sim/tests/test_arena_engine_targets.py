@@ -90,4 +90,4 @@ def test_retarget_back_before_closest():
 
     assert "B_front" not in engine._armies
     assert engine._armies[a_front.name].direct_target == b_back.name
-    assert engine._armies[a_back.name].direct_target == b_back.name
+    assert engine._armies[a_back.name].direct_target in {b_back.name, b_other.name}

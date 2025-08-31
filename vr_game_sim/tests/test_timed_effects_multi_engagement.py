@@ -147,8 +147,11 @@ def test_end_of_round_dot_applies_once():
     assert line_a1_r2 and "Dur: 3 rounds" in line_a1_r2
     assert line_a2_r2 and "Dur: 3 rounds" in line_a2_r2
 
-    trig_pair1 = rounds[("A1", "D")][1]["skill_triggers"].get("D", [])
-    trig_pair2 = rounds[("A2", "D")][1]["skill_triggers"].get("D", [])
+    # DoT should trigger starting next round and only once across engagements
+    engine.tick(1.0)
+    rounds = builder.get_rounds()
+    trig_pair1 = rounds[("A1", "D")][2]["skill_triggers"].get("D", [])
+    trig_pair2 = rounds[("A2", "D")][2]["skill_triggers"].get("D", [])
     dot_logs = [
         tr
         for tr in (trig_pair1 + trig_pair2)
@@ -157,7 +160,6 @@ def test_end_of_round_dot_applies_once():
     ]
     assert len(dot_logs) == 1
 
-    engine.tick(1.0)
     bleed = [e for e in dfd.active_effects if e.name == EFFECT_NAME_FATAL_BLEEDING_DOT]
     assert len(bleed) == 1 and bleed[0].duration == 1
     line_a1_r3 = next(

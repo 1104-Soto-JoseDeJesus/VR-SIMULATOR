@@ -626,8 +626,12 @@ class GameSimulator:
                 if army.effects_to_activate_next_round:
                     army.upcoming_effects.extend(army.effects_to_activate_next_round)
                     army.effects_to_activate_next_round.clear()
+                newly_activated = list(army.upcoming_effects)
                 army.activate_queued_effects()
                 army.decrement_effect_durations()
+                for eff in newly_activated:
+                    if eff in army.active_effects:
+                        eff.applied_this_round = True
 
             self.army1.started_last_round_with_active_shield = self.army1.started_round_with_active_shield
             self.army2.started_last_round_with_active_shield = self.army2.started_round_with_active_shield

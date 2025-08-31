@@ -32,10 +32,11 @@ class ReportBuilder:
         skill_triggers: Dict[str, List[Dict[str, Any]]],
         active_effects: List[str] | None = None,
     ) -> None:
+        filtered_actions = [a for a in combat_actions if not a.get("is_dot")]
         self.rounds.append(
             {
                 "round": round_num,
-                "combat_actions": copy.deepcopy(combat_actions),
+                "combat_actions": copy.deepcopy(filtered_actions),
                 "skill_triggers": copy.deepcopy(skill_triggers),
                 "active_effects": list(active_effects) if active_effects else [],
             }
@@ -44,7 +45,7 @@ class ReportBuilder:
         self.lines.append(self._c(f"Round {round_num}", Fore.CYAN))
         if active_effects:
             self.lines.extend(active_effects)
-        if combat_actions:
+        if filtered_actions:
             table = tabulate(
                 [
                     [
@@ -56,7 +57,7 @@ class ReportBuilder:
                         f"{a['final_hp_damage']:.0f}",
                         a['potential_kills'],
                     ]
-                    for a in combat_actions
+                    for a in filtered_actions
                 ],
                 headers=[
                     "Attacker",

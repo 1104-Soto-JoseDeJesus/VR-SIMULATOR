@@ -1,6 +1,6 @@
 [
   {
-    "army_name": "Helgar",
+    "army_name": "Helgar1",
     "team": "team1",
     "column": 0,
     "row": 0,
@@ -62,7 +62,7 @@
     }
   },
   {
-    "army_name": "Bjorn",
+    "army_name": "Bjorn1",
     "team": "team1",
     "column": 1,
     "row": 0,
@@ -155,7 +155,7 @@
     }
   },
   {
-    "army_name": "Arturenemy",
+    "army_name": "Arturenemy1",
     "team": "team1",
     "column": 0,
     "row": 1,
@@ -239,7 +239,7 @@
     }
   },
   {
-    "army_name": "Yvette",
+    "army_name": "Yvette1",
     "team": "team1",
     "column": 1,
     "row": 1,
@@ -337,7 +337,7 @@
     }
   },
   {
-    "army_name": "Laird",
+    "army_name": "Laird1",
     "team": "team2",
     "column": 0,
     "row": 0,
@@ -365,13 +365,13 @@
           ],
           "plugin_skill_ids": [
             "plugin_divine_blessing",
-            "plugin_blessed_negation"
+            "plugin_rest_and_counterattack"
           ],
           "skill_overrides": {
-            "plugin_blessed_negation": {
+            "plugin_rest_and_counterattack": {
               "config": {
-                "damage_factor": 630.0,
-                "rage_reduction": 90.0
+                "shield_factor": 300.0,
+                "heal_factor": 300.0
               }
             }
           }
@@ -390,15 +390,7 @@
           "plugin_skill_ids": [
             "plugin_freyas_blessing",
             "plugin_hymn_of_life"
-          ],
-          "skill_overrides": {
-            "plugin_hymn_of_life": {
-              "config": {
-                "hot_heal_factor": 260.0,
-                "hp_buff_magnitude": 0.09
-              }
-            }
-          }
+          ]
         }
       ],
       "team": "blue",
@@ -406,7 +398,7 @@
     }
   },
   {
-    "army_name": "Ivor",
+    "army_name": "Ivor1",
     "team": "team2",
     "column": 1,
     "row": 0,
@@ -434,22 +426,16 @@
           ],
           "plugin_skill_ids": [
             "plugin_lokis_trick",
-            "plugin_silencer"
+            "plugin_fiery_rage"
           ],
           "skill_overrides": {
             "plugin_lokis_trick": {
-              "trigger_chance": 0.16,
-              "config": {
-                "damage_factor": 270.0,
-                "rage_reduction_chance": 0.18,
-                "rage_reduction_amount": 60.0,
-                "buff_removal_chance": 0.18
-              }
+              "trigger_chance": 0.16
             },
-            "plugin_silencer": {
-              "trigger_chance": 0.19,
+            "plugin_fiery_rage": {
               "config": {
-                "damage_factor": 426.0
+                "burn_factor": 331.0,
+                "boosted_burn_factor": 663.0
               }
             }
           }
@@ -467,14 +453,14 @@
           ],
           "plugin_skill_ids": [
             "plugin_shield_support",
-            "plugin_rest_and_counterattack"
+            "plugin_thors_determination"
           ],
           "skill_overrides": {
-            "plugin_rest_and_counterattack": {
-              "trigger_chance": 0.1,
+            "plugin_thors_determination": {
               "config": {
-                "shield_factor": 300.0,
-                "heal_factor": 300.0
+                "buff_magnitude": 1.85,
+                "damage_reduction_magnitude": -0.13,
+                "damage_reduction_duration": 1.0
               }
             }
           }
@@ -485,7 +471,7 @@
     }
   },
   {
-    "army_name": "Verdandi",
+    "army_name": "Verdandi1",
     "team": "team2",
     "column": 0,
     "row": 1,
@@ -496,7 +482,7 @@
       "tier": 5,
       "count": 150000,
       "atk_mod": 0.96,
-      "def_mod": 0.66,
+      "def_mod": 0.68,
       "hp_mod": 0.16,
       "unrevivable_ratio": 0.5,
       "heroes": [
@@ -529,8 +515,16 @@
           ],
           "plugin_skill_ids": [
             "plugin_rage_leech",
-            "plugin_enrage"
-          ]
+            "plugin_blessed_negation"
+          ],
+          "skill_overrides": {
+            "plugin_blessed_negation": {
+              "config": {
+                "damage_factor": 630.0,
+                "rage_reduction": 90.0
+              }
+            }
+          }
         }
       ],
       "team": "blue",
@@ -538,7 +532,7 @@
     }
   },
   {
-    "army_name": "ArturFriend",
+    "army_name": "ArturFriend1",
     "team": "team2",
     "column": 1,
     "row": 1,
@@ -565,8 +559,8 @@
             "base_skill_incineration"
           ],
           "plugin_skill_ids": [
-            "plugin_fiery_rage",
-            "plugin_blow_of_chaos"
+            "plugin_silencer",
+            "plugin_enrage"
           ],
           "skill_overrides": {
             "base_skill_incineration": {
@@ -576,16 +570,10 @@
                 "burn_boost_magnitude": 0.2
               }
             },
-            "plugin_fiery_rage": {
+            "plugin_silencer": {
+              "trigger_chance": 0.19,
               "config": {
-                "burn_factor": 198.0,
-                "boosted_burn_factor": 397.0
-              }
-            },
-            "plugin_blow_of_chaos": {
-              "trigger_chance": 0.18,
-              "config": {
-                "damage_factor": 600.0
+                "damage_factor": 426.0
               }
             }
           }
@@ -614,8 +602,8 @@
             },
             "plugin_enchanted_pursuit": {
               "config": {
-                "burn_factor": 155.0,
-                "bleed_factor": 155.0
+                "burn_factor": 255.0,
+                "bleed_factor": 255.0
               }
             }
           }

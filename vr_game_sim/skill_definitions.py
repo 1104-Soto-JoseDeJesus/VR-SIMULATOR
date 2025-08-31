@@ -720,7 +720,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_inspiring_dance,
         "config": {"bleed_factor": 400.0, "bleed_duration": 1,
-                   "ally_buff_magnitude": 0.50, "ally_buff_duration": 2}
+                   "ally_buff_magnitude": 0.50, "ally_buff_duration": 4}
     },
     # --- Jens Base Skills ---
     "base_skill_divine_energize": {
@@ -1223,7 +1223,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "config": {"trigger_interval": 9, "buff_magnitude": 2.25, "buff_duration": 1,
                    "buff_activate_next_round": True, "buff_stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
                    "buff_name": EFFECT_NAME_THORS_DETERMINATION_BUFF,
-                   "damage_reduction_magnitude": -0.15, "damage_reduction_duration": 2,
+                   "damage_reduction_magnitude": -0.15, "damage_reduction_duration": 1,
                    "damage_reduction_activate_next_round": True,
                    "damage_reduction_name": EFFECT_NAME_THORS_DETERMINATION_DMG_REDUCTION}
     },

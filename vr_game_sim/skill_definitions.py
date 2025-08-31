@@ -719,7 +719,8 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "base_skill_inspiring_dance", "name": "Inspiring Dance", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_inspiring_dance,
-        "config": {"bleed_factor": 400.0, "bleed_duration": 1}
+        "config": {"bleed_factor": 400.0, "bleed_duration": 1,
+                   "ally_buff_magnitude": 0.50, "ally_buff_duration": 2}
     },
     # --- Jens Base Skills ---
     "base_skill_divine_energize": {

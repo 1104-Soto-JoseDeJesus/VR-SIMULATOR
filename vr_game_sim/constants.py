@@ -113,6 +113,7 @@ EFFECT_NAME_DESPERATE_STRIKE_BURN = "Desperate Strike Burn"
 EFFECT_NAME_GREAT_MORALE_BUFF = "Great Morale Attack Buff"
 EFFECT_NAME_DRUMMING_DISTURBANCE_HOT = "Drumming Disturbance Heal"
 EFFECT_NAME_DRUMMING_DISTURBANCE_RAGE_REDUCTION = "Drumming Disturbance Rage Damage Reduction"
+EFFECT_NAME_INSPIRING_DANCE_BASIC_BUFF = "Inspiring Dance Basic Attack Buff"
 
 # --- Jens Skill Effect Names ---
 EFFECT_NAME_GODLY_WRATH_COOP_RATE = "Godly Wrath Cooperation Boost"

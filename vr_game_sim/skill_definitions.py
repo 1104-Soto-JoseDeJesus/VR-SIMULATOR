@@ -391,7 +391,8 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
         "effects_to_apply": [{
             "effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_HELLFIRE_SHELTER_COUNTER_REDUCTION,
-            "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST, "magnitude": -0.40, "duration": -1
+            "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER, "magnitude": -0.40, "duration": -1,
+            "config_filter": {"attack_type": "COUNTER"}
         }]
     },
     "talent_pent_up_anger": {

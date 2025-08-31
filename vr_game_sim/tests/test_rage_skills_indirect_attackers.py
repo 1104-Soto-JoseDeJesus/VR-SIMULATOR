@@ -20,7 +20,7 @@ def test_sacred_blade_hits_indirect_attackers(monkeypatch):
     extras = [Army(f'E{i}', Unit('archers', 5, initial_count=10), heroes=[]) for i in range(2,5)]
     sim = GameSimulator(army, direct, mode='battlefield')
     for a in [direct] + extras:
-        a.simulator = sim
+        a.register_simulator(sim)
     class DummyEngine:
         def get_engaged_enemies(self, name):
             return [direct] + extras
@@ -45,7 +45,7 @@ def test_paralyzing_terror_respects_angle():
     ]
     sim = GameSimulator(army, direct, mode='battlefield')
     for a in [direct] + extras:
-        a.simulator = sim
+        a.register_simulator(sim)
     class DummyEngine:
         def __init__(self):
             self._armies = {
@@ -73,7 +73,7 @@ def test_incineration_hits_indirect_attackers(monkeypatch):
     extras = [Army(f'E{i}', Unit('archers', 5, initial_count=10), heroes=[]) for i in range(2,5)]
     sim = GameSimulator(army, direct, mode='battlefield')
     for a in [direct] + extras:
-        a.simulator = sim
+        a.register_simulator(sim)
     class DummyEngine:
         def get_engaged_enemies(self, name):
             return [direct] + extras

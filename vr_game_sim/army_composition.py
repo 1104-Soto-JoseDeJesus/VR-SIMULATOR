@@ -43,7 +43,8 @@ class Army:
     unit: Unit
     heroes: List[Hero] = field(default_factory=list)
     unrevivable_ratio: float = 0.5
-    simulator: Optional[GameSimulatorRef] = None
+    simulator: Optional[GameSimulatorRef] = field(init=False, default=None)
+    simulators: List[GameSimulatorRef] = field(init=False, default_factory=list)
 
     current_troop_count: float = field(init=False, default=0.0)
     active_effects: List[EffectInstance] = field(init=False, default_factory=list)
@@ -85,6 +86,11 @@ class Army:
 
     def __post_init__(self):
         self.reset_for_new_battle()
+
+    def register_simulator(self, simulator: GameSimulatorRef):
+        self.simulator = simulator
+        if simulator not in self.simulators:
+            self.simulators.append(simulator)
 
     def increment_skill_trigger_count(self, skill_id: str):
         self.skill_trigger_counts[skill_id] = self.skill_trigger_counts.get(skill_id, 0) + 1
@@ -207,23 +213,21 @@ class Army:
             lost_round = round(lost_float)
 
             unrevivable_increase = round(lost_round * self.unrevivable_ratio)
-            self.unrevivable_troops += unrevivable_increase
-
-            if self.simulator:
+            for sim in self.simulators:
                 contributors: Dict[str, float] = {}
-                for action in self.simulator.round_combat_actions_log:
+                for action in sim.round_combat_actions_log:
                     if action.get("defender_name") == self.name:
                         dmg = action.get("final_hp_damage", 0)
                         if dmg > 0:
                             atk = action.get("attacker_name", "Unknown")
                             contributors[atk] = contributors.get(atk, 0.0) + dmg
-                self.simulator._log_skill_trigger(
+                sim._log_skill_trigger(
                     self,
                     "Damage Commitment",
                     f"Commits {self.pending_hp_damage_this_round:.0f} pending HP damage, resulting in {lost_round} troops lost. {unrevivable_increase} unrevivable.",
                 )
                 for src, dmg in contributors.items():
-                    self.simulator._log_skill_trigger(self, "  ↳", f"{src} committed {dmg:.0f} damage")
+                    sim._log_skill_trigger(self, "  ↳", f"{src} committed {dmg:.0f} damage")
             self.current_troop_count = max(0, self.current_troop_count - lost_round)
         # self.pending_hp_damage_this_round = 0.0 # Resetting this at start of round in game_simulator.py
 
@@ -239,11 +243,12 @@ class Army:
                 if actual_healed_hp > 0:
                     healed_troops_float = actual_healed_hp / hp_per_troop
                     healed_troops_round = round(healed_troops_float)
-                    if self.simulator: self.simulator._log_skill_trigger(self, "Healing Commitment",
-                                                                         f"Commits {actual_healed_hp:.0f} HP healing, restoring {healed_troops_round} troops. Unrevivable: {round(self.unrevivable_troops)}")
-                    self.current_troop_count = min(self.current_troop_count + healed_troops_round, max_healable_count)
-        # self.pending_hp_healing_this_round = 0.0 # Resetting this at start of round in game_simulator.py
-
+                    for sim in self.simulators:
+                        sim._log_skill_trigger(
+                            self,
+                            "Healing Commitment",
+                            f"Commits {actual_healed_hp:.0f} HP healing, restoring {healed_troops_round} troops. Unrevivable: {round(self.unrevivable_troops)}",
+                        )
     def calculate_and_add_pending_healing(self, heal_factor: float, healer_army: 'Army', opponent_of_healer: 'Army',
                                           skill_heal_adjustment_magnitude: float = 0.0) -> float:
         if not self.simulator or healer_army.current_troop_count <= 0: return 0.0
@@ -871,6 +876,8 @@ class Army:
         return False
 
     def reset_for_new_battle(self):
+        self.simulator = None
+        self.simulators.clear()
         self.current_troop_count = float(self.unit.initial_count)
         self.active_effects.clear()
         self.upcoming_effects.clear()

@@ -749,9 +749,15 @@ class BattlefieldEngine:
                 to_remove.append(key)
         for key in to_remove:
             atk, dfd = key
+            sim = self._engagements.pop(key, None)
             self._graph[atk].discard(dfd)
             self._graph[dfd].discard(atk)
-            self._engagements.pop(key, None)
+            if sim:
+                for army in (sim.army1, sim.army2):
+                    if sim in army.simulators:
+                        army.simulators.remove(sim)
+                    if army.simulator is sim:
+                        army.simulator = army.simulators[-1] if army.simulators else None
 
         defeated = [name for name, ctx in list(self._armies.items())
                      if ctx.army.current_troop_count <= 0]
@@ -785,6 +791,8 @@ class BattlefieldEngine:
         sim.round += 1
 
         atk, dfd = sim.army1, sim.army2
+        atk.register_simulator(sim)
+        dfd.register_simulator(sim)
 
         # Determine if any rage skills were scheduled for this round
         for army in (atk, dfd):

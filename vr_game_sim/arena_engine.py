@@ -205,6 +205,6 @@ class ArenaEngine(BattlefieldEngine):
                 targets.pop(0)
             if targets:
                 self._row_fallbacks[attacker] = targets
-                self.set_direct_target(attacker, targets[0])
+                self.set_direct_target(attacker, targets[0], force=True)
             else:
                 self._row_fallbacks.pop(attacker, None)

@@ -303,7 +303,14 @@ class BattlefieldEngine:
     # ------------------------------------------------------------------
     # Engagement handling
     # ------------------------------------------------------------------
-    def set_direct_target(self, attacker: str, defender: Optional[str], *, pursue: bool = True) -> None:
+    def set_direct_target(
+        self,
+        attacker: str,
+        defender: Optional[str],
+        *,
+        pursue: bool = True,
+        force: bool = False,
+    ) -> None:
         """Assign ``defender`` as the direct target for ``attacker``.
 
         ``defender`` may be ``None`` to clear an existing target.  Engagement
@@ -318,6 +325,24 @@ class BattlefieldEngine:
 
         atk_ctx = self._armies[attacker]
         old_target = atk_ctx.direct_target
+
+        # Prevent premature target swapping.  If the attacker already has a
+        # living target, ignore attempts to assign a different defender or to
+        # clear the engagement manually.  Retargeting only occurs after the
+        # original target has been removed from the battlefield unless
+        # ``force`` is set.
+        if not force:
+            if defender is not None and old_target and defender != old_target:
+                existing = self._armies.get(old_target)
+                if existing and existing.army.current_troop_count > 0:
+                    return
+            if (
+                defender is None
+                and old_target
+                and old_target in self._armies
+                and self._armies[old_target].army.current_troop_count > 0
+            ):
+                return
         for key in list(self._engagements.keys()):
             if key[0] == attacker and key[1] != old_target:
                 self._engagements.pop(key, None)

@@ -65,8 +65,10 @@ def test_round_and_rage_stop_after_idle():
     assert ctx_a.internal_round == 3
     assert army_a.current_rage == 300
 
-    engine.set_direct_target('A', None)  # disengage at t=3
-    engine.tick(0.5)  # any idle time triggers reset
+    # Kill the defender to end the engagement; idle time resets counters
+    engine._armies['B'].army.current_troop_count = 0
+    engine.tick(1.0)
+    ctx_a = engine._armies['A']
     assert ctx_a.internal_round == 0
     assert army_a.current_rage == 0
     assert ctx_a.last_engaged_time == pytest.approx(3.0)

@@ -107,7 +107,7 @@ def test_retarget_randomly_selects_between_attackers_seed1():
     assert engine._armies['A'].direct_target == 'B'
 
 
-def test_retarget_clears_previous_engagement():
+def test_engage_does_not_swap_target_when_existing_alive():
     engine = BattlefieldEngine()
     a = make_army('A')
     b = make_army('B')
@@ -120,10 +120,11 @@ def test_retarget_clears_previous_engagement():
     engine.engage('B', 'A')
     engine.tick(1.0)
 
+    # Attempting to retarget while B is still alive should be ignored
     engine.engage('A', 'C')
     engine.tick(1.0)
 
-    assert engine._armies['A'].direct_target == 'C'
+    assert engine._armies['A'].direct_target == 'B'
     assert engine._armies['B'].direct_target == 'A'
-    assert ('B', 'A') in engine._engagements
-    assert ('A', 'B') not in engine._engagements
+    assert ('A', 'B') in engine._engagements
+    assert ('A', 'C') not in engine._engagements

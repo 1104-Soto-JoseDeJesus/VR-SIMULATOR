@@ -680,10 +680,7 @@ class BattlefieldEngine:
         for dfd, attackers in new_engagements.items():
             def_ctx = self._armies[dfd]
             if def_ctx.direct_target is None or (def_ctx.direct_target, dfd) not in self._engagements:
-                chosen = attackers[0]
-                def_ctx.direct_target = chosen
-                def_ctx.pursue_target = False
-                def_ctx.path.clear()
+                self.set_direct_target(dfd, attackers[0], pursue=False)
 
         # Reset per-round bookkeeping so reactive/round based skills only
         # fire once across all engagements and rage gain can be tracked.

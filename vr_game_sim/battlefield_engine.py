@@ -388,8 +388,13 @@ class BattlefieldEngine:
             atk_ctx.path.clear()
             atk_ctx.path_start = None
 
-        start_time = int(self.time_elapsed) + 1
-        self._pending_engagements[(attacker, defender)] = float(start_time)
+        reverse_key = (defender, attacker)
+        if (
+            reverse_key not in self._pending_engagements
+            and reverse_key not in self._engagements
+        ):
+            start_time = int(self.time_elapsed) + 1
+            self._pending_engagements[(attacker, defender)] = float(start_time)
 
         # If the defender is idle, keep them stationary until combat begins but
         # do not preemptively assign a direct target.  The first attacker to

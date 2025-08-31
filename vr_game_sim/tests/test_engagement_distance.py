@@ -41,16 +41,16 @@ def test_mutual_approach_engages_when_close():
 
     engine.engage('A', 'B')
     engine.engage('B', 'A')
+    # Only a single pending engagement should be tracked
     assert ('A', 'B') in engine._pending_engagements
-    assert ('B', 'A') in engine._pending_engagements
+    assert ('B', 'A') not in engine._pending_engagements
 
     for _ in range(3):
         engine.tick(1.0)
         assert ('A', 'B') not in engine._engagements
         assert ('B', 'A') not in engine._engagements
         assert ('A', 'B') in engine._pending_engagements
-        assert ('B', 'A') in engine._pending_engagements
 
     engine.tick(1.0)
     assert ('A', 'B') in engine._engagements
-    assert ('B', 'A') in engine._engagements
+    assert ('B', 'A') not in engine._engagements

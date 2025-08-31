@@ -57,7 +57,10 @@ def _assert_effect_present(army: Army) -> None:
     assert len(dmg_red_effects) == 1
     eff = dmg_red_effects[0]
     assert eff.magnitude == pytest.approx(-0.15)
-    assert eff.duration == 2
+    expected_duration = SKILL_REGISTRY_GLOBAL[
+        "plugin_thors_determination"
+    ]["config"]["damage_reduction_duration"]
+    assert eff.duration == expected_duration
     # Ensure original buff still scheduled
     assert any(
         e.name == EFFECT_NAME_THORS_DETERMINATION_BUFF

@@ -238,3 +238,37 @@ def test_current_position_used_for_reposition():
     ang2 = angle_between(engine, 'A2', 'D')
     diff = (ang2 - ang1 + 180) % 360 - 180
     assert diff == pytest.approx(-45, abs=1)
+
+
+def test_blue_attackers_reposition_when_initially_defenders():
+    engine = BattlefieldEngine()
+    red_unit = Unit('pikemen', 5, initial_count=100000)
+    red = Army('R', red_unit)
+    blue1_unit = Unit('pikemen', 5, initial_count=100000)
+    blue1 = Army('B1', blue1_unit)
+    blue2_unit = Unit('pikemen', 5, initial_count=100000)
+    blue2 = Army('B2', blue2_unit)
+
+    engine.add_army(red, 'red', position=(0, 0), speed=0)
+    engine.add_army(blue1, 'blue', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    angle = math.radians(5)
+    engine.add_army(
+        blue2,
+        'blue',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+
+    # Mimic arena start where the red army targets B1 before B1 targets red
+    engine.set_direct_target('R', 'B1')
+    engine.set_direct_target('B1', 'R')
+    engine.set_direct_target('B2', 'R')
+
+    engine.tick(1.0)
+    engine.tick(1.0)
+    engine.tick(3.0)
+
+    ang1 = angle_between(engine, 'B1', 'R')
+    ang2 = angle_between(engine, 'B2', 'R')
+    diff = (ang2 - ang1 + 180) % 360 - 180
+    assert diff == pytest.approx(-45, abs=1)

@@ -105,3 +105,25 @@ def test_retarget_randomly_selects_between_attackers_seed1():
     engine.tick(1.0)
 
     assert engine._armies['A'].direct_target == 'B'
+
+
+def test_retarget_clears_previous_engagement():
+    engine = BattlefieldEngine()
+    a = make_army('A')
+    b = make_army('B')
+    c = make_army('C')
+    engine.add_army(a, 'red', speed=0)
+    engine.add_army(b, 'blue', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    engine.add_army(c, 'blue', position=(ENGAGEMENT_DISTANCE, 10), speed=0)
+
+    engine.engage('A', 'B')
+    engine.engage('B', 'A')
+    engine.tick(1.0)
+
+    engine.engage('A', 'C')
+    engine.tick(1.0)
+
+    assert engine._armies['A'].direct_target == 'C'
+    assert engine._armies['B'].direct_target == 'A'
+    assert ('B', 'A') in engine._engagements
+    assert ('A', 'B') not in engine._engagements

@@ -318,28 +318,38 @@ class BattlefieldEngine:
 
         atk_ctx = self._armies[attacker]
         old_target = atk_ctx.direct_target
+        for key in list(self._engagements.keys()):
+            if key[0] == attacker and key[1] != old_target:
+                self._engagements.pop(key, None)
+                if self._report_builder is not None:
+                    self._report_builder.clear_builder(*key)
+                other = key[1]
+                if (other, attacker) not in self._engagements:
+                    self._graph[attacker].discard(other)
+                    self._graph[other].discard(attacker)
+        for key in list(self._pending_engagements.keys()):
+            if key[0] == attacker and key[1] != old_target:
+                self._pending_engagements.pop(key, None)
         if old_target:
-            # Remove active engagement if one exists
             if (attacker, old_target) in self._engagements:
                 self._engagements.pop((attacker, old_target), None)
-                self._graph[attacker].discard(old_target)
-                self._graph[old_target].discard(attacker)
                 if self._report_builder is not None:
                     self._report_builder.clear_builder(attacker, old_target)
-            # Remove any pending engagement for the old target
+                if (old_target, attacker) not in self._engagements:
+                    self._graph[attacker].discard(old_target)
+                    self._graph[old_target].discard(attacker)
             self._pending_engagements.pop((attacker, old_target), None)
 
         if defender is None:
             if old_target:
-                rev_ctx = self._armies.get(old_target)
-                if rev_ctx and rev_ctx.direct_target == attacker:
-                    self._engagements.pop((old_target, attacker), None)
-                    self._pending_engagements.pop((old_target, attacker), None)
-                    self._graph[old_target].discard(attacker)
-                    self._graph[attacker].discard(old_target)
+                if (attacker, old_target) in self._engagements:
+                    self._engagements.pop((attacker, old_target), None)
                     if self._report_builder is not None:
-                        self._report_builder.clear_builder(old_target, attacker)
-                    rev_ctx.direct_target = None
+                        self._report_builder.clear_builder(attacker, old_target)
+                    if (old_target, attacker) not in self._engagements:
+                        self._graph[attacker].discard(old_target)
+                        self._graph[old_target].discard(attacker)
+                self._pending_engagements.pop((attacker, old_target), None)
             atk_ctx.direct_target = None
             atk_ctx.pursue_target = False
             atk_ctx.arc_target_angle = None
@@ -544,14 +554,18 @@ class BattlefieldEngine:
         # closely in angle around their defender.  Later arrivals slide along
         # the circle to maintain at least 20 degrees separation and end up 45
         # degrees away from the unit they were crowding.
-        defenders: Dict[str, List[_ArmyContext]] = defaultdict(list)
-        for (atk, dfd), _ in self._engagements.items():
-            defenders[dfd].append(self._armies[atk])
+        target_groups: Dict[str, List[_ArmyContext]] = defaultdict(list)
+        for name, ctx in self._armies.items():
+            tgt = ctx.direct_target
+            if not tgt:
+                continue
+            if (name, tgt) in self._engagements or (tgt, name) in self._engagements:
+                target_groups[tgt].append(ctx)
 
-        for dfd, attackers in defenders.items():
+        for tgt, attackers in target_groups.items():
             if len(attackers) < 2:
                 continue
-            def_ctx = self._armies[dfd]
+            def_ctx = self._armies[tgt]
             dx, dy = def_ctx.position
             attackers.sort(key=lambda c: c.engaged_at)
             for idx in range(1, len(attackers)):

@@ -1,6 +1,6 @@
 from typing import Tuple, List, Optional, Dict, Any
 import random
-from math import atan2, degrees
+from math import atan2, degrees, hypot
 
 from ..enums import EffectType, StatType, SkillTriggerType, DoTType
 from ..skill_system import SkillDefinition, ArmyRef, GameSimulatorRef
@@ -92,6 +92,26 @@ def handle_rage_vital_blessing(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinit
         if healed_amount > 0:
             eff_hpnd = True
             logs.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_fctr}).", None))
+        if sim.mode in ("battlefield", "arena"):
+            engine = getattr(sim, "parent_engine", None)
+            if engine:
+                ctx_self = engine._armies.get(army.name)
+                if ctx_self:
+                    sx, sy = ctx_self.position
+                    team = ctx_self.team
+                    allies: List[ArmyRef] = []
+                    for name, ctx in engine._armies.items():
+                        if ctx.team == team and name != army.name:
+                            ax, ay = ctx.position
+                            if hypot(ax - sx, ay - sy) <= 100:
+                                allies.append(ctx.army)
+                    if len(allies) > 4:
+                        allies = random.sample(allies, 4)
+                    for ally in allies:
+                        healed_other = ally.calculate_and_add_pending_healing(heal_fctr, army, opp)
+                        if healed_other > 0:
+                            eff_hpnd = True
+                            logs.append((f"Heals {ally.name} for {healed_other:.0f} HP (Factor: {heal_fctr}).", None))
     buff_dets = sk_cfg.get("buff_details")
     if buff_dets:
         buff_data_copy = buff_dets.copy()
@@ -923,6 +943,42 @@ def handle_rage_inspiring_dance(
                  None)
             )
 
+    if simulator.mode in ("battlefield", "arena"):
+        engine = getattr(simulator, "parent_engine", None)
+        if engine:
+            ctx_self = engine._armies.get(triggering_army.name)
+            if ctx_self:
+                sx, sy = ctx_self.position
+                team = ctx_self.team
+                allies: List[ArmyRef] = []
+                for name, ctx in engine._armies.items():
+                    if ctx.team == team and name != triggering_army.name:
+                        ax, ay = ctx.position
+                        if hypot(ax - sx, ay - sy) <= 100:
+                            allies.append(ctx.army)
+                if len(allies) > 5:
+                    allies = random.sample(allies, 5)
+                buff_mag = skill_config.get("ally_buff_magnitude", 0.5)
+                buff_dur = skill_config.get("ally_buff_duration", 2)
+                for ally in allies:
+                    buff_data = {
+                        "effect_type": EffectType.STAT_MOD,
+                        "name": EFFECT_NAME_INSPIRING_DANCE_BASIC_BUFF,
+                        "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
+                        "magnitude": buff_mag,
+                        "duration": buff_dur,
+                        "activate_next_round": True,
+                    }
+                    created_buff = ally._create_and_add_single_effect(
+                        buff_data, skill_id, triggering_army, ally, opponent_army
+                    )
+                    if created_buff:
+                        an_effect_happened = True
+                        log_details.append(
+                            (f"Grants {ally.name} Buff: {created_buff.get_functionality_description()} for {buff_dur + 1} round(s) (starting next round).",
+                             None)
+                        )
+
     return an_effect_happened, log_details, damage_dealt_flag
 
 
@@ -956,6 +1012,36 @@ def handle_rage_skill_heavenly_descent(
             (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
              {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
         )
+        if simulator.mode in ("battlefield", "arena"):
+            engine = getattr(simulator, "parent_engine", None)
+            if engine:
+                ctx_self = engine._armies.get(triggering_army.name)
+                if ctx_self:
+                    sx, sy = ctx_self.position
+                    team_self = ctx_self.team
+                    extras: List[ArmyRef] = []
+                    for name, ctx in engine._armies.items():
+                        if ctx.team != team_self and name != opponent_army.name:
+                            ex, ey = ctx.position
+                            if hypot(ex - sx, ey - sy) <= 100:
+                                extras.append(ctx.army)
+                    if len(extras) > 4:
+                        extras = random.sample(extras, 4)
+                    for extra in extras:
+                        hp2, abs2, kills2, raw2 = simulator._calculate_generic_skill_damage(
+                            triggering_army, extra, damage_factor,
+                            is_hero2_rage_skill=is_hero2_delayed_rage,
+                            source_skill_def=skill_def
+                        )
+                        if hp2 > 0:
+                            extra.pending_hp_damage_this_round += hp2
+                            damage_dealt_flag = True
+                        if hp2 > 0 or abs2 > 0:
+                            an_effect_happened = True
+                        log_details.append(
+                            (f"Deals damage (Factor: {damage_factor}) to {extra.name}.",
+                             {"damage_done_hp": round(raw2), "absorbed_hp": round(abs2), "potential_kills": kills2})
+                        )
 
     vul_mag = skill_config.get("vulnerability_magnitude", 0.0)
     vul_dur = skill_config.get("vulnerability_duration", 4)

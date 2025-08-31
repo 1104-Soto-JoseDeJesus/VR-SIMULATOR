@@ -103,7 +103,7 @@ def handle_rage_vital_blessing(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinit
                     for name, ctx in engine._armies.items():
                         if ctx.team == team and name != army.name:
                             ax, ay = ctx.position
-                            if hypot(ax - sx, ay - sy) <= 100:
+                            if hypot(ax - sx, ay - sy) <= 150:
                                 allies.append(ctx.army)
                     if len(allies) > 4:
                         allies = random.sample(allies, 4)
@@ -954,7 +954,7 @@ def handle_rage_inspiring_dance(
                 for name, ctx in engine._armies.items():
                     if ctx.team == team and name != triggering_army.name:
                         ax, ay = ctx.position
-                        if hypot(ax - sx, ay - sy) <= 100:
+                        if hypot(ax - sx, ay - sy) <= 150:
                             allies.append(ctx.army)
                 if len(allies) > 5:
                     allies = random.sample(allies, 5)
@@ -1023,7 +1023,7 @@ def handle_rage_skill_heavenly_descent(
                     for name, ctx in engine._armies.items():
                         if ctx.team != team_self and name != opponent_army.name:
                             ex, ey = ctx.position
-                            if hypot(ex - sx, ey - sy) <= 100:
+                            if hypot(ex - sx, ey - sy) <= 150:
                                 extras.append(ctx.army)
                     if len(extras) > 4:
                         extras = random.sample(extras, 4)

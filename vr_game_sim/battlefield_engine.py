@@ -722,9 +722,14 @@ class BattlefieldEngine:
         for sim in self._engagements.values():
             if sim.report_builder:
                 active_lines = sim._log_active_effects_for_report()
+                combat_actions_for_report = [
+                    action
+                    for action in sim.round_combat_actions_log
+                    if action.get("action_type") in ("Basic Attack", "Counter Attack")
+                ]
                 sim.report_builder.emit_round(
                     sim.round,
-                    sim.round_combat_actions_log,
+                    combat_actions_for_report,
                     sim.round_skill_triggers_log,
                     active_effects=active_lines,
                 )

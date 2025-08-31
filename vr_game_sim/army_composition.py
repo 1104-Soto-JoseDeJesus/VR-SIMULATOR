@@ -414,10 +414,16 @@ class Army:
         if canonical_effect_name == EFFECT_NAME_DISARM_DEBUFF: final_config["prevents_basic_attack"] = True
         if canonical_effect_name == EFFECT_NAME_SILENCE_DEBUFF: final_config["prevents_rage_skill_cast"] = True
 
+        if owner_army:
+            final_config.setdefault("source_army_name", owner_army.name)
         inst = EffectInstance(
-            id=uuid.uuid4(), source_skill_id=source_skill_id, name=canonical_effect_name,
-            effect_type=effect_data["effect_type"], duration=new_effect_duration,
-            magnitude=magnitude, config=final_config
+            id=uuid.uuid4(),
+            source_skill_id=source_skill_id,
+            name=canonical_effect_name,
+            effect_type=effect_data["effect_type"],
+            duration=new_effect_duration,
+            magnitude=magnitude,
+            config=final_config,
         )
         if activate_next_round_flag:
             target_army.effects_to_activate_next_round.append(inst)
@@ -544,6 +550,18 @@ class Army:
                     if hp_damage_to_troops_dot > 0:
                         self.pending_hp_damage_this_round += hp_damage_to_troops_dot
 
+                    attacker_name = effect.config.get("source_army_name", "Unknown")
+                    if self.simulator and (hp_damage_to_troops_dot > 0 or absorbed_by_shield_dot > 0):
+                        self.simulator.round_combat_actions_log.append({
+                            "attacker_name": attacker_name,
+                            "defender_name": self.name,
+                            "action_type": f"{effect.name} (DoT)",
+                            "damage_potential_hp": dot_damage_after_target_debuffs,
+                            "absorbed_hp": absorbed_by_shield_dot,
+                            "final_hp_damage": hp_damage_to_troops_dot,
+                            "potential_kills": 0,
+                        })
+
                     dot_type_str = dot_type.value if isinstance(dot_type, DoTType) else "DoT"
                     log_msg = f"takes {hp_damage_to_troops_dot:.0f} HP ({dot_type_str}) damage (pending)."
                     if absorbed_by_shield_dot > 0:
@@ -552,7 +570,15 @@ class Army:
                     log_msg += f" Potential: {dot_damage_after_target_debuffs:.0f}"
                     if is_special_dot:
                         log_msg += f" (Base: {base_dot_damage_for_log:.0f}, SpecificMult: {final_dot_multiplier_for_log:.2f})"
-                    self.simulator._log_skill_trigger(self, effect.name, log_msg)
+                    self.simulator._log_skill_trigger(
+                        self,
+                        effect.name,
+                        log_msg,
+                        damage_details={
+                            "damage_done_hp": round(dot_damage_after_target_debuffs),
+                            "absorbed_hp": round(absorbed_by_shield_dot),
+                        },
+                    )
 
             elif effect.effect_type == EffectType.HEAL_OVER_TIME and effect.magnitude > 0:
                 if opponent:

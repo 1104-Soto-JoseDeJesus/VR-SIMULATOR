@@ -195,11 +195,30 @@ class ArenaEngine(BattlefieldEngine):
                 self.set_waypoint(army.name, target)
 
     def _remove_army(self, name: str) -> None:
-        """Override to honour row based fallback targeting."""
-        affected = [a for a, targets in self._row_fallbacks.items() if name in targets]
-        super()._remove_army(name)
+        """Override removal to apply row-based fallbacks before auto retargeting."""
+        ctx = self._armies.pop(name, None)
+        if ctx is None:
+            return
+        self._graph.pop(name, None)
+        for neighbours in self._graph.values():
+            neighbours.discard(name)
+        for key in list(self._pending_engagements.keys()):
+            if name in key:
+                self._pending_engagements.pop(key, None)
+
+        lost: List[str] = []
+        for other_name, other in self._armies.items():
+            if other.direct_target == name:
+                other.direct_target = None
+                other.pursue_target = False
+                other.path.clear()
+                lost.append(other_name)
+
+        self._state_cache.pop(name, None)
+        self._pending_state_updates.pop(name, None)
+
         self._row_fallbacks.pop(name, None)
-        for attacker in affected:
+        for attacker in lost:
             targets = [t for t in self._row_fallbacks.get(attacker, []) if t != name]
             while targets and targets[0] not in self._armies:
                 targets.pop(0)
@@ -208,3 +227,4 @@ class ArenaEngine(BattlefieldEngine):
                 self.set_direct_target(attacker, targets[0])
             else:
                 self._row_fallbacks.pop(attacker, None)
+                self._auto_select_closest_enemy(attacker)

@@ -192,6 +192,35 @@ def test_no_slide_when_more_than_25_degrees_anticlockwise():
     assert diff == pytest.approx(30, abs=1)
 
 
+def test_blue_team_attackers_reposition_like_red():
+    engine = BattlefieldEngine()
+    atk1 = make_army('B1')
+    atk2 = make_army('B2')
+    dfd = make_army('R')
+
+    engine.add_army(atk1, 'blue', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    angle = math.radians(5)
+    engine.add_army(
+        atk2,
+        'blue',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    engine.add_army(dfd, 'red', position=(0, 0), speed=0)
+
+    engine.engage('B1', 'R')
+    engine.tick(1.0)
+    engine.engage('B2', 'R')
+    engine.tick(1.0)
+
+    engine.tick(8.0)
+
+    ang1 = angle_between(engine, 'B1', 'R')
+    ang2 = angle_between(engine, 'B2', 'R')
+    diff = (ang2 - ang1 + 180) % 360 - 180
+    assert diff == pytest.approx(-45, abs=1)
+
+
 def test_same_angle_attacker_slides_clockwise():
     engine = BattlefieldEngine()
     atk1 = make_army('A1')

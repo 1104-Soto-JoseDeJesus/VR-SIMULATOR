@@ -91,3 +91,19 @@ def test_retarget_back_before_closest():
     assert "B_front" not in engine._armies
     assert engine._armies[a_front.name].direct_target == b_back.name
     assert engine._armies[a_back.name].direct_target == b_back.name
+
+
+def test_arena_retains_initial_direct_target():
+    engine = ArenaEngine()
+    a = make_army("A")
+    b = make_army("B")
+    c = make_army("C")
+
+    engine.add_army(a, "red", position=(0.0, 0.0), speed=0)
+    engine.add_army(b, "blue", position=(0.0, 200.0), speed=0)
+    engine.add_army(c, "blue", position=(0.0, 400.0), speed=0)
+
+    engine.engage("A", "B")
+    engine.engage("A", "C")
+
+    assert engine._armies[a.name].direct_target == b.name

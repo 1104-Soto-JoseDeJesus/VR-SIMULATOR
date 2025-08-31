@@ -317,6 +317,15 @@ class BattlefieldEngine:
             raise KeyError("Attacker must be registered before engagement")
 
         atk_ctx = self._armies[attacker]
+        if (
+            self.mode == "arena"
+            and defender is not None
+            and atk_ctx.direct_target is not None
+            and atk_ctx.direct_target != defender
+            and atk_ctx.direct_target in self._armies
+        ):
+            # In arena mode retain the first direct target until it is defeated.
+            return
         old_target = atk_ctx.direct_target
         if old_target:
             # Remove active engagement if one exists
@@ -544,27 +553,28 @@ class BattlefieldEngine:
         # closely in angle around their defender.  Later arrivals slide along
         # the circle to maintain at least 20 degrees separation and end up 45
         # degrees away from the unit they were crowding.
-        defenders: Dict[str, List[_ArmyContext]] = defaultdict(list)
+        groups: Dict[str, List[_ArmyContext]] = defaultdict(list)
         for (atk, dfd), _ in self._engagements.items():
-            defenders[dfd].append(self._armies[atk])
+            groups[dfd].append(self._armies[atk])
+            groups[atk].append(self._armies[dfd])
 
-        for dfd, attackers in defenders.items():
-            if len(attackers) < 2:
+        for centre, neighbours in groups.items():
+            if len(neighbours) < 2:
                 continue
-            def_ctx = self._armies[dfd]
-            dx, dy = def_ctx.position
-            attackers.sort(key=lambda c: c.engaged_at)
-            for idx in range(1, len(attackers)):
-                ctx = attackers[idx]
+            centre_ctx = self._armies[centre]
+            cx, cy = centre_ctx.position
+            neighbours.sort(key=lambda c: c.engaged_at)
+            for idx in range(1, len(neighbours)):
+                ctx = neighbours[idx]
                 if ctx.arc_target_angle is not None:
                     continue
-                ax, ay = ctx.position
-                curr_angle = degrees(atan2(ay - dy, ax - dx))
+                sx, sy = ctx.position
+                curr_angle = degrees(atan2(sy - cy, sx - cx))
                 curr_angle = (curr_angle + 360) % 360
                 for j in range(idx):
-                    other = attackers[j]
+                    other = neighbours[j]
                     ox, oy = other.position
-                    other_angle = degrees(atan2(oy - dy, ox - dx))
+                    other_angle = degrees(atan2(oy - cy, ox - cx))
                     other_angle = (other_angle + 360) % 360
                     diff = (curr_angle - other_angle + 180) % 360 - 180
                     # ``diff`` represents how many degrees ``ctx`` sits

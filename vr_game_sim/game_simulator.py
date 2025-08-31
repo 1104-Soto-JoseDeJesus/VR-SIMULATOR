@@ -217,17 +217,10 @@ class GameSimulator:
         if actual_skill_hp_damage_to_troops > 0:
             potential_skill_kills = round(actual_skill_hp_damage_to_troops / enemy_hp_per_troop)
 
-        if actual_skill_hp_damage_to_troops > 0 or skill_damage_absorbed_by_shield > 0:
-            self._log_combat_action(
-                attacker=source_army,
-                defender=apply_target,
-                damage_potential_hp=damage_after_all_mods,
-                absorbed_hp=skill_damage_absorbed_by_shield,
-                final_hp_damage=actual_skill_hp_damage_to_troops,
-                potential_kills=potential_skill_kills,
-                is_counter=False,
-                action_type=source_skill_def.get("name") if source_skill_def else "Skill",
-            )
+        # Skill damage is tracked for commitment totals but no longer logged
+        # as a combat action.  This keeps combat action reports focused on
+        # basic and counter attacks while skill effects are reported solely in
+        # the skill trigger section.
 
         return actual_skill_hp_damage_to_troops, skill_damage_absorbed_by_shield, potential_skill_kills, raw_damage_for_logging
 

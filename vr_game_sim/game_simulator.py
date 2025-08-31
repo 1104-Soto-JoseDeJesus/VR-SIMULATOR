@@ -96,14 +96,26 @@ class GameSimulator:
                     f"  - Src: {source_skill_name}, Name: {eff.name}, Func: {eff.get_functionality_description()}, Dur: {duration_str}")
         return lines
 
-    def _log_combat_action(self, attacker: Army, defender: Army,
-                           damage_potential_hp: float, absorbed_hp: float,
-                           final_hp_damage: float, potential_kills: int, is_counter: bool):
-        action_type = "Counter Attack" if is_counter else "Basic Attack"
+    def _log_combat_action(
+        self,
+        attacker: Army,
+        defender: Army,
+        damage_potential_hp: float,
+        absorbed_hp: float,
+        final_hp_damage: float,
+        potential_kills: int,
+        is_counter: bool,
+        action_type: Optional[str] = None,
+    ):
+        action_type_str = action_type or ("Counter Attack" if is_counter else "Basic Attack")
         log_entry = {
-            "attacker_name": attacker.name, "defender_name": defender.name, "action_type": action_type,
-            "damage_potential_hp": damage_potential_hp, "absorbed_hp": absorbed_hp,
-            "final_hp_damage": final_hp_damage, "potential_kills": potential_kills
+            "attacker_name": attacker.name,
+            "defender_name": defender.name,
+            "action_type": action_type_str,
+            "damage_potential_hp": damage_potential_hp,
+            "absorbed_hp": absorbed_hp,
+            "final_hp_damage": final_hp_damage,
+            "potential_kills": potential_kills,
         }
         self.round_combat_actions_log.append(log_entry)
 
@@ -204,6 +216,18 @@ class GameSimulator:
         potential_skill_kills = 0
         if actual_skill_hp_damage_to_troops > 0:
             potential_skill_kills = round(actual_skill_hp_damage_to_troops / enemy_hp_per_troop)
+
+        if actual_skill_hp_damage_to_troops > 0 or skill_damage_absorbed_by_shield > 0:
+            self._log_combat_action(
+                attacker=source_army,
+                defender=apply_target,
+                damage_potential_hp=damage_after_all_mods,
+                absorbed_hp=skill_damage_absorbed_by_shield,
+                final_hp_damage=actual_skill_hp_damage_to_troops,
+                potential_kills=potential_skill_kills,
+                is_counter=False,
+                action_type=source_skill_def.get("name") if source_skill_def else "Skill",
+            )
 
         return actual_skill_hp_damage_to_troops, skill_damage_absorbed_by_shield, potential_skill_kills, raw_damage_for_logging
 

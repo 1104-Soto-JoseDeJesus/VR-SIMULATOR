@@ -475,11 +475,7 @@ class Army:
                 EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
                 EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
             ]
-            if (
-                effect.applied_this_round
-                and phase == "start_of_round"
-                and not is_immediate_custom_effect
-            ):
+            if effect.applied_this_round and not is_immediate_custom_effect:
                 continue
 
             if effect.effect_type == EffectType.DAMAGE_OVER_TIME:
@@ -560,6 +556,7 @@ class Army:
                             "absorbed_hp": absorbed_by_shield_dot,
                             "final_hp_damage": hp_damage_to_troops_dot,
                             "potential_kills": 0,
+                            "is_dot": True,
                         })
 
                     dot_type_str = dot_type.value if isinstance(dot_type, DoTType) else "DoT"

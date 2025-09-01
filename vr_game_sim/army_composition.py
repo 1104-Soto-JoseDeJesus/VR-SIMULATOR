@@ -260,6 +260,10 @@ class Army:
                 for src, dmg in self.damage_contributors_this_round.items():
                     sim._log_skill_trigger(self, "  ↳", f"{src} committed {dmg:.0f} damage")
             self.current_troop_count = max(0, self.current_troop_count - lost_round)
+            self.unrevivable_troops = min(
+                self.unit.initial_count,
+                self.unrevivable_troops + unrevivable_increase,
+            )
             total_dmg = sum(self.damage_contributors_this_round.values())
             if lost_round > 0 and total_dmg > 0:
                 for src, dmg in self.damage_contributors_this_round.items():

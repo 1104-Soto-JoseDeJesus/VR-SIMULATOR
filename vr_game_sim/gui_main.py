@@ -1081,6 +1081,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.hero_options = ["None", "Custom"] + sorted(name.capitalize() for name in HERO_PRESETS.keys())
 
         self.name_edit = QtWidgets.QLineEdit(f"Army {index}")
+        self._user_named = False
+        self.name_edit.textEdited.connect(lambda _: setattr(self, "_user_named", True))
         self.unit_combo = QtWidgets.QComboBox()
         for u in sorted(Unit.ALLOWED_TYPES):
             self.unit_combo.addItem(u)
@@ -1388,6 +1390,22 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 else:
                     lbl.setText(skill_def.get("name", sid))
                     lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self._update_name_if_auto()
+
+    def _update_name_if_auto(self) -> None:
+        if self._user_named:
+            return
+        hero1 = self.hero1_combo.currentText()
+        hero2 = self.hero2_combo.currentText()
+        if hero1 in {"", "None"} and hero2 in {"", "None"}:
+            new_name = f"Army {self.index}"
+        else:
+            if hero1 in {"", "None"}:
+                hero1 = "None"
+            if hero2 in {"", "None"}:
+                hero2 = "None"
+            new_name = f"{hero1}/{hero2}"
+        self.name_edit.setText(new_name)
 
     def _unit_changed(self, unit: str) -> None:
         """Update the troop type icon when unit selection changes."""
@@ -1409,6 +1427,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.unit_icon.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
     def populate_from_config(self, cfg: dict) -> None:
+        self._user_named = bool(cfg.get("army_name"))
         self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))
         self.unit_combo.setCurrentText(cfg.get("unit_type", "pikemen"))
         self._unit_changed(self.unit_combo.currentText())
@@ -2937,7 +2956,6 @@ class ArenaTab(QtWidgets.QWidget):
             self.run_btn.setEnabled(True)
             for item in self._slot_items.values():
                 item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
-            winner_team = next(iter(alive)) if len(alive) == 1 else None
             summary = []
             for (slot_team, _), info in self._slot_army.items():
                 if not info:
@@ -2950,27 +2968,37 @@ class ArenaTab(QtWidgets.QWidget):
                 cfg = info.get("config", {})
                 heroes = cfg.get("heroes", [])
                 if heroes:
-                    portrait = os.path.join(
+                    portrait1 = os.path.join(
                         os.path.dirname(__file__),
                         "Hero Images",
                         f"{heroes[0]['hero_name_or_preset'].capitalize()}.png",
                     )
+                    portrait2 = (
+                        os.path.join(
+                            os.path.dirname(__file__),
+                            "Hero Images",
+                            f"{heroes[1]['hero_name_or_preset'].capitalize()}.png",
+                        )
+                        if len(heroes) > 1
+                        else ""
+                    )
                 else:
-                    portrait = os.path.join(
+                    portrait1 = os.path.join(
                         os.path.dirname(__file__),
                         "Icons",
                         f"{cfg.get('unit_type', '').capitalize()}.png",
                     )
+                    portrait2 = ""
                 summary.append(
                     {
                         "team": info["team"],
                         "name": army.name,
-                        "portrait": portrait,
+                        "portrait1": portrait1,
+                        "portrait2": portrait2,
                         "remaining": remaining,
                         "initial": initial,
                         "healed": healed,
                         "kills": kills,
-                        "is_winner": info["team"] == winner_team,
                     }
                 )
             if window is not None and hasattr(window, "update_arena_figures"):
@@ -3713,14 +3741,14 @@ class MainWindow(QtWidgets.QMainWindow):
         }
         for entry in results:
             widget = HeroStatsWidget(
-                entry.get("portrait", ""),
+                entry.get("portrait1", ""),
+                entry.get("portrait2", ""),
                 entry.get("name", ""),
                 entry.get("remaining", 0),
                 entry.get("initial", entry.get("remaining", 0)),
                 entry.get("healed", 0),
                 entry.get("kills", 0),
                 entry.get("team", "red"),
-                entry.get("is_winner", False),
             )
             team_layouts.get(entry.get("team", ""), team_layouts["red"]).addWidget(widget)
 

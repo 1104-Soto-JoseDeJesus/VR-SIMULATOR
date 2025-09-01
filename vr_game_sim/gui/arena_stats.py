@@ -9,13 +9,13 @@ class HeroStatsWidget(QtWidgets.QWidget):
     def __init__(
         self,
         portrait_path: str,
+        portrait2_path: str,
         name: str,
         remaining: int,
         initial: int,
         healed: int,
         kills: int,
         team_color: str,
-        highlight: bool = False,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -24,7 +24,7 @@ class HeroStatsWidget(QtWidgets.QWidget):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(4)
 
-        # Portrait
+        # Portraits
         img_label = QtWidgets.QLabel()
         img_label.setFixedSize(64, 64)
         pix = QtGui.QPixmap(portrait_path)
@@ -41,6 +41,22 @@ class HeroStatsWidget(QtWidgets.QWidget):
             img_label.setPixmap(pix)
         layout.addWidget(img_label, 0, 0)
 
+        img_label2 = QtWidgets.QLabel()
+        img_label2.setFixedSize(64, 64)
+        pix2 = QtGui.QPixmap(portrait2_path)
+        if pix2.isNull():
+            img_label2.setText("No\nImage")
+            img_label2.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            img_label2.setStyleSheet("background-color: #444; color: white;")
+        else:
+            pix2 = pix2.scaled(
+                img_label2.size(),
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+            img_label2.setPixmap(pix2)
+        layout.addWidget(img_label2, 0, 1)
+
         # Stats labels / bars
         name_label = QtWidgets.QLabel(name)
         healed_label = QtWidgets.QLabel(str(healed))
@@ -56,7 +72,7 @@ class HeroStatsWidget(QtWidgets.QWidget):
         )
 
         widgets = [name_label, remaining_bar, healed_label, kills_label]
-        for col, widget in enumerate(widgets, start=1):
+        for col, widget in enumerate(widgets, start=2):
             widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             widget.setSizePolicy(
                 QtWidgets.QSizePolicy.Policy.Expanding,
@@ -65,8 +81,8 @@ class HeroStatsWidget(QtWidgets.QWidget):
             layout.addWidget(widget, 0, col)
             layout.setColumnStretch(col, 1)
 
-        layout.setColumnStretch(1, 2)  # make name column wider
-        layout.setColumnStretch(2, 3)  # wider for progress bar
+        layout.setColumnStretch(2, 2)  # make name column wider
+        layout.setColumnStretch(3, 3)  # wider for progress bar
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Fixed,
@@ -85,8 +101,6 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 "color: white; font-weight: bold;"
                 f"border: 1px solid {team_color};"
             )
-            if highlight:
-                style += "border: 3px solid gold;"
             self.setStyleSheet(style)
             remaining_bar.setStyleSheet(
                 "QProgressBar {"

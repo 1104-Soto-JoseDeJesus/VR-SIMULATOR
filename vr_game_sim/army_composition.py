@@ -210,26 +210,9 @@ class Army:
         return {'hp_damage_to_troops': hp_dmg_final, 'absorbed_by_shield': absorbed_total}
 
     def commit_pending_healing_and_damage(self):
-        if self.pending_hp_damage_this_round > 0 and self.current_troop_count > 0:
-            hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)
-            if hp_per_troop <= 0: hp_per_troop = 1
-
-            lost_float = self.pending_hp_damage_this_round / hp_per_troop
-            lost_round = round(lost_float)
-
-            unrevivable_increase = round(lost_round * self.unrevivable_ratio)
-            for sim in self.simulators:
-                sim._log_skill_trigger(
-                    self,
-                    "Damage Commitment",
-                    f"Commits {self.pending_hp_damage_this_round:.0f} pending HP damage, resulting in {lost_round} troops lost. {unrevivable_increase} unrevivable.",
-                )
-                for src, dmg in self.damage_contributors_this_round.items():
-                    sim._log_skill_trigger(self, "  ↳", f"{src} committed {dmg:.0f} damage")
-            self.current_troop_count = max(0, self.current_troop_count - lost_round)
-            self.damage_contributors_this_round = {}
-        # self.pending_hp_damage_this_round = 0.0 # Resetting this at start of round in game_simulator.py
-
+        # Healing is committed before damage so that only troops lost in
+        # previous rounds are eligible to be revived. Damage taken during the
+        # current round cannot be healed until the following round.
         if self.pending_hp_healing_this_round > 0:
             max_healable_count = self.unit.initial_count - round(self.unrevivable_troops)
             if self.current_troop_count < max_healable_count:
@@ -255,6 +238,27 @@ class Army:
                     )
                     # Clear pending healing so it does not carry over to subsequent rounds
                     self.pending_hp_healing_this_round = 0.0
+
+        if self.pending_hp_damage_this_round > 0 and self.current_troop_count > 0:
+            hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)
+            if hp_per_troop <= 0:
+                hp_per_troop = 1
+
+            lost_float = self.pending_hp_damage_this_round / hp_per_troop
+            lost_round = round(lost_float)
+
+            unrevivable_increase = round(lost_round * self.unrevivable_ratio)
+            for sim in self.simulators:
+                sim._log_skill_trigger(
+                    self,
+                    "Damage Commitment",
+                    f"Commits {self.pending_hp_damage_this_round:.0f} pending HP damage, resulting in {lost_round} troops lost. {unrevivable_increase} unrevivable.",
+                )
+                for src, dmg in self.damage_contributors_this_round.items():
+                    sim._log_skill_trigger(self, "  ↳", f"{src} committed {dmg:.0f} damage")
+            self.current_troop_count = max(0, self.current_troop_count - lost_round)
+            self.damage_contributors_this_round = {}
+        # self.pending_hp_damage_this_round = 0.0 # Resetting this at start of round in game_simulator.py
     def calculate_and_add_pending_healing(self, heal_factor: float, healer_army: 'Army', opponent_of_healer: 'Army',
                                           skill_heal_adjustment_magnitude: float = 0.0) -> float:
         if not self.simulator or healer_army.current_troop_count <= 0: return 0.0

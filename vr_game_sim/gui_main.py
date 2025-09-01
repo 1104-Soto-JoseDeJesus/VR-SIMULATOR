@@ -2936,6 +2936,40 @@ class ArenaTab(QtWidgets.QWidget):
             self.run_btn.setEnabled(True)
             for item in self._slot_items.values():
                 item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
+            summary = []
+            for (slot_team, _), info in self._slot_army.items():
+                if not info:
+                    continue
+                army = info["army"]
+                healed = int(round(army.heal_received_history[-1])) if army.heal_received_history else 0
+                kills = int(round(sum(army.kills_dealt_history)))
+                remaining = int(round(army.current_troop_count))
+                cfg = info.get("config", {})
+                heroes = cfg.get("heroes", [])
+                if heroes:
+                    portrait = os.path.join(
+                        os.path.dirname(__file__),
+                        "Hero Images",
+                        f"{heroes[0]['hero_name_or_preset'].capitalize()}.png",
+                    )
+                else:
+                    portrait = os.path.join(
+                        os.path.dirname(__file__),
+                        "Icons",
+                        f"{cfg.get('unit_type', '').capitalize()}.png",
+                    )
+                summary.append(
+                    {
+                        "team": info["team"],
+                        "name": army.name,
+                        "portrait": portrait,
+                        "remaining": remaining,
+                        "healed": healed,
+                        "kills": kills,
+                    }
+                )
+            if window is not None and hasattr(window, "update_arena_figures"):
+                window.update_arena_figures(summary)
 
     def _refresh_arena(self) -> None:
         """Clear armies and reset slot occupancy."""
@@ -3342,9 +3376,17 @@ class MainWindow(QtWidgets.QMainWindow):
         # --- Arena Figures tab ---
         self.arena_figures_tab = QtWidgets.QWidget()
         ar_fig_layout = QtWidgets.QVBoxLayout(self.arena_figures_tab)
+        self.arena_fig_stack = QtWidgets.QStackedWidget()
         self.arena_fig_label = QtWidgets.QLabel("Run Batch to generate figures")
         self.arena_fig_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        ar_fig_layout.addWidget(self.arena_fig_label)
+        self.arena_fig_stack.addWidget(self.arena_fig_label)
+        self.arena_fig_scroll = QtWidgets.QScrollArea()
+        self.arena_fig_scroll.setWidgetResizable(True)
+        self.arena_fig_summary = QtWidgets.QWidget()
+        self.arena_fig_summary_layout = QtWidgets.QGridLayout(self.arena_fig_summary)
+        self.arena_fig_scroll.setWidget(self.arena_fig_summary)
+        self.arena_fig_stack.addWidget(self.arena_fig_scroll)
+        ar_fig_layout.addWidget(self.arena_fig_stack)
 
         # --- Report tab ---
         self.report_tab = QtWidgets.QWidget()
@@ -3633,22 +3675,63 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ar_output_tree.clear()
         self.ar_output_text.clear()
 
-    def update_arena_figures(self, results: dict[str, int]) -> None:
-        """Display a victory distribution pie chart for arena batches."""
+    def update_arena_figures(self, results: dict[str, int] | list[dict[str, Any]]) -> None:
+        """Display arena outcome information."""
 
         if not results:
             return
-        base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
-        os.makedirs(base_hist_dir, exist_ok=True)
-        path = os.path.join(base_hist_dir, "arena_victory_distribution.png")
-        labels = [k.capitalize() for k in results.keys()]
-        sizes = list(results.values())
-        fig, ax = plt.subplots()
-        ax.pie(sizes, labels=labels, autopct="%1.1f%%")
-        ax.set_title("Arena Victory Distribution")
-        fig.savefig(path)
-        plt.close(fig)
-        self.arena_fig_label.setPixmap(QtGui.QPixmap(path))
+
+        if isinstance(results, dict):
+            base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+            os.makedirs(base_hist_dir, exist_ok=True)
+            path = os.path.join(base_hist_dir, "arena_victory_distribution.png")
+            labels = [k.capitalize() for k in results.keys()]
+            sizes = list(results.values())
+            fig, ax = plt.subplots()
+            ax.pie(sizes, labels=labels, autopct="%1.1f%%")
+            ax.set_title("Arena Victory Distribution")
+            fig.savefig(path)
+            plt.close(fig)
+            self.arena_fig_label.setPixmap(QtGui.QPixmap(path))
+            self.arena_fig_stack.setCurrentWidget(self.arena_fig_label)
+            return
+
+        # Otherwise render per-army summary after a normal run
+        for i in reversed(range(self.arena_fig_summary_layout.count())):
+            item = self.arena_fig_summary_layout.takeAt(i)
+            widget = item.widget()
+            if widget:
+                widget.setParent(None)
+        team_layouts: dict[str, QtWidgets.QVBoxLayout] = {
+            "red": QtWidgets.QVBoxLayout(),
+            "blue": QtWidgets.QVBoxLayout(),
+        }
+        for entry in results:
+            container = QtWidgets.QWidget()
+            h_layout = QtWidgets.QHBoxLayout(container)
+            img_label = QtWidgets.QLabel()
+            pix = QtGui.QPixmap(entry.get("portrait", ""))
+            if not pix.isNull():
+                pix = pix.scaled(64, 64, QtCore.Qt.AspectRatioMode.KeepAspectRatio, QtCore.Qt.TransformationMode.SmoothTransformation)
+            img_label.setPixmap(pix)
+            h_layout.addWidget(img_label)
+            stats = QtWidgets.QLabel(
+                f"{entry['name']}\nRemaining: {entry['remaining']}\nHealed: {entry['healed']}\nKills: {entry['kills']}"
+            )
+            h_layout.addWidget(stats)
+            team_layouts.get(entry.get("team", ""), team_layouts["red"]).addWidget(container)
+
+        red_widget = QtWidgets.QWidget()
+        red_layout = QtWidgets.QVBoxLayout(red_widget)
+        red_layout.addLayout(team_layouts["red"])
+        red_layout.addStretch()
+        blue_widget = QtWidgets.QWidget()
+        blue_layout = QtWidgets.QVBoxLayout(blue_widget)
+        blue_layout.addLayout(team_layouts["blue"])
+        blue_layout.addStretch()
+        self.arena_fig_summary_layout.addWidget(red_widget, 0, 0)
+        self.arena_fig_summary_layout.addWidget(blue_widget, 0, 1)
+        self.arena_fig_stack.setCurrentWidget(self.arena_fig_scroll)
 
     def _display_selected_bf_report(
         self, current: QtWidgets.QListWidgetItem | None

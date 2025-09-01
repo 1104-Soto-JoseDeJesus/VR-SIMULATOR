@@ -730,6 +730,7 @@ class BattlefieldEngine:
             army.base_rage_awarded_this_round = False
             army.army_used_rage_skill_this_round_for_rage_gain_block = False
             army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+            army.kills_dealt_this_round = 0.0
             army.damage_contributors_this_round = {}
 
         unique_armies: List[Army] = []
@@ -805,6 +806,7 @@ class BattlefieldEngine:
             if abs(self.time_elapsed - ctx.last_engaged_time) < 1e-6:
                 ctx.internal_round += 1
                 army.rage_gained_history.append(army.rage_added_this_round)
+                army.kills_dealt_history.append(army.kills_dealt_this_round)
             self._queue_state_update(army)
 
     def _simulate_one_round(

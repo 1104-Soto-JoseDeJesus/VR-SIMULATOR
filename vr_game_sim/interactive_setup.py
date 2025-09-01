@@ -92,8 +92,9 @@ def input_float(prompt: str, default: Optional[float] = None) -> float:
     while True:
         try:
             val_str = input(prompt_text).strip()
-            if not val_str and default is not None: return default
-            return float(val_str)
+            if not val_str and default is not None:
+                return round(default, 4)
+            return round(float(val_str), 4)
         except ValueError:
             print("Invalid input. Please enter a decimal number (e.g., 0.05).")
 

@@ -38,6 +38,7 @@ from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.battlefield_engine import BattlefieldEngine
 from vr_game_sim.arena_engine import ArenaEngine
 from vr_game_sim.navmesh import NavMesh
+from vr_game_sim.gui.arena_stats import HeroStatsWidget
 
 
 def get_pdf_layout_path() -> str:
@@ -3707,19 +3708,15 @@ class MainWindow(QtWidgets.QMainWindow):
             "blue": QtWidgets.QVBoxLayout(),
         }
         for entry in results:
-            container = QtWidgets.QWidget()
-            h_layout = QtWidgets.QHBoxLayout(container)
-            img_label = QtWidgets.QLabel()
-            pix = QtGui.QPixmap(entry.get("portrait", ""))
-            if not pix.isNull():
-                pix = pix.scaled(64, 64, QtCore.Qt.AspectRatioMode.KeepAspectRatio, QtCore.Qt.TransformationMode.SmoothTransformation)
-            img_label.setPixmap(pix)
-            h_layout.addWidget(img_label)
-            stats = QtWidgets.QLabel(
-                f"{entry['name']}\nRemaining: {entry['remaining']}\nHealed: {entry['healed']}\nKills: {entry['kills']}"
+            widget = HeroStatsWidget(
+                entry.get("portrait", ""),
+                entry.get("name", ""),
+                entry.get("remaining", 0),
+                entry.get("healed", 0),
+                entry.get("kills", 0),
+                entry.get("team", "red"),
             )
-            h_layout.addWidget(stats)
-            team_layouts.get(entry.get("team", ""), team_layouts["red"]).addWidget(container)
+            team_layouts.get(entry.get("team", ""), team_layouts["red"]).addWidget(widget)
 
         red_widget = QtWidgets.QWidget()
         red_layout = QtWidgets.QVBoxLayout(red_widget)

@@ -118,6 +118,11 @@ class GameSimulator:
             "potential_kills": potential_kills,
         }
         self.round_combat_actions_log.append(log_entry)
+        if final_hp_damage > 0:
+            defender.damage_contributors_this_round[attacker.name] = (
+                defender.damage_contributors_this_round.get(attacker.name, 0.0)
+                + final_hp_damage
+            )
 
     def _log_skill_trigger(self, triggered_army: Army, skill_name: str, effect_description: str,
                            damage_details: Optional[Dict[str, Any]] = None):
@@ -217,12 +222,22 @@ class GameSimulator:
         if actual_skill_hp_damage_to_troops > 0:
             potential_skill_kills = round(actual_skill_hp_damage_to_troops / enemy_hp_per_troop)
 
+        if actual_skill_hp_damage_to_troops > 0:
+            apply_target.damage_contributors_this_round[source_army.name] = (
+                apply_target.damage_contributors_this_round.get(source_army.name, 0.0)
+                + actual_skill_hp_damage_to_troops
+            )
         # Skill damage is tracked for commitment totals but no longer logged
         # as a combat action.  This keeps combat action reports focused on
         # basic and counter attacks while skill effects are reported solely in
         # the skill trigger section.
 
-        return actual_skill_hp_damage_to_troops, skill_damage_absorbed_by_shield, potential_skill_kills, raw_damage_for_logging
+        return (
+            actual_skill_hp_damage_to_troops,
+            skill_damage_absorbed_by_shield,
+            potential_skill_kills,
+            raw_damage_for_logging,
+        )
 
     def _calculate_shield_magnitude_for_logging(self, owner_army: Army, opponent_for_calc: Army,
                                                 shield_factor: float) -> float:
@@ -595,6 +610,8 @@ class GameSimulator:
     def simulate_battle(self) -> str:
         self.army1.reset_for_new_battle()
         self.army2.reset_for_new_battle()
+        self.army1.register_simulator(self)
+        self.army2.register_simulator(self)
         self.round = 0
 
         while self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
@@ -610,6 +627,8 @@ class GameSimulator:
             self.army1.pending_hp_healing_this_round = 0.0
             self.army2.pending_hp_damage_this_round = 0.0
             self.army2.pending_hp_healing_this_round = 0.0
+            self.army1.damage_contributors_this_round = {}
+            self.army2.damage_contributors_this_round = {}
 
             self.round_combat_actions_log.clear()
             self.round_skill_triggers_log = {self.army1.name: [], self.army2.name: []}

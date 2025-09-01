@@ -82,6 +82,7 @@ class Army:
     shield_received_history: List[float] = field(init=False, default_factory=list)
     rage_gained_history: List[float] = field(init=False, default_factory=list)
     kills_dealt_history: List[float] = field(init=False, default_factory=list)
+    troops_healed_total: float = field(init=False, default=0.0)
     shield_hp_gained_this_round: float = field(init=False, default=0.0)
     rage_added_this_round: float = field(init=False, default=0.0)
     kills_dealt_this_round: float = field(init=False, default=0.0)
@@ -286,6 +287,9 @@ class Army:
 
         if hp_healed_raw > 0:
             self.pending_hp_healing_this_round += hp_healed_raw
+            hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)
+            if hp_per_troop > 0:
+                self.troops_healed_total += hp_healed_raw / hp_per_troop
             self.simulator._process_skill_triggers(self, opponent_of_healer,
                                                    SkillTriggerType.ON_RECEIVING_HEALING,
                                                    event_data={'healed_army': self,
@@ -930,6 +934,7 @@ class Army:
         self.shield_received_history = []
         self.rage_gained_history = []
         self.kills_dealt_history = []
+        self.troops_healed_total = 0.0
         self.shield_hp_gained_this_round = 0.0
         self.rage_added_this_round = 0.0
         self.kills_dealt_this_round = 0.0

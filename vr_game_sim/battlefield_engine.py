@@ -194,6 +194,29 @@ class BattlefieldEngine:
             # them instead.
             army.active_effects.append(eff)
 
+        # Ensure passive skills are present even before the first combat round.
+        # If the army already has an associated simulator, apply the passive
+        # skills immediately.  Otherwise, when exactly two armies are present we
+        # create a temporary simulator so that passive effects are initialised
+        # for simple 1v1 setups.
+        if army.simulator:
+            army._apply_initial_passive_skills()
+        elif len(self._armies) == 2 and not self._engagements:
+            other_name, other_ctx = next(
+                (n, c) for n, c in self._armies.items() if n != army.name
+            )
+            rb = None
+            if self._report_builder is not None:
+                rb = self._report_builder.get_builder(other_name, army.name)
+            sim = GameSimulator(other_ctx.army, ctx.army, rb, track_stats=False, mode=self.mode)
+            sim.parent_engine = self
+            # Detach the temporary simulator; passive skills remain applied.
+            for a in (other_ctx.army, ctx.army):
+                if sim in a.simulators:
+                    a.simulators.remove(sim)
+                if a.simulator is sim:
+                    a.simulator = a.simulators[-1] if a.simulators else None
+
     def set_waypoint(self, army_name: str, waypoint: Tuple[float, float]) -> None:
         """Update the target waypoint for ``army_name``.
 

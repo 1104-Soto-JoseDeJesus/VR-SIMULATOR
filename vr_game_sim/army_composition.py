@@ -112,7 +112,7 @@ class Army:
                         break
 
     def _apply_initial_passive_skills(self):
-        if not self.simulator: return
+        sim = self.simulator
 
         for hero in self.heroes:
             for skill_def in hero.skills:
@@ -149,20 +149,24 @@ class Army:
                                         (f"{sub_effect_data.get('name_suffix', 'Effect')}: {created_effect.get_functionality_description()} for {created_effect.duration + 1} rounds.",
                                          None)
                                     )
-                    elif skill_def.get("logic_handler"):
-                        opponent = None
-                        if self.simulator:
-                            opponent = (
-                                self.simulator.army2 if self is self.simulator.army1 else self.simulator.army1
-                            )
+                    elif skill_def.get("logic_handler") and sim:
+                        opponent = (
+                            sim.army2 if self is sim.army1 else sim.army1
+                        )
                         logic_handler = skill_def.get("logic_handler")
                         an_effect_truly_happened_passive, log_details_passive = logic_handler(
-                            self, opponent, skill_def, None, self.simulator
+                            self, opponent, skill_def, None, sim
                         )
+                    else:
+                        # Without a simulator we cannot safely run custom logic handlers.
+                        if skill_def.get("logic_handler"):
+                            continue
+
                     if an_effect_truly_happened_passive:
-                        self.simulator._log_skill_trigger(self, skill_def['name'], "Passive applied at start.")
-                        for desc_str, dmg_details in log_details_passive:
-                            self.simulator._log_skill_trigger(self, f"  ↳", desc_str, damage_details=dmg_details)
+                        if sim:
+                            sim._log_skill_trigger(self, skill_def['name'], "Passive applied at start.")
+                            for desc_str, dmg_details in log_details_passive:
+                                sim._log_skill_trigger(self, "  ↳", desc_str, damage_details=dmg_details)
                         self.increment_skill_trigger_count(skill_def["id"])
         self.activate_queued_effects()
 

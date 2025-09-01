@@ -31,6 +31,12 @@ def test_passive_effects_applied_before_round():
     assert any(eff.name == 'Holy Shield Boost' for eff in atk.active_effects)
 
 
+def test_passive_effects_applied_without_engine():
+    atk = make_army_with_laird('A')
+    # Army created for a simple 1v1 should immediately have passive buffs applied
+    assert any(eff.name == 'Holy Shield Boost' for eff in atk.active_effects)
+
+
 def test_passive_effects_and_commit_logged_same_round():
     builder = BattlefieldReportBuilder()
     engine = BattlefieldEngine(report_builder=builder)

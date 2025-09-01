@@ -234,6 +234,8 @@ class Army:
                             "Healing Commitment",
                             f"Commits {actual_healed_hp:.0f} HP healing, restoring {healed_troops_round} troops. Unrevivable: {round(self.unrevivable_troops)}",
                         )
+                    # Track only the actual healed troops
+                    self.troops_healed_total += healed_troops_float
                     # Apply the committed healing to troop count, capped by the maximum healable troops
                     self.current_troop_count = min(
                         max_healable_count,
@@ -291,9 +293,6 @@ class Army:
 
         if hp_healed_raw > 0:
             self.pending_hp_healing_this_round += hp_healed_raw
-            hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)
-            if hp_per_troop > 0:
-                self.troops_healed_total += hp_healed_raw / hp_per_troop
             self.simulator._process_skill_triggers(self, opponent_of_healer,
                                                    SkillTriggerType.ON_RECEIVING_HEALING,
                                                    event_data={'healed_army': self,

@@ -1,3 +1,4 @@
+import pytest
 from vr_game_sim.army_composition import Army
 from vr_game_sim.unit_definition import Unit
 
@@ -15,3 +16,4 @@ def test_unrevivable_troops_limit_healing():
     army.pending_hp_healing_this_round = hp_per_troop * 20
     army.commit_pending_healing_and_damage()
     assert army.current_troop_count == 90
+    assert army.troops_healed_total == pytest.approx(10)

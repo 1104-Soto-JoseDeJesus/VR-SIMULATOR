@@ -600,12 +600,17 @@ class Army:
                     )
 
             elif effect.effect_type == EffectType.HEAL_OVER_TIME and effect.magnitude > 0:
+                if phase != "start_of_round":
+                    continue
                 if opponent:
                     hot_amount_this_tick = self.calculate_and_add_pending_healing(
                         heal_factor=effect.magnitude, healer_army=self, opponent_of_healer=opponent)
                     if hot_amount_this_tick > 0 and self.simulator:
-                        self.simulator._log_skill_trigger(self, effect.name,
-                                                          f"heals for {hot_amount_this_tick:.0f} HP (pending) from HoT (Factor: {effect.magnitude:.0f}).")
+                        self.simulator._log_skill_trigger(
+                            self,
+                            effect.name,
+                            f"heals for {hot_amount_this_tick:.0f} HP (pending) from HoT (Factor: {effect.magnitude:.0f}).",
+                        )
 
             elif effect.name == EFFECT_NAME_FIRST_STRIKE_RAGE_AURA and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':

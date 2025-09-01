@@ -1606,7 +1606,7 @@ class ArmySetupDialog(QtWidgets.QDialog):
 
 
 class ArmyIcon(QtWidgets.QGraphicsItem):
-    """Graphics item representing an army with portraits and a health bar."""
+    """Graphics item representing an army with portraits, health and rage bars."""
 
     def __init__(
         self,
@@ -1645,19 +1645,20 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
         self._on_drop = on_drop
         self._drag_offset = QtCore.QPointF()
         self._dragging = False
+        self.rage_ratio = 0.0
         if self._on_drop is not None:
             self.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
 
     def boundingRect(self) -> QtCore.QRectF:  # type: ignore[override]
-        """Return the bounding rectangle for the icon including the health bar."""
+        """Return the bounding rectangle including health and rage bars."""
 
-        # The item reserves a small extra margin to accommodate the vertical
-        # health bar.  When the bar is drawn on the left we need to shift the
-        # rectangle accordingly so the scene knows to paint that area as well.
-        extra = 6  # bar width (4px) + 2px spacing
-        width = self.main_pix.width() + extra
-        height = self.main_pix.height()
-        return QtCore.QRectF(-extra, 0, width, height)
+        # Extra margins for the vertical health bar on the left and the
+        # horizontal rage bar on top.
+        side_extra = 6  # health bar width (4px) + 2px spacing
+        top_extra = 6  # rage bar height (4px) + 2px spacing
+        width = self.main_pix.width() + side_extra
+        height = self.main_pix.height() + top_extra
+        return QtCore.QRectF(-side_extra, -top_extra, width, height)
 
     def paint(  # type: ignore[override]
         self,
@@ -1670,6 +1671,15 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
             x = self.main_pix.width() - self.sec_pix.width()
             y = self.main_pix.height() - self.sec_pix.height()
             painter.drawPixmap(x, y, self.sec_pix)
+
+        # Draw horizontal rage bar above the main portrait
+        rage_bar_height = 4
+        rage_bar_y = -rage_bar_height - 1  # 1px gap above portrait
+        rage_width = self.main_pix.width()
+        painter.setPen(QtGui.QPen(QtCore.Qt.GlobalColor.white))
+        painter.setBrush(QtGui.QBrush(QtGui.QColor(255, 255, 0)))
+        rage_filled = int(rage_width * self.rage_ratio)
+        painter.drawRect(0, rage_bar_y, rage_filled, rage_bar_height)
 
         # Draw the vertical health bar to the *left* of the main image.  The
         # bounding rect has been shifted to expose a 6px wide strip on the left
@@ -1684,6 +1694,10 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
 
     def set_health(self, ratio: float) -> None:
         self.health_ratio = max(0.0, min(1.0, ratio))
+        self.update()
+
+    def set_rage(self, ratio: float) -> None:
+        self.rage_ratio = max(0.0, min(1.0, ratio))
         self.update()
 
     # ------------------------------------------------------------------
@@ -1849,7 +1863,7 @@ class BattlefieldTab(QtWidgets.QWidget):
         self._timer.start()
 
     def _on_engine_state(self, name: str, state: dict) -> None:
-        """Update health bars in response to engine state broadcasts."""
+        """Update bars in response to engine state broadcasts."""
         icon = self._icons.get(name)
         if not icon:
             return
@@ -1859,6 +1873,8 @@ class BattlefieldTab(QtWidgets.QWidget):
         army = ctx.army
         initial = max(1.0, army.unit.initial_count)
         icon.set_health(army.current_troop_count / initial)
+        rage = state.get("rage", army.current_rage)
+        icon.set_rage(rage / 1000.0)
 
     def _on_timer_tick(self) -> None:
         now = time.perf_counter()
@@ -2018,6 +2034,7 @@ class BattlefieldTab(QtWidgets.QWidget):
             team=cfg.get("team", ""),
             max_size=self._icon_size,
         )
+        icon.set_rage(army.current_rage / 1000.0)
         icon.setPos(*pos)
         self.scene.addItem(icon)
         self._icons[army.name] = icon
@@ -2064,6 +2081,7 @@ class BattlefieldTab(QtWidgets.QWidget):
             team=cfg.get("team", ""),
             max_size=self._icon_size,
         )
+        icon.set_rage(army.current_rage / 1000.0)
         icon.setPos(*pos)
         self.scene.addItem(icon)
         # Track icons so timer updates can animate movement and health bars
@@ -2102,6 +2120,7 @@ class BattlefieldTab(QtWidgets.QWidget):
             team=team,
             max_size=self._icon_size,
         )
+        icon.set_rage(0.0)
         icon.setPos(*position)
         self.scene.addItem(icon)
         return icon
@@ -2531,6 +2550,7 @@ class ArenaTab(QtWidgets.QWidget):
             max_size=self._icon_size,
             on_drop=self._on_icon_drop,
         )
+        icon.set_rage(army.current_rage / 1000.0)
         icon.setPos(*pos)
         self.scene.addItem(icon)
         self._icons[army.name] = icon
@@ -2767,6 +2787,7 @@ class ArenaTab(QtWidgets.QWidget):
                 max_size=self._icon_size,
                 on_drop=self._on_icon_drop,
             )
+            icon.set_rage(army.current_rage / 1000.0)
             icon.setPos(*pos)
             self.scene.addItem(icon)
             self._icons[army.name] = icon
@@ -2923,7 +2944,7 @@ class ArenaTab(QtWidgets.QWidget):
         worker.start()
 
     def _on_engine_state(self, name: str, state: dict) -> None:
-        """Update health bars in response to engine state broadcasts."""
+        """Update bars in response to engine state broadcasts."""
         icon = self._icons.get(name)
         if not icon:
             return
@@ -2933,6 +2954,8 @@ class ArenaTab(QtWidgets.QWidget):
         army = ctx.army
         initial = max(1.0, army.unit.initial_count)
         icon.set_health(army.current_troop_count / initial)
+        rage = state.get("rage", army.current_rage)
+        icon.set_rage(rage / 1000.0)
 
     def _on_timer_tick(self) -> None:
         """Advance the arena battle and update icon positions."""

@@ -471,6 +471,10 @@ class BattlefieldEngine:
                     army.active_effects.clear()
                     army.upcoming_effects.clear()
                     army.effects_to_activate_next_round.clear()
+                    if army.simulator:
+                        army._apply_initial_passive_skills()
+                    else:
+                        army.reset_for_new_battle()
                 army.hero1_rage_skill_used_round = None
                 army.hero1_rage_skill_scheduled_round = None
                 army.hero1_rage_skill_queued_this_round = False

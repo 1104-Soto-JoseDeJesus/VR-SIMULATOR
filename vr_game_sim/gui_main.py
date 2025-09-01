@@ -404,14 +404,14 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
 
         self.vert_spin = QtWidgets.QDoubleSpinBox()
         self.vert_spin.setRange(0.0, 1.0)
-        self.vert_spin.setSingleStep(0.01)
-        self.vert_spin.setDecimals(3)
+        self.vert_spin.setSingleStep(0.0001)
+        self.vert_spin.setDecimals(4)
         form.addRow("Vertical Ratio", self.vert_spin)
 
         self.side_spin = QtWidgets.QDoubleSpinBox()
         self.side_spin.setRange(0.0, 0.5)
-        self.side_spin.setSingleStep(0.01)
-        self.side_spin.setDecimals(3)
+        self.side_spin.setSingleStep(0.0001)
+        self.side_spin.setDecimals(4)
         form.addRow("Side Margin Ratio", self.side_spin)
 
         v_offsets_layout = QtWidgets.QHBoxLayout()
@@ -419,8 +419,8 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         for _ in range(6):
             spin = QtWidgets.QDoubleSpinBox()
             spin.setRange(-2.0, 2.0)
-            spin.setSingleStep(0.01)
-            spin.setDecimals(3)
+            spin.setSingleStep(0.0001)
+            spin.setDecimals(4)
             v_offsets_layout.addWidget(spin)
             self.v_offset_spins.append(spin)
         form.addRow("Hero V Offsets", v_offsets_layout)
@@ -430,8 +430,8 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         for _ in range(6):
             spin = QtWidgets.QDoubleSpinBox()
             spin.setRange(-2.0, 2.0)
-            spin.setSingleStep(0.01)
-            spin.setDecimals(3)
+            spin.setSingleStep(0.0001)
+            spin.setDecimals(4)
             h_offsets_layout.addWidget(spin)
             self.h_offset_spins.append(spin)
         form.addRow("Hero H Offsets", h_offsets_layout)
@@ -441,8 +441,8 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         for _ in range(6):
             spin = QtWidgets.QDoubleSpinBox()
             spin.setRange(0.1, 2.0)
-            spin.setSingleStep(0.01)
-            spin.setDecimals(3)
+            spin.setSingleStep(0.0001)
+            spin.setDecimals(4)
             spin.setValue(1.0)
             sizes_layout.addWidget(spin)
             self.size_spins.append(spin)
@@ -453,8 +453,8 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         for _ in range(6):
             spin = QtWidgets.QDoubleSpinBox()
             spin.setRange(-2.0, 2.0)
-            spin.setSingleStep(0.01)
-            spin.setDecimals(3)
+            spin.setSingleStep(0.0001)
+            spin.setDecimals(4)
             plugin_v_layout.addWidget(spin)
             self.plugin_v_offset_spins.append(spin)
         form.addRow("Plugin V Offsets", plugin_v_layout)
@@ -464,8 +464,8 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         for _ in range(6):
             spin = QtWidgets.QDoubleSpinBox()
             spin.setRange(-2.0, 2.0)
-            spin.setSingleStep(0.01)
-            spin.setDecimals(3)
+            spin.setSingleStep(0.0001)
+            spin.setDecimals(4)
             plugin_h_layout.addWidget(spin)
             self.plugin_h_offset_spins.append(spin)
         form.addRow("Plugin H Offsets", plugin_h_layout)
@@ -475,8 +475,8 @@ class StarOverlayDebugDialog(QtWidgets.QDialog):
         for _ in range(6):
             spin = QtWidgets.QDoubleSpinBox()
             spin.setRange(0.1, 2.0)
-            spin.setSingleStep(0.01)
-            spin.setDecimals(3)
+            spin.setSingleStep(0.0001)
+            spin.setDecimals(4)
             spin.setValue(1.0)
             plugin_size_layout.addWidget(spin)
             self.plugin_size_spins.append(spin)
@@ -875,7 +875,8 @@ class SkillParamEditor(QtWidgets.QWidget):
         if isinstance(tc, (int, float)):
             spin = QtWidgets.QDoubleSpinBox()
             spin.setRange(0.0, 1.0)
-            spin.setSingleStep(0.01)
+            spin.setDecimals(4)
+            spin.setSingleStep(0.0001)
             spin.setValue(overrides.get("trigger_chance", tc))
             self._layout.addRow("Trigger Chance", spin)
             self._fields[("trigger_chance",)] = spin
@@ -888,7 +889,8 @@ class SkillParamEditor(QtWidgets.QWidget):
                 if isinstance(val, (int, float)):
                     spin = QtWidgets.QDoubleSpinBox()
                     spin.setRange(-1e9, 1e9)
-                    spin.setDecimals(3)
+                    spin.setDecimals(4)
+                    spin.setSingleStep(0.0001)
                     spin.setValue(override_cfg.get(key, float(val)))
                     self._layout.addRow(key.replace("_", " ").title(), spin)
                     self._fields[("config", key)] = spin
@@ -1097,22 +1099,26 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         self.atk_edit = QtWidgets.QDoubleSpinBox()
         self.atk_edit.setRange(-10.0, 10.0)
-        self.atk_edit.setSingleStep(0.1)
+        self.atk_edit.setDecimals(4)
+        self.atk_edit.setSingleStep(0.0001)
         self.atk_edit.setValue(0.0)
 
         self.def_edit = QtWidgets.QDoubleSpinBox()
         self.def_edit.setRange(-10.0, 10.0)
-        self.def_edit.setSingleStep(0.1)
+        self.def_edit.setDecimals(4)
+        self.def_edit.setSingleStep(0.0001)
         self.def_edit.setValue(0.0)
 
         self.hp_edit = QtWidgets.QDoubleSpinBox()
         self.hp_edit.setRange(-10.0, 10.0)
-        self.hp_edit.setSingleStep(0.1)
+        self.hp_edit.setDecimals(4)
+        self.hp_edit.setSingleStep(0.0001)
         self.hp_edit.setValue(0.0)
 
         self.unrevivable_spin = QtWidgets.QDoubleSpinBox()
         self.unrevivable_spin.setRange(0.0, 1.0)
-        self.unrevivable_spin.setSingleStep(0.05)
+        self.unrevivable_spin.setDecimals(4)
+        self.unrevivable_spin.setSingleStep(0.0001)
         self.unrevivable_spin.setValue(0.5)
 
         self.hero1_combo = QtWidgets.QComboBox()
@@ -1549,7 +1555,8 @@ class ArmySetupDialog(QtWidgets.QDialog):
         # armies across the map while still permitting fine grained slow
         # movement via the single step value.
         self.speed_spin.setRange(0.0, 100.0)
-        self.speed_spin.setSingleStep(0.1)
+        self.speed_spin.setDecimals(4)
+        self.speed_spin.setSingleStep(0.0001)
         self.speed_spin.setValue(50.0)
         speed_row.addWidget(self.speed_spin)
         layout.addLayout(speed_row)

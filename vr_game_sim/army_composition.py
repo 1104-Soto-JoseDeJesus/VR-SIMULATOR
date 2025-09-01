@@ -475,7 +475,11 @@ class Army:
                 EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
                 EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
             ]
-            if effect.applied_this_round and not is_immediate_custom_effect:
+            if (
+                effect.applied_this_round
+                and phase == "start_of_round"
+                and not is_immediate_custom_effect
+            ):
                 continue
 
             if effect.effect_type == EffectType.DAMAGE_OVER_TIME:

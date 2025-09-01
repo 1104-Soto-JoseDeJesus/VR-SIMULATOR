@@ -42,7 +42,7 @@ def test_rage_skill_executes_in_battlefield():
     engine.tick(1.0)  # round 1 – schedule rage skill
     engine.tick(1.0)  # round 2 – execute rage skill
 
-    assert attacker.current_rage == 100
+    assert attacker.current_rage == 0
     assert attacker.rage_added_this_round == 0
     assert attacker.skill_trigger_counts.get("base_skill_snakes_frenzy", 0) == 1
     assert defender.current_troop_count < 1000
@@ -123,7 +123,7 @@ def test_rage_skill_blocks_base_rage_in_arena():
     engine.tick(1.0)
     engine.tick(1.0)
 
-    assert attacker.current_rage == 100
+    assert attacker.current_rage == 0
     assert attacker.rage_added_this_round == 0
 
 

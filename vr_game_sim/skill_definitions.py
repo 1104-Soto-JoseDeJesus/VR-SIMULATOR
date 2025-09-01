@@ -1157,13 +1157,13 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "plugin_shield_reflector", "name": "Shield Reflector", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_plugin_shield_reflector,
-        "config": {}
+        "config": {"counterattack_boost": 1.30}
     },
     "plugin_first_strike": {
         "id": "plugin_first_strike", "name": "First Strike", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_plugin_first_strike_control,
-        "config": {"apply_aura_on_round": 1, "aura_effect_definition": {
+        "config": {"apply_aura_on_round": 1, "rage_per_round": 75, "aura_effect_definition": {
             "effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_FIRST_STRIKE_RAGE_AURA,
             "duration": 29, "config": {"rage_per_round": 75, "start_rage_gain_round": 2, "end_rage_gain_round": 31},
             "activate_next_round": False }}

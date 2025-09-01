@@ -226,8 +226,9 @@ def handle_plugin_shield_reflector(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_id = skill_def["id"]
     if triggering_army.started_last_round_with_active_shield:
+        boost = skill_def.get("config", {}).get("counterattack_boost", 1.30)
         effect_data = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_SHIELD_REFLECTOR_BUFF,
-                       "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST, "magnitude": 1.30,
+                       "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST, "magnitude": boost,
                        "duration": 0, "activate_next_round": False}  # Activates this round, lasts this round
         created_buff = triggering_army._create_and_add_single_effect(
             effect_data, skill_id, triggering_army, triggering_army, opponent_army)
@@ -284,6 +285,9 @@ def handle_plugin_first_strike_control(
         if not is_aura_already_active:
             effect_data_copy = aura_def.copy()
             effect_data_copy["config"] = aura_def.get("config", {}).copy()
+            rage_per_round = skill_config.get("rage_per_round")
+            if rage_per_round is not None:
+                effect_data_copy["config"]["rage_per_round"] = rage_per_round
             created_aura = triggering_army._create_and_add_single_effect(
                 effect_data_copy, skill_id, triggering_army, triggering_army, opponent_army
             )

@@ -6,7 +6,7 @@ from vr_game_sim.hero_definition import Hero
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
 from vr_game_sim.effect_system import EffectInstance
 from vr_game_sim.enums import EffectType
-from vr_game_sim.constants import EFFECT_NAME_SILENCE_DEBUFF
+from vr_game_sim.constants import EFFECT_NAME_SILENCE_DEBUFF, EFFECT_NAME_FIRST_STRIKE_RAGE_AURA
 
 
 def make_army_with_rage_skill(name="Army"):
@@ -103,3 +103,29 @@ def test_base_rage_granted_when_hero2_silenced():
 
     assert army1.current_rage == 1100
     assert army1.base_rage_awarded_this_round
+
+
+def test_rage_skill_resets_to_round_gain():
+    army1 = make_army_with_rage_skill("A1")
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army1, army2)
+    sim.round = 1
+
+    army1.current_rage = 1050
+    army1.hero1_rage_skill_queued_this_round = True
+
+    aura = EffectInstance(
+        uuid.uuid4(),
+        "fs",
+        EffectType.CUSTOM_SKILL_EFFECT,
+        duration=30,
+        config={"rage_per_round": 75, "start_rage_gain_round": 1, "end_rage_gain_round": 31},
+        name=EFFECT_NAME_FIRST_STRIKE_RAGE_AURA,
+    )
+    army1.active_effects.append(aura)
+
+    army1.process_periodic_effects("start_of_round", opponent=army2)
+
+    sim._execute_rage_skills(army1, army2)
+
+    assert army1.current_rage == 75

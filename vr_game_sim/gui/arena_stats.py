@@ -3,6 +3,39 @@ from __future__ import annotations
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 
+class HeroStatsHeader(QtWidgets.QWidget):
+    """Header row that labels hero statistics columns."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+
+        layout = QtWidgets.QGridLayout(self)
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(4)
+
+        portrait_spacer = QtWidgets.QWidget()
+        portrait_spacer.setFixedWidth(128)
+        layout.addWidget(portrait_spacer, 0, 0)
+
+        name_spacer = QtWidgets.QWidget()
+        layout.addWidget(name_spacer, 0, 1)
+
+        headers = ["Remaining Troops", "Heals", "Kills"]
+        for col, text in enumerate(headers, start=2):
+            label = QtWidgets.QLabel(text)
+            label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(label, 0, col)
+            layout.setColumnStretch(col, 1)
+
+        layout.setColumnStretch(1, 2)
+        layout.setColumnStretch(2, 3)
+
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Fixed,
+        )
+
+
 class HeroStatsWidget(QtWidgets.QWidget):
     """Display summary statistics for a hero in the arena."""
 
@@ -24,7 +57,12 @@ class HeroStatsWidget(QtWidgets.QWidget):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(4)
 
-        # Portraits
+        # Portraits displayed together in a single container
+        portrait_container = QtWidgets.QWidget()
+        portrait_layout = QtWidgets.QHBoxLayout(portrait_container)
+        portrait_layout.setContentsMargins(0, 0, 0, 0)
+        portrait_layout.setSpacing(0)
+
         img_label = QtWidgets.QLabel()
         img_label.setFixedSize(64, 64)
         pix = QtGui.QPixmap(portrait_path)
@@ -39,7 +77,7 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 QtCore.Qt.TransformationMode.SmoothTransformation,
             )
             img_label.setPixmap(pix)
-        layout.addWidget(img_label, 0, 0)
+        portrait_layout.addWidget(img_label)
 
         img_label2 = QtWidgets.QLabel()
         img_label2.setFixedSize(64, 64)
@@ -55,7 +93,10 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 QtCore.Qt.TransformationMode.SmoothTransformation,
             )
             img_label2.setPixmap(pix2)
-        layout.addWidget(img_label2, 0, 1)
+        portrait_layout.addWidget(img_label2)
+
+        portrait_container.setFixedSize(128, 64)
+        layout.addWidget(portrait_container, 0, 0)
 
         # Stats labels / bars
         name_label = QtWidgets.QLabel(name)
@@ -72,7 +113,7 @@ class HeroStatsWidget(QtWidgets.QWidget):
         )
 
         widgets = [name_label, remaining_bar, healed_label, kills_label]
-        for col, widget in enumerate(widgets, start=2):
+        for col, widget in enumerate(widgets, start=1):
             widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             widget.setSizePolicy(
                 QtWidgets.QSizePolicy.Policy.Expanding,
@@ -81,8 +122,8 @@ class HeroStatsWidget(QtWidgets.QWidget):
             layout.addWidget(widget, 0, col)
             layout.setColumnStretch(col, 1)
 
-        layout.setColumnStretch(2, 2)  # make name column wider
-        layout.setColumnStretch(3, 3)  # wider for progress bar
+        layout.setColumnStretch(1, 2)  # make name column wider
+        layout.setColumnStretch(2, 3)  # wider for progress bar
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Fixed,

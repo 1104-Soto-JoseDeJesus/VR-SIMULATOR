@@ -38,7 +38,7 @@ from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.battlefield_engine import BattlefieldEngine
 from vr_game_sim.arena_engine import ArenaEngine
 from vr_game_sim.navmesh import NavMesh
-from vr_game_sim.gui.arena_stats import HeroStatsWidget
+from vr_game_sim.gui.arena_stats import HeroStatsWidget, HeroStatsHeader
 
 
 def get_pdf_layout_path() -> str:
@@ -3739,6 +3739,8 @@ class MainWindow(QtWidgets.QMainWindow):
             "red": QtWidgets.QVBoxLayout(),
             "blue": QtWidgets.QVBoxLayout(),
         }
+        for layout in team_layouts.values():
+            layout.addWidget(HeroStatsHeader())
         for entry in results:
             widget = HeroStatsWidget(
                 entry.get("portrait1", ""),

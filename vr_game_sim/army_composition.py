@@ -81,8 +81,10 @@ class Army:
     heal_received_history: List[float] = field(init=False, default_factory=list)
     shield_received_history: List[float] = field(init=False, default_factory=list)
     rage_gained_history: List[float] = field(init=False, default_factory=list)
+    kills_dealt_history: List[float] = field(init=False, default_factory=list)
     shield_hp_gained_this_round: float = field(init=False, default=0.0)
     rage_added_this_round: float = field(init=False, default=0.0)
+    kills_dealt_this_round: float = field(init=False, default=0.0)
     damage_contributors_this_round: Dict[str, float] = field(init=False, default_factory=dict)
 
     def __post_init__(self):
@@ -257,6 +259,15 @@ class Army:
                 for src, dmg in self.damage_contributors_this_round.items():
                     sim._log_skill_trigger(self, "  ↳", f"{src} committed {dmg:.0f} damage")
             self.current_troop_count = max(0, self.current_troop_count - lost_round)
+            total_dmg = sum(self.damage_contributors_this_round.values())
+            if lost_round > 0 and total_dmg > 0:
+                for src, dmg in self.damage_contributors_this_round.items():
+                    kills = lost_round * (dmg / total_dmg)
+                    for sim in self.simulators:
+                        engine = getattr(sim, "parent_engine", None)
+                        if engine and src in engine._armies:
+                            engine._armies[src].army.kills_dealt_this_round += kills
+                            break
             self.damage_contributors_this_round = {}
         # self.pending_hp_damage_this_round = 0.0 # Resetting this at start of round in game_simulator.py
     def calculate_and_add_pending_healing(self, heal_factor: float, healer_army: 'Army', opponent_of_healer: 'Army',
@@ -913,8 +924,10 @@ class Army:
         self.heal_received_history = []
         self.shield_received_history = []
         self.rage_gained_history = []
+        self.kills_dealt_history = []
         self.shield_hp_gained_this_round = 0.0
         self.rage_added_this_round = 0.0
+        self.kills_dealt_this_round = 0.0
         self.damage_contributors_this_round = {}
 
         self._identify_hero_rage_skills()

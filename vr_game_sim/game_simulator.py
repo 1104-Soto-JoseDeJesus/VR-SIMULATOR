@@ -412,6 +412,8 @@ class GameSimulator:
                                         f"Cast blocked by Silence from {effect.source_skill_id}.")
                 if hero_slot == 1:
                     army.hero1_rage_skill_cast_blocked_by_silence_this_round = True
+                    army.hero1_rage_skill_scheduled_round = None
+                    army.hero1_rage_skill_queued_this_round = False
                 elif hero_slot == 2:
                     if army.hero2_rage_skill_primed_for_round == self.round:
                         army.hero2_rage_skill_primed_for_round += 1

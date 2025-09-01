@@ -2943,7 +2943,7 @@ class ArenaTab(QtWidgets.QWidget):
                 if not info:
                     continue
                 army = info["army"]
-                healed = int(round(army.heal_received_history[-1])) if army.heal_received_history else 0
+                healed = int(round(army.troops_healed_total))
                 kills = int(round(sum(army.kills_dealt_history)))
                 remaining = int(round(army.current_troop_count))
                 initial = int(round(army.unit.initial_count))

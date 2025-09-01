@@ -65,6 +65,8 @@ class Army:
     current_rage: float = field(init=False, default=0.0)
     hero1_rage_skill_id: Optional[str] = field(init=False, default=None)
     hero2_rage_skill_id: Optional[str] = field(init=False, default=None)
+    hero1_rage_skill_def: Optional[SkillDefinition] = field(init=False, default=None)
+    hero2_rage_skill_def: Optional[SkillDefinition] = field(init=False, default=None)
     hero1_rage_skill_queued_this_round: bool = field(init=False, default=False)
     hero1_rage_skill_used_round: Optional[int] = field(init=False, default=None)
     hero2_rage_skill_primed_for_round: Optional[int] = field(init=False, default=None)
@@ -102,16 +104,20 @@ class Army:
     def _identify_hero_rage_skills(self):
         self.hero1_rage_skill_id = None
         self.hero2_rage_skill_id = None
+        self.hero1_rage_skill_def = None
+        self.hero2_rage_skill_def = None
         if self.heroes:
             if len(self.heroes) > 0 and self.heroes[0]:
                 for skill_def in self.heroes[0].skills:
                     if skill_def.get("trigger") == SkillTriggerType.RAGE_SKILL:
-                        self.hero1_rage_skill_id = skill_def["id"];
+                        self.hero1_rage_skill_id = skill_def["id"]
+                        self.hero1_rage_skill_def = skill_def
                         break
             if len(self.heroes) > 1 and self.heroes[1]:
                 for skill_def in self.heroes[1].skills:
                     if skill_def.get("trigger") == SkillTriggerType.RAGE_SKILL:
-                        self.hero2_rage_skill_id = skill_def["id"];
+                        self.hero2_rage_skill_id = skill_def["id"]
+                        self.hero2_rage_skill_def = skill_def
                         break
 
     def _apply_initial_passive_skills(self):

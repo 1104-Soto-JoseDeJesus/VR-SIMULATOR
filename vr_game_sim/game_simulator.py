@@ -387,9 +387,15 @@ class GameSimulator:
 
         if not skill_to_execute_id:
             return
-        skill_def = self.SKILL_REGISTRY_GLOBAL.get(skill_to_execute_id)
+        skill_def = army.hero1_rage_skill_def if hero_slot == 1 else army.hero2_rage_skill_def
         if not skill_def:
-            print(f"Warning: Rage skill ID '{skill_to_execute_id}' not found in registry for {army.name}.")
+            print(f"Warning: Rage skill ID '{skill_to_execute_id}' not available for {army.name}.")
+            if hero_slot == 1:
+                army.hero1_rage_skill_queued_this_round = False
+                army.hero1_rage_skill_scheduled_round = None
+            elif hero_slot == 2:
+                if army.hero2_rage_skill_primed_for_round == self.round:
+                    army.hero2_rage_skill_primed_for_round = None
             return
 
         is_silenced = False

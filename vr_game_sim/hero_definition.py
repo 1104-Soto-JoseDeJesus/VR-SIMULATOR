@@ -3,6 +3,7 @@ Defines the Hero class and hero presets.
 """
 from dataclasses import dataclass, field, InitVar
 from typing import List, Dict, Optional
+import copy
 from .skill_system import SkillDefinition
 
 _SKILL_REGISTRY_TYPE_HINT: Dict[str, SkillDefinition] = {}
@@ -33,12 +34,12 @@ class Hero:
             for skill_id in skill_id_list:
                 if skill_id and skill_id.lower() not in ["", "none", "blank"]:
                     if skill_id in skill_registry:
-                        self.skills.append(skill_registry[skill_id])
+                        self.skills.append(copy.deepcopy(skill_registry[skill_id]))
                     else:
                         if skill_id != "dummy_talent_empty":
                             print(f"Warning: Skill ID '{skill_id}' for hero '{self.name}' not found in SKILL_REGISTRY.")
                         elif "dummy_talent_empty" in skill_registry:
-                            self.skills.append(skill_registry["dummy_talent_empty"])
+                            self.skills.append(copy.deepcopy(skill_registry["dummy_talent_empty"]))
 
 
     def __repr__(self):

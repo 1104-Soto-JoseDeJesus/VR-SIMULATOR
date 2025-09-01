@@ -2937,6 +2937,7 @@ class ArenaTab(QtWidgets.QWidget):
             self.run_btn.setEnabled(True)
             for item in self._slot_items.values():
                 item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
+            winner_team = next(iter(alive)) if len(alive) == 1 else None
             summary = []
             for (slot_team, _), info in self._slot_army.items():
                 if not info:
@@ -2945,6 +2946,7 @@ class ArenaTab(QtWidgets.QWidget):
                 healed = int(round(army.heal_received_history[-1])) if army.heal_received_history else 0
                 kills = int(round(sum(army.kills_dealt_history)))
                 remaining = int(round(army.current_troop_count))
+                initial = int(round(army.unit.initial_count))
                 cfg = info.get("config", {})
                 heroes = cfg.get("heroes", [])
                 if heroes:
@@ -2965,8 +2967,10 @@ class ArenaTab(QtWidgets.QWidget):
                         "name": army.name,
                         "portrait": portrait,
                         "remaining": remaining,
+                        "initial": initial,
                         "healed": healed,
                         "kills": kills,
+                        "is_winner": info["team"] == winner_team,
                     }
                 )
             if window is not None and hasattr(window, "update_arena_figures"):
@@ -3712,9 +3716,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 entry.get("portrait", ""),
                 entry.get("name", ""),
                 entry.get("remaining", 0),
+                entry.get("initial", entry.get("remaining", 0)),
                 entry.get("healed", 0),
                 entry.get("kills", 0),
                 entry.get("team", "red"),
+                entry.get("is_winner", False),
             )
             team_layouts.get(entry.get("team", ""), team_layouts["red"]).addWidget(widget)
 

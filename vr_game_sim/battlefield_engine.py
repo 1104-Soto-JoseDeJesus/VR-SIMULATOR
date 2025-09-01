@@ -706,7 +706,14 @@ class BattlefieldEngine:
 
         for dfd, attackers in new_engagements.items():
             def_ctx = self._armies[dfd]
-            if def_ctx.direct_target is None or (def_ctx.direct_target, dfd) not in self._engagements:
+            engaged_with_target = (
+                def_ctx.direct_target is not None
+                and (
+                    (def_ctx.direct_target, dfd) in self._engagements
+                    or (dfd, def_ctx.direct_target) in self._engagements
+                )
+            )
+            if def_ctx.direct_target is None or not engaged_with_target:
                 self.set_direct_target(dfd, attackers[0], pursue=False)
 
         # Reset per-round bookkeeping so reactive/round based skills only

@@ -248,6 +248,13 @@ class Army:
                             "Healing Commitment",
                             f"Commits {actual_healed_hp:.0f} HP healing, restoring {healed_troops_round} troops. Unrevivable: {round(self.unrevivable_troops)}",
                         )
+                    # Apply the committed healing to troop count, capped by the maximum healable troops
+                    self.current_troop_count = min(
+                        max_healable_count,
+                        self.current_troop_count + healed_troops_round,
+                    )
+                    # Clear pending healing so it does not carry over to subsequent rounds
+                    self.pending_hp_healing_this_round = 0.0
     def calculate_and_add_pending_healing(self, heal_factor: float, healer_army: 'Army', opponent_of_healer: 'Army',
                                           skill_heal_adjustment_magnitude: float = 0.0) -> float:
         if not self.simulator or healer_army.current_troop_count <= 0: return 0.0

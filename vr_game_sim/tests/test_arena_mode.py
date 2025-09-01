@@ -29,7 +29,7 @@ def test_slot_distances():
     speed = 50.0
     engage_dist = 2 * speed * 2
     back_dist = speed * 3 * 0.7
-    lateral = engage_dist
+    lateral = engage_dist * 0.6
 
     def dist(a, b):
         return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5

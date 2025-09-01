@@ -20,11 +20,12 @@ def test_slot_coordinates_symmetry():
     engage_dist = 2 * speed * 2
     to_mid = engage_dist / 2.0
     back_offset = speed * 3 * 0.7
+    row_scale = 0.6
 
-    top_outer = cy - 1.5 * engage_dist
-    top_inner = cy - 0.5 * engage_dist
-    bottom_inner = cy + 0.5 * engage_dist
-    bottom_outer = cy + 1.5 * engage_dist
+    top_outer = cy - 1.5 * engage_dist * row_scale
+    top_inner = cy - 0.5 * engage_dist * row_scale
+    bottom_inner = cy + 0.5 * engage_dist * row_scale
+    bottom_outer = cy + 1.5 * engage_dist * row_scale
 
     front_x1 = cx - to_mid
     back_x1 = cx - to_mid - back_offset

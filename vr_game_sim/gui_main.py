@@ -2441,12 +2441,15 @@ class ArenaTab(QtWidgets.QWidget):
         cx = self.view.sceneRect().width() / 2.0
         cy = self.view.sceneRect().height() / 2.0
 
-        # Vertical offsets for the four columns relative to the centre.
+        # Vertical offsets for the four columns relative to the centre.  The
+        # baseline spacing is ``engage_dist``.  Reduce this by 40% so rows are
+        # closer together.
+        row_step = engage_dist * 0.6
         offsets = [
-            -1.5 * engage_dist,
-            -0.5 * engage_dist,
-            0.5 * engage_dist,
-            1.5 * engage_dist,
+            -1.5 * row_step,
+            -0.5 * row_step,
+            0.5 * row_step,
+            1.5 * row_step,
         ]
 
         team1 = [(cx - to_mid, cy + dy) for dy in offsets]

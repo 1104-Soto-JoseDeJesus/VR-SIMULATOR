@@ -21,6 +21,16 @@ def make_army_with_laird(name: str) -> Army:
     return Army(name, unit, heroes=[hero])
 
 
+def test_passive_effects_applied_before_round():
+    engine = BattlefieldEngine()
+    atk = make_army_with_laird('A')
+    dfd = Army('B', Unit('archers', 5, initial_count=1000))
+    engine.add_army(atk, 'red', speed=0)
+    engine.add_army(dfd, 'blue', speed=0)
+    # Passive skills should be active immediately without requiring a tick
+    assert any(eff.name == 'Holy Shield Boost' for eff in atk.active_effects)
+
+
 def test_passive_effects_and_commit_logged_same_round():
     builder = BattlefieldReportBuilder()
     engine = BattlefieldEngine(report_builder=builder)

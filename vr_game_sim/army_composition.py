@@ -83,6 +83,7 @@ class Army:
     rage_gained_history: List[float] = field(init=False, default_factory=list)
     shield_hp_gained_this_round: float = field(init=False, default=0.0)
     rage_added_this_round: float = field(init=False, default=0.0)
+    damage_contributors_this_round: Dict[str, float] = field(init=False, default_factory=dict)
 
     def __post_init__(self):
         self.reset_for_new_battle()
@@ -214,21 +215,15 @@ class Army:
 
             unrevivable_increase = round(lost_round * self.unrevivable_ratio)
             for sim in self.simulators:
-                contributors: Dict[str, float] = {}
-                for action in sim.round_combat_actions_log:
-                    if action.get("defender_name") == self.name:
-                        dmg = action.get("final_hp_damage", 0)
-                        if dmg > 0:
-                            atk = action.get("attacker_name", "Unknown")
-                            contributors[atk] = contributors.get(atk, 0.0) + dmg
                 sim._log_skill_trigger(
                     self,
                     "Damage Commitment",
                     f"Commits {self.pending_hp_damage_this_round:.0f} pending HP damage, resulting in {lost_round} troops lost. {unrevivable_increase} unrevivable.",
                 )
-                for src, dmg in contributors.items():
+                for src, dmg in self.damage_contributors_this_round.items():
                     sim._log_skill_trigger(self, "  ↳", f"{src} committed {dmg:.0f} damage")
             self.current_troop_count = max(0, self.current_troop_count - lost_round)
+            self.damage_contributors_this_round = {}
         # self.pending_hp_damage_this_round = 0.0 # Resetting this at start of round in game_simulator.py
 
         if self.pending_hp_healing_this_round > 0:
@@ -548,21 +543,13 @@ class Army:
                     hp_damage_to_troops_dot = damage_result_dict['hp_damage_to_troops']
                     absorbed_by_shield_dot = damage_result_dict['absorbed_by_shield']
 
+                    attacker_name = effect.config.get("source_army_name", "Unknown")
                     if hp_damage_to_troops_dot > 0:
                         self.pending_hp_damage_this_round += hp_damage_to_troops_dot
-
-                    attacker_name = effect.config.get("source_army_name", "Unknown")
-                    if self.simulator and (hp_damage_to_troops_dot > 0 or absorbed_by_shield_dot > 0):
-                        self.simulator.round_combat_actions_log.append({
-                            "attacker_name": attacker_name,
-                            "defender_name": self.name,
-                            "action_type": f"{effect.name} (DoT)",
-                            "damage_potential_hp": dot_damage_after_target_debuffs,
-                            "absorbed_hp": absorbed_by_shield_dot,
-                            "final_hp_damage": hp_damage_to_troops_dot,
-                            "potential_kills": 0,
-                            "is_dot": True,
-                        })
+                        self.damage_contributors_this_round[attacker_name] = (
+                            self.damage_contributors_this_round.get(attacker_name, 0.0)
+                            + hp_damage_to_troops_dot
+                        )
 
                     dot_type_str = dot_type.value if isinstance(dot_type, DoTType) else "DoT"
                     log_msg = f"takes {hp_damage_to_troops_dot:.0f} HP ({dot_type_str}) damage (pending)."
@@ -909,6 +896,7 @@ class Army:
         self.rage_gained_history = []
         self.shield_hp_gained_this_round = 0.0
         self.rage_added_this_round = 0.0
+        self.damage_contributors_this_round = {}
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

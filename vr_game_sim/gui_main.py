@@ -3728,10 +3728,26 @@ class MainWindow(QtWidgets.QMainWindow):
             base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
             os.makedirs(base_hist_dir, exist_ok=True)
             path = os.path.join(base_hist_dir, "arena_victory_distribution.png")
-            labels = [k.capitalize() for k in results.keys()]
-            sizes = list(results.values())
+            order = ["blue", "red"]
+            color_map = {"blue": "#0000ff", "red": "#ff0000"}
+            labels: list[str] = []
+            sizes: list[int] = []
+            colors: list[str] = []
+            for team in order:
+                count = results.get(team, 0)
+                if count:
+                    labels.append(team.capitalize())
+                    sizes.append(count)
+                    colors.append(color_map[team])
+            for team, count in results.items():
+                if team not in order and count:
+                    labels.append(team.capitalize())
+                    sizes.append(count)
+                    colors.append("#808080")
+            if not sizes:
+                return
             fig, ax = plt.subplots()
-            ax.pie(sizes, labels=labels, autopct="%1.1f%%")
+            ax.pie(sizes, labels=labels, colors=colors, autopct="%1.1f%%")
             ax.set_title("Arena Victory Distribution")
             fig.savefig(path)
             plt.close(fig)

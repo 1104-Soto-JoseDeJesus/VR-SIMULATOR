@@ -1,7 +1,7 @@
 /* Global styles for arena statistics widgets */
 
 QProgressBar {
-  border: 1px solid #333;
+  border: none;
   background-color: #000;
   color: white;
   text-align: center;
@@ -27,16 +27,9 @@ QProgressBar[class="remaining"]::chunk {
   background-color: #fdd835;
 }
 
-HeroStatsWidget[team="red"] {
-  background-color: #550000;
-  border: 1px solid red;
-  color: white;
-  font-weight: bold;
-}
-
-HeroStatsWidget[team="blue"] {
-  background-color: #000055;
-  border: 1px solid blue;
+HeroStatsWidget {
+  background-color: transparent;
+  border: none;
   color: white;
   font-weight: bold;
 }

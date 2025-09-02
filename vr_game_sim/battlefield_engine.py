@@ -38,6 +38,7 @@ from .army_composition import Army
 from .game_simulator import GameSimulator
 from .enums import SkillTriggerType
 from .battlefield_report_builder import BattlefieldReportBuilder
+from .constants import EFFECT_NAME_DISARM_DEBUFF
 
 
 # Minimum centre-to-centre separation at which armies begin fighting.  Using a

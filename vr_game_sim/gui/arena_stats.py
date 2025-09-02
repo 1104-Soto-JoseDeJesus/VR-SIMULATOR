@@ -389,7 +389,12 @@ class SkillStatsRow(QtWidgets.QWidget):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(4)
 
-        name_lbl = QtWidgets.QLabel(data.get("name", ""))
+        self._name = data.get("name", "")
+        self._description = data.get("description", "")
+
+        name_lbl = ClickableLabel(self._name)
+        name_lbl.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        name_lbl.clicked.connect(self._show_description)
         layout.addWidget(name_lbl, 0, 0)
 
         cast_icon = QtWidgets.QLabel()
@@ -485,6 +490,19 @@ class SkillStatsRow(QtWidgets.QWidget):
         layout.setColumnStretch(4, 3)
         layout.setColumnStretch(6, 3)
         layout.setColumnStretch(8, 3)
+
+    def _show_description(self) -> None:
+        if self._description:
+            QtWidgets.QMessageBox.information(self, self._name, self._description)
+
+
+class ClickableLabel(QtWidgets.QLabel):
+    clicked = QtCore.pyqtSignal()
+
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:  # type: ignore[override]
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mouseReleaseEvent(event)
 
 
 class HeroSkillDialog(QtWidgets.QDialog):

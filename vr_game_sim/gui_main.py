@@ -3077,6 +3077,7 @@ class ArenaTab(QtWidgets.QWidget):
                             {
                                 "id": sid,
                                 "name": skill_def.get("name", sid),
+                                "description": skill_def.get("description", ""),
                                 "casts": army.skill_trigger_counts.get(sid, 0),
                                 "kills": int(round(army.skill_kill_totals.get(sid, 0.0))),
                                 "heals": int(round(army.skill_heal_totals.get(sid, 0.0))),

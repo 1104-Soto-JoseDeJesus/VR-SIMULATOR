@@ -280,11 +280,13 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 index = 0
             skills = self._skills[index] if index < len(self._skills) else []
             hero_name = self._hero_names[index] if index < len(self._hero_names) else "Hero"
+            total_shielded = sum(s.get("shielded", 0) for s in skills)
             dlg = HeroSkillDialog(
                 hero_name,
                 skills,
                 self._total_kills,
                 self._total_healed,
+                total_shielded,
                 self,
             )
             dlg.exec()
@@ -372,6 +374,7 @@ class SkillStatsRow(QtWidgets.QWidget):
         data: dict,
         total_kills: int,
         total_healed: int,
+        total_shielded: int,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -448,9 +451,33 @@ class SkillStatsRow(QtWidgets.QWidget):
         heals_bar.setProperty("class", "healed")
         layout.addWidget(heals_bar, 0, 6)
 
+        shield_icon = QtWidgets.QLabel()
+        shield_path = os.path.join(
+            os.path.dirname(__file__), "..", "Icons", "Shields.png"
+        )
+        shield_pix = QtGui.QPixmap(shield_path)
+        if not shield_pix.isNull():
+            shield_icon.setPixmap(
+                shield_pix.scaled(
+                    size,
+                    size,
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        layout.addWidget(shield_icon, 0, 7)
+
+        shield_bar = QtWidgets.QProgressBar()
+        shield_bar.setRange(0, max(1, total_shielded))
+        shield_bar.setValue(data.get("shielded", 0))
+        shield_bar.setFormat(str(data.get("shielded", 0)))
+        shield_bar.setProperty("class", "shielded")
+        layout.addWidget(shield_bar, 0, 8)
+
         layout.setColumnStretch(0, 3)
         layout.setColumnStretch(4, 3)
         layout.setColumnStretch(6, 3)
+        layout.setColumnStretch(8, 3)
 
 
 class HeroSkillDialog(QtWidgets.QDialog):
@@ -462,6 +489,7 @@ class HeroSkillDialog(QtWidgets.QDialog):
         skills: list[dict],
         total_kills: int,
         total_healed: int,
+        total_shielded: int,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -469,6 +497,6 @@ class HeroSkillDialog(QtWidgets.QDialog):
         self.setWindowTitle(f"{hero_name} Skill Breakdown")
         layout = QtWidgets.QVBoxLayout(self)
         for data in skills:
-            layout.addWidget(SkillStatsRow(data, total_kills, total_healed))
+            layout.addWidget(SkillStatsRow(data, total_kills, total_healed, total_shielded))
         self.setLayout(layout)
 

@@ -693,8 +693,8 @@ class GameSimulator:
                         or army.hero2_rage_skill_primed_for_round != self.round + 1
                     )
                 ):
-                    skill_def = self.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
-                    if skill_def and army.current_rage >= skill_def.get("rage_cost", 1000):
+                    skill_def = army.hero1_rage_skill_def
+                    if skill_def is not None and army.current_rage >= skill_def.get("rage_cost", 1000):
                         army.hero1_rage_skill_scheduled_round = self.round + 1
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
@@ -806,8 +806,8 @@ class GameSimulator:
                         or army.hero2_rage_skill_primed_for_round != self.round + 1
                     )
                 ):
-                    skill_def_h1_rage = self.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
-                    if skill_def_h1_rage and army.current_rage >= skill_def_h1_rage.get("rage_cost", 1000):
+                    skill_def_h1_rage = army.hero1_rage_skill_def
+                    if skill_def_h1_rage is not None and army.current_rage >= skill_def_h1_rage.get("rage_cost", 1000):
                         army.hero1_rage_skill_scheduled_round = self.round + 1
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break

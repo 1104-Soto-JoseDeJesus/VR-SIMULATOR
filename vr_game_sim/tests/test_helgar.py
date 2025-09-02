@@ -89,7 +89,8 @@ def test_judgements_fury_below_threshold_no_buff():
 
     happened, logs = skill_def['logic_handler'](army, enemy, skill_def, None, sim)
 
-    assert not happened
+    # The skill should queue a marker even below the damage threshold.
+    assert happened
     assert logs == []
 
 
@@ -113,6 +114,30 @@ def test_judgements_fury_queues_marker_for_next_round():
     army.activate_queued_effects()
     assert sum(1 for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER) == 1
 
+
+def test_judgements_fury_only_one_marker_per_round():
+    hero = Hero('Helgar', [], ['base_skill_judgements_fury'], [], SKILL_REGISTRY_GLOBAL)
+    army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
+    enemy = Army('E', Unit('archers', 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy)
+
+    # Simulate multiple basic attacks hitting Helgar in the same round.
+    sim._process_skill_triggers(army, enemy, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK)
+    sim._process_skill_triggers(army, enemy, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK)
+
+    # Only one pending marker should be queued for the next round.
+    pending = [e for e in army.effects_to_activate_next_round if e.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS]
+    assert len(pending) == 1
+
+    # After activation, only one actual marker should be present.
+    if army.effects_to_activate_next_round:
+        army.upcoming_effects.extend(army.effects_to_activate_next_round)
+        army.effects_to_activate_next_round.clear()
+    army.activate_queued_effects()
+    army.process_periodic_effects('end_of_round', opponent=enemy)
+    army.activate_queued_effects()
+    markers = [e for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER]
+    assert len(markers) == 1
 
 def test_war_blessing_queues_marker_for_next_round():
     hero = Hero('Helgar', ['talent_war_blessing'], [], [], SKILL_REGISTRY_GLOBAL)

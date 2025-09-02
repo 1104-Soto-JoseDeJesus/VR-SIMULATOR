@@ -450,7 +450,8 @@ class GameSimulator:
                 if delay_rounds >= 2:
                     army.hero2_rage_skill_primed_for_round = None
                 else:
-                    army.hero2_rage_skill_primed_for_round = self.round + 1
+                    next_rage_round = self.round + (2 if self.mode == "standard" else 1)
+                    army.hero2_rage_skill_primed_for_round = next_rage_round
         else:
             if army.hero2_rage_skill_primed_for_round == self.round:
                 army.hero2_rage_skill_primed_for_round = None
@@ -689,7 +690,7 @@ class GameSimulator:
                     and army.hero1_rage_skill_scheduled_round is None
                     and (
                         army.hero2_rage_skill_primed_for_round is None
-                        or army.hero2_rage_skill_primed_for_round != self.round + 1
+                        or army.hero2_rage_skill_primed_for_round != self.round + (2 if self.mode == "standard" else 1)
                     )
                 ):
                     skill_def = army.hero1_rage_skill_def
@@ -803,7 +804,7 @@ class GameSimulator:
                     and army.hero1_rage_skill_scheduled_round is None
                     and (
                         army.hero2_rage_skill_primed_for_round is None
-                        or army.hero2_rage_skill_primed_for_round != self.round + 1
+                        or army.hero2_rage_skill_primed_for_round != self.round + (2 if self.mode == "standard" else 1)
                     )
                 ):
                     skill_def_h1_rage = army.hero1_rage_skill_def

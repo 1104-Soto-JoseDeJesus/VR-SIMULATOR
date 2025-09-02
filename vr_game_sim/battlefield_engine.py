@@ -902,6 +902,7 @@ class BattlefieldEngine:
                 skill_def = army.hero1_rage_skill_def
                 if skill_def is not None and army.current_rage >= skill_def.get("rage_cost", 1000):
                     army.hero1_rage_skill_scheduled_round = ctx.internal_round + 1
+                    army.army_used_rage_skill_this_round_for_rage_gain_block = True
 
         # Execute any queued rage skills.
         if atk.current_troop_count > 0 and dfd.current_troop_count > 0:

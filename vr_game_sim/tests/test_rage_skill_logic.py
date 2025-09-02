@@ -19,7 +19,7 @@ def test_rage_skill_cancels_when_insufficient_rage():
     army1 = make_army_with_rage_skill("A1")
     army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
 
-    sim = GameSimulator(army1, army2)
+    sim = GameSimulator(army1, army2, mode="arena")
     sim.round = 1
 
     army1.current_rage = 900
@@ -34,7 +34,7 @@ def test_rage_skill_cancels_when_insufficient_rage():
 def test_no_base_rage_when_skill_cast():
     army1 = make_army_with_rage_skill("A1")
     army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
-    sim = GameSimulator(army1, army2)
+    sim = GameSimulator(army1, army2, mode="arena")
     sim.round = 1
 
     army1.current_rage = 1000
@@ -49,7 +49,7 @@ def test_no_base_rage_when_skill_cast():
 def test_base_rage_awarded_when_skill_canceled():
     army1 = make_army_with_rage_skill("A1")
     army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
-    sim = GameSimulator(army1, army2)
+    sim = GameSimulator(army1, army2, mode="arena")
     sim.round = 1
 
     army1.current_rage = 900
@@ -64,7 +64,7 @@ def test_base_rage_awarded_when_skill_canceled():
 def test_base_rage_blocked_when_silenced():
     army1 = make_army_with_rage_skill("A1")
     army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
-    sim = GameSimulator(army1, army2)
+    sim = GameSimulator(army1, army2, mode="arena")
     sim.round = 1
 
     army1.current_rage = 1000
@@ -136,7 +136,7 @@ def test_hero2_rage_skill_primes_for_two_round_delay():
     hero2 = Hero("H2", [], ["base_skill_snakes_frenzy", "rage_skill_ruling_trial"], [], SKILL_REGISTRY_GLOBAL)
     army1 = Army("A1", Unit("pikemen", 5, initial_count=10), heroes=[hero1, hero2])
     army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
-    sim = GameSimulator(army1, army2)
+    sim = GameSimulator(army1, army2, mode="arena")
     sim.round = 1
     army1.current_rage = 1000
     army1.hero1_rage_skill_queued_this_round = True

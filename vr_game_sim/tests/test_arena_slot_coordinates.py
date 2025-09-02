@@ -1,5 +1,6 @@
 import os
 from PyQt6 import QtWidgets
+from vr_game_sim.battlefield_engine import ENGAGEMENT_DISTANCE
 
 
 def _get_app() -> QtWidgets.QApplication:
@@ -17,7 +18,7 @@ def test_slot_coordinates_symmetry():
     cx = scene.width() / 2.0
     cy = scene.height() / 2.0
     speed = 50.0
-    engage_dist = 2 * speed * 2
+    engage_dist = 2 * speed * 2 + ENGAGEMENT_DISTANCE - 70
     to_mid = engage_dist / 2.0
     back_offset = speed * 3 * 0.7
     row_scale = 0.6

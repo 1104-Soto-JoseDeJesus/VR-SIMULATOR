@@ -23,6 +23,10 @@ QProgressBar[class="kills"]::chunk {
   background-color: #e53935;
 }
 
+QProgressBar[class="remaining"]::chunk {
+  background-color: #fdd835;
+}
+
 HeroStatsWidget[team="red"] {
   background-color: #550000;
   border: 1px solid red;

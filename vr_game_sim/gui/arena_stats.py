@@ -57,8 +57,16 @@ class HeroStatsHeader(QtWidgets.QWidget):
             layout.addWidget(label, 0, col)
             layout.setColumnStretch(col, 1)
 
-        layout.setColumnStretch(3 if align_right else 1, 2)
-        layout.setColumnStretch(2, 3)
+        if align_right:
+            name_col = 3
+            bar_cols = [0, 1, 2]
+        else:
+            name_col = 1
+            bar_cols = [2, 3, 4]
+
+        layout.setColumnStretch(name_col, 2)
+        for col in bar_cols:
+            layout.setColumnStretch(col, 3)
 
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
@@ -121,7 +129,7 @@ class HeroStatsWidget(QtWidgets.QWidget):
         remaining_bar.setRange(0, max(1, initial))
         remaining_bar.setValue(max(0, remaining))
         remaining_bar.setFormat(f"{remaining}/{initial}")
-        remaining_bar.setProperty("team", team_color.lower())
+        remaining_bar.setProperty("class", "remaining")
         remaining_bar.setFont(font)
 
         self._anim = QtCore.QPropertyAnimation(remaining_bar, b"value", self)
@@ -171,8 +179,16 @@ class HeroStatsWidget(QtWidgets.QWidget):
             layout.addWidget(widget, 0, col)
             layout.setColumnStretch(col, 1)
 
-        layout.setColumnStretch(1 if not align_right else 3, 2)
-        layout.setColumnStretch(2, 3)
+        if align_right:
+            name_col = 3
+            bar_cols = [0, 1, 2]
+        else:
+            name_col = 1
+            bar_cols = [2, 3, 4]
+
+        layout.setColumnStretch(name_col, 2)
+        for col in bar_cols:
+            layout.setColumnStretch(col, 3)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Fixed,

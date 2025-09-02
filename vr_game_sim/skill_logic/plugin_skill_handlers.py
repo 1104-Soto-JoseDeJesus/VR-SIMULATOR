@@ -116,7 +116,10 @@ def handle_plugin_freyas_blessing(
     direct_heal_factor = skill_config.get("direct_heal_factor", 0.0)
     if direct_heal_factor > 0:
         healed_amount = triggering_army.calculate_and_add_pending_healing(
-            direct_heal_factor, triggering_army, opponent_army
+            direct_heal_factor,
+            triggering_army,
+            opponent_army,
+            source_skill_id=skill_id,
         )
         if healed_amount > 0:
             an_effect_happened = True
@@ -434,8 +437,9 @@ def handle_plugin_baldr_blessing(
         heal_name = skill_config.get("heal_effect_name",
                                      EFFECT_NAME_BALDRS_HEAL)  # Though direct heal, name can be for logging
         if heal_factor > 0:
-            healed_amount = triggering_army.calculate_and_add_pending_healing(heal_factor, triggering_army,
-                                                                              opponent_army)
+            healed_amount = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
+            )
             if healed_amount > 0:
                 an_effect_happened = True
                 log_details.append(
@@ -1092,6 +1096,7 @@ def handle_plugin_rage_purge(
     an_effect_happened = False
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
@@ -1309,7 +1314,7 @@ def handle_plugin_rage_leech(
         heal_factor = skill_config.get("heal_factor", 900.0)
         if heal_factor > 0:
             healed = triggering_army.calculate_and_add_pending_healing(
-                heal_factor, triggering_army, opponent_army
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
             )
             if healed > 0:
                 an_effect_happened = True
@@ -1903,7 +1908,7 @@ def handle_plugin_tenacity(
     heal_factor = skill_config.get("heal_factor", 700.0)
     if heal_factor > 0:
         healed_amount = triggering_army.calculate_and_add_pending_healing(
-            heal_factor, triggering_army, opponent_army
+            heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
         )
         if healed_amount > 0:
             an_effect_happened = True
@@ -1920,6 +1925,7 @@ def handle_plugin_blessed_healing(
     an_effect_happened = False
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 12)
 
     if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
@@ -1928,7 +1934,7 @@ def handle_plugin_blessed_healing(
     heal_factor = skill_config.get("heal_factor", 850.0)
     if heal_factor > 0:
         healed_amount = triggering_army.calculate_and_add_pending_healing(
-            heal_factor, triggering_army, opponent_army
+            heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
         )
         if healed_amount > 0:
             an_effect_happened = True
@@ -2088,7 +2094,7 @@ def handle_plugin_rest_and_counterattack(
     heal_factor = skill_config.get("heal_factor", 400.0)
     if heal_factor > 0:
         healed_amount = triggering_army.calculate_and_add_pending_healing(
-            heal_factor, triggering_army, opponent_army
+            heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
         )
         if healed_amount > 0:
             an_effect_happened = True
@@ -2139,7 +2145,7 @@ def handle_plugin_bloodstained_icefield(
     heal_factor = skill_config.get("heal_factor", 700.0)
     if heal_factor > 0:
         healed_amount = triggering_army.calculate_and_add_pending_healing(
-            heal_factor, triggering_army, opponent_army
+            heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
         )
         if healed_amount > 0:
             an_effect_happened = True
@@ -2162,6 +2168,7 @@ def handle_plugin_this_too_shall_pass(
     if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
         return False, []
 
+    skill_id = skill_def["id"]
     enemy_has_poison = any(
         eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.POISON
         for eff in opponent_army.active_effects
@@ -2190,7 +2197,7 @@ def handle_plugin_this_too_shall_pass(
         heal_factor = skill_config.get("heal_factor", 1000.0)
         if heal_factor > 0:
             healed_amount = triggering_army.calculate_and_add_pending_healing(
-                heal_factor, triggering_army, opponent_army
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
             )
             if healed_amount > 0:
                 an_effect_happened = True

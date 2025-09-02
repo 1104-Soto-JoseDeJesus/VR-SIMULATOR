@@ -98,7 +98,9 @@ def handle_base_skill_sanctity_of_life(trig_army: ArmyRef, opp_army: ArmyRef, sk
     if random.random() < sk_cfg.get("heal_chance", 0.0):
         heal_fctr = sk_cfg.get("heal_factor", 0.0)
         if heal_fctr > 0:
-            healed_amount = trig_army.calculate_and_add_pending_healing(heal_fctr, trig_army, opp_army)
+            healed_amount = trig_army.calculate_and_add_pending_healing(
+                heal_fctr, trig_army, opp_army, source_skill_id=sk_id
+            )
             if healed_amount > 0:
                 eff_hpnd = True
                 logs.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_fctr}).", None))
@@ -309,7 +311,7 @@ def handle_base_skill_unyielding_will(
         heal_factor = skill_config.get("heal_factor", 0.0)
         if heal_factor > 0:
             healed_amount = triggering_army.calculate_and_add_pending_healing(
-                heal_factor, triggering_army, opponent_army
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
             )
             if healed_amount > 0:
                 an_effect_happened = True
@@ -696,7 +698,9 @@ def handle_base_skill_tough_choice(triggering_army: ArmyRef, opponent_army: Army
     if any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects):
         if random.random() < cfg.get("heal_chance", 0.0):
             heal_factor = cfg.get("heal_factor", 0.0)
-            healed = triggering_army.calculate_and_add_pending_healing(heal_factor, triggering_army, opponent_army)
+            healed = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_def["id"]
+            )
             if healed > 0:
                 happened = True
                 logs.append((f"Heals for {healed:.0f} HP (Factor: {heal_factor}).", None))

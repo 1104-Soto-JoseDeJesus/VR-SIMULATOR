@@ -89,6 +89,14 @@ class Army:
     rage_added_this_round: float = field(init=False, default=0.0)
     kills_dealt_this_round: float = field(init=False, default=0.0)
     damage_contributors_this_round: Dict[str, float] = field(init=False, default_factory=dict)
+    damage_contributors_by_skill_this_round: Dict[str, Dict[str, float]] = field(
+        init=False, default_factory=dict
+    )
+    heal_contributors_this_round: Dict[str, Dict[str, float]] = field(
+        init=False, default_factory=dict
+    )
+    skill_kill_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    skill_heal_totals: Dict[str, float] = field(init=False, default_factory=dict)
 
     def __post_init__(self):
         self.reset_for_new_battle()
@@ -240,14 +248,29 @@ class Army:
                             "Healing Commitment",
                             f"Commits {actual_healed_hp:.0f} HP healing, restoring {healed_troops_round} troops. Unrevivable: {round(self.unrevivable_troops)}",
                         )
-                    # Track only the actual healed troops
                     self.troops_healed_total += healed_troops_float
-                    # Apply the committed healing to troop count, capped by the maximum healable troops
                     self.current_troop_count = min(
                         max_healable_count,
                         self.current_troop_count + healed_troops_round,
                     )
-                    # Clear pending healing so it does not carry over to subsequent rounds
+
+                    total_contrib_hp = sum(
+                        sum(skills.values()) for skills in self.heal_contributors_this_round.values()
+                    )
+                    if total_contrib_hp > 0:
+                        for src, skills in self.heal_contributors_this_round.items():
+                            for sim in self.simulators:
+                                engine = getattr(sim, "parent_engine", None)
+                                if engine and src in engine._armies:
+                                    healer_army = engine._armies[src].army
+                                    for sid, hp in skills.items():
+                                        portion = actual_healed_hp * (hp / total_contrib_hp)
+                                        healer_army.skill_heal_totals[sid] = healer_army.skill_heal_totals.get(sid, 0.0) + (
+                                            portion / hp_per_troop
+                                        )
+                                    break
+
+                    self.heal_contributors_this_round = {}
                     self.pending_hp_healing_this_round = 0.0
 
         if self.pending_hp_damage_this_round > 0 and self.current_troop_count > 0:
@@ -279,12 +302,27 @@ class Army:
                     for sim in self.simulators:
                         engine = getattr(sim, "parent_engine", None)
                         if engine and src in engine._armies:
-                            engine._armies[src].army.kills_dealt_this_round += kills
+                            army_obj = engine._armies[src].army
+                            army_obj.kills_dealt_this_round += kills
+                            skill_map = self.damage_contributors_by_skill_this_round.get(src, {})
+                            skill_total = sum(skill_map.values())
+                            if skill_total > 0:
+                                for sid, sdmg in skill_map.items():
+                                    army_obj.skill_kill_totals[sid] = army_obj.skill_kill_totals.get(sid, 0.0) + (
+                                        kills * (sdmg / skill_total)
+                                    )
                             break
             self.damage_contributors_this_round = {}
+            self.damage_contributors_by_skill_this_round = {}
         # self.pending_hp_damage_this_round = 0.0 # Resetting this at start of round in game_simulator.py
-    def calculate_and_add_pending_healing(self, heal_factor: float, healer_army: 'Army', opponent_of_healer: 'Army',
-                                          skill_heal_adjustment_magnitude: float = 0.0) -> float:
+    def calculate_and_add_pending_healing(
+        self,
+        heal_factor: float,
+        healer_army: 'Army',
+        opponent_of_healer: 'Army',
+        skill_heal_adjustment_magnitude: float = 0.0,
+        source_skill_id: str | None = None,
+    ) -> float:
         if not self.simulator or healer_army.current_troop_count <= 0: return 0.0
 
         healer_atk = healer_army.unit.effective_attack(healer_army.active_effects)
@@ -299,12 +337,22 @@ class Army:
 
         if hp_healed_raw > 0:
             self.pending_hp_healing_this_round += hp_healed_raw
-            self.simulator._process_skill_triggers(self, opponent_of_healer,
-                                                   SkillTriggerType.ON_RECEIVING_HEALING,
-                                                   event_data={'healed_army': self,
-                                                               'opponent_for_shield_calc': opponent_of_healer,
-                                                               'heal_amount_hp': hp_healed_raw,
-                                                               'source_heal_factor': heal_factor})
+            if source_skill_id:
+                skill_map = self.heal_contributors_this_round.setdefault(
+                    healer_army.name, {}
+                )
+                skill_map[source_skill_id] = skill_map.get(source_skill_id, 0.0) + hp_healed_raw
+            self.simulator._process_skill_triggers(
+                self,
+                opponent_of_healer,
+                SkillTriggerType.ON_RECEIVING_HEALING,
+                event_data={
+                    'healed_army': self,
+                    'opponent_for_shield_calc': opponent_of_healer,
+                    'heal_amount_hp': hp_healed_raw,
+                    'source_heal_factor': heal_factor,
+                },
+            )
             self.activate_queued_effects()
             if opponent_of_healer.current_troop_count > 0:
                 opponent_of_healer.activate_queued_effects()
@@ -593,6 +641,12 @@ class Army:
                             self.damage_contributors_this_round.get(attacker_name, 0.0)
                             + hp_damage_to_troops_dot
                         )
+                        skill_map = self.damage_contributors_by_skill_this_round.setdefault(
+                            attacker_name, {}
+                        )
+                        skill_map[effect.source_skill_id] = skill_map.get(
+                            effect.source_skill_id, 0.0
+                        ) + hp_damage_to_troops_dot
 
                     dot_type_str = dot_type.value if isinstance(dot_type, DoTType) else "DoT"
                     log_msg = f"takes {hp_damage_to_troops_dot:.0f} HP ({dot_type_str}) damage (pending)."
@@ -617,7 +671,11 @@ class Army:
                     continue
                 if opponent:
                     hot_amount_this_tick = self.calculate_and_add_pending_healing(
-                        heal_factor=effect.magnitude, healer_army=self, opponent_of_healer=opponent)
+                        heal_factor=effect.magnitude,
+                        healer_army=self,
+                        opponent_of_healer=opponent,
+                        source_skill_id=effect.source_skill_id,
+                    )
                     if hot_amount_this_tick > 0 and self.simulator:
                         self.simulator._log_skill_trigger(
                             self,
@@ -948,6 +1006,10 @@ class Army:
         self.rage_added_this_round = 0.0
         self.kills_dealt_this_round = 0.0
         self.damage_contributors_this_round = {}
+        self.damage_contributors_by_skill_this_round = {}
+        self.heal_contributors_this_round = {}
+        self.skill_kill_totals.clear()
+        self.skill_heal_totals.clear()
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

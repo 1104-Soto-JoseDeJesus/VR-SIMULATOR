@@ -88,7 +88,9 @@ def handle_rage_vital_blessing(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinit
     sk_id = sk_def["id"]
     heal_fctr = sk_cfg.get("heal_factor", 0.0)
     if heal_fctr > 0:
-        healed_amount = army.calculate_and_add_pending_healing(heal_fctr, army, opp)
+        healed_amount = army.calculate_and_add_pending_healing(
+            heal_fctr, army, opp, source_skill_id=sk_id
+        )
         if healed_amount > 0:
             eff_hpnd = True
             logs.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_fctr}).", None))
@@ -108,7 +110,9 @@ def handle_rage_vital_blessing(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinit
                     if len(allies) > 4:
                         allies = random.sample(allies, 4)
                     for ally in allies:
-                        healed_other = ally.calculate_and_add_pending_healing(heal_fctr, army, opp)
+                        healed_other = ally.calculate_and_add_pending_healing(
+                            heal_fctr, army, opp, source_skill_id=sk_id
+                        )
                         if healed_other > 0:
                             eff_hpnd = True
                             logs.append((f"Heals {ally.name} for {healed_other:.0f} HP (Factor: {heal_fctr}).", None))
@@ -131,7 +135,9 @@ def handle_rage_vanquishing_blade(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefi
     sk_id = sk_def["id"]
     heal_fctr_vb = sk_cfg.get("heal_factor", 0.0)
     if heal_fctr_vb > 0:
-        healed_amount = army.calculate_and_add_pending_healing(heal_fctr_vb, army, opp)
+        healed_amount = army.calculate_and_add_pending_healing(
+            heal_fctr_vb, army, opp, source_skill_id=sk_id
+        )
         if healed_amount > 0:
             eff_hpnd = True
             logs.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_fctr_vb}).", None))

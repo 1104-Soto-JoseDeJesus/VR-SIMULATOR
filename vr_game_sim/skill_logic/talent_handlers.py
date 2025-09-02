@@ -167,7 +167,9 @@ def handle_talent_determined_defense(trig_army: ArmyRef, opp_army: ArmyRef, sk_d
         )
     heal_fctr = sk_cfg.get("heal_factor", 0.0)
     if heal_fctr > 0:
-        healed_amount = trig_army.calculate_and_add_pending_healing(heal_fctr, trig_army, opp_army)
+        healed_amount = trig_army.calculate_and_add_pending_healing(
+            heal_fctr, trig_army, opp_army, source_skill_id=sk_id
+        )
         if healed_amount > 0:
             eff_hpnd = True
             logs.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_fctr}).", None))
@@ -433,7 +435,7 @@ def handle_talent_strategize(
             heal_factor = skill_config.get("heal_factor", 0.0)
             if heal_factor > 0:
                 healed_amount = triggering_army.calculate_and_add_pending_healing(
-                    heal_factor, triggering_army, opponent_army
+                    heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
                 )
                 if healed_amount > 0:
                     an_effect_happened = True
@@ -986,6 +988,7 @@ def handle_talent_patient_waiting(triggering_army: ArmyRef, opponent_army: ArmyR
     happened = False
     logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
     if simulator.round == 2:
         buff_mag = cfg.get("buff_magnitude", 0.2)
         duration = cfg.get("duration", 30)
@@ -1058,7 +1061,9 @@ def handle_talent_adaptable_agility(triggering_army: ArmyRef, opponent_army: Arm
     elif triggering_army.current_troop_count < opponent_army.current_troop_count:
         if random.random() < cfg.get("heal_chance_low", 0.0):
             heal_factor = cfg.get("heal_factor", 0.0)
-            healed = triggering_army.calculate_and_add_pending_healing(heal_factor, triggering_army, opponent_army)
+            healed = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
+            )
             if healed > 0:
                 happened = True
                 logs.append((f"Heals self for {healed:.0f} HP (Factor: {heal_factor}).", None))

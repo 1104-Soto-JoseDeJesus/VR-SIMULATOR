@@ -127,6 +127,22 @@ def test_rage_skill_blocks_base_rage_in_arena():
     assert attacker.rage_added_this_round == 0
 
 
+def test_no_base_rage_on_trigger_round():
+    engine = ArenaEngine()
+    attacker = make_rage_army("A")
+    defender = make_basic_army("B")
+    engine.add_army(attacker, "red", position=(0, 0), speed=0)
+    engine.add_army(defender, "blue", position=(2, 0), speed=0)
+
+    attacker.current_rage = 1000
+
+    engine.engage("A", "B")
+    engine.tick(1.0)
+
+    assert attacker.current_rage == 1000
+    assert not attacker.base_rage_awarded_this_round
+
+
 def test_first_strike_resets_after_idle():
     engine = BattlefieldEngine()
     attacker = make_first_strike_army("A")

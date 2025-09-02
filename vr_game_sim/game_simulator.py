@@ -450,7 +450,7 @@ class GameSimulator:
                 if delay_rounds >= 2:
                     army.hero2_rage_skill_primed_for_round = None
                 else:
-                    army.hero2_rage_skill_primed_for_round = self.round + 2
+                    army.hero2_rage_skill_primed_for_round = self.round + 1
         else:
             army.current_rage = max(0.0, current_round_rage_gain)
             if army.hero2_rage_skill_primed_for_round == self.round:
@@ -696,6 +696,7 @@ class GameSimulator:
                     skill_def = army.hero1_rage_skill_def
                     if skill_def is not None and army.current_rage >= skill_def.get("rage_cost", 1000):
                         army.hero1_rage_skill_scheduled_round = self.round + 1
+                        army.army_used_rage_skill_this_round_for_rage_gain_block = True
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
                 break

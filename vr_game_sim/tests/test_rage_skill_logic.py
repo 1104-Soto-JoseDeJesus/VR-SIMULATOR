@@ -129,3 +129,17 @@ def test_rage_skill_resets_to_round_gain():
     sim._execute_rage_skills(army1, army2)
 
     assert army1.current_rage == 75
+
+
+def test_hero2_rage_skill_primes_for_two_round_delay():
+    hero1 = Hero("H1", [], ["base_skill_snakes_frenzy", "rage_skill_ruling_trial"], [], SKILL_REGISTRY_GLOBAL)
+    hero2 = Hero("H2", [], ["base_skill_snakes_frenzy", "rage_skill_ruling_trial"], [], SKILL_REGISTRY_GLOBAL)
+    army1 = Army("A1", Unit("pikemen", 5, initial_count=10), heroes=[hero1, hero2])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army1, army2)
+    sim.round = 1
+    army1.current_rage = 1000
+    army1.hero1_rage_skill_queued_this_round = True
+    sim._execute_rage_skills(army1, army2)
+
+    assert army1.hero2_rage_skill_primed_for_round == 2

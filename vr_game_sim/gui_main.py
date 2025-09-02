@@ -1892,6 +1892,59 @@ class BattlefieldTab(QtWidgets.QWidget):
         rage = state.get("rage", army.current_rage)
         icon.set_rage(rage / 1000.0)
 
+    def _collect_skill_stats(
+        self,
+    ) -> tuple[
+        dict[str, dict[str, dict[str, int]]],
+        dict[str, dict[str, int]],
+        dict[str, dict[str, int]],
+    ]:
+        """Aggregate per-skill kills/heals and basic/counter stats from reports."""
+        from collections import defaultdict
+
+        skill_stats: dict[str, dict[str, dict[str, int]]] = defaultdict(
+            lambda: defaultdict(lambda: {"kills": 0, "heals": 0})
+        )
+        basic_stats: dict[str, dict[str, int]] = defaultdict(
+            lambda: {"casts": 0, "kills": 0}
+        )
+        counter_stats: dict[str, dict[str, int]] = defaultdict(
+            lambda: {"casts": 0, "kills": 0}
+        )
+
+        rounds_map = self.report_builder.get_rounds()
+        for rounds in rounds_map.values():
+            for rd in rounds:
+                for act in rd.get("combat_actions", []):
+                    attacker = act.get("attacker_name")
+                    if not attacker:
+                        continue
+                    if act.get("action_type") == "Basic Attack":
+                        b = basic_stats[attacker]
+                        b["casts"] += 1
+                        b["kills"] += int(act.get("potential_kills", 0))
+                    elif act.get("action_type") == "Counter Attack":
+                        c = counter_stats[attacker]
+                        c["casts"] += 1
+                        c["kills"] += int(act.get("potential_kills", 0))
+
+                for army_name, logs in rd.get("skill_triggers", {}).items():
+                    current = None
+                    for log in logs:
+                        name = log.get("skill_name", "")
+                        if name and name != "  ↳":
+                            current = name
+                            continue
+                        if name == "  ↳" and current:
+                            entry = skill_stats[army_name][current]
+                            entry["kills"] += int(log.get("potential_kills", 0))
+                            desc = log.get("effect_description", "")
+                            m = re.search(r"Heals?\s.*?(\d+)\s*HP", desc)
+                            if m:
+                                entry["heals"] += int(m.group(1))
+
+        return skill_stats, basic_stats, counter_stats
+
     def _on_timer_tick(self) -> None:
         now = time.perf_counter()
         dt = now - self._last_tick
@@ -3017,6 +3070,7 @@ class ArenaTab(QtWidgets.QWidget):
             self.run_btn.setEnabled(True)
             for item in self._slot_items.values():
                 item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
+            skill_map, basic_map, counter_map = self._collect_skill_stats()
             summary = []
             for (slot_team, _), info in self._slot_army.items():
                 if not info:
@@ -3028,6 +3082,47 @@ class ArenaTab(QtWidgets.QWidget):
                 initial = int(round(army.unit.initial_count))
                 cfg = info.get("config", {})
                 heroes = cfg.get("heroes", [])
+                hero_stats_lists: list[list[dict]] = []
+                for hero in army.heroes:
+                    skill_list: list[dict] = []
+                    if hero:
+                        ids = hero.talent_ids + hero.base_skill_ids + hero.plugin_skill_ids
+                        for sid in ids:
+                            if sid in ("", "none", "blank", "dummy_talent_empty"):
+                                continue
+                            skill_def = SKILL_REGISTRY_GLOBAL.get(sid, {})
+                            sname = skill_def.get("name", sid)
+                            stats = skill_map.get(army.name, {}).get(sname, {})
+                            skill_list.append(
+                                {
+                                    "name": sname,
+                                    "casts": army.skill_trigger_counts.get(sid, 0),
+                                    "kills": int(stats.get("kills", 0)),
+                                    "heals": int(stats.get("heals", 0)),
+                                    "show_heals": True,
+                                }
+                            )
+                    hero_stats_lists.append(skill_list)
+
+                basic_info = basic_map.get(army.name, {"casts": 0, "kills": 0})
+                counter_info = counter_map.get(army.name, {"casts": 0, "kills": 0})
+                basic_entry = {
+                    "name": "Basic Attack",
+                    "casts": basic_info["casts"],
+                    "kills": basic_info["kills"],
+                    "heals": 0,
+                    "show_heals": False,
+                }
+                counter_entry = {
+                    "name": "Counterattack",
+                    "casts": counter_info["casts"],
+                    "kills": counter_info["kills"],
+                    "heals": 0,
+                    "show_heals": False,
+                }
+                for lst in hero_stats_lists:
+                    lst.insert(0, counter_entry.copy())
+                    lst.insert(0, basic_entry.copy())
                 if heroes:
                     portrait1 = os.path.join(
                         os.path.dirname(__file__),
@@ -3060,6 +3155,7 @@ class ArenaTab(QtWidgets.QWidget):
                         "initial": initial,
                         "healed": healed,
                         "kills": kills,
+                        "hero_skill_stats": hero_stats_lists,
                     }
                 )
             if window is not None and hasattr(window, "update_arena_figures"):

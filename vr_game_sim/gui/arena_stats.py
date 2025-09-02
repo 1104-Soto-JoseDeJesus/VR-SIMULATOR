@@ -168,6 +168,19 @@ class PortraitLabel(QtWidgets.QLabel):
         # during application shutdown, which previously caused crashes at the
         # end of arena battles.
         self._popup: QtCore.QPointer[SkillStatsPopup] = QtCore.QPointer()
+        # Track if the application is shutting down so we avoid interacting with
+        # widgets that may already be in the process of deletion.
+        self._app_quitting = False
+        app = QtWidgets.QApplication.instance()
+        if app is not None:
+            app.aboutToQuit.connect(self._on_app_quit)
+
+    def _on_app_quit(self) -> None:
+        """Mark that the application is quitting."""
+        self._app_quitting = True
+        # Reset the popup reference to ensure no further close attempts occur
+        # during shutdown where Qt may have already scheduled its deletion.
+        self._popup = QtCore.QPointer()
 
     def _show_popup(self) -> None:
         """Create and display the statistics popup."""
@@ -183,15 +196,15 @@ class PortraitLabel(QtWidgets.QLabel):
     def mouseDoubleClickEvent(
         self, event: QtGui.QMouseEvent
     ) -> None:  # type: ignore[override]
-        if self._popup:
+        if self._popup and not self._app_quitting:
             self._popup.close()
             self._popup = QtCore.QPointer()
-        elif self._skills:
+        elif self._skills and not self._app_quitting:
             self._show_popup()
         super().mouseDoubleClickEvent(event)
 
     def hideEvent(self, event: QtGui.QHideEvent) -> None:  # type: ignore[override]
-        if self._popup:
+        if self._popup and not self._app_quitting:
             self._popup.close()
             self._popup = QtCore.QPointer()
         super().hideEvent(event)

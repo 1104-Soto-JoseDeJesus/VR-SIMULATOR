@@ -137,6 +137,8 @@ class HeroStatsWidget(QtWidgets.QWidget):
         max_kills: int,
         team_color: str,
         align_right: bool = False,
+        hero_names: list[str] | None = None,
+        skills: list[list[dict]] | None = None,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -145,6 +147,10 @@ class HeroStatsWidget(QtWidgets.QWidget):
         self.setStyleSheet("background: transparent;")
 
         self.setProperty("team", team_color.lower())
+        self._hero_names = hero_names or []
+        self._skills = skills or []
+        self._total_kills = kills
+        self._total_healed = healed
         layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(4)
@@ -156,7 +162,7 @@ class HeroStatsWidget(QtWidgets.QWidget):
 
         self._portrait_labels: list[QtWidgets.QLabel] = []
         self._portrait_pixmaps: list[QtGui.QPixmap] = []
-        for path in (portrait_path, portrait2_path):
+        for idx, path in enumerate((portrait_path, portrait2_path)):
             lbl = QtWidgets.QLabel()
             lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             pix = QtGui.QPixmap(path)
@@ -166,6 +172,8 @@ class HeroStatsWidget(QtWidgets.QWidget):
             else:
                 self._portrait_pixmaps.append(pix)
                 lbl.setPixmap(pix)
+            lbl.installEventFilter(self)
+            lbl.setProperty("hero_index", idx)
             self._portrait_labels.append(lbl)
             portrait_layout.addWidget(lbl)
 
@@ -260,6 +268,29 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 )
         super().resizeEvent(event)
 
+    def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:  # type: ignore[override]
+        if (
+            event.type() == QtCore.QEvent.Type.MouseButtonDblClick
+            and obj in self._portrait_labels
+        ):
+            idx = obj.property("hero_index")
+            try:
+                index = int(idx)
+            except (TypeError, ValueError):
+                index = 0
+            skills = self._skills[index] if index < len(self._skills) else []
+            hero_name = self._hero_names[index] if index < len(self._hero_names) else "Hero"
+            dlg = HeroSkillDialog(
+                hero_name,
+                skills,
+                self._total_kills,
+                self._total_healed,
+                self,
+            )
+            dlg.exec()
+            return True
+        return super().eventFilter(obj, event)
+
 
 class ArenaStatsHeader(QtWidgets.QWidget):
     """Header for arena stats with two mirrored sides."""
@@ -305,6 +336,8 @@ class ArenaStatsRow(QtWidgets.QWidget):
                 max_healed,
                 max_kills,
                 left.get("team", "red"),
+                hero_names=left.get("hero_names"),
+                skills=left.get("skills"),
             )
         else:
             left_widget = QtWidgets.QWidget()
@@ -323,8 +356,119 @@ class ArenaStatsRow(QtWidgets.QWidget):
                 max_kills,
                 right.get("team", "blue"),
                 align_right=True,
+                hero_names=right.get("hero_names"),
+                skills=right.get("skills"),
             )
         else:
             right_widget = QtWidgets.QWidget()
         layout.addWidget(right_widget)
+
+
+class SkillStatsRow(QtWidgets.QWidget):
+    """Row showing statistics for a single skill."""
+
+    def __init__(
+        self,
+        data: dict,
+        total_kills: int,
+        total_healed: int,
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        layout = QtWidgets.QGridLayout(self)
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(4)
+
+        name_lbl = QtWidgets.QLabel(data.get("name", ""))
+        layout.addWidget(name_lbl, 0, 0)
+
+        cast_icon = QtWidgets.QLabel()
+        cast_path = os.path.join(
+            os.path.dirname(__file__), "..", "Icons", "CastsICON.png"
+        )
+        cast_pix = QtGui.QPixmap(cast_path)
+        size = int(QtGui.QFontMetrics(self.font()).height() * 1.5)
+        if not cast_pix.isNull():
+            cast_icon.setPixmap(
+                cast_pix.scaled(
+                    size,
+                    size,
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        layout.addWidget(cast_icon, 0, 1)
+
+        cast_lbl = QtWidgets.QLabel(str(data.get("casts", 0)))
+        layout.addWidget(cast_lbl, 0, 2)
+
+        kills_icon = QtWidgets.QLabel()
+        kills_path = os.path.join(
+            os.path.dirname(__file__), "..", "Icons", "KillsICON.png"
+        )
+        kills_pix = QtGui.QPixmap(kills_path)
+        if not kills_pix.isNull():
+            kills_icon.setPixmap(
+                kills_pix.scaled(
+                    size,
+                    size,
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        layout.addWidget(kills_icon, 0, 3)
+
+        kills_bar = QtWidgets.QProgressBar()
+        kills_bar.setRange(0, max(1, total_kills))
+        kills_bar.setValue(data.get("kills", 0))
+        kills_bar.setFormat(str(data.get("kills", 0)))
+        kills_bar.setProperty("class", "kills")
+        layout.addWidget(kills_bar, 0, 4)
+
+        heals_icon = QtWidgets.QLabel()
+        heals_path = os.path.join(
+            os.path.dirname(__file__), "..", "Icons", "HealsICON.png"
+        )
+        heals_pix = QtGui.QPixmap(heals_path)
+        if not heals_pix.isNull():
+            heals_icon.setPixmap(
+                heals_pix.scaled(
+                    size,
+                    size,
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        layout.addWidget(heals_icon, 0, 5)
+
+        heals_bar = QtWidgets.QProgressBar()
+        heals_bar.setRange(0, max(1, total_healed))
+        heals_bar.setValue(data.get("heals", 0))
+        heals_bar.setFormat(str(data.get("heals", 0)))
+        heals_bar.setProperty("class", "healed")
+        layout.addWidget(heals_bar, 0, 6)
+
+        layout.setColumnStretch(0, 3)
+        layout.setColumnStretch(4, 3)
+        layout.setColumnStretch(6, 3)
+
+
+class HeroSkillDialog(QtWidgets.QDialog):
+    """Dialog displaying skill performance for a hero."""
+
+    def __init__(
+        self,
+        hero_name: str,
+        skills: list[dict],
+        total_kills: int,
+        total_healed: int,
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        load_styles()
+        self.setWindowTitle(f"{hero_name} Skill Breakdown")
+        layout = QtWidgets.QVBoxLayout(self)
+        for data in skills:
+            layout.addWidget(SkillStatsRow(data, total_kills, total_healed))
+        self.setLayout(layout)
 

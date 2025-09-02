@@ -106,6 +106,7 @@ class GameSimulator:
         potential_kills: int,
         is_counter: bool,
         action_type: Optional[str] = None,
+        skill_id: str | None = None,
     ):
         action_type_str = action_type or ("Counter Attack" if is_counter else "Basic Attack")
         log_entry = {
@@ -123,6 +124,12 @@ class GameSimulator:
                 defender.damage_contributors_this_round.get(attacker.name, 0.0)
                 + final_hp_damage
             )
+            sid = skill_id or ("counter_attack" if is_counter else "basic_attack")
+            attacker.increment_skill_trigger_count(sid)
+            skill_map = defender.damage_contributors_by_skill_this_round.setdefault(
+                attacker.name, {}
+            )
+            skill_map[sid] = skill_map.get(sid, 0.0) + final_hp_damage
 
     def _log_skill_trigger(self, triggered_army: Army, skill_name: str, effect_description: str,
                            damage_details: Optional[Dict[str, Any]] = None):
@@ -227,6 +234,11 @@ class GameSimulator:
                 apply_target.damage_contributors_this_round.get(source_army.name, 0.0)
                 + actual_skill_hp_damage_to_troops
             )
+            sid = source_skill_def["id"] if source_skill_def else "unknown"
+            skill_map = apply_target.damage_contributors_by_skill_this_round.setdefault(
+                source_army.name, {}
+            )
+            skill_map[sid] = skill_map.get(sid, 0.0) + actual_skill_hp_damage_to_troops
         # Skill damage is tracked for commitment totals but no longer logged
         # as a combat action.  This keeps combat action reports focused on
         # basic and counter attacks while skill effects are reported solely in
@@ -610,10 +622,17 @@ class GameSimulator:
             potential_units_killed_this_hit_float = hp_damage_to_troops / defender_hp_per_troop
             potential_units_killed_this_hit_rounded = round(potential_units_killed_this_hit_float)
 
+        sid = "counter_attack" if is_counter else "basic_attack"
         self._log_combat_action(
-            attacker=att, defender=dfd, damage_potential_hp=damage_after_all_percent_mods,
-            absorbed_hp=absorbed_by_shield, final_hp_damage=hp_damage_to_troops,
-            potential_kills=potential_units_killed_this_hit_rounded, is_counter=is_counter)
+            attacker=att,
+            defender=dfd,
+            damage_potential_hp=damage_after_all_percent_mods,
+            absorbed_hp=absorbed_by_shield,
+            final_hp_damage=hp_damage_to_troops,
+            potential_kills=potential_units_killed_this_hit_rounded,
+            is_counter=is_counter,
+            skill_id=sid,
+        )
 
         return hp_damage_to_troops, absorbed_by_shield, damage_after_all_percent_mods, potential_units_killed_this_hit_rounded
 
@@ -639,6 +658,10 @@ class GameSimulator:
             self.army2.pending_hp_healing_this_round = 0.0
             self.army1.damage_contributors_this_round = {}
             self.army2.damage_contributors_this_round = {}
+            self.army1.damage_contributors_by_skill_this_round = {}
+            self.army2.damage_contributors_by_skill_this_round = {}
+            self.army1.heal_contributors_this_round = {}
+            self.army2.heal_contributors_this_round = {}
 
             self.round_combat_actions_log.clear()
             self.round_skill_triggers_log = {self.army1.name: [], self.army2.name: []}

@@ -734,6 +734,8 @@ class BattlefieldEngine:
             army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
             army.kills_dealt_this_round = 0.0
             army.damage_contributors_this_round = {}
+            army.damage_contributors_by_skill_this_round = {}
+            army.heal_contributors_this_round = {}
 
         unique_armies: List[Army] = []
         start_processed: set[str] = set()

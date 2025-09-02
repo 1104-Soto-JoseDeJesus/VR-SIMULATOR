@@ -56,6 +56,7 @@ def handle_generic_heal_skill(
     an_effect_happened = False
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
     heal_factor = skill_config.get("heal_factor", 0.0)
     target_army_for_heal = triggering_army # Default: heal self
 
@@ -64,7 +65,8 @@ def handle_generic_heal_skill(
             heal_factor,
             healer_army=triggering_army,
             opponent_of_healer=opponent_army,
-            skill_heal_adjustment_magnitude=0.0 # Assuming generic heal doesn't have its own direct adjustment
+            skill_heal_adjustment_magnitude=0.0,  # Assuming generic heal doesn't have its own direct adjustment
+            source_skill_id=skill_id,
         )
         if healed_amount > 0:
             an_effect_happened = True

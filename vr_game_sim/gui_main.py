@@ -3027,20 +3027,21 @@ class ArenaTab(QtWidgets.QWidget):
                 remaining = int(round(army.current_troop_count))
                 initial = int(round(army.unit.initial_count))
                 cfg = info.get("config", {})
-                heroes = cfg.get("heroes", [])
-                if heroes:
+                heroes_cfg = cfg.get("heroes", [])
+                hero_names = [h.get("hero_name_or_preset", "").capitalize() for h in heroes_cfg]
+                if heroes_cfg:
                     portrait1 = os.path.join(
                         os.path.dirname(__file__),
                         "Hero Images",
-                        f"{heroes[0]['hero_name_or_preset'].capitalize()}.png",
+                        f"{heroes_cfg[0]['hero_name_or_preset'].capitalize()}.png",
                     )
                     portrait2 = (
                         os.path.join(
                             os.path.dirname(__file__),
                             "Hero Images",
-                            f"{heroes[1]['hero_name_or_preset'].capitalize()}.png",
+                            f"{heroes_cfg[1]['hero_name_or_preset'].capitalize()}.png",
                         )
-                        if len(heroes) > 1
+                        if len(heroes_cfg) > 1
                         else ""
                     )
                 else:
@@ -3050,6 +3051,38 @@ class ArenaTab(QtWidgets.QWidget):
                         f"{cfg.get('unit_type', '').capitalize()}.png",
                     )
                     portrait2 = ""
+
+                skill_lists: list[list[dict]] = []
+                for hero in army.heroes:
+                    hero_skill_entries: list[dict] = []
+                    for sid, sname in (
+                        ("basic_attack", "Basic Attack"),
+                        ("counter_attack", "Counterattack"),
+                    ):
+                        hero_skill_entries.append(
+                            {
+                                "id": sid,
+                                "name": sname,
+                                "casts": army.skill_trigger_counts.get(sid, 0),
+                                "kills": int(round(army.skill_kill_totals.get(sid, 0.0))),
+                                "heals": int(round(army.skill_heal_totals.get(sid, 0.0))),
+                            }
+                        )
+                    for skill_def in getattr(hero, "skills", []):
+                        if skill_def.get("id") == "dummy_talent_empty":
+                            continue
+                        sid = skill_def.get("id", "")
+                        hero_skill_entries.append(
+                            {
+                                "id": sid,
+                                "name": skill_def.get("name", sid),
+                                "casts": army.skill_trigger_counts.get(sid, 0),
+                                "kills": int(round(army.skill_kill_totals.get(sid, 0.0))),
+                                "heals": int(round(army.skill_heal_totals.get(sid, 0.0))),
+                            }
+                        )
+                    skill_lists.append(hero_skill_entries)
+
                 summary.append(
                     {
                         "team": info["team"],
@@ -3060,6 +3093,8 @@ class ArenaTab(QtWidgets.QWidget):
                         "initial": initial,
                         "healed": healed,
                         "kills": kills,
+                        "skills": skill_lists,
+                        "hero_names": hero_names,
                     }
                 )
             if window is not None and hasattr(window, "update_arena_figures"):

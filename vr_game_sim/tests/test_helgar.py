@@ -231,6 +231,9 @@ def test_ruling_trial_hits_indirect_targets_battlefield(monkeypatch):
     class DummyEngine:
         def get_engaged_enemies(self, name):
             return [direct] + extras
+
+        def get_direct_attackers(self, name):
+            return [direct] + extras
     sim.parent_engine = DummyEngine()
     monkeypatch.setattr(random, 'sample', lambda pop, k: pop[:k])
     skill_def = SKILL_REGISTRY_GLOBAL['rage_skill_ruling_trial']

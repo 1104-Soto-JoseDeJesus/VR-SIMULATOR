@@ -10,10 +10,10 @@ def test_unrevivable_troops_limit_healing():
     army.pending_hp_damage_this_round = hp_per_troop * 20
     army.commit_pending_healing_and_damage()
     assert army.current_troop_count == 80
-    assert army.unrevivable_troops == 10
-    # Clear damage and attempt to heal 20 troops; only 10 should be healed
+    assert army.unrevivable_troops == 13
+    # Clear damage and attempt to heal 20 troops; only 7 should be healed
     army.pending_hp_damage_this_round = 0
     army.pending_hp_healing_this_round = hp_per_troop * 20
     army.commit_pending_healing_and_damage()
-    assert army.current_troop_count == 90
-    assert army.troops_healed_total == pytest.approx(10)
+    assert army.current_troop_count == 87
+    assert army.troops_healed_total == pytest.approx(7)

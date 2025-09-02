@@ -1241,7 +1241,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
 
     "plugin_fiery_rage": {
         "id": "plugin_fiery_rage", "name": "Fiery Rage", "type": SkillType.PLUGIN_SKILL,
-        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.10, "target": "ENEMY",
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.10, "target": "ENEMY",
         "logic_handler": handle_plugin_fiery_rage,
         "labels": [PluginSkillLabel.COOPERATION],
         "config": {"burn_factor": 350.0, "boosted_burn_factor": 700.0, "burn_duration": 1}

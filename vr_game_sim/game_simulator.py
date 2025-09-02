@@ -268,9 +268,13 @@ class GameSimulator:
 
     def _process_skill_triggers(self, triggering_army: Army, opponent_army: Army, trigger_type: SkillTriggerType,
                                 event_data: Optional[Dict[str, Any]] = None):
+        actual_effect_target = opponent_army
         actual_opponent_for_calc = opponent_army
-        if event_data and 'opponent_for_shield_calc' in event_data:
-            actual_opponent_for_calc = event_data['opponent_for_shield_calc']
+        if event_data:
+            if 'direct_target_army' in event_data:
+                actual_effect_target = event_data['direct_target_army']
+            if 'opponent_for_shield_calc' in event_data:
+                actual_opponent_for_calc = event_data['opponent_for_shield_calc']
 
         for hero in triggering_army.heroes:
             for skill_def in hero.skills:
@@ -316,7 +320,7 @@ class GameSimulator:
 
                         if max_triggers > 1:
                             if current_triggers >= max_triggers or (
-                                opponent_army.name in targets_triggered and max_triggers_per_target == 1
+                                actual_effect_target.name in targets_triggered and max_triggers_per_target == 1
                             ):
                                 continue
                         else:
@@ -328,12 +332,12 @@ class GameSimulator:
                             handler_event_data = (event_data or {}).copy()
                             handler_event_data['actual_opponent_for_calc'] = actual_opponent_for_calc
                             an_effect_truly_happened, log_details_current_skill = \
-                                logic_handler(triggering_army, opponent_army, skill_def, handler_event_data, self)
+                                logic_handler(triggering_army, actual_effect_target, skill_def, handler_event_data, self)
                         elif "sub_effects" in skill_def:
                             for sub_effect_data in skill_def["sub_effects"]:
                                 if random.random() < sub_effect_data.get("chance", 1.0):
                                     effect_to_apply = sub_effect_data["effect_to_apply"]
-                                    target_sub = opponent_army if skill_def.get(
+                                    target_sub = actual_effect_target if skill_def.get(
                                         "target") == "ENEMY" else triggering_army
                                     created_effect = triggering_army._create_and_add_single_effect(
                                         effect_to_apply.copy(), skill_id, triggering_army, target_sub,
@@ -344,7 +348,7 @@ class GameSimulator:
                                             (f"{sub_effect_data.get('name_suffix', 'Effect')}: {created_effect.get_functionality_description()} for {created_effect.duration + 1} rounds.",
                                              None))
                         elif "effects_to_apply" in skill_def and skill_def["effects_to_apply"]:
-                            target_std = opponent_army if skill_def.get("target") == "ENEMY" else triggering_army
+                            target_std = actual_effect_target if skill_def.get("target") == "ENEMY" else triggering_army
                             applied_details = triggering_army._add_effects_from_skill_def(
                                 skill_def, target_std, triggering_army, actual_opponent_for_calc)
                             if applied_details:
@@ -361,11 +365,12 @@ class GameSimulator:
                             if skill_def.get("trigger") == SkillTriggerType.CHANCE_PER_ROUND:
                                 self._process_skill_triggers(
                                     triggering_army,
-                                    opponent_army,
+                                    actual_effect_target,
                                     SkillTriggerType.ON_OWN_COMMAND_SKILL_CAST,
                                     event_data={
                                         "source_command_skill_id": skill_id,
                                         "opponent_for_shield_calc": actual_opponent_for_calc,
+                                        "direct_target_army": actual_effect_target,
                                     },
                                 )
 
@@ -374,7 +379,7 @@ class GameSimulator:
 
                             if max_triggers > 1:
                                 triggering_army.skill_trigger_counts_this_round[skill_id] = current_triggers + 1
-                                targets_triggered.add(opponent_army.name)
+                                targets_triggered.add(actual_effect_target.name)
                                 triggering_army.skill_triggers_against_this_round[skill_id] = targets_triggered
                             else:
                                 if skill_id not in triggering_army.triggered_skills_this_round:
@@ -739,19 +744,43 @@ class GameSimulator:
 
 
             if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
-                self._process_skill_triggers(self.army1, self.army2, SkillTriggerType.ON_BASIC_ATTACK,
-                                             event_data={'opponent_for_shield_calc': self.army2})
-                self.army1.activate_queued_effects();
-                self.army2.activate_queued_effects()
+                army1_disarmed = any(
+                    eff.name == EFFECT_NAME_DISARM_DEBUFF or eff.config.get("prevents_basic_attack")
+                    for eff in self.army1.active_effects
+                )
+                if not army1_disarmed:
+                    self._process_skill_triggers(
+                        self.army1,
+                        self.army2,
+                        SkillTriggerType.ON_BASIC_ATTACK,
+                        event_data={"opponent_for_shield_calc": self.army2, "direct_target_army": self.army2},
+                    )
+                    self.army1.activate_queued_effects();
+                    self.army2.activate_queued_effects()
                 self._calculate_and_log_attack(self.army1, self.army2, is_counter=False)
 
                 if self.army2.current_troop_count > 0:
-                    self._process_skill_triggers(self.army2, self.army1, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
-                                                 event_data={'opponent_for_shield_calc': self.army1})
-                    self.army2.activate_queued_effects();
-                    self.army1.activate_queued_effects()
-                    self._process_skill_triggers(self.army2, self.army1, SkillTriggerType.ON_COUNTER_ATTACK,
-                                                 event_data={'opponent_for_shield_calc': self.army1})
+                    if not army1_disarmed:
+                        self._process_skill_triggers(
+                            self.army2,
+                            self.army1,
+                            SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+                            event_data={
+                                "opponent_for_shield_calc": self.army1,
+                                "direct_target_army": self.army1,
+                            },
+                        )
+                        self.army2.activate_queued_effects();
+                        self.army1.activate_queued_effects()
+                    self._process_skill_triggers(
+                        self.army2,
+                        self.army1,
+                        SkillTriggerType.ON_COUNTER_ATTACK,
+                        event_data={
+                            "opponent_for_shield_calc": self.army1,
+                            "direct_target_army": self.army1,
+                        },
+                    )
                     self.army2.activate_queued_effects();
                     self.army1.activate_queued_effects()
                     self._calculate_and_log_attack(self.army2, self.army1, is_counter=True)
@@ -759,19 +788,43 @@ class GameSimulator:
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 
             if self.army2.current_troop_count > 0 and self.army1.current_troop_count > 0:
-                self._process_skill_triggers(self.army2, self.army1, SkillTriggerType.ON_BASIC_ATTACK,
-                                             event_data={'opponent_for_shield_calc': self.army1})
-                self.army2.activate_queued_effects();
-                self.army1.activate_queued_effects()
+                army2_disarmed = any(
+                    eff.name == EFFECT_NAME_DISARM_DEBUFF or eff.config.get("prevents_basic_attack")
+                    for eff in self.army2.active_effects
+                )
+                if not army2_disarmed:
+                    self._process_skill_triggers(
+                        self.army2,
+                        self.army1,
+                        SkillTriggerType.ON_BASIC_ATTACK,
+                        event_data={"opponent_for_shield_calc": self.army1, "direct_target_army": self.army1},
+                    )
+                    self.army2.activate_queued_effects();
+                    self.army1.activate_queued_effects()
                 self._calculate_and_log_attack(self.army2, self.army1, is_counter=False)
 
                 if self.army1.current_troop_count > 0:
-                    self._process_skill_triggers(self.army1, self.army2, SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
-                                                 event_data={'opponent_for_shield_calc': self.army2})
-                    self.army1.activate_queued_effects();
-                    self.army2.activate_queued_effects()
-                    self._process_skill_triggers(self.army1, self.army2, SkillTriggerType.ON_COUNTER_ATTACK,
-                                                 event_data={'opponent_for_shield_calc': self.army2})
+                    if not army2_disarmed:
+                        self._process_skill_triggers(
+                            self.army1,
+                            self.army2,
+                            SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+                            event_data={
+                                "opponent_for_shield_calc": self.army2,
+                                "direct_target_army": self.army2,
+                            },
+                        )
+                        self.army1.activate_queued_effects();
+                        self.army2.activate_queued_effects()
+                    self._process_skill_triggers(
+                        self.army1,
+                        self.army2,
+                        SkillTriggerType.ON_COUNTER_ATTACK,
+                        event_data={
+                            "opponent_for_shield_calc": self.army2,
+                            "direct_target_army": self.army2,
+                        },
+                    )
                     self.army1.activate_queued_effects();
                     self.army2.activate_queued_effects()
                     self._calculate_and_log_attack(self.army1, self.army2, is_counter=True)

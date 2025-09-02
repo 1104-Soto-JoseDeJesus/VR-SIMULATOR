@@ -1082,7 +1082,18 @@ def handle_base_skill_judgements_fury(
         "config": {"marker_count": 1},
         "activate_next_round": True,
     }
-    triggering_army._create_and_add_single_effect(pending_marker, skill_def["id"], triggering_army, triggering_army, opponent_army)
+    # Queue a judgement marker for the next round. Mark the skill as having
+    # triggered so that subsequent basic attacks in the same round do not add
+    # additional markers.
+    created_marker = triggering_army._create_and_add_single_effect(
+        pending_marker,
+        skill_def["id"],
+        triggering_army,
+        triggering_army,
+        opponent_army,
+    )
+    if created_marker:
+        happened = True
 
     threshold = cfg.get("marker_threshold", 20)
     current_markers = sum(1 for eff in triggering_army.active_effects if eff.name == EFFECT_NAME_JUDGEMENT_MARKER)

@@ -294,7 +294,7 @@
       "atk_mod": 0.987,
       "def_mod": 0.931,
       "hp_mod": 0.304,
-      "unrevivable_ratio": 0.5,
+      "unrevivable_ratio": 0.65,
       "heroes": [
         {
           "hero_name_or_preset": "Yvette",

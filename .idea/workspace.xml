@@ -4,7 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0ec79d29-f83e-4486-9f45-deb2b221e113" name="Changes" comment="" />
+    <list default="true" id="0ec79d29-f83e-4486-9f45-deb2b221e113" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/setups/_last_arena_layout.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/setups/_last_arena_layout.json" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />

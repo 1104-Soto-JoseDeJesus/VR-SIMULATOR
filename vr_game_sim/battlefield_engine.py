@@ -890,8 +890,8 @@ class BattlefieldEngine:
                     or army.hero2_rage_skill_primed_for_round != sim.round + 1
                 )
             ):
-                skill_def = sim.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
-                if skill_def and army.current_rage >= skill_def.get("rage_cost", 1000):
+                skill_def = army.hero1_rage_skill_def
+                if skill_def is not None and army.current_rage >= skill_def.get("rage_cost", 1000):
                     army.hero1_rage_skill_scheduled_round = sim.round + 1
 
         # Execute any queued rage skills.
@@ -1033,8 +1033,8 @@ class BattlefieldEngine:
                     or army.hero2_rage_skill_primed_for_round != sim.round + 1
                 )
             ):
-                skill_def = sim.SKILL_REGISTRY_GLOBAL.get(army.hero1_rage_skill_id)
-                if skill_def and army.current_rage >= skill_def.get("rage_cost", 1000):
+                skill_def = army.hero1_rage_skill_def
+                if skill_def is not None and army.current_rage >= skill_def.get("rage_cost", 1000):
                     army.hero1_rage_skill_scheduled_round = sim.round + 1
 
         # Record latest engagement time for both armies

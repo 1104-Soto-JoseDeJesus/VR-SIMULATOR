@@ -150,7 +150,7 @@ class SkillStatsPopup(QtWidgets.QFrame):
 
 
 class PortraitLabel(QtWidgets.QLabel):
-    """Hero portrait that shows a :class:`SkillStatsPopup` on hover."""
+    """Hero portrait that shows a :class:`SkillStatsPopup` on double click."""
 
     def __init__(
         self,
@@ -165,21 +165,32 @@ class PortraitLabel(QtWidgets.QLabel):
         self._total_heals = total_heals
         self._popup: SkillStatsPopup | None = None
 
-    def enterEvent(self, event: QtGui.QEnterEvent) -> None:  # type: ignore[override]
-        if self._skills:
-            self._popup = SkillStatsPopup(
-                self._skills, self._total_kills, self._total_heals, self
-            )
-            pos = self.mapToGlobal(self.rect().bottomLeft())
-            self._popup.move(pos)
-            self._popup.show()
-        super().enterEvent(event)
+    def _show_popup(self) -> None:
+        """Create and display the statistics popup."""
+        self._popup = SkillStatsPopup(
+            self._skills, self._total_kills, self._total_heals, self
+        )
+        self._popup.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
+        self._popup.destroyed.connect(lambda: setattr(self, "_popup", None))
+        pos = self.mapToGlobal(self.rect().bottomLeft())
+        self._popup.move(pos)
+        self._popup.show()
 
-    def leaveEvent(self, event: QtCore.QEvent) -> None:  # type: ignore[override]
+    def mouseDoubleClickEvent(
+        self, event: QtGui.QMouseEvent
+    ) -> None:  # type: ignore[override]
         if self._popup:
             self._popup.close()
             self._popup = None
-        super().leaveEvent(event)
+        elif self._skills:
+            self._show_popup()
+        super().mouseDoubleClickEvent(event)
+
+    def hideEvent(self, event: QtGui.QHideEvent) -> None:  # type: ignore[override]
+        if self._popup:
+            self._popup.close()
+            self._popup = None
+        super().hideEvent(event)
 
 
 class HeroStatsHeader(QtWidgets.QWidget):

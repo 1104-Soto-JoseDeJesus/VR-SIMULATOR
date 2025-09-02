@@ -1,13 +1,38 @@
 from __future__ import annotations
 
+import os
+
 from PyQt6 import QtCore, QtGui, QtWidgets
+
+
+STYLES_LOADED = False
+
+
+def load_styles() -> None:
+    """Load QSS styles for arena stats widgets."""
+    global STYLES_LOADED
+    if STYLES_LOADED:
+        return
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        return
+    path = os.path.join(os.path.dirname(__file__), "styles.qss")
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            app.setStyleSheet(app.styleSheet() + fh.read())
+        STYLES_LOADED = True
+    except OSError:
+        pass
 
 
 class HeroStatsHeader(QtWidgets.QWidget):
     """Header row that labels hero statistics columns."""
 
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(
+        self, align_right: bool = False, parent: QtWidgets.QWidget | None = None
+    ) -> None:
         super().__init__(parent)
+        load_styles()
 
         layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
@@ -15,19 +40,24 @@ class HeroStatsHeader(QtWidgets.QWidget):
 
         portrait_spacer = QtWidgets.QWidget()
         portrait_spacer.setFixedWidth(128)
-        layout.addWidget(portrait_spacer, 0, 0)
-
         name_spacer = QtWidgets.QWidget()
-        layout.addWidget(name_spacer, 0, 1)
 
-        headers = ["Remaining Troops", "Heals", "Kills"]
-        for col, text in enumerate(headers, start=2):
+        if align_right:
+            headers = [("Kills", 0), ("Heals", 1), ("Remaining Troops", 2)]
+            layout.addWidget(name_spacer, 0, 3)
+            layout.addWidget(portrait_spacer, 0, 4)
+        else:
+            headers = [("Remaining Troops", 2), ("Heals", 3), ("Kills", 4)]
+            layout.addWidget(portrait_spacer, 0, 0)
+            layout.addWidget(name_spacer, 0, 1)
+
+        for text, col in headers:
             label = QtWidgets.QLabel(text)
             label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(label, 0, col)
             layout.setColumnStretch(col, 1)
 
-        layout.setColumnStretch(1, 2)
+        layout.setColumnStretch(3 if align_right else 1, 2)
         layout.setColumnStretch(2, 3)
 
         self.setSizePolicy(
@@ -49,107 +79,175 @@ class HeroStatsWidget(QtWidgets.QWidget):
         healed: int,
         kills: int,
         team_color: str,
+        align_right: bool = False,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        load_styles()
 
+        self.setProperty("team", team_color.lower())
         layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(4)
 
-        # Portraits displayed together in a single container
         portrait_container = QtWidgets.QWidget()
         portrait_layout = QtWidgets.QHBoxLayout(portrait_container)
         portrait_layout.setContentsMargins(0, 0, 0, 0)
         portrait_layout.setSpacing(0)
 
-        img_label = QtWidgets.QLabel()
-        img_label.setFixedSize(64, 64)
-        pix = QtGui.QPixmap(portrait_path)
-        if pix.isNull():
-            img_label.setText("No\nImage")
-            img_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            img_label.setStyleSheet("background-color: #444; color: white;")
-        else:
-            pix = pix.scaled(
-                img_label.size(),
-                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-                QtCore.Qt.TransformationMode.SmoothTransformation,
-            )
-            img_label.setPixmap(pix)
-        portrait_layout.addWidget(img_label)
+        self._portrait_labels: list[QtWidgets.QLabel] = []
+        for path in (portrait_path, portrait2_path):
+            lbl = QtWidgets.QLabel()
+            lbl.setScaledContents(True)
+            pix = QtGui.QPixmap(path)
+            if pix.isNull():
+                lbl.setText("No\nImage")
+                lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+                lbl.setStyleSheet("background-color: #444; color: white;")
+            else:
+                lbl.setPixmap(pix)
+            self._portrait_labels.append(lbl)
+            portrait_layout.addWidget(lbl)
 
-        img_label2 = QtWidgets.QLabel()
-        img_label2.setFixedSize(64, 64)
-        pix2 = QtGui.QPixmap(portrait2_path)
-        if pix2.isNull():
-            img_label2.setText("No\nImage")
-            img_label2.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            img_label2.setStyleSheet("background-color: #444; color: white;")
-        else:
-            pix2 = pix2.scaled(
-                img_label2.size(),
-                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-                QtCore.Qt.TransformationMode.SmoothTransformation,
-            )
-            img_label2.setPixmap(pix2)
-        portrait_layout.addWidget(img_label2)
+        font = QtGui.QFont()
+        font.setPointSize(10)
 
-        portrait_container.setFixedSize(128, 64)
-        layout.addWidget(portrait_container, 0, 0)
-
-        # Stats labels / bars
         name_label = QtWidgets.QLabel(name)
+        name_label.setFont(font)
         healed_label = QtWidgets.QLabel(str(healed))
+        healed_label.setProperty("class", "healed")
+        healed_label.setFont(font)
         kills_label = QtWidgets.QLabel(str(kills))
+        kills_label.setProperty("class", "kills")
+        kills_label.setFont(font)
 
         remaining_bar = QtWidgets.QProgressBar()
         remaining_bar.setRange(0, max(1, initial))
         remaining_bar.setValue(max(0, remaining))
         remaining_bar.setFormat(f"{remaining}/{initial}")
-        remaining_bar.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Preferred,
-        )
+        remaining_bar.setProperty("team", team_color.lower())
+        remaining_bar.setFont(font)
 
-        widgets = [name_label, remaining_bar, healed_label, kills_label]
-        for col, widget in enumerate(widgets, start=1):
-            widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            widget.setSizePolicy(
-                QtWidgets.QSizePolicy.Policy.Expanding,
-                QtWidgets.QSizePolicy.Policy.Preferred,
-            )
+        self._anim = QtCore.QPropertyAnimation(remaining_bar, b"value", self)
+        self._anim.setDuration(500)
+        self._anim.setStartValue(0)
+        self._anim.setEndValue(max(0, remaining))
+        self._anim.start()
+
+        healed_container = QtWidgets.QWidget()
+        h_layout = QtWidgets.QHBoxLayout(healed_container)
+        h_layout.setContentsMargins(0, 0, 0, 0)
+        h_layout.addWidget(healed_label)
+
+        kills_container = QtWidgets.QWidget()
+        k_layout = QtWidgets.QHBoxLayout(kills_container)
+        k_layout.setContentsMargins(0, 0, 0, 0)
+        k_layout.addWidget(kills_label)
+
+        if align_right:
+            widgets = [
+                kills_container,
+                healed_container,
+                remaining_bar,
+                name_label,
+                portrait_container,
+            ]
+            text_align = QtCore.Qt.AlignmentFlag.AlignRight
+        else:
+            widgets = [
+                portrait_container,
+                name_label,
+                remaining_bar,
+                healed_container,
+                kills_container,
+            ]
+            text_align = QtCore.Qt.AlignmentFlag.AlignLeft
+
+        for col, widget in enumerate(widgets):
+            if isinstance(widget, (QtWidgets.QLabel, QtWidgets.QProgressBar)):
+                widget.setAlignment(
+                    text_align | QtCore.Qt.AlignmentFlag.AlignVCenter
+                )
             layout.addWidget(widget, 0, col)
             layout.setColumnStretch(col, 1)
 
-        layout.setColumnStretch(1, 2)  # make name column wider
-        layout.setColumnStretch(2, 3)  # wider for progress bar
+        layout.setColumnStretch(1 if not align_right else 3, 2)
+        layout.setColumnStretch(2, 3)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
             QtWidgets.QSizePolicy.Policy.Fixed,
         )
 
-        # Apply team-based styling
-        if team_color:
-            if team_color.lower() == "red":
-                base_bg = "#550000"
-            elif team_color.lower() == "blue":
-                base_bg = "#000055"
-            else:
-                base_bg = "#333"
-            style = (
-                f"background-color: {base_bg};"
-                "color: white; font-weight: bold;"
-                f"border: 1px solid {team_color};"
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:  # type: ignore[override]
+        size = int(self.height() * 0.9)
+        for lbl in self._portrait_labels:
+            lbl.setFixedSize(size, size)
+        super().resizeEvent(event)
+
+
+class ArenaStatsHeader(QtWidgets.QWidget):
+    """Header for arena stats with two mirrored sides."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(HeroStatsHeader())
+        separator = QtWidgets.QFrame()
+        separator.setFrameShape(QtWidgets.QFrame.Shape.VLine)
+        separator.setLineWidth(1)
+        layout.addWidget(separator)
+        layout.addWidget(HeroStatsHeader(align_right=True))
+
+
+class ArenaStatsRow(QtWidgets.QWidget):
+    """Row showing stats for a pair of heroes."""
+
+    def __init__(
+        self,
+        left: dict | None,
+        right: dict | None,
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        layout = QtWidgets.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        if left:
+            left_widget = HeroStatsWidget(
+                left.get("portrait1", ""),
+                left.get("portrait2", ""),
+                left.get("name", ""),
+                left.get("remaining", 0),
+                left.get("initial", left.get("remaining", 0)),
+                left.get("healed", 0),
+                left.get("kills", 0),
+                left.get("team", "red"),
             )
-            self.setStyleSheet(style)
-            remaining_bar.setStyleSheet(
-                "QProgressBar {"
-                "border: 1px solid #333;"
-                "background-color: #222;"
-                "text-align: center;"
-                "color: white;"
-                "}"
-                f"QProgressBar::chunk {{background-color: {team_color};}}"
+        else:
+            left_widget = QtWidgets.QWidget()
+        layout.addWidget(left_widget)
+
+        separator = QtWidgets.QFrame()
+        separator.setFrameShape(QtWidgets.QFrame.Shape.VLine)
+        separator.setLineWidth(1)
+        layout.addWidget(separator)
+
+        if right:
+            right_widget = HeroStatsWidget(
+                right.get("portrait1", ""),
+                right.get("portrait2", ""),
+                right.get("name", ""),
+                right.get("remaining", 0),
+                right.get("initial", right.get("remaining", 0)),
+                right.get("healed", 0),
+                right.get("kills", 0),
+                right.get("team", "blue"),
+                align_right=True,
             )
+        else:
+            right_widget = QtWidgets.QWidget()
+        layout.addWidget(right_widget)
 

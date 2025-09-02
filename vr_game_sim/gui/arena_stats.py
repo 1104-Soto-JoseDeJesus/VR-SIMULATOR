@@ -39,17 +39,18 @@ class HeroStatsHeader(QtWidgets.QWidget):
         layout.setSpacing(4)
 
         portrait_spacer = QtWidgets.QWidget()
-        portrait_spacer.setFixedWidth(128)
         name_spacer = QtWidgets.QWidget()
 
         if align_right:
             headers = [("Kills", 0), ("Heals", 1), ("Remaining Troops", 2)]
             layout.addWidget(name_spacer, 0, 3)
             layout.addWidget(portrait_spacer, 0, 4)
+            portrait_col = 4
         else:
             headers = [("Remaining Troops", 2), ("Heals", 3), ("Kills", 4)]
             layout.addWidget(portrait_spacer, 0, 0)
             layout.addWidget(name_spacer, 0, 1)
+            portrait_col = 0
 
         icon_map = {
             "Heals": "HealsICON.png",
@@ -107,6 +108,7 @@ class HeroStatsHeader(QtWidgets.QWidget):
             name_col = 1
             bar_cols = [2, 3, 4]
 
+        layout.setColumnStretch(portrait_col, 1)
         layout.setColumnStretch(name_col, 2)
         for col in bar_cols:
             layout.setColumnStretch(col, 3)

@@ -58,11 +58,11 @@ def handle_rage_sacred_blade(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinitio
         if sim.mode in ("battlefield", "arena"):
             engine = getattr(sim, "parent_engine", None)
             if engine:
-                enemies = engine.get_engaged_enemies(army.name)
-                indirect = [e for e in enemies if e.name != opp.name]
-                if len(indirect) > 2:
-                    indirect = random.sample(indirect, 2)
-                for other in indirect:
+                attackers = engine.get_direct_attackers(army.name)
+                extras = [e for e in attackers if e.name != opp.name]
+                if len(extras) > 2:
+                    extras = random.sample(extras, 2)
+                for other in extras:
                     hp_dmg2, absrb2, kills2, raw_dmg2 = sim._calculate_generic_skill_damage(
                         army, other, dmg_fctr,
                         is_hero2_rage_skill=is_h2_delay,
@@ -255,8 +255,8 @@ def handle_rage_skill_paralyzing_terror(
         if simulator.mode in ("battlefield", "arena"):
             engine = getattr(simulator, "parent_engine", None)
             if engine:
-                enemies = engine.get_engaged_enemies(triggering_army.name)
-                candidates = [e for e in enemies if e.name != opponent_army.name]
+                attackers = engine.get_direct_attackers(triggering_army.name)
+                candidates = [e for e in attackers if e.name != opponent_army.name]
                 ctx_self = engine._armies.get(triggering_army.name)
                 ctx_direct = engine._armies.get(opponent_army.name)
                 if ctx_self and ctx_direct:
@@ -710,11 +710,11 @@ def handle_rage_incineration(
         if simulator.mode in ("battlefield", "arena"):
             engine = getattr(simulator, "parent_engine", None)
             if engine:
-                enemies = engine.get_engaged_enemies(triggering_army.name)
-                indirect = [e for e in enemies if e.name != opponent_army.name]
-                if len(indirect) > 2:
-                    indirect = random.sample(indirect, 2)
-                for other in indirect:
+                attackers = engine.get_direct_attackers(triggering_army.name)
+                extras = [e for e in attackers if e.name != opponent_army.name]
+                if len(extras) > 2:
+                    extras = random.sample(extras, 2)
+                for other in extras:
                     hp_dmg2, absorbed2, kills2, raw2 = simulator._calculate_generic_skill_damage(
                         triggering_army, other, damage_factor,
                         is_hero2_rage_skill=is_hero2_delayed_rage,
@@ -1021,7 +1021,11 @@ def handle_rage_skill_heavenly_descent(
                     team_self = ctx_self.team
                     extras: List[ArmyRef] = []
                     for name, ctx in engine._armies.items():
-                        if ctx.team != team_self and name != opponent_army.name:
+                        if (
+                            ctx.team != team_self
+                            and name != opponent_army.name
+                            and ctx.direct_target == triggering_army.name
+                        ):
                             ex, ey = ctx.position
                             if hypot(ex - sx, ey - sy) <= 150:
                                 extras.append(ctx.army)
@@ -1119,15 +1123,15 @@ def handle_rage_ruling_trial(
         log_details.append((f"Deals extra damage (Factor: {extra_factor}) to {opponent_army.name}.",
                            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
 
-    # Apply base damage to up to three indirect targets in battlefield/arena modes
+    # Apply base damage to up to three other direct attackers in battlefield/arena modes
     if simulator.mode in ("battlefield", "arena") and base_factor > 0:
         engine = getattr(simulator, "parent_engine", None)
         if engine:
-            enemies = engine.get_engaged_enemies(triggering_army.name)
-            indirect_targets = [e for e in enemies if e.name != opponent_army.name]
-            if len(indirect_targets) > 3:
-                indirect_targets = random.sample(indirect_targets, 3)
-            for other in indirect_targets:
+            attackers = engine.get_direct_attackers(triggering_army.name)
+            extras = [e for e in attackers if e.name != opponent_army.name]
+            if len(extras) > 3:
+                extras = random.sample(extras, 3)
+            for other in extras:
                 hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
                     triggering_army, other, base_factor,
                     is_hero2_rage_skill=is_hero2_delayed_rage,

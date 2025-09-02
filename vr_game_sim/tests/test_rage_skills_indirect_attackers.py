@@ -13,7 +13,7 @@ from vr_game_sim.skill_logic.rage_skill_handlers import (
 from vr_game_sim.game_simulator import GameSimulator
 
 
-def test_sacred_blade_hits_indirect_attackers(monkeypatch):
+def test_sacred_blade_does_not_hit_indirect_attackers(monkeypatch):
     hero = Hero('Laird', [], ['base_skill_sacred_blade'], [], SKILL_REGISTRY_GLOBAL)
     army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
     direct = Army('E1', Unit('archers', 5, initial_count=10), heroes=[])
@@ -22,15 +22,15 @@ def test_sacred_blade_hits_indirect_attackers(monkeypatch):
     for a in [direct] + extras:
         a.register_simulator(sim)
     class DummyEngine:
-        def get_engaged_enemies(self, name):
-            return [direct] + extras
+        def get_direct_attackers(self, name):
+            return [direct]
     sim.parent_engine = DummyEngine()
     monkeypatch.setattr(random, 'sample', lambda pop, k: pop[:k])
     skill_def = SKILL_REGISTRY_GLOBAL['base_skill_sacred_blade']
     handle_rage_sacred_blade(army, direct, skill_def, {}, sim)
     assert direct.pending_hp_damage_this_round > 0
-    assert extras[0].pending_hp_damage_this_round > 0
-    assert extras[1].pending_hp_damage_this_round > 0
+    assert extras[0].pending_hp_damage_this_round == 0
+    assert extras[1].pending_hp_damage_this_round == 0
     assert extras[2].pending_hp_damage_this_round == 0
 
 
@@ -49,14 +49,14 @@ def test_paralyzing_terror_respects_angle():
     class DummyEngine:
         def __init__(self):
             self._armies = {
-                army.name: SimpleNamespace(position=(0.0, 0.0)),
-                direct.name: SimpleNamespace(position=(1.0, 0.0)),
-                extras[0].name: SimpleNamespace(position=(0.5, 0.5)),
-                extras[1].name: SimpleNamespace(position=(0.5, -0.5)),
-                extras[2].name: SimpleNamespace(position=(-1.0, 0.0)),
+                army.name: SimpleNamespace(position=(0.0, 0.0), army=army, direct_target=None),
+                direct.name: SimpleNamespace(position=(1.0, 0.0), army=direct, direct_target=army.name),
+                extras[0].name: SimpleNamespace(position=(0.5, 0.5), army=extras[0], direct_target=army.name),
+                extras[1].name: SimpleNamespace(position=(0.5, -0.5), army=extras[1], direct_target=army.name),
+                extras[2].name: SimpleNamespace(position=(-1.0, 0.0), army=extras[2], direct_target=None),
             }
-        def get_engaged_enemies(self, name):
-            return [direct] + extras
+        def get_direct_attackers(self, name):
+            return [ctx.army for ctx in self._armies.values() if ctx.direct_target == name]
     sim.parent_engine = DummyEngine()
     skill_def = SKILL_REGISTRY_GLOBAL['base_skill_paralyzing_terror']
     handle_rage_skill_paralyzing_terror(army, direct, skill_def, {}, sim)
@@ -66,7 +66,7 @@ def test_paralyzing_terror_respects_angle():
     assert extras[2].pending_hp_damage_this_round == 0
 
 
-def test_incineration_hits_indirect_attackers(monkeypatch):
+def test_incineration_does_not_hit_indirect_attackers(monkeypatch):
     hero = Hero('Artur', [], ['base_skill_incineration'], [], SKILL_REGISTRY_GLOBAL)
     army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
     direct = Army('E1', Unit('archers', 5, initial_count=10), heroes=[])
@@ -75,13 +75,13 @@ def test_incineration_hits_indirect_attackers(monkeypatch):
     for a in [direct] + extras:
         a.register_simulator(sim)
     class DummyEngine:
-        def get_engaged_enemies(self, name):
-            return [direct] + extras
+        def get_direct_attackers(self, name):
+            return [direct]
     sim.parent_engine = DummyEngine()
     monkeypatch.setattr(random, 'sample', lambda pop, k: pop[:k])
     skill_def = SKILL_REGISTRY_GLOBAL['base_skill_incineration']
     handle_rage_incineration(army, direct, skill_def, {}, sim)
     assert direct.pending_hp_damage_this_round > 0
-    assert extras[0].pending_hp_damage_this_round > 0
-    assert extras[1].pending_hp_damage_this_round > 0
+    assert extras[0].pending_hp_damage_this_round == 0
+    assert extras[1].pending_hp_damage_this_round == 0
     assert extras[2].pending_hp_damage_this_round == 0

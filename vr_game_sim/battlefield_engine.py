@@ -135,6 +135,10 @@ class BattlefieldEngine:
         """Return list of armies currently engaged with ``army_name``."""
         return [self._armies[nm].army for nm in self._graph.get(army_name, set()) if nm in self._armies]
 
+    def get_direct_attackers(self, army_name: str) -> List[Army]:
+        """Return armies whose direct target is ``army_name``."""
+        return [ctx.army for ctx in self._armies.values() if ctx.direct_target == army_name]
+
     # ------------------------------------------------------------------
     # Reset
     # ------------------------------------------------------------------

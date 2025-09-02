@@ -3814,10 +3814,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 widget.setParent(None)
         red_entries = [e for e in results if e.get("team", "red") == "red"]
         blue_entries = [e for e in results if e.get("team", "blue") == "blue"]
+        max_healed = max((e.get("healed", 0) for e in results), default=1)
+        max_kills = max((e.get("kills", 0) for e in results), default=1)
 
         self.arena_fig_summary_layout.addWidget(ArenaStatsHeader(), 0, 0)
         for row, (red, blue) in enumerate(zip_longest(red_entries, blue_entries), start=1):
-            row_widget = ArenaStatsRow(red, blue)
+            row_widget = ArenaStatsRow(red, blue, max_healed, max_kills)
             self.arena_fig_summary_layout.addWidget(row_widget, row, 0)
 
         self.arena_fig_stack.setCurrentWidget(self.arena_fig_scroll)

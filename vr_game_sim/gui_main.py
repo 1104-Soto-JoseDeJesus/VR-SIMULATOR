@@ -35,7 +35,7 @@ from vr_game_sim.main import (
     load_army_from_file,
 )
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
-from vr_game_sim.battlefield_engine import BattlefieldEngine
+from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
 from vr_game_sim.arena_engine import ArenaEngine
 from vr_game_sim.navmesh import NavMesh
 from vr_game_sim.gui.arena_stats import HeroStatsWidget, HeroStatsHeader
@@ -2460,7 +2460,7 @@ class ArenaTab(QtWidgets.QWidget):
         """Return coordinates for each deployment slot of both teams."""
 
         default_speed = 50.0
-        engage_dist = 2 * default_speed * 2  # 200.0 units between opposing fronts
+        engage_dist = 2 * default_speed * 2 + ENGAGEMENT_DISTANCE - 70  # adjust for engagement radius
         to_mid = engage_dist / 2.0  # distance from front line to map centre
         back_offset = default_speed * 3 * 0.7  # 105.0 units between front and back rows
 

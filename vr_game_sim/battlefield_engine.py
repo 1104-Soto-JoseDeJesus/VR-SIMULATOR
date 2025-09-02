@@ -48,7 +48,7 @@ from .battlefield_report_builder import BattlefieldReportBuilder
 # attackers to circle around a defender.  ``ENGAGEMENT_DISTANCE`` therefore
 # acts as the radius of the combat ring rather than a mere straight-line
 # separation.
-ENGAGEMENT_DISTANCE: float = 70.0
+ENGAGEMENT_DISTANCE: float = 60.0
 _ARC_PUSH_SPEED: float = 25.0  # speed in units/s when sliding around radius
 _ENGAGE_EPS: float = 0.01  # small tolerance for floating point comparisons
 

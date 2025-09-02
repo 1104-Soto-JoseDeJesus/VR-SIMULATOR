@@ -62,7 +62,10 @@ class HeroStatsHeader(QtWidgets.QWidget):
             vbox = QtWidgets.QVBoxLayout(container)
             vbox.setContentsMargins(0, 0, 0, 0)
             vbox.setSpacing(2)
-            vbox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            vbox.setAlignment(
+                QtCore.Qt.AlignmentFlag.AlignHCenter
+                | QtCore.Qt.AlignmentFlag.AlignBottom
+            )
 
             icon_lbl = QtWidgets.QLabel()
             icon_path = os.path.join(
@@ -88,7 +91,12 @@ class HeroStatsHeader(QtWidgets.QWidget):
             vbox.addWidget(text_lbl)
 
             layout.addWidget(
-                container, 0, col, alignment=QtCore.Qt.AlignmentFlag.AlignCenter
+                container,
+                0,
+                col,
+                alignment=
+                QtCore.Qt.AlignmentFlag.AlignHCenter
+                | QtCore.Qt.AlignmentFlag.AlignBottom,
             )
             layout.setColumnStretch(col, 1)
 

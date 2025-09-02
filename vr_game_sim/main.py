@@ -209,7 +209,7 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
             army_config["army_name"],
             unit,
             heroes_list,
-            army_config.get("unrevivable_ratio", 0.5),
+            army_config.get("unrevivable_ratio", 0.65),
         )
         armies.append(army_obj)
 

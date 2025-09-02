@@ -42,7 +42,7 @@ class Army:
     name: str
     unit: Unit
     heroes: List[Hero] = field(default_factory=list)
-    unrevivable_ratio: float = 0.5
+    unrevivable_ratio: float = 0.65
     simulator: Optional[GameSimulatorRef] = field(init=False, default=None)
     simulators: List[GameSimulatorRef] = field(init=False, default_factory=list)
 

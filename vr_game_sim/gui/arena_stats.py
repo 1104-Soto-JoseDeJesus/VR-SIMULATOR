@@ -59,10 +59,10 @@ class HeroStatsHeader(QtWidgets.QWidget):
 
         for text, col in headers:
             container = QtWidgets.QWidget()
-            hbox = QtWidgets.QHBoxLayout(container)
-            hbox.setContentsMargins(0, 0, 0, 0)
-            hbox.setSpacing(2)
-            hbox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            vbox = QtWidgets.QVBoxLayout(container)
+            vbox.setContentsMargins(0, 0, 0, 0)
+            vbox.setSpacing(2)
+            vbox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
             icon_lbl = QtWidgets.QLabel()
             icon_path = os.path.join(
@@ -70,7 +70,7 @@ class HeroStatsHeader(QtWidgets.QWidget):
             )
             pix = QtGui.QPixmap(icon_path)
             if not pix.isNull():
-                size = QtGui.QFontMetrics(self.font()).height()
+                size = int(QtGui.QFontMetrics(self.font()).height() * 2)
                 icon_lbl.setPixmap(
                     pix.scaled(
                         size,
@@ -79,11 +79,13 @@ class HeroStatsHeader(QtWidgets.QWidget):
                         QtCore.Qt.TransformationMode.SmoothTransformation,
                     )
                 )
+            icon_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+
             text_lbl = QtWidgets.QLabel(text)
             text_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
-            hbox.addWidget(icon_lbl)
-            hbox.addWidget(text_lbl)
+            vbox.addWidget(icon_lbl)
+            vbox.addWidget(text_lbl)
 
             layout.addWidget(
                 container, 0, col, alignment=QtCore.Qt.AlignmentFlag.AlignCenter

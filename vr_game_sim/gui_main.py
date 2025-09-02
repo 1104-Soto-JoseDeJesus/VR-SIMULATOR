@@ -1121,7 +1121,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.unrevivable_spin.setRange(0.0, 1.0)
         self.unrevivable_spin.setDecimals(4)
         self.unrevivable_spin.setSingleStep(0.0001)
-        self.unrevivable_spin.setValue(0.5)
+        self.unrevivable_spin.setValue(0.65)
 
         self.hero1_combo = QtWidgets.QComboBox()
         self.hero2_combo = QtWidgets.QComboBox()
@@ -1445,7 +1445,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.def_edit.setValue(float(cfg.get("def_mod", 0)))
         self.hp_edit.setValue(float(cfg.get("hp_mod", 0)))
 
-        self.unrevivable_spin.setValue(float(cfg.get("unrevivable_ratio", 0.5)))
+        self.unrevivable_spin.setValue(float(cfg.get("unrevivable_ratio", 0.65)))
 
         hero_combos = [self.hero1_combo, self.hero2_combo]
         for idx, combo in enumerate(hero_combos, start=1):

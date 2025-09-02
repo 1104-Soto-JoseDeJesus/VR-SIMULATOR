@@ -3477,6 +3477,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.arena_fig_scroll = QtWidgets.QScrollArea()
         self.arena_fig_scroll.setWidgetResizable(True)
         self.arena_fig_summary = QtWidgets.QWidget()
+        bg_path = os.path.join(
+            os.path.dirname(__file__), "Icons", "ArenaSummaryBackground.png"
+        ).replace("\\", "/")
+        self.arena_fig_summary.setStyleSheet(
+            f"background-image: url({bg_path});"
+            "background-repeat: no-repeat;"
+            "background-position: center;"
+        )
         self.arena_fig_summary_layout = QtWidgets.QGridLayout(self.arena_fig_summary)
         self.arena_fig_scroll.setWidget(self.arena_fig_summary)
         self.arena_fig_stack.addWidget(self.arena_fig_scroll)

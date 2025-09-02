@@ -36,7 +36,7 @@ def test_inspiring_dance_buffs_allies(monkeypatch):
     assert buffed[5] is False
 
 
-def test_heavenly_descent_hits_extra_enemies(monkeypatch):
+def test_heavenly_descent_only_hits_direct_attackers():
     hero = Hero("Jens", [], ["base_skill_heavenly_descent"], [], SKILL_REGISTRY_GLOBAL)
     army = Army("H", Unit("pikemen", 5, initial_count=10), heroes=[hero])
     direct = Army("E0", Unit("archers", 5, initial_count=10), heroes=[])
@@ -45,17 +45,16 @@ def test_heavenly_descent_hits_extra_enemies(monkeypatch):
     for a in [army, direct] + extras:
         a.register_simulator(sim)
     engine = SimpleNamespace(_armies={})
-    engine._armies[army.name] = SimpleNamespace(army=army, team="T1", position=(0.0, 0.0))
-    engine._armies[direct.name] = SimpleNamespace(army=direct, team="T2", position=(50.0, 0.0))
+    engine._armies[army.name] = SimpleNamespace(army=army, team="T1", position=(0.0, 0.0), direct_target=None)
+    engine._armies[direct.name] = SimpleNamespace(army=direct, team="T2", position=(50.0, 0.0), direct_target=army.name)
     for i, extra in enumerate(extras, 1):
-        engine._armies[extra.name] = SimpleNamespace(army=extra, team="T2", position=(10.0 * i, 0.0))
+        engine._armies[extra.name] = SimpleNamespace(army=extra, team="T2", position=(10.0 * i, 0.0), direct_target=None)
     sim.parent_engine = engine
-    monkeypatch.setattr(random, "sample", lambda pop, k: pop[:k])
     skill_def = SKILL_REGISTRY_GLOBAL["base_skill_heavenly_descent"]
     handle_rage_skill_heavenly_descent(army, direct, skill_def, {}, sim)
     dmg = [e.pending_hp_damage_this_round for e in extras]
-    assert all(d > 0 for d in dmg[:4])
-    assert dmg[4] == 0
+    assert direct.pending_hp_damage_this_round > 0
+    assert all(d == 0 for d in dmg)
 
 
 def test_vital_blessing_heals_allies(monkeypatch):

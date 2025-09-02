@@ -171,7 +171,7 @@ class PortraitLabel(QtWidgets.QLabel):
             self._skills, self._total_kills, self._total_heals, self
         )
         self._popup.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
-        self._popup.destroyed.connect(lambda: setattr(self, "_popup", None))
+        self._popup.destroyed.connect(self._clear_popup)
         pos = self.mapToGlobal(self.rect().bottomLeft())
         self._popup.move(pos)
         self._popup.show()
@@ -191,6 +191,10 @@ class PortraitLabel(QtWidgets.QLabel):
             self._popup.close()
             self._popup = None
         super().hideEvent(event)
+
+    def _clear_popup(self) -> None:
+        """Reset popup reference after it is destroyed."""
+        self._popup = None
 
 
 class HeroStatsHeader(QtWidgets.QWidget):

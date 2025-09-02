@@ -3907,7 +3907,7 @@ class MainWindow(QtWidgets.QMainWindow):
             item = self.arena_fig_summary_layout.takeAt(i)
             widget = item.widget()
             if widget:
-                widget.setParent(None)
+                widget.deleteLater()
         red_entries = [e for e in results if e.get("team", "red") == "red"]
         blue_entries = [e for e in results if e.get("team", "blue") == "blue"]
         max_healed = max((e.get("healed", 0) for e in results), default=1)

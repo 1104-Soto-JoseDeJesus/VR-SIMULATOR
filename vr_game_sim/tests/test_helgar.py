@@ -179,13 +179,13 @@ def test_judgement_mark_queues_markers_for_next_round():
     assert sum(1 for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER) == 3
 
 
-def test_judgement_mark_multi_trigger_battlefield(monkeypatch):
+def test_judgement_mark_only_once_battlefield(monkeypatch):
     monkeypatch.setattr(random, "random", lambda: 0.0)
     hero = Hero('Helgar', ['talent_judgement_mark'], [], [], SKILL_REGISTRY_GLOBAL)
     army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
     opponents = [
         Army(f'E{i}', Unit('archers', 5, initial_count=10), heroes=[])
-        for i in range(4)
+        for i in range(3)
     ]
     sim = GameSimulator(army, opponents[0], mode='battlefield')
     for opp in opponents:
@@ -194,11 +194,9 @@ def test_judgement_mark_multi_trigger_battlefield(monkeypatch):
     sim._process_skill_triggers(army, opponents[0], SkillTriggerType.ON_COUNTER_ATTACK)
     sim._process_skill_triggers(army, opponents[1], SkillTriggerType.ON_COUNTER_ATTACK)
     sim._process_skill_triggers(army, opponents[2], SkillTriggerType.ON_COUNTER_ATTACK)
-    assert army.skill_trigger_counts_this_round.get('talent_judgement_mark') == 3
-    sim._process_skill_triggers(army, opponents[3], SkillTriggerType.ON_COUNTER_ATTACK)
-    assert army.skill_trigger_counts_this_round.get('talent_judgement_mark') == 3
+    assert army.triggered_skills_this_round.count('talent_judgement_mark') == 1
     sim._process_skill_triggers(army, opponents[0], SkillTriggerType.ON_COUNTER_ATTACK)
-    assert army.skill_trigger_counts_this_round.get('talent_judgement_mark') == 3
+    assert army.triggered_skills_this_round.count('talent_judgement_mark') == 1
 
 
 def test_ruling_trial_extra_damage_uses_own_markers(monkeypatch):

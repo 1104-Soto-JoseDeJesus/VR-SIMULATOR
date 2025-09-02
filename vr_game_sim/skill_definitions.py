@@ -900,7 +900,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.50, "target": "ENEMY",
         "logic_handler": handle_talent_judgement_mark,
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"damage_factor": 350.0, "max_triggers_per_round": 3, "max_triggers_per_target_per_round": 1}
+        "config": {"damage_factor": 350.0}
     },
     "base_skill_judgements_fury": {
         "id": "base_skill_judgements_fury", "name": "Judgement's Fury", "type": SkillType.BASE_SKILL,

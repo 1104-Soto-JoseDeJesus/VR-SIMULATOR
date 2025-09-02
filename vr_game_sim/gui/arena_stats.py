@@ -280,7 +280,14 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 index = 0
             skills = self._skills[index] if index < len(self._skills) else []
             hero_name = self._hero_names[index] if index < len(self._hero_names) else "Hero"
-            total_shielded = sum(s.get("shielded", 0) for s in skills)
+
+            # Compute the total shield applied to the entire army across all skills
+            total_shielded = sum(
+                s.get("shielded", 0)
+                for skill_list in self._skills
+                for s in (skill_list or [])
+            )
+
             dlg = HeroSkillDialog(
                 hero_name,
                 skills,

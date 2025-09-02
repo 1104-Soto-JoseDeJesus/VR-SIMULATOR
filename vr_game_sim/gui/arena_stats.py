@@ -78,6 +78,8 @@ class HeroStatsWidget(QtWidgets.QWidget):
         initial: int,
         healed: int,
         kills: int,
+        max_healed: int,
+        max_kills: int,
         team_color: str,
         align_right: bool = False,
         parent: QtWidgets.QWidget | None = None,
@@ -96,15 +98,16 @@ class HeroStatsWidget(QtWidgets.QWidget):
         portrait_layout.setSpacing(0)
 
         self._portrait_labels: list[QtWidgets.QLabel] = []
+        self._portrait_pixmaps: list[QtGui.QPixmap] = []
         for path in (portrait_path, portrait2_path):
             lbl = QtWidgets.QLabel()
-            lbl.setScaledContents(True)
+            lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             pix = QtGui.QPixmap(path)
             if pix.isNull():
                 lbl.setText("No\nImage")
-                lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
                 lbl.setStyleSheet("background-color: #444; color: white;")
             else:
+                self._portrait_pixmaps.append(pix)
                 lbl.setPixmap(pix)
             self._portrait_labels.append(lbl)
             portrait_layout.addWidget(lbl)
@@ -114,13 +117,6 @@ class HeroStatsWidget(QtWidgets.QWidget):
 
         name_label = QtWidgets.QLabel(name)
         name_label.setFont(font)
-        healed_label = QtWidgets.QLabel(str(healed))
-        healed_label.setProperty("class", "healed")
-        healed_label.setFont(font)
-        kills_label = QtWidgets.QLabel(str(kills))
-        kills_label.setProperty("class", "kills")
-        kills_label.setFont(font)
-
         remaining_bar = QtWidgets.QProgressBar()
         remaining_bar.setRange(0, max(1, initial))
         remaining_bar.setValue(max(0, remaining))
@@ -134,20 +130,24 @@ class HeroStatsWidget(QtWidgets.QWidget):
         self._anim.setEndValue(max(0, remaining))
         self._anim.start()
 
-        healed_container = QtWidgets.QWidget()
-        h_layout = QtWidgets.QHBoxLayout(healed_container)
-        h_layout.setContentsMargins(0, 0, 0, 0)
-        h_layout.addWidget(healed_label)
+        healed_bar = QtWidgets.QProgressBar()
+        healed_bar.setRange(0, max(1, max_healed))
+        healed_bar.setValue(max(0, healed))
+        healed_bar.setFormat(str(healed))
+        healed_bar.setProperty("class", "healed")
+        healed_bar.setFont(font)
 
-        kills_container = QtWidgets.QWidget()
-        k_layout = QtWidgets.QHBoxLayout(kills_container)
-        k_layout.setContentsMargins(0, 0, 0, 0)
-        k_layout.addWidget(kills_label)
+        kills_bar = QtWidgets.QProgressBar()
+        kills_bar.setRange(0, max(1, max_kills))
+        kills_bar.setValue(max(0, kills))
+        kills_bar.setFormat(str(kills))
+        kills_bar.setProperty("class", "kills")
+        kills_bar.setFont(font)
 
         if align_right:
             widgets = [
-                kills_container,
-                healed_container,
+                kills_bar,
+                healed_bar,
                 remaining_bar,
                 name_label,
                 portrait_container,
@@ -158,8 +158,8 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 portrait_container,
                 name_label,
                 remaining_bar,
-                healed_container,
-                kills_container,
+                healed_bar,
+                kills_bar,
             ]
             text_align = QtCore.Qt.AlignmentFlag.AlignLeft
 
@@ -182,6 +182,15 @@ class HeroStatsWidget(QtWidgets.QWidget):
         size = int(self.height() * 0.9)
         for lbl in self._portrait_labels:
             lbl.setFixedSize(size, size)
+        for lbl, pix in zip(self._portrait_labels, self._portrait_pixmaps):
+            if not pix.isNull():
+                lbl.setPixmap(
+                    pix.scaled(
+                        lbl.size(),
+                        QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                        QtCore.Qt.TransformationMode.SmoothTransformation,
+                    )
+                )
         super().resizeEvent(event)
 
 
@@ -194,10 +203,6 @@ class ArenaStatsHeader(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(HeroStatsHeader())
-        separator = QtWidgets.QFrame()
-        separator.setFrameShape(QtWidgets.QFrame.Shape.VLine)
-        separator.setLineWidth(1)
-        layout.addWidget(separator)
         layout.addWidget(HeroStatsHeader(align_right=True))
 
 
@@ -208,6 +213,8 @@ class ArenaStatsRow(QtWidgets.QWidget):
         self,
         left: dict | None,
         right: dict | None,
+        max_healed: int,
+        max_kills: int,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -224,16 +231,13 @@ class ArenaStatsRow(QtWidgets.QWidget):
                 left.get("initial", left.get("remaining", 0)),
                 left.get("healed", 0),
                 left.get("kills", 0),
+                max_healed,
+                max_kills,
                 left.get("team", "red"),
             )
         else:
             left_widget = QtWidgets.QWidget()
         layout.addWidget(left_widget)
-
-        separator = QtWidgets.QFrame()
-        separator.setFrameShape(QtWidgets.QFrame.Shape.VLine)
-        separator.setLineWidth(1)
-        layout.addWidget(separator)
 
         if right:
             right_widget = HeroStatsWidget(
@@ -244,6 +248,8 @@ class ArenaStatsRow(QtWidgets.QWidget):
                 right.get("initial", right.get("remaining", 0)),
                 right.get("healed", 0),
                 right.get("kills", 0),
+                max_healed,
+                max_kills,
                 right.get("team", "blue"),
                 align_right=True,
             )

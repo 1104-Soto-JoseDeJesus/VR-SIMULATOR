@@ -38,7 +38,9 @@ from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
 from vr_game_sim.arena_engine import ArenaEngine
 from vr_game_sim.navmesh import NavMesh
-from vr_game_sim.gui.arena_stats import HeroStatsWidget, HeroStatsHeader
+from itertools import zip_longest
+
+from vr_game_sim.gui.arena_stats import ArenaStatsHeader, ArenaStatsRow
 
 
 def get_pdf_layout_path() -> str:
@@ -3810,35 +3812,14 @@ class MainWindow(QtWidgets.QMainWindow):
             widget = item.widget()
             if widget:
                 widget.setParent(None)
-        team_layouts: dict[str, QtWidgets.QVBoxLayout] = {
-            "red": QtWidgets.QVBoxLayout(),
-            "blue": QtWidgets.QVBoxLayout(),
-        }
-        for layout in team_layouts.values():
-            layout.addWidget(HeroStatsHeader())
-        for entry in results:
-            widget = HeroStatsWidget(
-                entry.get("portrait1", ""),
-                entry.get("portrait2", ""),
-                entry.get("name", ""),
-                entry.get("remaining", 0),
-                entry.get("initial", entry.get("remaining", 0)),
-                entry.get("healed", 0),
-                entry.get("kills", 0),
-                entry.get("team", "red"),
-            )
-            team_layouts.get(entry.get("team", ""), team_layouts["red"]).addWidget(widget)
+        red_entries = [e for e in results if e.get("team", "red") == "red"]
+        blue_entries = [e for e in results if e.get("team", "blue") == "blue"]
 
-        red_widget = QtWidgets.QWidget()
-        red_layout = QtWidgets.QVBoxLayout(red_widget)
-        red_layout.addLayout(team_layouts["red"])
-        red_layout.addStretch()
-        blue_widget = QtWidgets.QWidget()
-        blue_layout = QtWidgets.QVBoxLayout(blue_widget)
-        blue_layout.addLayout(team_layouts["blue"])
-        blue_layout.addStretch()
-        self.arena_fig_summary_layout.addWidget(red_widget, 0, 0)
-        self.arena_fig_summary_layout.addWidget(blue_widget, 0, 1)
+        self.arena_fig_summary_layout.addWidget(ArenaStatsHeader(), 0, 0)
+        for row, (red, blue) in enumerate(zip_longest(red_entries, blue_entries), start=1):
+            row_widget = ArenaStatsRow(red, blue)
+            self.arena_fig_summary_layout.addWidget(row_widget, row, 0)
+
         self.arena_fig_stack.setCurrentWidget(self.arena_fig_scroll)
 
     def _display_selected_bf_report(

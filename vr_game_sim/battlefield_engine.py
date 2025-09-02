@@ -490,7 +490,10 @@ class BattlefieldEngine:
                 army = ctx.army
                 army.current_rage = 0.0
                 army.skill_last_triggered_round.clear()
-                army.skill_trigger_counts.clear()
+                # Do not clear cumulative skill trigger counts here so that
+                # total cast numbers persist across engagements.  Only
+                # per-round counters are reset below.
+                # army.skill_trigger_counts.clear()
                 army.triggered_skills_this_round.clear()
                 army.skill_trigger_counts_this_round.clear()
                 army.skill_triggers_against_this_round.clear()

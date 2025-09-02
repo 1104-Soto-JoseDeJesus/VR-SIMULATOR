@@ -111,6 +111,168 @@ from .skill_logic.utility_skill_handlers import (
     handle_generic_heal_skill,
 )
 
+# Utility mappings to generate human-readable skill descriptions
+TRIGGER_PHRASES = {
+    SkillTriggerType.PASSIVE: "Passive",
+    SkillTriggerType.ON_DEALING_DAMAGE: "On dealing damage",
+    SkillTriggerType.ON_BASIC_ATTACK: "On basic attack",
+    SkillTriggerType.ON_COUNTER_ATTACK: "On counter-attack",
+    SkillTriggerType.ON_HIT_BY_BASIC_ATTACK: "On being hit by basic attack",
+    SkillTriggerType.ON_RECEIVING_HEALING: "On receiving healing",
+    SkillTriggerType.CHANCE_PER_ROUND: "Each round",
+    SkillTriggerType.RAGE_SKILL: "Rage skill",
+    SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE: "On receiving rage skill damage",
+    SkillTriggerType.ON_OWN_RAGE_SKILL_CAST: "After own rage skill",
+    SkillTriggerType.ON_OWN_COMMAND_SKILL_CAST: "After own command skill",
+}
+
+STAT_PHRASES = {
+    StatType.BASE_ATTACK_MULTIPLIER: "attack",
+    StatType.BASE_DEFENSE_MULTIPLIER: "defense",
+    StatType.BASE_HP_MULTIPLIER: "HP",
+    StatType.EFFECTIVE_ATTACK_MULTIPLIER: "attack",
+    StatType.EFFECTIVE_DEFENSE_MULTIPLIER: "defense",
+    StatType.EFFECTIVE_HP_MULTIPLIER: "HP",
+    StatType.BASIC_DAMAGE_ADJUST: "basic attack damage",
+    StatType.COUNTER_DAMAGE_ADJUST: "counter damage",
+    StatType.REACTIVE_SKILL_DAMAGE_ADJUST: "reactive skill damage",
+    StatType.GENERAL_DAMAGE_MODIFIER: "damage dealt",
+    StatType.DAMAGE_TAKEN_MULTIPLIER: "damage taken",
+    StatType.SHIELD_STRENGTH_MODIFIER: "shield strength",
+    StatType.HEAL_ADJUSTMENT: "healing",
+    StatType.BLEED_DAMAGE_BOOST: "bleed damage",
+    StatType.POISON_DAMAGE_BOOST: "poison damage",
+    StatType.BURN_DAMAGE_BOOST: "burn damage",
+    StatType.BLEED_DAMAGE_REDUCTION: "bleed damage taken",
+    StatType.POISON_DAMAGE_REDUCTION: "poison damage taken",
+    StatType.BURN_DAMAGE_REDUCTION: "burn damage taken",
+    StatType.COMMAND_SKILL_DAMAGE_MODIFIER: "command skill damage",
+    StatType.COOPERATION_TRIGGER_RATE_MODIFIER: "cooperation trigger rate",
+    StatType.COOPERATION_SKILL_DAMAGE_MODIFIER: "cooperation skill damage",
+}
+
+
+def _format_duration(duration: int | float | None) -> str:
+    if duration is None:
+        return ""
+    if duration == -1:
+        return "permanently"
+    rounds = int(duration)
+    return f"for {rounds} round{'s' if rounds != 1 else ''}"
+
+
+def _format_effect_name(name: str) -> str:
+    return name.replace("_", " ").replace("DEBUFF", "").replace("Debuff", "").title().strip()
+
+
+def _describe_effect(effect: Dict[str, Any]) -> str:
+    etype = effect.get("effect_type")
+    if etype == EffectType.STAT_MOD:
+        stat = STAT_PHRASES.get(effect.get("stat_to_mod"), str(effect.get("stat_to_mod")))
+        mag = effect.get("magnitude", 0)
+        mag_pct = f"{abs(mag) * 100:.0f}%"
+        verb = "increase" if mag >= 0 else "reduce"
+        dur = _format_duration(effect.get("duration"))
+        return f"{verb} {stat} by {mag_pct} {dur}".strip()
+    if etype == EffectType.IMMUNITY:
+        immune_name = effect.get("immune_to") or effect.get("name", "")
+        dur = _format_duration(effect.get("duration"))
+        return f"gain {_format_effect_name(immune_name)} immunity {dur}".strip()
+    if etype == EffectType.SHIELD:
+        dur = _format_duration(effect.get("duration"))
+        return f"gain a shield {dur}".strip()
+    if etype in (EffectType.HEAL_INSTANT, EffectType.HEAL_OVER_TIME):
+        dur = _format_duration(effect.get("duration"))
+        prefix = "heal" if etype == EffectType.HEAL_INSTANT else "heal over time"
+        return f"{prefix} {dur}".strip()
+    if etype == EffectType.DAMAGE_OVER_TIME:
+        dot_type = effect.get("dot_type")
+        dot_name = dot_type.value.title() if dot_type else "Damage"
+        dur = _format_duration(effect.get("duration"))
+        return f"inflict {dot_name.lower()} {dur}".strip()
+    return effect.get("name", "special effect")
+
+
+def _effects_from_config(cfg: Dict[str, Any]) -> list[str]:
+    effects: list[str] = []
+    # Generic factor based effects
+    for key, value in cfg.items():
+        if key.startswith("damage_factor"):
+            effects.append(f"deal {value:.0f}% damage")
+        elif key.startswith("heal_factor"):
+            effects.append(f"heal {value:.0f}%")
+        elif key == "shield_factor":
+            dur = _format_duration(cfg.get("shield_duration"))
+            effects.append(f"gain a shield {dur}".strip())
+        elif key == "buff_magnitude":
+            dur = _format_duration(cfg.get("buff_duration"))
+            effects.append(f"increase stats by {value * 100:.0f}% {dur}".strip())
+        elif key == "reduction_magnitude":
+            dur = _format_duration(cfg.get("reduction_duration"))
+            effects.append(f"reduce stats by {abs(value) * 100:.0f}% {dur}".strip())
+        elif key.endswith("_buff_magnitude") or key.endswith("_reduction_magnitude"):
+            base = key.replace("_buff_magnitude", "").replace("_reduction_magnitude", "")
+            dur = cfg.get(base + "_buff_duration") or cfg.get(base + "_reduction_duration") or cfg.get(base + "_duration")
+            mag = value * 100
+            verb = "increase" if key.endswith("_buff_magnitude") and value >= 0 else "reduce"
+            effects.append(f"{verb} {base.replace('_', ' ')} by {abs(mag):.0f}% {_format_duration(dur)}".strip())
+        elif key.endswith("_chance"):
+            base = key[:-7]
+            chance = value * 100
+            if base + "_duration" in cfg:
+                dur = _format_duration(cfg.get(base + "_duration"))
+                effects.append(f"{chance:.0f}% chance to {base.replace('_', ' ')} {dur}".strip())
+            elif base + "_factor" in cfg:
+                factor = cfg.get(base + "_factor")
+                effects.append(f"{chance:.0f}% chance to {base.replace('_', ' ')} {factor:.0f}%")
+            else:
+                effects.append(f"{chance:.0f}% chance to {base.replace('_', ' ')}")
+        elif key == "rage_reduction":
+            effects.append(f"reduce rage by {value}")
+    if "rage_cost" in cfg:
+        effects.append(f"costs {cfg['rage_cost']} rage")
+    return effects
+
+
+def build_skill_description(skill: Dict[str, Any]) -> str:
+    trigger = TRIGGER_PHRASES.get(skill.get("trigger"), str(skill.get("trigger")))
+    if skill.get("trigger") == SkillTriggerType.PASSIVE:
+        prefix = f"{trigger}:"
+    else:
+        prefix = trigger
+    chance = skill.get("trigger_chance")
+    chance_part = f" {chance * 100:.0f}% chance to" if chance is not None and chance < 1 else ""
+    effect_parts: list[str] = []
+    for eff in skill.get("effects_to_apply", []):
+        effect_parts.append(_describe_effect(eff))
+    for sub in skill.get("sub_effects", []):
+        sub_desc = _describe_effect(sub.get("effect_to_apply", {}))
+        sub_chance = sub.get("chance")
+        if sub_chance is not None:
+            effect_parts.append(f"{sub_chance * 100:.0f}% chance to {sub_desc}")
+        else:
+            effect_parts.append(sub_desc)
+    if "config" in skill:
+        effect_parts.extend(_effects_from_config(skill["config"]))
+    if not effect_parts:
+        effect_parts.append("trigger its effect")
+    if len(effect_parts) > 1:
+        joiner = " or " if skill.get("sub_effects") else " and "
+        effects_text = joiner.join(effect_parts)
+    else:
+        effects_text = effect_parts[0]
+    if chance_part:
+        description = f"{prefix}, {chance_part} {effects_text}"
+    else:
+        description = f"{prefix}, {effects_text}" if skill.get("trigger") != SkillTriggerType.PASSIVE else f"{prefix} {effects_text}"
+    cooldown = skill.get("config", {}).get("cooldown_rounds")
+    if cooldown:
+        description += f" (cooldown {cooldown} rounds)"
+    rage_cost = skill.get("rage_cost")
+    if rage_cost:
+        description += f" (costs {rage_cost} rage)"
+    return " ".join(description.split())
+
 SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
     # --- Talent Skills ---
     # ... (All existing talents for Leif, Laird, Yvette, Heahmund, Sigurd, Wooder, Ivana, Ragnar, Athelstan, Verdandi) ...
@@ -1422,6 +1584,10 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "effects_to_apply": [], "logic_handler": None
     }
 }
+
+# Generate human-readable descriptions for all skills at import time
+for _skill in SKILL_REGISTRY_GLOBAL.values():
+    _skill["description"] = build_skill_description(_skill)
 
 
 def _apply_overrides(base: Dict[str, Any], overrides: Dict[str, Any]) -> None:

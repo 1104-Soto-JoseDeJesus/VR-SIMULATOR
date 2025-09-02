@@ -163,25 +163,29 @@ class PortraitLabel(QtWidgets.QLabel):
         self._skills = skills
         self._total_kills = total_kills
         self._total_heals = total_heals
-        self._popup: SkillStatsPopup | None = None
+        # Use QPointer so reference is cleared automatically when the popup is
+        # destroyed. This avoids calling back into a partially deleted widget
+        # during application shutdown, which previously caused crashes at the
+        # end of arena battles.
+        self._popup: QtCore.QPointer[SkillStatsPopup] = QtCore.QPointer()
 
     def _show_popup(self) -> None:
         """Create and display the statistics popup."""
-        self._popup = SkillStatsPopup(
+        popup = SkillStatsPopup(
             self._skills, self._total_kills, self._total_heals, self
         )
-        self._popup.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
-        self._popup.destroyed.connect(self._clear_popup)
+        popup.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
         pos = self.mapToGlobal(self.rect().bottomLeft())
-        self._popup.move(pos)
-        self._popup.show()
+        popup.move(pos)
+        popup.show()
+        self._popup = QtCore.QPointer(popup)
 
     def mouseDoubleClickEvent(
         self, event: QtGui.QMouseEvent
     ) -> None:  # type: ignore[override]
         if self._popup:
             self._popup.close()
-            self._popup = None
+            self._popup = QtCore.QPointer()
         elif self._skills:
             self._show_popup()
         super().mouseDoubleClickEvent(event)
@@ -189,12 +193,8 @@ class PortraitLabel(QtWidgets.QLabel):
     def hideEvent(self, event: QtGui.QHideEvent) -> None:  # type: ignore[override]
         if self._popup:
             self._popup.close()
-            self._popup = None
+            self._popup = QtCore.QPointer()
         super().hideEvent(event)
-
-    def _clear_popup(self) -> None:
-        """Reset popup reference after it is destroyed."""
-        self._popup = None
 
 
 class HeroStatsHeader(QtWidgets.QWidget):

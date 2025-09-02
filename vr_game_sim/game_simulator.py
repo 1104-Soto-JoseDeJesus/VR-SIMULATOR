@@ -452,7 +452,6 @@ class GameSimulator:
                 else:
                     army.hero2_rage_skill_primed_for_round = self.round + 1
         else:
-            army.current_rage = max(0.0, current_round_rage_gain)
             if army.hero2_rage_skill_primed_for_round == self.round:
                 army.hero2_rage_skill_primed_for_round = None
 

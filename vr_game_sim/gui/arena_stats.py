@@ -51,10 +51,43 @@ class HeroStatsHeader(QtWidgets.QWidget):
             layout.addWidget(portrait_spacer, 0, 0)
             layout.addWidget(name_spacer, 0, 1)
 
+        icon_map = {
+            "Heals": "HealsICON.png",
+            "Kills": "KillsICON.png",
+            "Remaining Troops": "RemainingTroopsICON.png",
+        }
+
         for text, col in headers:
-            label = QtWidgets.QLabel(text)
-            label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            layout.addWidget(label, 0, col)
+            container = QtWidgets.QWidget()
+            hbox = QtWidgets.QHBoxLayout(container)
+            hbox.setContentsMargins(0, 0, 0, 0)
+            hbox.setSpacing(2)
+            hbox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+
+            icon_lbl = QtWidgets.QLabel()
+            icon_path = os.path.join(
+                os.path.dirname(__file__), "..", "Icons", icon_map[text]
+            )
+            pix = QtGui.QPixmap(icon_path)
+            if not pix.isNull():
+                size = QtGui.QFontMetrics(self.font()).height()
+                icon_lbl.setPixmap(
+                    pix.scaled(
+                        size,
+                        size,
+                        QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                        QtCore.Qt.TransformationMode.SmoothTransformation,
+                    )
+                )
+            text_lbl = QtWidgets.QLabel(text)
+            text_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+
+            hbox.addWidget(icon_lbl)
+            hbox.addWidget(text_lbl)
+
+            layout.addWidget(
+                container, 0, col, alignment=QtCore.Qt.AlignmentFlag.AlignCenter
+            )
             layout.setColumnStretch(col, 1)
 
         if align_right:
@@ -160,7 +193,7 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 name_label,
                 portrait_container,
             ]
-            text_align = QtCore.Qt.AlignmentFlag.AlignRight
+            name_align = QtCore.Qt.AlignmentFlag.AlignRight
         else:
             widgets = [
                 portrait_container,
@@ -169,13 +202,15 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 healed_bar,
                 kills_bar,
             ]
-            text_align = QtCore.Qt.AlignmentFlag.AlignLeft
+            name_align = QtCore.Qt.AlignmentFlag.AlignLeft
 
         for col, widget in enumerate(widgets):
-            if isinstance(widget, (QtWidgets.QLabel, QtWidgets.QProgressBar)):
-                widget.setAlignment(
-                    text_align | QtCore.Qt.AlignmentFlag.AlignVCenter
-                )
+            if widget is name_label:
+                widget.setAlignment(name_align | QtCore.Qt.AlignmentFlag.AlignVCenter)
+            elif isinstance(widget, QtWidgets.QProgressBar):
+                widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            elif isinstance(widget, QtWidgets.QLabel):
+                widget.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(widget, 0, col)
             layout.setColumnStretch(col, 1)
 

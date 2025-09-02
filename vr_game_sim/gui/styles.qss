@@ -1,7 +1,7 @@
 /* Global styles for arena statistics widgets */
 
 QProgressBar {
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   background-color: transparent;
   color: white;
   text-align: center;
@@ -25,6 +25,10 @@ QProgressBar[class="kills"]::chunk {
 
 QProgressBar[class="remaining"]::chunk {
   background-color: #fdd835;
+}
+
+QProgressBar[class="shielded"]::chunk {
+  background-color: #90caf9;
 }
 
 HeroStatsWidget {

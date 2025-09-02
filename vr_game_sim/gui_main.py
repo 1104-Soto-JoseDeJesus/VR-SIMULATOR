@@ -3066,6 +3066,7 @@ class ArenaTab(QtWidgets.QWidget):
                                 "casts": army.skill_trigger_counts.get(sid, 0),
                                 "kills": int(round(army.skill_kill_totals.get(sid, 0.0))),
                                 "heals": int(round(army.skill_heal_totals.get(sid, 0.0))),
+                                "shielded": int(round(army.skill_shield_totals.get(sid, 0.0))),
                             }
                         )
                     for skill_def in getattr(hero, "skills", []):
@@ -3079,6 +3080,7 @@ class ArenaTab(QtWidgets.QWidget):
                                 "casts": army.skill_trigger_counts.get(sid, 0),
                                 "kills": int(round(army.skill_kill_totals.get(sid, 0.0))),
                                 "heals": int(round(army.skill_heal_totals.get(sid, 0.0))),
+                                "shielded": int(round(army.skill_shield_totals.get(sid, 0.0))),
                             }
                         )
                     skill_lists.append(hero_skill_entries)

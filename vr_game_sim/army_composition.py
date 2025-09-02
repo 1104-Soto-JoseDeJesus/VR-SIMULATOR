@@ -97,6 +97,7 @@ class Army:
     )
     skill_kill_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_heal_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    skill_shield_totals: Dict[str, float] = field(init=False, default_factory=dict)
 
     def __post_init__(self):
         self.reset_for_new_battle()
@@ -465,6 +466,13 @@ class Army:
             magnitude = round(base_shield_magnitude * shield_strength_multiplier)
             if self.simulator:
                 target_army.shield_hp_gained_this_round += magnitude
+            hp_per_troop = target_army.unit.effective_hp_per_troop(target_army.active_effects)
+            if hp_per_troop <= 0:
+                hp_per_troop = 1
+            shielded_troops = magnitude / hp_per_troop
+            owner_army.skill_shield_totals[source_skill_id] = (
+                owner_army.skill_shield_totals.get(source_skill_id, 0.0) + shielded_troops
+            )
 
             if effect_data.get("shield_factor") and "shield_factor" not in final_config:
                 final_config["shield_factor"] = effect_data["shield_factor"]
@@ -1010,6 +1018,7 @@ class Army:
         self.heal_contributors_this_round = {}
         self.skill_kill_totals.clear()
         self.skill_heal_totals.clear()
+        self.skill_shield_totals.clear()
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

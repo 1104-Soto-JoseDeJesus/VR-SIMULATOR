@@ -178,8 +178,10 @@ class PortraitLabel(QtWidgets.QLabel):
     def _on_app_quit(self) -> None:
         """Mark that the application is quitting."""
         self._app_quitting = True
-        # Reset the popup reference to ensure no further close attempts occur
-        # during shutdown where Qt may have already scheduled its deletion.
+        # Schedule any existing popup for deletion and reset the reference to
+        # avoid interacting with partially destroyed widgets during shutdown.
+        if self._popup:
+            self._popup.deleteLater()
         self._popup = QtCore.QPointer()
 
     def _show_popup(self) -> None:
@@ -197,7 +199,7 @@ class PortraitLabel(QtWidgets.QLabel):
         self, event: QtGui.QMouseEvent
     ) -> None:  # type: ignore[override]
         if self._popup and not self._app_quitting:
-            self._popup.close()
+            self._popup.deleteLater()
             self._popup = QtCore.QPointer()
         elif self._skills and not self._app_quitting:
             self._show_popup()
@@ -205,7 +207,7 @@ class PortraitLabel(QtWidgets.QLabel):
 
     def hideEvent(self, event: QtGui.QHideEvent) -> None:  # type: ignore[override]
         if self._popup and not self._app_quitting:
-            self._popup.close()
+            self._popup.deleteLater()
             self._popup = QtCore.QPointer()
         super().hideEvent(event)
 

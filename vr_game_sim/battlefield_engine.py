@@ -829,11 +829,20 @@ class BattlefieldEngine:
         atk.register_simulator(sim)
         dfd.register_simulator(sim)
 
+        # Fetch contexts for both armies once so we can use their internal
+        # round counters throughout the routine.  This keeps all engagements
+        # in sync when an army is involved in multiple simulators.
+        atk_ctx = self._armies.get(atk.name)
+        dfd_ctx = self._armies.get(dfd.name)
+
         # Determine if any rage skills were scheduled for this round
-        for army in (atk, dfd):
-            army.hero1_rage_skill_queued_this_round = (
-                army.hero1_rage_skill_scheduled_round == sim.round
-            )
+        for army, ctx in ((atk, atk_ctx), (dfd, dfd_ctx)):
+            if ctx is None:
+                army.hero1_rage_skill_queued_this_round = False
+            else:
+                army.hero1_rage_skill_queued_this_round = (
+                    army.hero1_rage_skill_scheduled_round == ctx.internal_round
+                )
 
         # Activate any effects queued from the previous round and decrement durations
         processed_now: List[Army] = []
@@ -856,6 +865,7 @@ class BattlefieldEngine:
         # --- Start of round housekeeping & round based skill triggers ---
         for army in processed_now:
             opponent = dfd if army is atk else atk
+            ctx = atk_ctx if army is atk else dfd_ctx
 
             if army.current_troop_count <= 0:
                 continue
@@ -864,7 +874,6 @@ class BattlefieldEngine:
             # Determine the primary opponent for non-reactive skills –
             # defenders should only aim such skills at their direct target.
             primary_opponent = opponent
-            ctx = self._armies.get(army.name)
             if ctx and ctx.direct_target and ctx.direct_target in self._armies:
                 primary_opponent = self._armies[ctx.direct_target].army
             army.process_periodic_effects(
@@ -880,24 +889,22 @@ class BattlefieldEngine:
             army.activate_queued_effects()
 
         # Schedule rage skills if the threshold has been reached after start of round
-        for army in (atk, dfd):
+        for army, ctx in ((atk, atk_ctx), (dfd, dfd_ctx)):
             if (
                 army.current_troop_count > 0
                 and army.hero1_rage_skill_id
                 and army.hero1_rage_skill_scheduled_round is None
                 and (
                     army.hero2_rage_skill_primed_for_round is None
-                    or army.hero2_rage_skill_primed_for_round != sim.round + 1
+                    or army.hero2_rage_skill_primed_for_round != ctx.internal_round + 1
                 )
             ):
                 skill_def = army.hero1_rage_skill_def
                 if skill_def is not None and army.current_rage >= skill_def.get("rage_cost", 1000):
-                    army.hero1_rage_skill_scheduled_round = sim.round + 1
+                    army.hero1_rage_skill_scheduled_round = ctx.internal_round + 1
 
         # Execute any queued rage skills.
         if atk.current_troop_count > 0 and dfd.current_troop_count > 0:
-            atk_ctx = self._armies.get(atk.name)
-            dfd_ctx = self._armies.get(dfd.name)
             if (
                 atk.hero1_rage_skill_queued_this_round
                 and atk_ctx
@@ -911,13 +918,13 @@ class BattlefieldEngine:
             ):
                 sim._execute_rage_skills(dfd, atk, is_hero2_delayed_trigger=False)
             if (
-                atk.hero2_rage_skill_primed_for_round == sim.round
+                atk.hero2_rage_skill_primed_for_round == (atk_ctx.internal_round if atk_ctx else None)
                 and atk_ctx
                 and atk_ctx.direct_target == dfd.name
             ):
                 sim._execute_rage_skills(atk, dfd, is_hero2_delayed_trigger=True)
             if (
-                dfd.hero2_rage_skill_primed_for_round == sim.round
+                dfd.hero2_rage_skill_primed_for_round == (dfd_ctx.internal_round if dfd_ctx else None)
                 and dfd_ctx
                 and dfd_ctx.direct_target == atk.name
             ):
@@ -1023,19 +1030,19 @@ class BattlefieldEngine:
         sim._apply_base_rage_gain()
 
         # Schedule primary hero rage skills for the next round if threshold met
-        for army in (atk, dfd):
+        for army, ctx in ((atk, atk_ctx), (dfd, dfd_ctx)):
             if (
                 army.current_troop_count > 0
                 and army.hero1_rage_skill_id
                 and army.hero1_rage_skill_scheduled_round is None
                 and (
                     army.hero2_rage_skill_primed_for_round is None
-                    or army.hero2_rage_skill_primed_for_round != sim.round + 1
+                    or army.hero2_rage_skill_primed_for_round != ctx.internal_round + 1
                 )
             ):
                 skill_def = army.hero1_rage_skill_def
                 if skill_def is not None and army.current_rage >= skill_def.get("rage_cost", 1000):
-                    army.hero1_rage_skill_scheduled_round = sim.round + 1
+                    army.hero1_rage_skill_scheduled_round = ctx.internal_round + 1
 
         # Record latest engagement time for both armies
         self._armies[atk.name].last_engaged_time = self.time_elapsed

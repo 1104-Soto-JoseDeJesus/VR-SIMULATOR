@@ -3476,7 +3476,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.arena_fig_stack.addWidget(self.arena_fig_label)
         self.arena_fig_scroll = QtWidgets.QScrollArea()
         self.arena_fig_scroll.setWidgetResizable(True)
+        self.arena_fig_scroll.setStyleSheet("background: transparent;")
+        self.arena_fig_scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         self.arena_fig_summary = QtWidgets.QWidget()
+        self.arena_fig_summary.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
         bg_path = os.path.join(
             os.path.dirname(__file__), "Icons", "ArenaSummaryBackground.png"
         ).replace("\\", "/")

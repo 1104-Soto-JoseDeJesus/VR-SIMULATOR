@@ -2,7 +2,7 @@
 
 QProgressBar {
   border: none;
-  background-color: #000;
+  background-color: transparent;
   color: white;
   text-align: center;
 }
@@ -42,5 +42,9 @@ QLabel.healed {
 QLabel.kills {
   color: #e53935;
   font-weight: bold;
+}
+
+QLabel {
+  background-color: transparent;
 }
 

@@ -33,6 +33,8 @@ class HeroStatsHeader(QtWidgets.QWidget):
     ) -> None:
         super().__init__(parent)
         load_styles()
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("background: transparent;")
 
         layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(2, 2, 2, 2)
@@ -139,6 +141,8 @@ class HeroStatsWidget(QtWidgets.QWidget):
     ) -> None:
         super().__init__(parent)
         load_styles()
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("background: transparent;")
 
         self.setProperty("team", team_color.lower())
         layout = QtWidgets.QGridLayout(self)
@@ -262,6 +266,8 @@ class ArenaStatsHeader(QtWidgets.QWidget):
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("background: transparent;")
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -281,6 +287,8 @@ class ArenaStatsRow(QtWidgets.QWidget):
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("background: transparent;")
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)

@@ -1904,6 +1904,7 @@ def handle_plugin_tenacity(
     an_effect_happened = False
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
 
     heal_factor = skill_config.get("heal_factor", 700.0)
     if heal_factor > 0:

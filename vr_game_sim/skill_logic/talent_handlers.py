@@ -1284,6 +1284,7 @@ def handle_talent_war_blessing(
         "name": EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
         "duration": 0,
         "config": {"marker_count": 1},
+        "activate_next_round": True,
     }
     triggering_army._create_and_add_single_effect(pending_marker, skill_def["id"], triggering_army, triggering_army, opponent_army)
     return happened, logs
@@ -1313,6 +1314,7 @@ def handle_talent_judgement_mark(
         "name": EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
         "duration": 0,
         "config": {"marker_count": 3},
+        "activate_next_round": True,
     }
     triggering_army._create_and_add_single_effect(pending_marker, skill_def["id"], triggering_army, triggering_army, opponent_army)
     return happened, logs

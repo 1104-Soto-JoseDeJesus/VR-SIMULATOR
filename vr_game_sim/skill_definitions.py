@@ -1165,7 +1165,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_plugin_first_strike_control,
         "config": {"apply_aura_on_round": 1, "rage_per_round": 75, "aura_effect_definition": {
             "effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_FIRST_STRIKE_RAGE_AURA,
-            "duration": 29, "config": {"rage_per_round": 75, "start_rage_gain_round": 2, "end_rage_gain_round": 31},
+            "duration": 30, "config": {"rage_per_round": 75, "start_rage_gain_round": 2, "end_rage_gain_round": 31},
             "activate_next_round": False }}
     },
     "plugin_shield_attacker": {

@@ -6,6 +6,7 @@ from vr_game_sim.effect_system import EffectInstance
 from vr_game_sim.enums import EffectType, SkillTriggerType
 from vr_game_sim.constants import (
     EFFECT_NAME_JUDGEMENT_MARKER,
+    EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
 )
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.skill_logic.rage_skill_handlers import handle_rage_ruling_trial
@@ -56,6 +57,29 @@ def test_judgements_fury_triggers_at_threshold():
     assert len(remaining_markers) == 0
 
 
+def test_judgements_fury_above_threshold_removes_all_markers():
+    hero = Hero('Helgar', [], ['base_skill_judgements_fury'], [], SKILL_REGISTRY_GLOBAL)
+    army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
+    enemy = Army('E', Unit('archers', 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy)
+    skill_def = SKILL_REGISTRY_GLOBAL['base_skill_judgements_fury']
+
+    marker_data = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": EFFECT_NAME_JUDGEMENT_MARKER,
+        "duration": -1,
+    }
+    for _ in range(skill_def['config']['marker_threshold'] + 5):
+        army._create_and_add_single_effect(marker_data, 'dummy', army, army)
+        army.activate_queued_effects()
+
+    happened, _ = skill_def['logic_handler'](army, enemy, skill_def, None, sim)
+    remaining_markers = [e for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER]
+
+    assert happened
+    assert len(remaining_markers) == 0
+
+
 def test_judgements_fury_below_threshold_no_buff():
     hero = Hero('Helgar', [], ['base_skill_judgements_fury'], [], SKILL_REGISTRY_GLOBAL)
     army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
@@ -67,6 +91,67 @@ def test_judgements_fury_below_threshold_no_buff():
 
     assert not happened
     assert logs == []
+
+
+def test_judgements_fury_queues_marker_for_next_round():
+    hero = Hero('Helgar', [], ['base_skill_judgements_fury'], [], SKILL_REGISTRY_GLOBAL)
+    army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
+    enemy = Army('E', Unit('archers', 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy)
+    skill_def = SKILL_REGISTRY_GLOBAL['base_skill_judgements_fury']
+
+    skill_def['logic_handler'](army, enemy, skill_def, None, sim)
+    # Marker should be pending for next round
+    assert not any(e.name == EFFECT_NAME_JUDGEMENT_MARKER for e in army.active_effects)
+    assert any(e.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS for e in army.effects_to_activate_next_round)
+
+    if army.effects_to_activate_next_round:
+        army.upcoming_effects.extend(army.effects_to_activate_next_round)
+        army.effects_to_activate_next_round.clear()
+    army.activate_queued_effects()
+    army.process_periodic_effects('end_of_round', opponent=enemy)
+    army.activate_queued_effects()
+    assert sum(1 for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER) == 1
+
+
+def test_war_blessing_queues_marker_for_next_round():
+    hero = Hero('Helgar', ['talent_war_blessing'], [], [], SKILL_REGISTRY_GLOBAL)
+    army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
+    enemy = Army('E', Unit('archers', 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy)
+    skill_def = SKILL_REGISTRY_GLOBAL['talent_war_blessing']
+
+    skill_def['logic_handler'](army, enemy, skill_def, None, sim)
+    assert not any(e.name == EFFECT_NAME_JUDGEMENT_MARKER for e in army.active_effects)
+    assert any(e.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS for e in army.effects_to_activate_next_round)
+
+    if army.effects_to_activate_next_round:
+        army.upcoming_effects.extend(army.effects_to_activate_next_round)
+        army.effects_to_activate_next_round.clear()
+    army.activate_queued_effects()
+    army.process_periodic_effects('end_of_round', opponent=enemy)
+    army.activate_queued_effects()
+    assert sum(1 for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER) == 1
+
+
+def test_judgement_mark_queues_markers_for_next_round():
+    hero = Hero('Helgar', ['talent_judgement_mark'], [], [], SKILL_REGISTRY_GLOBAL)
+    army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
+    enemy = Army('E', Unit('archers', 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy)
+    skill_def = SKILL_REGISTRY_GLOBAL['talent_judgement_mark']
+
+    skill_def['logic_handler'](army, enemy, skill_def, None, sim)
+    assert not any(e.name == EFFECT_NAME_JUDGEMENT_MARKER for e in army.active_effects)
+    assert any(e.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS for e in army.effects_to_activate_next_round)
+
+    if army.effects_to_activate_next_round:
+        army.upcoming_effects.extend(army.effects_to_activate_next_round)
+        army.effects_to_activate_next_round.clear()
+    army.activate_queued_effects()
+    army.process_periodic_effects('end_of_round', opponent=enemy)
+    army.activate_queued_effects()
+    assert sum(1 for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER) == 3
 
 
 def test_judgement_mark_multi_trigger_battlefield(monkeypatch):

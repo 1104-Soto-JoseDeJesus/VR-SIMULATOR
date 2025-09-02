@@ -1618,6 +1618,7 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
         team: str | None = None,
         max_size: int = 64,
         on_drop: Callable[[str, QtCore.QPointF], None] | None = None,
+        on_double_click: Callable[[str], None] | None = None,
     ) -> None:
         super().__init__()
         # Scale the main portrait so that extremely large source images do not
@@ -1643,10 +1644,11 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
         self.army_name = army_name
         self.team = team
         self._on_drop = on_drop
+        self._on_double_click = on_double_click
         self._drag_offset = QtCore.QPointF()
         self._dragging = False
         self.rage_ratio = 0.0
-        if self._on_drop is not None:
+        if self._on_drop is not None or self._on_double_click is not None:
             self.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
 
     def boundingRect(self) -> QtCore.QRectF:  # type: ignore[override]
@@ -1728,6 +1730,18 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
             event.accept()
         else:
             super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(
+        self, event: QtWidgets.QGraphicsSceneMouseEvent
+    ) -> None:  # type: ignore[override]
+        if (
+            self._on_double_click is not None
+            and event.button() == QtCore.Qt.MouseButton.LeftButton
+        ):
+            self._on_double_click(self.army_name or "")
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
 
 
 class SlotItem(QtWidgets.QGraphicsEllipseItem):
@@ -2549,6 +2563,7 @@ class ArenaTab(QtWidgets.QWidget):
             team=cfg["team"],
             max_size=self._icon_size,
             on_drop=self._on_icon_drop,
+            on_double_click=self._icon_double_clicked,
         )
         icon.set_rage(army.current_rage / 1000.0)
         icon.setPos(*pos)
@@ -2572,6 +2587,16 @@ class ArenaTab(QtWidgets.QWidget):
         cfg = info.get("config")
         if cfg is not None:
             cfg["team"] = new_team
+
+    def _icon_double_clicked(self, army_name: str) -> None:
+        """Open the setup dialog for the army's slot when its icon is double-clicked."""
+
+        if self._running:
+            return
+        for (team, idx), info in self._slot_army.items():
+            if info and info["army"].name == army_name:
+                self._slot_clicked(team, idx)
+                break
 
     def _on_icon_drop(self, army_name: str, pos: QtCore.QPointF) -> None:
         """Handle an army icon being dropped somewhere in the scene."""
@@ -2786,6 +2811,7 @@ class ArenaTab(QtWidgets.QWidget):
                 team=cfg["team"],
                 max_size=self._icon_size,
                 on_drop=self._on_icon_drop,
+                on_double_click=self._icon_double_clicked,
             )
             icon.set_rage(army.current_rage / 1000.0)
             icon.setPos(*pos)

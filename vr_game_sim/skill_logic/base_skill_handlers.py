@@ -1080,6 +1080,7 @@ def handle_base_skill_judgements_fury(
         "name": EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
         "duration": 0,
         "config": {"marker_count": 1},
+        "activate_next_round": True,
     }
     triggering_army._create_and_add_single_effect(pending_marker, skill_def["id"], triggering_army, triggering_army, opponent_army)
 
@@ -1101,7 +1102,7 @@ def handle_base_skill_judgements_fury(
         removed = 0
         for i in range(len(triggering_army.active_effects) - 1, -1, -1):
             eff = triggering_army.active_effects[i]
-            if eff.name == EFFECT_NAME_JUDGEMENT_MARKER and removed < threshold:
+            if eff.name == EFFECT_NAME_JUDGEMENT_MARKER:
                 triggering_army.active_effects.pop(i)
                 removed += 1
         if removed > 0 and simulator:

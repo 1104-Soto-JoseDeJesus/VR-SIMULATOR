@@ -64,3 +64,4 @@ def test_first_strike_rage_override():
     assert happened
     effect = next(e for e in army.active_effects if e.name == EFFECT_NAME_FIRST_STRIKE_RAGE_AURA)
     assert effect.config.get("rage_per_round") == rage
+    assert effect.duration == 30

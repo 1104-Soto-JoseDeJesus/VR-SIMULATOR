@@ -11,6 +11,7 @@ and schedules their initial movement commands.
 """
 
 from collections import defaultdict
+import logging
 from typing import Any, Dict, List, Mapping, Optional
 
 from .battlefield_engine import BattlefieldEngine
@@ -147,8 +148,18 @@ class ArenaEngine(BattlefieldEngine):
                         or e1.get("march_to")
                     ):
                         if targets1:
-                            self.set_direct_target(e1["army"].name, targets1[0])
-                            self._row_fallbacks[e1["army"].name] = list(targets1)
+                            attacker = e1["army"].name
+                            defender = targets1[0]
+                            if self._armies[defender].team != self._armies[attacker].team:
+                                self.set_direct_target(attacker, defender)
+                                self._row_fallbacks[attacker] = list(targets1)
+                            else:
+                                logging.warning(
+                                    "Arena formation attempted same-team pairing: %s -> %s",
+                                    attacker,
+                                    defender,
+                                )
+                                self._auto_select_closest_enemy(attacker)
                         else:
                             self._auto_select_closest_enemy(e1["army"].name)
 
@@ -159,8 +170,18 @@ class ArenaEngine(BattlefieldEngine):
                         or e2.get("march_to")
                     ):
                         if targets2:
-                            self.set_direct_target(e2["army"].name, targets2[0])
-                            self._row_fallbacks[e2["army"].name] = list(targets2)
+                            attacker = e2["army"].name
+                            defender = targets2[0]
+                            if self._armies[defender].team != self._armies[attacker].team:
+                                self.set_direct_target(attacker, defender)
+                                self._row_fallbacks[attacker] = list(targets2)
+                            else:
+                                logging.warning(
+                                    "Arena formation attempted same-team pairing: %s -> %s",
+                                    attacker,
+                                    defender,
+                                )
+                                self._auto_select_closest_enemy(attacker)
                         else:
                             self._auto_select_closest_enemy(e2["army"].name)
 

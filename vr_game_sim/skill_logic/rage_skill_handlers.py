@@ -105,7 +105,8 @@ def handle_rage_vital_blessing(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinit
                     for name, ctx in engine._armies.items():
                         if ctx.team == team and name != army.name:
                             ax, ay = ctx.position
-                            if hypot(ax - sx, ay - sy) <= 150:
+                            # Increase healing radius to 200 units to extend support range
+                            if hypot(ax - sx, ay - sy) <= 200:
                                 allies.append(ctx.army)
                     if len(allies) > 4:
                         allies = random.sample(allies, 4)

@@ -61,19 +61,29 @@ def test_vital_blessing_heals_allies(monkeypatch):
     hero = Hero("Yvette", [], ["base_skill_vital_blessing"], [], SKILL_REGISTRY_GLOBAL)
     army = Army("Y0", Unit("pikemen", 5, initial_count=10), heroes=[hero])
     enemy = Army("E0", Unit("archers", 5, initial_count=10), heroes=[])
-    allies = [Army(f"Y{i}", Unit("pikemen", 5, initial_count=10), heroes=[]) for i in range(1,6)]
+    # Use six allies to ensure sampling limit applies
+    allies = [Army(f"Y{i}", Unit("pikemen", 5, initial_count=10), heroes=[]) for i in range(1,7)]
     sim = GameSimulator(army, enemy, mode="battlefield")
     for a in [army, enemy] + allies:
         a.register_simulator(sim)
     engine = SimpleNamespace(_armies={})
     engine._armies[army.name] = SimpleNamespace(army=army, team="T1", position=(0.0, 0.0))
     engine._armies[enemy.name] = SimpleNamespace(army=enemy, team="T2", position=(100.0, 0.0))
-    for i, ally in enumerate(allies, 1):
-        engine._armies[ally.name] = SimpleNamespace(army=ally, team="T1", position=(10.0 * i, 0.0))
+    # Place allies at varying distances. The ally at 190 verifies the increased 200-unit
+    # radius, while the ally at 210 is out of range. The extra ally at 40.0 ensures only
+    # four allies are healed due to the skill's limit.
+    positions = [10.0, 20.0, 190.0, 210.0, 30.0, 40.0]
+    for ally, pos in zip(allies, positions):
+        engine._armies[ally.name] = SimpleNamespace(army=ally, team="T1", position=(pos, 0.0))
     sim.parent_engine = engine
     monkeypatch.setattr(random, "sample", lambda pop, k: pop[:k])
     skill_def = SKILL_REGISTRY_GLOBAL["base_skill_vital_blessing"]
     handle_rage_vital_blessing(army, enemy, skill_def, {}, sim)
     heals = [a.pending_hp_healing_this_round for a in allies]
-    assert all(h > 0 for h in heals[:4])
-    assert heals[4] == 0
+    # Allies within 200 units should be healed if sampled
+    assert heals[0] > 0  # 10.0 within range
+    assert heals[1] > 0  # 20.0 within range
+    assert heals[2] > 0  # 190.0 within new range
+    assert heals[3] == 0  # 210.0 outside range
+    assert heals[4] > 0  # 30.0 within range and sampled
+    assert heals[5] == 0  # 40.0 within range but not sampled due to limit

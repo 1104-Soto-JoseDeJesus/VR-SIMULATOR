@@ -71,6 +71,7 @@ class Army:
     hero1_rage_skill_used_round: Optional[int] = field(init=False, default=None)
     hero2_rage_skill_primed_for_round: Optional[int] = field(init=False, default=None)
     hero1_rage_skill_scheduled_round: Optional[int] = field(init=False, default=None)
+    hero1_rage_skill_intended_round: Optional[int] = field(init=False, default=None)
 
     army_used_rage_skill_this_round_for_rage_gain_block: bool = field(init=False, default=False)
     base_rage_awarded_this_round: bool = field(init=False, default=False)
@@ -997,6 +998,7 @@ class Army:
         self.hero1_rage_skill_used_round = None
         self.hero2_rage_skill_primed_for_round = None
         self.hero1_rage_skill_scheduled_round = None
+        self.hero1_rage_skill_intended_round = None
         self.army_used_rage_skill_this_round_for_rage_gain_block = False
         self.base_rage_awarded_this_round = False
         self.started_round_with_active_shield = False

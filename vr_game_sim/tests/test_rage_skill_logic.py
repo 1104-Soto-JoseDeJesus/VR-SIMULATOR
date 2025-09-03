@@ -157,3 +157,97 @@ def test_hero2_rage_skill_does_not_reset_rage():
     sim._execute_rage_skills(army1, army2, is_hero2_delayed_trigger=True)
 
     assert army1.current_rage == 1500
+
+
+def test_secondary_hero_casts_two_rounds_after_original_delay():
+    hero1 = Hero("H1", [], ["base_skill_snakes_frenzy"], [], SKILL_REGISTRY_GLOBAL)
+    hero2 = Hero("H2", [], ["base_skill_snakes_frenzy"], [], SKILL_REGISTRY_GLOBAL)
+    army1 = Army("A1", Unit("pikemen", 5, initial_count=10), heroes=[hero1, hero2])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army1, army2)
+
+    army1.current_rage = 1000
+    army1.hero1_rage_skill_scheduled_round = 2
+    army1.hero1_rage_skill_intended_round = 2
+
+    # Round 2: Silence blocks the primary hero's cast
+    sim.round = 2
+    army1.hero1_rage_skill_queued_this_round = True
+    silence = EffectInstance(uuid.uuid4(), "s", EffectType.DEBUFF, 1,
+                             config={"prevents_rage_skill_cast": True},
+                             name=EFFECT_NAME_SILENCE_DEBUFF)
+    army1.active_effects.append(silence)
+    sim._execute_rage_skills(army1, army2)
+    sim._apply_base_rage_gain()
+    assert army1.current_rage == 1000
+    assert not army1.base_rage_awarded_this_round
+
+    # Prepare for next round
+    army1.active_effects.clear()
+    army1.army_used_rage_skill_this_round_for_rage_gain_block = False
+    army1.base_rage_awarded_this_round = False
+    army1.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+    army1.hero1_rage_skill_scheduled_round = 3
+
+    # Round 3: Primary hero casts, secondary primed for original round+2 (4)
+    sim.round = 3
+    army1.hero1_rage_skill_queued_this_round = True
+    sim._execute_rage_skills(army1, army2)
+    sim._apply_base_rage_gain()
+    assert army1.current_rage == 0
+    assert not army1.base_rage_awarded_this_round
+    assert army1.hero2_rage_skill_primed_for_round == 4
+
+    # Round 4: Secondary hero fires
+    sim.round = 4
+    sim._execute_rage_skills(army1, army2, is_hero2_delayed_trigger=True)
+    assert army1.hero2_rage_skill_primed_for_round is None
+
+
+def test_secondary_hero_canceled_after_two_round_delay():
+    hero1 = Hero("H1", [], ["base_skill_snakes_frenzy"], [], SKILL_REGISTRY_GLOBAL)
+    hero2 = Hero("H2", [], ["base_skill_snakes_frenzy"], [], SKILL_REGISTRY_GLOBAL)
+    army1 = Army("A1", Unit("pikemen", 5, initial_count=10), heroes=[hero1, hero2])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army1, army2)
+
+    army1.current_rage = 1000
+    army1.hero1_rage_skill_scheduled_round = 2
+    army1.hero1_rage_skill_intended_round = 2
+
+    # Round 2 silence
+    sim.round = 2
+    army1.hero1_rage_skill_queued_this_round = True
+    silence1 = EffectInstance(uuid.uuid4(), "s", EffectType.DEBUFF, 1,
+                              config={"prevents_rage_skill_cast": True},
+                              name=EFFECT_NAME_SILENCE_DEBUFF)
+    army1.active_effects.append(silence1)
+    sim._execute_rage_skills(army1, army2)
+    sim._apply_base_rage_gain()
+    # reset for next round
+    army1.active_effects.clear()
+    army1.army_used_rage_skill_this_round_for_rage_gain_block = False
+    army1.base_rage_awarded_this_round = False
+    army1.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+    army1.hero1_rage_skill_scheduled_round = 3
+
+    # Round 3 silence
+    sim.round = 3
+    army1.hero1_rage_skill_queued_this_round = True
+    silence2 = EffectInstance(uuid.uuid4(), "s2", EffectType.DEBUFF, 1,
+                              config={"prevents_rage_skill_cast": True},
+                              name=EFFECT_NAME_SILENCE_DEBUFF)
+    army1.active_effects.append(silence2)
+    sim._execute_rage_skills(army1, army2)
+    sim._apply_base_rage_gain()
+    army1.active_effects.clear()
+    army1.army_used_rage_skill_this_round_for_rage_gain_block = False
+    army1.base_rage_awarded_this_round = False
+    army1.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+    army1.hero1_rage_skill_scheduled_round = 4
+
+    # Round 4 cast - delay of 2 rounds cancels secondary hero
+    sim.round = 4
+    army1.hero1_rage_skill_queued_this_round = True
+    sim._execute_rage_skills(army1, army2)
+    assert army1.hero2_rage_skill_primed_for_round is None

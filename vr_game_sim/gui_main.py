@@ -1755,11 +1755,15 @@ class SlotItem(QtWidgets.QGraphicsEllipseItem):
         index: int,
         radius: float,
         on_click: Callable[[str, int], None],
+        cell_w: float,
+        cell_h: float,
     ) -> None:
         super().__init__(-radius, -radius, radius * 2, radius * 2)
         self.team = team
         self.index = index
         self._on_click = on_click
+        self._cell_w = cell_w
+        self._cell_h = cell_h
         color = QtGui.QColor(255, 0, 0) if team == "team1" else QtGui.QColor(0, 255, 0)
         pen = QtGui.QPen(color)
         pen.setWidth(2)
@@ -1771,9 +1775,28 @@ class SlotItem(QtWidgets.QGraphicsEllipseItem):
     def mouseDoubleClickEvent(
         self, event: QtWidgets.QGraphicsSceneMouseEvent
     ) -> None:  # type: ignore[override]
-        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+        # Ignore double clicks while movable to avoid opening slot dialog
+        if (
+            event.button() == QtCore.Qt.MouseButton.LeftButton
+            and not self.flags()
+            & QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+        ):
             self._on_click(self.team, self.index)
         super().mouseDoubleClickEvent(event)
+
+    # ------------------------------------------------------------------
+    # Drag support for position layout editing
+    # ------------------------------------------------------------------
+    def mouseReleaseEvent(self, event: QtWidgets.QGraphicsSceneMouseEvent) -> None:  # type: ignore[override]
+        super().mouseReleaseEvent(event)
+        if self.flags() & QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable:
+            self.snap_to_grid()
+
+    def snap_to_grid(self) -> None:
+        """Snap the item to the nearest grid cell."""
+        x = round(self.pos().x() / self._cell_w) * self._cell_w
+        y = round(self.pos().y() / self._cell_h) * self._cell_h
+        self.setPos(x, y)
 
 
 class BattlefieldTab(QtWidgets.QWidget):
@@ -2357,6 +2380,8 @@ class ArenaTab(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
 
         controls = QtWidgets.QHBoxLayout()
+        self.position_layout_btn = QtWidgets.QPushButton("Position Layout")
+        self.position_layout_btn.setCheckable(True)
         self.save_layout_btn = QtWidgets.QPushButton("Save Layout")
         self.load_layout_btn = QtWidgets.QPushButton("Load Layout")
         self.last_run_btn = QtWidgets.QPushButton("Last Run")
@@ -2367,6 +2392,7 @@ class ArenaTab(QtWidgets.QWidget):
         self.speed_btn = QtWidgets.QPushButton("Speed 1x")
         self.time_label = QtWidgets.QLabel("00:00")
         for btn in (
+            self.position_layout_btn,
             self.save_layout_btn,
             self.load_layout_btn,
             self.last_run_btn,
@@ -2384,6 +2410,8 @@ class ArenaTab(QtWidgets.QWidget):
         self._setups_dir = os.path.join(os.path.dirname(__file__), "setups")
         self.saved_armies_file = os.path.join(self._setups_dir, "saved_armies.json")
         self.last_layout_file = os.path.join(self._setups_dir, "_last_arena_layout.json")
+        self.formation_file = os.path.join(self._setups_dir, "formations.json")
+        self._editing_positions = False
 
         self.scene = QtWidgets.QGraphicsScene(self)
         self.view = QtWidgets.QGraphicsView(self.scene)
@@ -2456,12 +2484,17 @@ class ArenaTab(QtWidgets.QWidget):
         radius = min(self._cell_w, self._cell_h) * 0.15
         for team, coords in self.slot_coords.items():
             for idx, (x, y) in enumerate(coords):
-                item = SlotItem(team, idx, radius, self._slot_clicked)
+                item = SlotItem(team, idx, radius, self._slot_clicked, self._cell_w, self._cell_h)
+                item.setFlag(
+                    QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable,
+                    self._editing_positions,
+                )
                 item.setPos(x, y)
                 self.scene.addItem(item)
                 self._slot_items[(team, idx)] = item
                 self._slot_army[(team, idx)] = None
 
+        self.position_layout_btn.toggled.connect(self._toggle_position_layout)
         self.refresh_btn.clicked.connect(self._refresh_arena)
         self.save_layout_btn.clicked.connect(self._save_layout)
         self.load_layout_btn.clicked.connect(self._load_layout)
@@ -2829,6 +2862,74 @@ class ArenaTab(QtWidgets.QWidget):
             icon.team = info["team"]
             self._slot_army[(team, index)] = info
 
+    def _toggle_position_layout(self, checked: bool) -> None:
+        """Enable or disable slot position editing."""
+        self._editing_positions = checked
+        flag = QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+        for item in self._slot_items.values():
+            item.setFlag(flag, checked)
+            if not checked:
+                item.snap_to_grid()
+        if not checked:
+            # Update stored coordinates and prompt to save
+            self._update_slot_coords_from_items()
+            name, ok = QtWidgets.QInputDialog.getText(
+                self, "Save Formation", "Formation name:", text="default"
+            )
+            if ok and name:
+                self._save_formation_layout(name)
+
+    def _update_slot_coords_from_items(self) -> None:
+        """Refresh ``slot_coords`` from the current slot item positions."""
+        for (team, idx), item in self._slot_items.items():
+            pos = item.pos()
+            coord = (pos.x(), pos.y())
+            self.slot_coords[team][idx] = coord
+            info = self._slot_army.get((team, idx))
+            if info:
+                icon = self._icons.get(info["army"].name)
+                if icon:
+                    icon.setPos(*coord)
+
+    def _save_formation_layout(self, name: str) -> None:
+        """Persist current slot coordinates under ``name``."""
+        data = {"team1": self.slot_coords["team1"], "team2": self.slot_coords["team2"]}
+        os.makedirs(self._setups_dir, exist_ok=True)
+        try:
+            existing: dict[str, Any]
+            with open(self.formation_file, "r", encoding="utf-8") as fh:
+                existing = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            existing = {}
+        existing[name] = data
+        try:
+            with open(self.formation_file, "w", encoding="utf-8") as fh:
+                json.dump(existing, fh, indent=2)
+        except OSError:
+            pass
+
+    def _load_formation_layout(self, name: str) -> None:
+        """Load slot coordinates from a saved formation."""
+        try:
+            with open(self.formation_file, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            return
+        formation = data.get(name)
+        if not formation:
+            return
+        for team, coords in formation.items():
+            for idx, (x, y) in enumerate(coords):
+                self.slot_coords[team][idx] = (x, y)
+                item = self._slot_items.get((team, idx))
+                if item:
+                    item.setPos(x, y)
+                info = self._slot_army.get((team, idx))
+                if info:
+                    icon = self._icons.get(info["army"].name)
+                    if icon:
+                        icon.setPos(x, y)
+
     def _run_last_layout(self) -> None:
         """Load the last saved layout and immediately run it."""
 
@@ -3160,7 +3261,7 @@ class ArenaTab(QtWidgets.QWidget):
         radius = min(self._cell_w, self._cell_h) * 0.15
         for team, coords in self.slot_coords.items():
             for idx, (x, y) in enumerate(coords):
-                item = SlotItem(team, idx, radius, self._slot_clicked)
+                item = SlotItem(team, idx, radius, self._slot_clicked, self._cell_w, self._cell_h)
                 item.setPos(x, y)
                 self.scene.addItem(item)
                 self._slot_items[(team, idx)] = item

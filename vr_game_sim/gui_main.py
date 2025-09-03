@@ -1794,8 +1794,13 @@ class SlotItem(QtWidgets.QGraphicsEllipseItem):
 
     def snap_to_grid(self) -> None:
         """Snap the item to the nearest grid cell."""
-        x = round(self.pos().x() / self._cell_w) * self._cell_w
-        y = round(self.pos().y() / self._cell_h) * self._cell_h
+        # Increase snapping granularity by allowing half-cell steps.  This
+        # effectively provides four snap points per original grid square,
+        # letting users fine tune formation layouts with greater precision.
+        step_x = self._cell_w / 2.0
+        step_y = self._cell_h / 2.0
+        x = round(self.pos().x() / step_x) * step_x
+        y = round(self.pos().y() / step_y) * step_y
         self.setPos(x, y)
 
 
@@ -2380,26 +2385,28 @@ class ArenaTab(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
 
         controls = QtWidgets.QHBoxLayout()
-        self.position_layout_btn = QtWidgets.QPushButton("Position Layout")
-        self.position_layout_btn.setCheckable(True)
         self.save_layout_btn = QtWidgets.QPushButton("Save Layout")
         self.load_layout_btn = QtWidgets.QPushButton("Load Layout")
-        self.last_run_btn = QtWidgets.QPushButton("Last Run")
-        self.swap_btn = QtWidgets.QPushButton("Swap Teams")
+        self.position_layout_btn = QtWidgets.QPushButton("Position Layout")
+        self.position_layout_btn.setCheckable(True)
+        self.load_pos_layout_btn = QtWidgets.QPushButton("Load Position Layout")
         self.refresh_btn = QtWidgets.QPushButton("Refresh Arena")
-        self.run_btn = QtWidgets.QPushButton("Run Arena")
+        self.swap_btn = QtWidgets.QPushButton("Swap Teams")
         self.run_batch_btn = QtWidgets.QPushButton("Run Batch")
+        self.run_btn = QtWidgets.QPushButton("Run Arena")
+        self.last_run_btn = QtWidgets.QPushButton("Run Last")
         self.speed_btn = QtWidgets.QPushButton("Speed 1x")
         self.time_label = QtWidgets.QLabel("00:00")
         for btn in (
-            self.position_layout_btn,
             self.save_layout_btn,
             self.load_layout_btn,
-            self.last_run_btn,
-            self.swap_btn,
+            self.position_layout_btn,
+            self.load_pos_layout_btn,
             self.refresh_btn,
-            self.run_btn,
+            self.swap_btn,
             self.run_batch_btn,
+            self.run_btn,
+            self.last_run_btn,
             self.speed_btn,
         ):
             controls.addWidget(btn)
@@ -2495,13 +2502,14 @@ class ArenaTab(QtWidgets.QWidget):
                 self._slot_army[(team, idx)] = None
 
         self.position_layout_btn.toggled.connect(self._toggle_position_layout)
+        self.load_pos_layout_btn.clicked.connect(self._prompt_load_formation)
         self.refresh_btn.clicked.connect(self._refresh_arena)
         self.save_layout_btn.clicked.connect(self._save_layout)
         self.load_layout_btn.clicked.connect(self._load_layout)
-        self.last_run_btn.clicked.connect(self._run_last_layout)
         self.swap_btn.clicked.connect(self._swap_teams)
-        self.run_btn.clicked.connect(self._run_arena)
         self.run_batch_btn.clicked.connect(self._run_batch)
+        self.run_btn.clicked.connect(self._run_arena)
+        self.last_run_btn.clicked.connect(self._run_last_layout)
         self.speed_btn.clicked.connect(self._toggle_speed)
 
     # ------------------------------------------------------------------
@@ -2907,6 +2915,25 @@ class ArenaTab(QtWidgets.QWidget):
                 json.dump(existing, fh, indent=2)
         except OSError:
             pass
+
+    def _prompt_load_formation(self) -> None:
+        """Prompt the user to load a previously saved formation layout."""
+        try:
+            with open(self.formation_file, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            data = {}
+        if not data:
+            QtWidgets.QMessageBox.information(
+                self, "No Formations", "No saved position layouts found."
+            )
+            return
+        names = sorted(data.keys())
+        name, ok = QtWidgets.QInputDialog.getItem(
+            self, "Load Formation", "Formation:", names, 0, False
+        )
+        if ok and name:
+            self._load_formation_layout(name)
 
     def _load_formation_layout(self, name: str) -> None:
         """Load slot coordinates from a saved formation."""

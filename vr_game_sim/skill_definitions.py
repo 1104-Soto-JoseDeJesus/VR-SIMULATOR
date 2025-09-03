@@ -628,7 +628,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "config": {
             "trigger_interval": 9,
             "damage_factor": 800.0,
-            "rage_reduction_amount": 50 # No chance, direct reduction if skill triggers
+            "rage_gain": 50  # No chance, rage gained by Verdandi next round if skill triggers
         }
     },
     "base_skill_raining_arrows": { # Verdandi's skill

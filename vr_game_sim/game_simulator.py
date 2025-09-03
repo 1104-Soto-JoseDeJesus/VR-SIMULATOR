@@ -435,13 +435,21 @@ class GameSimulator:
                                         f"Cast blocked by Silence from {effect.source_skill_id}.")
                 if hero_slot == 1:
                     army.hero1_rage_skill_cast_blocked_by_silence_this_round = True
-                    army.hero1_rage_skill_scheduled_round = None
+                    army.hero1_rage_skill_scheduled_round = self.round + 1
                     army.hero1_rage_skill_queued_this_round = False
+                    if (
+                        army.hero2_rage_skill_primed_for_round is not None
+                        and army.hero1_rage_skill_scheduled_round >= army.hero2_rage_skill_primed_for_round
+                    ):
+                        army.hero2_rage_skill_primed_for_round = None
                 elif hero_slot == 2:
                     if army.hero2_rage_skill_primed_for_round == self.round:
                         army.hero2_rage_skill_primed_for_round += 1
-                        self._log_skill_trigger(army, skill_def['name'],
-                                                f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence.")
+                        self._log_skill_trigger(
+                            army,
+                            skill_def['name'],
+                            f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence.",
+                        )
                 return
 
         log_prefix = f"(Delayed Hero 2) " if is_hero2_delayed_trigger else f"{hero_who_triggered_name}'s "
@@ -458,17 +466,14 @@ class GameSimulator:
             army.army_used_rage_skill_this_round_for_rage_gain_block = True
             army.hero1_rage_skill_used_round = self.round
             army.hero1_rage_skill_queued_this_round = False
-            delay_rounds = 0
-            if army.hero1_rage_skill_scheduled_round is not None:
-                delay_rounds = self.round - army.hero1_rage_skill_scheduled_round
             army.hero1_rage_skill_scheduled_round = None
-
-            if army.hero2_rage_skill_id and len(army.heroes) > 1:
-                if delay_rounds >= 2:
-                    army.hero2_rage_skill_primed_for_round = None
-                else:
-                    next_rage_round = self.round + (2 if self.mode == "standard" else 1)
-                    army.hero2_rage_skill_primed_for_round = next_rage_round
+            if (
+                army.hero2_rage_skill_id
+                and len(army.heroes) > 1
+                and army.hero2_rage_skill_primed_for_round is not None
+                and self.round >= army.hero2_rage_skill_primed_for_round
+            ):
+                army.hero2_rage_skill_primed_for_round = None
         else:
             if army.hero2_rage_skill_primed_for_round == self.round:
                 army.hero2_rage_skill_primed_for_round = None
@@ -722,8 +727,13 @@ class GameSimulator:
                 ):
                     skill_def = army.hero1_rage_skill_def
                     if skill_def is not None and army.current_rage >= skill_def.get("rage_cost", 1000):
-                        army.hero1_rage_skill_scheduled_round = self.round + 1
+                        scheduled_round = self.round + 1
+                        army.hero1_rage_skill_scheduled_round = scheduled_round
                         army.army_used_rage_skill_this_round_for_rage_gain_block = True
+                        if army.hero2_rage_skill_id and len(army.heroes) > 1:
+                            army.hero2_rage_skill_primed_for_round = scheduled_round + (
+                                2 if self.mode == "standard" else 1
+                            )
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
                 break

@@ -314,8 +314,10 @@ class Army:
                                         )
                                     break
 
+                    # Preserve the healed amount for logging in the simulator.
+                    # It will be cleared at the start of the next round.
                     self.heal_contributors_this_round = {}
-                    self.pending_hp_healing_this_round = 0.0
+                    self.pending_hp_healing_this_round = actual_healed_hp
 
         if self.pending_hp_damage_this_round > 0 and self.current_troop_count > 0:
             hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)

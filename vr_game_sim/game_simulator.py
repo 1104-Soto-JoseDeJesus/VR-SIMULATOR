@@ -962,6 +962,9 @@ class GameSimulator:
 
             self.army1.commit_pending_healing_and_damage()
             self.army2.commit_pending_healing_and_damage()
+            if self.track_stats:
+                heal1 = self.army1.pending_hp_healing_this_round
+                heal2 = self.army2.pending_hp_healing_this_round
             active_lines = self._log_active_effects_for_report()
             self.report_builder.emit_round(
                 self.round,
@@ -991,9 +994,9 @@ class GameSimulator:
                 prev = self.army2.damage_dealt_history[-1] if self.army2.damage_dealt_history else 0
                 self.army2.damage_dealt_history.append(prev + dmg2)
                 prev = self.army1.heal_received_history[-1] if self.army1.heal_received_history else 0
-                self.army1.heal_received_history.append(prev + self.army1.pending_hp_healing_this_round)
+                self.army1.heal_received_history.append(prev + heal1)
                 prev = self.army2.heal_received_history[-1] if self.army2.heal_received_history else 0
-                self.army2.heal_received_history.append(prev + self.army2.pending_hp_healing_this_round)
+                self.army2.heal_received_history.append(prev + heal2)
                 prev = self.army1.shield_received_history[-1] if self.army1.shield_received_history else 0
                 self.army1.shield_received_history.append(prev + self.army1.shield_hp_gained_this_round)
                 prev = self.army2.shield_received_history[-1] if self.army2.shield_received_history else 0

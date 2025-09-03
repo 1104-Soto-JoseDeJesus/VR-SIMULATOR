@@ -9,6 +9,7 @@ from vr_game_sim.skill_logic.rage_skill_handlers import (
     handle_rage_sacred_blade,
     handle_rage_skill_paralyzing_terror,
     handle_rage_incineration,
+    handle_rage_all_kill,
 )
 from vr_game_sim.game_simulator import GameSimulator
 
@@ -60,6 +61,38 @@ def test_paralyzing_terror_respects_angle():
     sim.parent_engine = DummyEngine()
     skill_def = SKILL_REGISTRY_GLOBAL['base_skill_paralyzing_terror']
     handle_rage_skill_paralyzing_terror(army, direct, skill_def, {}, sim)
+    assert direct.pending_hp_damage_this_round > 0
+    assert extras[0].pending_hp_damage_this_round > 0
+    assert extras[1].pending_hp_damage_this_round > 0
+    assert extras[2].pending_hp_damage_this_round == 0
+
+
+def test_all_kill_respects_angle():
+    hero = Hero('Ivor', [], ['rage_skill_all_kill'], [], SKILL_REGISTRY_GLOBAL)
+    army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
+    direct = Army('E1', Unit('archers', 5, initial_count=10), heroes=[])
+    extras = [
+        Army('E2', Unit('archers', 5, initial_count=10), heroes=[]),
+        Army('E3', Unit('archers', 5, initial_count=10), heroes=[]),
+        Army('E4', Unit('archers', 5, initial_count=10), heroes=[]),
+    ]
+    sim = GameSimulator(army, direct, mode='battlefield')
+    for a in [direct] + extras:
+        a.register_simulator(sim)
+    class DummyEngine:
+        def __init__(self):
+            self._armies = {
+                army.name: SimpleNamespace(position=(0.0, 0.0), army=army, direct_target=None),
+                direct.name: SimpleNamespace(position=(1.0, 0.0), army=direct, direct_target=army.name),
+                extras[0].name: SimpleNamespace(position=(0.5, 0.5), army=extras[0], direct_target=army.name),
+                extras[1].name: SimpleNamespace(position=(0.5, -0.5), army=extras[1], direct_target=army.name),
+                extras[2].name: SimpleNamespace(position=(-1.0, 0.0), army=extras[2], direct_target=army.name),
+            }
+        def get_direct_attackers(self, name):
+            return [ctx.army for ctx in self._armies.values() if ctx.direct_target == name]
+    sim.parent_engine = DummyEngine()
+    skill_def = SKILL_REGISTRY_GLOBAL['rage_skill_all_kill']
+    handle_rage_all_kill(army, direct, skill_def, {}, sim)
     assert direct.pending_hp_damage_this_round > 0
     assert extras[0].pending_hp_damage_this_round > 0
     assert extras[1].pending_hp_damage_this_round > 0

@@ -3064,11 +3064,13 @@ class ArenaTab(QtWidgets.QWidget):
                                 "heals": 0,
                                 "shielded": 0,
                                 "rage": int(round(army.skill_rage_totals.get("base_rage", 0.0))),
+                                "rage_reduced": 0,
                                 "damage_reduced": 0,
                                 "boosted_kills": 0,
                                 "boosted_heals": 0,
                                 "boosted_shielded": 0,
                                 "boosted_rage": int(round(army.skill_rage_boost_totals.get("base_rage", 0.0))),
+                                "boosted_rage_reduced": 0,
                                 "boosted_damage_reduced": 0,
                             }
                         )
@@ -3085,11 +3087,13 @@ class ArenaTab(QtWidgets.QWidget):
                                 "heals": int(round(army.skill_heal_totals.get(sid, 0.0))),
                                 "shielded": int(round(army.skill_shield_totals.get(sid, 0.0))),
                                 "rage": int(round(army.skill_rage_totals.get(sid, 0.0))),
+                                "rage_reduced": int(round(army.skill_rage_reduction_totals.get(sid, 0.0))),
                                 "damage_reduced": int(round(army.skill_damage_reduction_totals.get(sid, 0.0))),
                                 "boosted_kills": int(round(army.skill_kill_boost_totals.get(sid, 0.0))),
                                 "boosted_heals": int(round(army.skill_heal_boost_totals.get(sid, 0.0))),
                                 "boosted_shielded": int(round(army.skill_shield_boost_totals.get(sid, 0.0))),
                                 "boosted_rage": int(round(army.skill_rage_boost_totals.get(sid, 0.0))),
+                                "boosted_rage_reduced": int(round(army.skill_rage_reduction_boost_totals.get(sid, 0.0))),
                                 "boosted_damage_reduced": int(round(army.skill_damage_reduction_boost_totals.get(sid, 0.0))),
                             }
                         )
@@ -3106,11 +3110,13 @@ class ArenaTab(QtWidgets.QWidget):
                                 "heals": int(round(army.skill_heal_totals.get(sid, 0.0))),
                                 "shielded": int(round(army.skill_shield_totals.get(sid, 0.0))),
                                 "rage": int(round(army.skill_rage_totals.get(sid, 0.0))),
+                                "rage_reduced": int(round(army.skill_rage_reduction_totals.get(sid, 0.0))),
                                 "damage_reduced": int(round(army.skill_damage_reduction_totals.get(sid, 0.0))),
                                 "boosted_kills": int(round(army.skill_kill_boost_totals.get(sid, 0.0))),
                                 "boosted_heals": int(round(army.skill_heal_boost_totals.get(sid, 0.0))),
                                 "boosted_shielded": int(round(army.skill_shield_boost_totals.get(sid, 0.0))),
                                 "boosted_rage": int(round(army.skill_rage_boost_totals.get(sid, 0.0))),
+                                "boosted_rage_reduced": int(round(army.skill_rage_reduction_boost_totals.get(sid, 0.0))),
                                 "boosted_damage_reduced": int(round(army.skill_damage_reduction_boost_totals.get(sid, 0.0))),
                             }
                         )

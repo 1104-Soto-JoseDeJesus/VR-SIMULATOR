@@ -871,7 +871,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "base_skill_berserk_fury", "name": "Berserk Fury", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_base_skill_berserk_fury,
-        "config": {"loss_per_stack": 0.06, "basic_buff": 0.12, "rage_per_round": 3}
+        "config": {"loss_per_stack": 0.06, "basic_buff": 0.12, "rage_bonus_pct": 0.03}
     },
     "base_skill_brutal_blow": {
         "id": "base_skill_brutal_blow", "name": "Brutal Blow", "type": SkillType.BASE_SKILL,

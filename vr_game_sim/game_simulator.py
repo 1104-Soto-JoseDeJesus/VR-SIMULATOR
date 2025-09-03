@@ -541,8 +541,7 @@ class GameSimulator:
             ):
                 army.base_rage_awarded_this_round = False
             else:
-                army.current_rage += 100
-                army.rage_added_this_round += 100
+                army.add_rage(100)
                 army.base_rage_awarded_this_round = True
 
     def _generate_round_figures(self) -> None:

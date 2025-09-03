@@ -1006,7 +1006,7 @@ def handle_base_skill_berserk_fury(triggering_army: ArmyRef, opponent_army: Army
                 "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST, "magnitude": cfg.get("basic_buff", 0.12),
                 "duration": -1, "activate_next_round": False}
         rage_eff = {"effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
-                    "duration": -1, "config": {"rage_per_round": cfg.get("rage_per_round", 3)}}
+                    "duration": -1, "config": {"rage_bonus_pct": cfg.get("rage_bonus_pct", 0.03)}}
         if triggering_army._create_and_add_single_effect(buff, skill_def["id"], triggering_army, triggering_army, opponent_army):
             happened = True
             logs.append((f"Gains Berserk Fury stack {existing_stacks + 1}/{stacks_needed}.", None))

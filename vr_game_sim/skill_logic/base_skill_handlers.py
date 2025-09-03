@@ -441,22 +441,21 @@ def handle_base_skill_rapid_fire(  # Verdandi's skill, already exists
             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
         ))
 
-    rage_to_reduce = skill_config.get("rage_reduction_amount", 0)
-    if rage_to_reduce > 0 and opponent_army.current_rage > 0:
-        actual_reduction = min(opponent_army.current_rage, float(rage_to_reduce))
+    rage_gain = skill_config.get("rage_gain", 0)
+    if rage_gain > 0:
         effect_data = {
             "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
-            "name": EFFECT_NAME_DELAYED_RAGE_REDUCTION,
+            "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
             "duration": 0,
-            "config": {"rage_reduction": actual_reduction},
+            "config": {"rage_amount": float(rage_gain)},
             "activate_next_round": True,
         }
-        created = opponent_army._create_and_add_single_effect(
-            effect_data, skill_id, triggering_army, opponent_army, triggering_army
+        created = triggering_army._create_and_add_single_effect(
+            effect_data, skill_id, triggering_army, triggering_army, opponent_army
         )
         if created:
             an_effect_happened = True
-            log_details.append((f"Reduces {opponent_army.name}'s rage by {actual_reduction:.0f} next round.", None))
+            log_details.append((f"Gains {rage_gain:.0f} rage next round.", None))
 
     return an_effect_happened, log_details
 

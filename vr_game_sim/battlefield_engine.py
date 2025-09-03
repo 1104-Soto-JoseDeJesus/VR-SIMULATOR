@@ -50,7 +50,11 @@ from .constants import EFFECT_NAME_DISARM_DEBUFF
 # acts as the radius of the combat ring rather than a mere straight-line
 # separation.
 ENGAGEMENT_DISTANCE: float = 60.0
-_ARC_PUSH_SPEED: float = 25.0  # speed in units/s when sliding around radius
+# Fraction of an army's move speed that is used when sliding around the
+# engagement radius.  This keeps the arc push behaviour in proportion to the
+# marching speeds of the involved armies rather than relying on a fixed global
+# constant.
+_ARC_PUSH_SPEED_RATIO: float = 0.5
 _ENGAGE_EPS: float = 0.01  # small tolerance for floating point comparisons
 
 
@@ -615,9 +619,11 @@ class BattlefieldEngine:
             centre_ctx = self._armies[centre]
             cx, cy = centre_ctx.position
             neighbours.sort(key=lambda c: c.engaged_at)
+            occupied = {n.arc_direction for n in neighbours if n.arc_direction in (-1, 1)}
             for idx in range(1, len(neighbours)):
                 ctx = neighbours[idx]
                 if ctx.arc_target_angle is not None:
+                    occupied.add(ctx.arc_direction)
                     continue
                 sx, sy = ctx.position
                 curr_angle = degrees(atan2(sy - cy, sx - cx))
@@ -633,25 +639,43 @@ class BattlefieldEngine:
                     # ``other`` based on their current centre positions. Late
                     # arrivals 5° anti-clockwise to 25° clockwise slide 45°
                     # clockwise to make room; those 5.1–25° anti-clockwise
-                    # instead slide 45° anti-clockwise.
+                    # instead slide 45° anti-clockwise.  If the preferred side
+                    # is already occupied by another attacker we switch to the
+                    # other side.  When both sides are taken we choose the side
+                    # with fewer attackers to avoid stacking.
 
+                    preferred = 0
                     if -25 <= diff <= 5:
-                        ctx.arc_target_angle = (other_angle - 45) % 360
-                        ctx.arc_direction = -1
-                        ctx.path.clear()
-                        break
+                        preferred = -1
+                        target_angle = (other_angle - 45) % 360
                     elif 5 < diff <= 25:
-                        ctx.arc_target_angle = (other_angle + 45) % 360
-                        ctx.arc_direction = 1
+                        preferred = 1
+                        target_angle = (other_angle + 45) % 360
+                    if preferred:
+                        chosen = preferred
+                        if chosen in occupied:
+                            alternate = -chosen
+                            if alternate not in occupied:
+                                chosen = alternate
+                            else:
+                                cw = sum(1 for n in neighbours if n.arc_direction == -1)
+                                ccw = sum(1 for n in neighbours if n.arc_direction == 1)
+                                chosen = -1 if cw <= ccw else 1
+                                target_angle = (other_angle - 45) % 360 if chosen == -1 else (other_angle + 45) % 360
+                        ctx.arc_target_angle = target_angle
+                        ctx.arc_direction = chosen
                         ctx.path.clear()
+                        occupied.add(chosen)
                         break
 
         # Progress any pending angular repositioning along the engagement
         # radius.  Combat continues while armies slide along the circle.
-        angular_speed = _ARC_PUSH_SPEED / ENGAGEMENT_DISTANCE * (180 / pi)
         for ctx in self._armies.values():
             if ctx.arc_target_angle is None or not ctx.direct_target:
                 continue
+            angular_speed = (
+                ctx.speed * _ARC_PUSH_SPEED_RATIO / ENGAGEMENT_DISTANCE * (180 / pi)
+            )
             def_ctx = self._armies.get(ctx.direct_target)
             if def_ctx is None:
                 ctx.arc_target_angle = None

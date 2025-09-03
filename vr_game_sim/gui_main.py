@@ -2476,9 +2476,11 @@ class ArenaTab(QtWidgets.QWidget):
         """Return coordinates for each deployment slot of both teams."""
 
         default_speed = 50.0
-        engage_dist = 2 * default_speed * 2 + ENGAGEMENT_DISTANCE - 70  # adjust for engagement radius
+        front_time = 2.0
+        back_time = 4.0
+        engage_dist = ENGAGEMENT_DISTANCE + 2 * default_speed * front_time
         to_mid = engage_dist / 2.0  # distance from front line to map centre
-        back_offset = default_speed * 3 * 0.7  # 105.0 units between front and back rows
+        back_offset = default_speed * (back_time - front_time)
 
         cx = self.view.sceneRect().width() / 2.0
         cy = self.view.sceneRect().height() / 2.0

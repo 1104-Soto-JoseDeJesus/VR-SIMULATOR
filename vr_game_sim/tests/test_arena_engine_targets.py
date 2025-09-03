@@ -10,6 +10,20 @@ def make_army(name: str) -> Army:
     return Army(name, unit)
 
 
+def _expected_front_positions(start_a, start_b, speed_a=50.0, speed_b=50.0):
+    dist_init = abs(start_a[1] - start_b[1])
+    total_distance = dist_init - ENGAGEMENT_DISTANCE
+    time = 2.0
+    required_speed = total_distance / time
+    scale = required_speed / (speed_a + speed_b)
+    speed_a *= scale
+    speed_b *= scale
+    dir = 1 if start_a[1] < start_b[1] else -1
+    dest_a = (start_a[0], start_a[1] + dir * speed_a * time)
+    dest_b = (start_b[0], start_b[1] - dir * speed_b * time)
+    return dest_a, dest_b
+
+
 def test_front_rows_target_and_meet_midpoint():
     engine = ArenaEngine()
     a_front = make_army("A_front")
@@ -35,9 +49,9 @@ def test_front_rows_target_and_meet_midpoint():
     assert engine._armies[b_front.name].direct_target == a_front.name
     assert engine._armies[b_back.name].direct_target == a_front.name
 
-    midpoint = (0.0, 100.0)
-    assert engine._armies[a_front.name].path == [midpoint]
-    assert engine._armies[b_front.name].path == [midpoint]
+    dest_a, dest_b = _expected_front_positions((0.0, 0.0), (0.0, 200.0))
+    assert engine._armies[a_front.name].path == [dest_a]
+    assert engine._armies[b_front.name].path == [dest_b]
 
 
 def test_fallback_to_back_slot_when_front_missing():

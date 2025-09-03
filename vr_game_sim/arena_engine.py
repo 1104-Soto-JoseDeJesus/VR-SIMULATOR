@@ -13,7 +13,7 @@ and schedules their initial movement commands.
 from collections import defaultdict
 from typing import Any, Dict, List, Mapping, Optional
 
-from .battlefield_engine import BattlefieldEngine
+from .battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
 
 
 class ArenaEngine(BattlefieldEngine):
@@ -118,6 +118,29 @@ class ArenaEngine(BattlefieldEngine):
         if len(team_names) == 2:
             t1, t2 = team_names
             all_cols = set(columns[t1].keys()) | set(columns[t2].keys())
+
+            def _time_based_destinations(e1: Dict[str, Any], e2: Dict[str, Any], time: float):
+                p1 = e1["position"]
+                p2 = e2["position"]
+                ctx1 = self._armies[e1["army"].name]
+                ctx2 = self._armies[e2["army"].name]
+                dist_init = abs(p1[1] - p2[1])
+                if dist_init <= ENGAGEMENT_DISTANCE:
+                    return p1, p2
+                total_speed = ctx1.speed + ctx2.speed
+                required_total_distance = dist_init - ENGAGEMENT_DISTANCE
+                required_total_speed = required_total_distance / time
+                if total_speed != required_total_speed:
+                    scale = required_total_speed / total_speed
+                    ctx1.speed *= scale
+                    ctx2.speed *= scale
+                dist1 = ctx1.speed * time
+                dist2 = ctx2.speed * time
+                direction = 1.0 if p1[1] < p2[1] else -1.0
+                dest1 = (p1[0], p1[1] + direction * dist1)
+                dest2 = (p2[0], p2[1] - direction * dist2)
+                return dest1, dest2
+
             for col in all_cols:
                 col1 = columns[t1].get(col, {})
                 col2 = columns[t2].get(col, {})
@@ -167,21 +190,36 @@ class ArenaEngine(BattlefieldEngine):
                 front1 = col1.get("front")
                 front2 = col2.get("front")
                 if front1 and front2:
-                    p1 = front1["position"]
-                    p2 = front2["position"]
-                    midpoint = ((p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0)
+                    dest1, dest2 = _time_based_destinations(front1, front2, 2.0)
                     if not (
                         front1.get("target_army")
                         or front1.get("target")
                         or front1.get("march_to")
                     ):
-                        self.set_waypoint(front1["army"].name, midpoint)
+                        self.set_waypoint(front1["army"].name, dest1)
                     if not (
                         front2.get("target_army")
                         or front2.get("target")
                         or front2.get("march_to")
                     ):
-                        self.set_waypoint(front2["army"].name, midpoint)
+                        self.set_waypoint(front2["army"].name, dest2)
+
+                back1 = col1.get("back")
+                back2 = col2.get("back")
+                if back1 and back2:
+                    dest1, dest2 = _time_based_destinations(back1, back2, 4.0)
+                    if not (
+                        back1.get("target_army")
+                        or back1.get("target")
+                        or back1.get("march_to")
+                    ):
+                        self.set_waypoint(back1["army"].name, dest1)
+                    if not (
+                        back2.get("target_army")
+                        or back2.get("target")
+                        or back2.get("march_to")
+                    ):
+                        self.set_waypoint(back2["army"].name, dest2)
 
         # Queue march orders (either waypoints or direct engagements)
         for entry in entries:

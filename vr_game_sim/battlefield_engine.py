@@ -81,6 +81,10 @@ class _ArmyContext:
     # indicates no pending repositioning.
     arc_target_angle: Optional[float] = None
     arc_direction: int = 0
+    # Flag indicating whether passive effects have been reset during the
+    # current idle period.  Prevents repeated reapplication of passive skills
+    # while an army remains out of combat.
+    idle_reset_done: bool = False
 
 
 class BattlefieldEngine:
@@ -498,7 +502,7 @@ class BattlefieldEngine:
                 army.triggered_skills_this_round.clear()
                 army.skill_trigger_counts_this_round.clear()
                 army.skill_triggers_against_this_round.clear()
-                if ctx.last_engaged_time > 0:
+                if ctx.last_engaged_time > 0 and not ctx.idle_reset_done:
                     army.active_effects.clear()
                     army.upcoming_effects.clear()
                     army.effects_to_activate_next_round.clear()
@@ -517,6 +521,7 @@ class BattlefieldEngine:
                     army._apply_initial_passive_skills()
                     for sid, prev in prev_counts.items():
                         army.skill_trigger_counts[sid] = prev + army.skill_trigger_counts.get(sid, 0)
+                    ctx.idle_reset_done = True
                 army.hero1_rage_skill_used_round = None
                 army.hero1_rage_skill_scheduled_round = None
                 army.hero1_rage_skill_queued_this_round = False
@@ -1086,7 +1091,9 @@ class BattlefieldEngine:
 
         # Record latest engagement time for both armies
         self._armies[atk.name].last_engaged_time = self.time_elapsed
+        self._armies[atk.name].idle_reset_done = False
         self._armies[dfd.name].last_engaged_time = self.time_elapsed
+        self._armies[dfd.name].idle_reset_done = False
 
 
     # ------------------------------------------------------------------

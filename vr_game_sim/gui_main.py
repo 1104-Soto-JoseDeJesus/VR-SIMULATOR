@@ -1842,7 +1842,7 @@ class BattlefieldTab(QtWidgets.QWidget):
         # rectangular.  Icons are enlarged to roughly three times their
         # previous size to make armies more prominent on the map and then
         # reduced by 25% for a better overall fit.
-        self._icon_size = int(min(self._cell_w, self._cell_h) * 0.8 * 3 * 0.75)
+        self._icon_size = int(min(self._cell_w, self._cell_h) * 0.8 * 3 * 0.6)
         self._draw_navmesh()
 
         # Capture mouse movement for waypoint dragging
@@ -2426,7 +2426,7 @@ class ArenaTab(QtWidgets.QWidget):
         self._grid = grid
         self._cell_w = self.view.sceneRect().width() / len(grid[0])
         self._cell_h = self.view.sceneRect().height() / len(grid)
-        self._icon_size = int(min(self._cell_w, self._cell_h) * 0.8 * 3 * 0.75)
+        self._icon_size = int(min(self._cell_w, self._cell_h) * 0.8 * 3 * 0.6)
         self._draw_navmesh()
 
         # Pre-compute default arena slot coordinates for both teams.  The
@@ -2478,14 +2478,14 @@ class ArenaTab(QtWidgets.QWidget):
         default_speed = 50.0
         engage_dist = 4 * default_speed + ENGAGEMENT_DISTANCE  # meet opposing front in 2 s
         to_mid = engage_dist / 2.0  # distance from front line to map centre
-        back_offset = default_speed * 4  # back row reaches enemy front in 4 s
+        back_offset = default_speed * 2  # back row reaches enemy front in 4 s
 
         cx = self.view.sceneRect().width() / 2.0
         cy = self.view.sceneRect().height() / 2.0
 
-        # Vertical offsets for the four columns relative to the centre.  Keep
-        # adjacent columns 2 s apart so armies can shift lanes quickly.
-        row_step = default_speed * 2
+        # Vertical offsets for the four columns relative to the centre.  Rows are
+        # closer together so diagonal attacks resolve in about 2 s.
+        row_step = default_speed * 0.4
         offsets = [
             -1.5 * row_step,
             -0.5 * row_step,

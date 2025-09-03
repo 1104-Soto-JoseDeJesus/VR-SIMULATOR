@@ -20,8 +20,8 @@ def test_slot_coordinates_symmetry():
     speed = 50.0
     engage_dist = 4 * speed + ENGAGEMENT_DISTANCE
     to_mid = engage_dist / 2.0
-    back_offset = speed * 4
-    row_step = speed * 2
+    back_offset = speed * 2
+    row_step = speed * 0.4
 
     top_outer = cy - 1.5 * row_step
     top_inner = cy - 0.5 * row_step

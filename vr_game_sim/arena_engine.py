@@ -25,6 +25,10 @@ class ArenaEngine(BattlefieldEngine):
         kwargs.setdefault("mode", "arena")
         super().__init__(*args, **kwargs)
         self._row_fallbacks: Dict[str, List[str]] = {}
+        # Default movement speed used when layouts do not specify a custom
+        # formation.  ``start_arena_battle`` recalculates this based on slot
+        # positions to satisfy timing expectations.
+        self.default_speed: float = 50.0
 
     def start_arena_battle(self, layout_slots: Any) -> None:
         """Register armies in ``layout_slots`` and queue march orders.
@@ -113,9 +117,67 @@ class ArenaEngine(BattlefieldEngine):
                 entry["row"] = row
                 columns[team][col]["front" if row == 0 else "back"] = entry
 
+        # Derive default speeds for front and back rows so armies meet after
+        # approximately 2 s (front vs. front) and 4 s (back vs. front).
+        team_names = list(columns.keys())
+        front_entries: List[Dict[str, Any]] = []
+        back_entries: List[Dict[str, Any]] = []
+        front_dists: List[float] = []
+        back_dists: List[float] = []
+        if len(team_names) == 2:
+            t1, t2 = team_names
+            all_cols = set(columns[t1].keys()) | set(columns[t2].keys())
+            for col in all_cols:
+                col1 = columns[t1].get(col, {})
+                col2 = columns[t2].get(col, {})
+                f1 = col1.get("front")
+                f2 = col2.get("front")
+                b1 = col1.get("back")
+                b2 = col2.get("back")
+                if f1 and f2:
+                    p1 = f1["position"]
+                    p2 = f2["position"]
+                    front_dists.append(hypot(p2[0] - p1[0], p2[1] - p1[1]))
+                    front_entries.extend([f1, f2])
+                if b1 and f2:
+                    p1 = b1["position"]
+                    p2 = f2["position"]
+                    back_dists.append(hypot(p2[0] - p1[0], p2[1] - p1[1]))
+                    back_entries.append(b1)
+                if b2 and f1:
+                    p1 = b2["position"]
+                    p2 = f1["position"]
+                    back_dists.append(hypot(p2[0] - p1[0], p2[1] - p1[1]))
+                    back_entries.append(b2)
+
+        if front_dists:
+            front_speed = (
+                sum(d - ENGAGEMENT_DISTANCE for d in front_dists)
+                / (4.0 * len(front_dists))
+            )
+        else:
+            front_speed = 50.0
+        if back_dists:
+            back_speed = (
+                sum(d - ENGAGEMENT_DISTANCE for d in back_dists)
+                / (8.0 * len(back_dists))
+            )
+        else:
+            back_speed = front_speed
+
+        if abs(front_speed - back_speed) < 1e-6:
+            self.default_speed = front_speed
+        else:
+            self.default_speed = (front_speed + back_speed) / 2.0
+        for e in front_entries:
+            ctx = self._armies[e["army"].name]
+            ctx.speed = ctx.base_speed = front_speed
+        for e in back_entries:
+            ctx = self._armies[e["army"].name]
+            ctx.speed = ctx.base_speed = back_speed
+
         # Pair columns across teams to assign default targets and march orders
         self._row_fallbacks.clear()
-        team_names = list(columns.keys())
         if len(team_names) == 2:
             t1, t2 = team_names
             all_cols = set(columns[t1].keys()) | set(columns[t2].keys())

@@ -2501,6 +2501,15 @@ class ArenaTab(QtWidgets.QWidget):
                 self._slot_items[(team, idx)] = item
                 self._slot_army[(team, idx)] = None
 
+        # Attempt to load a persisted position layout called "MainLayout" so
+        # the arena opens with a user customised formation if available.
+        # Failing to load simply leaves the computed coordinates in place.
+        try:
+            self._load_formation_layout("MainLayout")
+        except Exception:
+            # Silently ignore any issues (missing file, JSON errors, etc.).
+            pass
+
         self.position_layout_btn.toggled.connect(self._toggle_position_layout)
         self.load_pos_layout_btn.clicked.connect(self._prompt_load_formation)
         self.refresh_btn.clicked.connect(self._refresh_arena)

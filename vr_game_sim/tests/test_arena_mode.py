@@ -27,9 +27,9 @@ def test_slot_distances():
     coords2 = tab.slot_coords["team2"]
 
     speed = 50.0
-    engage_dist = 2 * speed * 2 + ENGAGEMENT_DISTANCE - 70
-    back_dist = speed * 3 * 0.7
-    lateral = engage_dist * 0.6
+    engage_dist = 4 * speed + ENGAGEMENT_DISTANCE
+    back_dist = speed * 4
+    lateral = speed * 2
 
     def dist(a, b):
         return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5

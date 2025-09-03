@@ -158,15 +158,18 @@ class GameSimulator:
 
         own_troop_scalar = GameSimulator.troop_scalar(source_army.current_troop_count)
         skill_damage_percent_boosts = source_army.get_sum_stat_magnitudes(StatType.GENERAL_DAMAGE_MODIFIER)
+        relevant_stats = {StatType.GENERAL_DAMAGE_MODIFIER}
         current_skill_trigger_type = source_skill_def.get("trigger") if source_skill_def else None
 
         if current_skill_trigger_type == SkillTriggerType.RAGE_SKILL:
             if not is_hero2_rage_skill:
                 skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
                     StatType.HERO1_RAGE_SKILL_DAMAGE_MODIFIER)
+                relevant_stats.add(StatType.HERO1_RAGE_SKILL_DAMAGE_MODIFIER)
             elif is_hero2_rage_skill:
                 skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
                     StatType.HERO2_RAGE_SKILL_DAMAGE_MODIFIER)
+                relevant_stats.add(StatType.HERO2_RAGE_SKILL_DAMAGE_MODIFIER)
 
         if (
             source_skill_def
@@ -177,6 +180,7 @@ class GameSimulator:
             skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
                 StatType.COMMAND_SKILL_DAMAGE_MODIFIER
             )
+            relevant_stats.add(StatType.COMMAND_SKILL_DAMAGE_MODIFIER)
 
         if (
             current_skill_trigger_type
@@ -192,10 +196,22 @@ class GameSimulator:
             skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
                 StatType.REACTIVE_SKILL_DAMAGE_ADJUST
             )
+            relevant_stats.add(StatType.REACTIVE_SKILL_DAMAGE_ADJUST)
 
         if source_skill_def and PluginSkillLabel.COOPERATION in source_skill_def.get("labels", []):
             skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
                 StatType.COOPERATION_SKILL_DAMAGE_MODIFIER)
+            relevant_stats.add(StatType.COOPERATION_SKILL_DAMAGE_MODIFIER)
+
+        positive_boost_effects = [
+            eff
+            for eff in source_army.active_effects
+            if eff.effect_type == EffectType.STAT_MOD
+            and eff.magnitude > 0
+            and eff.config.get("stat_to_mod") in relevant_stats
+        ]
+        total_positive_boost = sum(eff.magnitude for eff in positive_boost_effects)
+        attacker_negative_mags = skill_damage_percent_boosts - total_positive_boost
 
         current_shield_hp = apply_target.get_current_shield_hp()
         damage_taken_percent_mods = calc_target.get_sum_stat_magnitudes(
@@ -230,9 +246,17 @@ class GameSimulator:
         )
         damage_no_dr = skill_hp_damage_potential * dmg_multiplier_no_dr * advantage_multiplier
 
+        dmg_multiplier_no_boost = max(
+            0.05, 1.0 + attacker_negative_mags + damage_taken_percent_mods
+        )
+        damage_no_boost = (
+            skill_hp_damage_potential * dmg_multiplier_no_boost * advantage_multiplier
+        )
+
         hp_damage_expected = max(0.0, damage_after_all_mods - current_shield_hp)
         hp_damage_without_dr = max(0.0, damage_no_dr - current_shield_hp)
         hp_saved = max(0.0, hp_damage_without_dr - hp_damage_expected)
+        hp_damage_without_boost = max(0.0, damage_no_boost - current_shield_hp)
 
         raw_damage_for_logging = damage_after_all_mods
 
@@ -245,6 +269,19 @@ class GameSimulator:
         enemy_hp_per_troop = apply_target.unit.effective_hp_per_troop(
             apply_target.active_effects
         )
+        if enemy_hp_per_troop <= 0:
+            enemy_hp_per_troop = 1
+        extra_hp_from_boost = actual_skill_hp_damage_to_troops - hp_damage_without_boost
+        if extra_hp_from_boost > 0 and total_positive_boost > 0:
+            for eff in positive_boost_effects:
+                weight = eff.magnitude / total_positive_boost
+                troops = (extra_hp_from_boost * weight) / enemy_hp_per_troop
+                source_army.skill_kill_boost_totals[eff.source_skill_id] = (
+                    source_army.skill_kill_boost_totals.get(eff.source_skill_id, 0.0)
+                    + troops
+                )
+
+        # enemy_hp_per_troop already computed above
         if enemy_hp_per_troop <= 0: enemy_hp_per_troop = 1
 
         if hp_saved > 0 and total_dr_magnitude < 0:
@@ -626,6 +663,20 @@ class GameSimulator:
         sum_specific_attack_magnitudes = att.get_sum_stat_magnitudes(specific_attack_stat)
         sum_general_attacker_magnitudes = att.get_sum_stat_magnitudes(StatType.GENERAL_DAMAGE_MODIFIER)
 
+        positive_boost_effects = [
+            eff
+            for eff in att.active_effects
+            if eff.effect_type == EffectType.STAT_MOD
+            and eff.magnitude > 0
+            and eff.config.get("stat_to_mod") in {specific_attack_stat, StatType.GENERAL_DAMAGE_MODIFIER}
+        ]
+        total_positive_boost = sum(eff.magnitude for eff in positive_boost_effects)
+        attacker_negative_mags = (
+            sum_specific_attack_magnitudes
+            + sum_general_attacker_magnitudes
+            - total_positive_boost
+        )
+
         attack_type_for_defense_filter = "COUNTER" if is_counter else "BASIC"
         current_shield_hp = dfd.get_current_shield_hp()
 
@@ -660,13 +711,31 @@ class GameSimulator:
         )
         damage_no_dr = raw_damage_potential * dmg_multiplier_no_dr * advantage_multiplier
 
+        dmg_multiplier_no_boost = max(
+            0.05,
+            1.0 + attacker_negative_mags + sum_defender_reduction_magnitudes,
+        )
+        damage_no_boost = raw_damage_potential * dmg_multiplier_no_boost * advantage_multiplier
+
         hp_damage_expected = max(0.0, damage_after_all_percent_mods - current_shield_hp)
         hp_damage_without_dr = max(0.0, damage_no_dr - current_shield_hp)
         hp_saved = max(0.0, hp_damage_without_dr - hp_damage_expected)
+        hp_damage_without_boost = max(0.0, damage_no_boost - current_shield_hp)
 
         shield_processing_result = dfd.apply_shields_and_get_hp_damage(damage_after_all_percent_mods)
         hp_damage_to_troops = shield_processing_result['hp_damage_to_troops']
         absorbed_by_shield = shield_processing_result['absorbed_by_shield']
+        extra_hp_from_boost = hp_damage_to_troops - hp_damage_without_boost
+        if extra_hp_from_boost > 0 and total_positive_boost > 0:
+            defender_hp_per_troop = dfd.unit.effective_hp_per_troop(dfd.active_effects)
+            if defender_hp_per_troop <= 0:
+                defender_hp_per_troop = 1
+            for eff in positive_boost_effects:
+                weight = eff.magnitude / total_positive_boost
+                troops = (extra_hp_from_boost * weight) / defender_hp_per_troop
+                att.skill_kill_boost_totals[eff.source_skill_id] = (
+                    att.skill_kill_boost_totals.get(eff.source_skill_id, 0.0) + troops
+                )
 
         if hp_damage_to_troops > 0:
             dfd.pending_hp_damage_this_round += hp_damage_to_troops

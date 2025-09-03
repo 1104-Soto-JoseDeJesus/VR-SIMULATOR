@@ -100,6 +100,12 @@ class Army:
     skill_shield_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_rage_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_damage_reduction_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    # Totals contributed indirectly via boost effects
+    skill_kill_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    skill_heal_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    skill_shield_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    skill_rage_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    skill_damage_reduction_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
 
     def __post_init__(self):
         self.reset_for_new_battle()
@@ -112,27 +118,39 @@ class Army:
     def increment_skill_trigger_count(self, skill_id: str):
         self.skill_trigger_counts[skill_id] = self.skill_trigger_counts.get(skill_id, 0) + 1
 
-    def _get_rage_gain_multiplier(self) -> float:
-        """Return the multiplier to apply to all rage gains."""
-        bonus = sum(
-            eff.config.get("rage_bonus_pct", 0.0)
+    def _get_rage_gain_multiplier(self) -> tuple[float, list[EffectInstance]]:
+        """Return the multiplier and contributing effects for rage gains."""
+        effects = [
+            eff
             for eff in self.active_effects
-            if eff.name == EFFECT_NAME_BERSERK_FURY_RAGE_GAIN
-        )
-        return 1.0 + bonus
+            if eff.config.get("rage_bonus_pct", 0.0) > 0.0
+        ]
+        bonus = sum(eff.config.get("rage_bonus_pct", 0.0) for eff in effects)
+        return 1.0 + bonus, effects
 
     def add_rage(self, amount: float, source_skill_id: Optional[str] = None) -> float:
         """Add rage to the army, applying any Berserk Fury bonuses and track source."""
         if amount <= 0:
             return 0.0
-        multiplier = self._get_rage_gain_multiplier()
+        multiplier, bonus_effects = self._get_rage_gain_multiplier()
         gained = math.floor(amount * multiplier + 1e-9)
+        base_gain = math.floor(amount + 1e-9)
+        extra_gain = gained - base_gain
         self.current_rage += gained
         self.rage_added_this_round += gained
         if source_skill_id:
             self.skill_rage_totals[source_skill_id] = (
                 self.skill_rage_totals.get(source_skill_id, 0.0) + gained
             )
+        if extra_gain > 0 and bonus_effects:
+            total_bonus = sum(eff.config.get("rage_bonus_pct", 0.0) for eff in bonus_effects)
+            if total_bonus > 0:
+                for eff in bonus_effects:
+                    weight = eff.config.get("rage_bonus_pct", 0.0) / total_bonus
+                    self.skill_rage_boost_totals[eff.source_skill_id] = (
+                        self.skill_rage_boost_totals.get(eff.source_skill_id, 0.0)
+                        + extra_gain * weight
+                    )
         return gained
 
     def _identify_hero_rage_skills(self):
@@ -354,12 +372,51 @@ class Army:
         healer_atk = healer_army.unit.effective_attack(healer_army.active_effects)
         healer_troop_scalar = self.simulator.troop_scalar(healer_army.current_troop_count)
         total_heal_adj_recipient = self.get_sum_stat_magnitudes(StatType.HEAL_ADJUSTMENT)
-        heal_adj_mult = 1.0 + total_heal_adj_recipient + skill_heal_adjustment_magnitude
+        positive_heal_adj_effects = [
+            eff
+            for eff in self.active_effects
+            if eff.effect_type == EffectType.STAT_MOD
+            and eff.config.get("stat_to_mod") == StatType.HEAL_ADJUSTMENT
+            and eff.magnitude > 0
+        ]
+        total_positive_heal_adj = sum(eff.magnitude for eff in positive_heal_adj_effects)
+        total_negative_heal_adj = total_heal_adj_recipient - total_positive_heal_adj
+        heal_adj_mult = (
+            1.0
+            + total_negative_heal_adj
+            + total_positive_heal_adj
+            + skill_heal_adjustment_magnitude
+        )
         opp_def_calc = opponent_of_healer.unit.effective_defense(opponent_of_healer.active_effects)
         if opp_def_calc == 0: opp_def_calc = 1
 
         hp_healed_raw = round(
-            ((healer_atk / opp_def_calc) * healer_troop_scalar * (heal_factor / 200.0) * heal_adj_mult))
+            (healer_atk / opp_def_calc)
+            * healer_troop_scalar
+            * (heal_factor / 200.0)
+            * heal_adj_mult
+        )
+
+        if hp_healed_raw > 0 and total_positive_heal_adj > 0:
+            base_mult = 1.0 + total_negative_heal_adj + skill_heal_adjustment_magnitude
+            hp_without_boost = round(
+                (healer_atk / opp_def_calc)
+                * healer_troop_scalar
+                * (heal_factor / 200.0)
+                * base_mult
+            )
+            extra_hp = hp_healed_raw - hp_without_boost
+            if extra_hp > 0:
+                hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)
+                if hp_per_troop <= 0:
+                    hp_per_troop = 1
+                for eff in positive_heal_adj_effects:
+                    weight = eff.magnitude / total_positive_heal_adj
+                    troops = (extra_hp * weight) / hp_per_troop
+                    self.skill_heal_boost_totals[eff.source_skill_id] = (
+                        self.skill_heal_boost_totals.get(eff.source_skill_id, 0.0)
+                        + troops
+                    )
 
         if hp_healed_raw > 0:
             self.pending_hp_healing_this_round += hp_healed_raw
@@ -487,8 +544,35 @@ class Army:
                 base_shield_magnitude = magnitude
 
             sum_shield_strength_mods_recipient = target_army.get_sum_stat_magnitudes(StatType.SHIELD_STRENGTH_MODIFIER)
+            positive_shield_effects = [
+                eff
+                for eff in target_army.active_effects
+                if eff.effect_type == EffectType.STAT_MOD
+                and eff.config.get("stat_to_mod") == StatType.SHIELD_STRENGTH_MODIFIER
+                and eff.magnitude > 0
+            ]
+            total_positive_shield = sum(eff.magnitude for eff in positive_shield_effects)
+            total_negative_shield = sum_shield_strength_mods_recipient - total_positive_shield
             shield_strength_multiplier = 1.0 + sum_shield_strength_mods_recipient
             magnitude = round(base_shield_magnitude * shield_strength_multiplier)
+            if total_positive_shield > 0 and base_shield_magnitude > 0:
+                magnitude_without_boost = round(
+                    base_shield_magnitude * (1.0 + total_negative_shield)
+                )
+                extra_hp = magnitude - magnitude_without_boost
+                if extra_hp > 0:
+                    hp_per_troop_boost = target_army.unit.effective_hp_per_troop(
+                        target_army.active_effects
+                    )
+                    if hp_per_troop_boost <= 0:
+                        hp_per_troop_boost = 1
+                    for eff in positive_shield_effects:
+                        weight = eff.magnitude / total_positive_shield
+                        troops = (extra_hp * weight) / hp_per_troop_boost
+                        target_army.skill_shield_boost_totals[eff.source_skill_id] = (
+                            target_army.skill_shield_boost_totals.get(eff.source_skill_id, 0.0)
+                            + troops
+                        )
             if self.simulator:
                 target_army.shield_hp_gained_this_round += magnitude
             hp_per_troop = target_army.unit.effective_hp_per_troop(target_army.active_effects)
@@ -629,15 +713,27 @@ class Army:
                         caster_army = self.simulator.army2
 
                     current_specific_dot_boost = 0.0
+                    positive_dot_effects: list[EffectInstance] = []
+                    specific_stat = None
                     if caster_army:
                         if dot_type == DoTType.BLEED:
-                            current_specific_dot_boost = caster_army.get_sum_stat_magnitudes(
-                                StatType.BLEED_DAMAGE_BOOST)
+                            specific_stat = StatType.BLEED_DAMAGE_BOOST
                         elif dot_type == DoTType.POISON:
-                            current_specific_dot_boost = caster_army.get_sum_stat_magnitudes(
-                                StatType.POISON_DAMAGE_BOOST)
+                            specific_stat = StatType.POISON_DAMAGE_BOOST
                         elif dot_type == DoTType.BURN:
-                            current_specific_dot_boost = caster_army.get_sum_stat_magnitudes(StatType.BURN_DAMAGE_BOOST)
+                            specific_stat = StatType.BURN_DAMAGE_BOOST
+                        if specific_stat:
+                            current_specific_dot_boost = caster_army.get_sum_stat_magnitudes(
+                                specific_stat
+                            )
+                            positive_dot_effects = [
+                                eff
+                                for eff in caster_army.active_effects
+                                if eff.effect_type == EffectType.STAT_MOD
+                                and eff.config.get("stat_to_mod") == specific_stat
+                                and eff.magnitude > 0
+                            ]
+                    total_positive_dot = sum(eff.magnitude for eff in positive_dot_effects)
 
                     current_specific_dot_reduction = 0.0
                     if dot_type == DoTType.BLEED:
@@ -653,6 +749,7 @@ class Army:
                                                        1.0 + current_specific_dot_boost + current_specific_dot_reduction)  # Reduction is negative
                     potential_dot_damage_tick = base_dot_damage_for_log * final_dot_multiplier_for_log
                     dot_damage_after_target_debuffs = potential_dot_damage_tick  # For DoTs, this is the final pre-shield damage
+                    current_shield_hp_dot = self.get_current_shield_hp()
 
                 elif dot_type == DoTType.GENERIC and effect.config.get("dot_damage_per_round", 0) > 0:
                     potential_dot_damage_tick = effect.config["dot_damage_per_round"]
@@ -665,6 +762,23 @@ class Army:
                     damage_result_dict = self.apply_shields_and_get_hp_damage(dot_damage_after_target_debuffs)
                     hp_damage_to_troops_dot = damage_result_dict['hp_damage_to_troops']
                     absorbed_by_shield_dot = damage_result_dict['absorbed_by_shield']
+                    if total_positive_dot > 0:
+                        dmg_without_boost = base_dot_damage_for_log * max(
+                            0.05, 1.0 + current_specific_dot_reduction
+                        )
+                        hp_without_boost = max(0.0, dmg_without_boost - current_shield_hp_dot)
+                        extra_hp = hp_damage_to_troops_dot - hp_without_boost
+                        if extra_hp > 0 and caster_army:
+                            hp_per_troop_boost = self.unit.effective_hp_per_troop(self.active_effects)
+                            if hp_per_troop_boost <= 0:
+                                hp_per_troop_boost = 1
+                            for eff in positive_dot_effects:
+                                weight = eff.magnitude / total_positive_dot
+                                troops = (extra_hp * weight) / hp_per_troop_boost
+                                caster_army.skill_kill_boost_totals[eff.source_skill_id] = (
+                                    caster_army.skill_kill_boost_totals.get(eff.source_skill_id, 0.0)
+                                    + troops
+                                )
 
                     attacker_name = effect.config.get("source_army_name", "Unknown")
                     if hp_damage_to_troops_dot > 0:
@@ -1029,6 +1143,11 @@ class Army:
         self.skill_shield_totals.clear()
         self.skill_rage_totals.clear()
         self.skill_damage_reduction_totals.clear()
+        self.skill_kill_boost_totals.clear()
+        self.skill_heal_boost_totals.clear()
+        self.skill_shield_boost_totals.clear()
+        self.skill_rage_boost_totals.clear()
+        self.skill_damage_reduction_boost_totals.clear()
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

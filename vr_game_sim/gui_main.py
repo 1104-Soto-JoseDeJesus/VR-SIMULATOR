@@ -3056,17 +3056,22 @@ class ArenaTab(QtWidgets.QWidget):
                 for hero in army.heroes:
                     hero_skill_entries: list[dict] = []
                     hero_skill_entries.append(
-                        {
-                            "id": "base_rage",
-                            "name": "Base Rage",
-                            "casts": "",
-                            "kills": 0,
-                            "heals": 0,
-                            "shielded": 0,
-                            "rage": int(round(army.skill_rage_totals.get("base_rage", 0.0))),
-                            "damage_reduced": 0,
-                        }
-                    )
+                            {
+                                "id": "base_rage",
+                                "name": "Base Rage",
+                                "casts": "",
+                                "kills": 0,
+                                "heals": 0,
+                                "shielded": 0,
+                                "rage": int(round(army.skill_rage_totals.get("base_rage", 0.0))),
+                                "damage_reduced": 0,
+                                "boosted_kills": 0,
+                                "boosted_heals": 0,
+                                "boosted_shielded": 0,
+                                "boosted_rage": int(round(army.skill_rage_boost_totals.get("base_rage", 0.0))),
+                                "boosted_damage_reduced": 0,
+                            }
+                        )
                     for sid, sname in (
                         ("basic_attack", "Basic Attack"),
                         ("counter_attack", "Counterattack"),
@@ -3081,6 +3086,11 @@ class ArenaTab(QtWidgets.QWidget):
                                 "shielded": int(round(army.skill_shield_totals.get(sid, 0.0))),
                                 "rage": int(round(army.skill_rage_totals.get(sid, 0.0))),
                                 "damage_reduced": int(round(army.skill_damage_reduction_totals.get(sid, 0.0))),
+                                "boosted_kills": int(round(army.skill_kill_boost_totals.get(sid, 0.0))),
+                                "boosted_heals": int(round(army.skill_heal_boost_totals.get(sid, 0.0))),
+                                "boosted_shielded": int(round(army.skill_shield_boost_totals.get(sid, 0.0))),
+                                "boosted_rage": int(round(army.skill_rage_boost_totals.get(sid, 0.0))),
+                                "boosted_damage_reduced": int(round(army.skill_damage_reduction_boost_totals.get(sid, 0.0))),
                             }
                         )
                     for skill_def in getattr(hero, "skills", []):
@@ -3097,6 +3107,11 @@ class ArenaTab(QtWidgets.QWidget):
                                 "shielded": int(round(army.skill_shield_totals.get(sid, 0.0))),
                                 "rage": int(round(army.skill_rage_totals.get(sid, 0.0))),
                                 "damage_reduced": int(round(army.skill_damage_reduction_totals.get(sid, 0.0))),
+                                "boosted_kills": int(round(army.skill_kill_boost_totals.get(sid, 0.0))),
+                                "boosted_heals": int(round(army.skill_heal_boost_totals.get(sid, 0.0))),
+                                "boosted_shielded": int(round(army.skill_shield_boost_totals.get(sid, 0.0))),
+                                "boosted_rage": int(round(army.skill_rage_boost_totals.get(sid, 0.0))),
+                                "boosted_damage_reduced": int(round(army.skill_damage_reduction_boost_totals.get(sid, 0.0))),
                             }
                         )
                     skill_lists.append(hero_skill_entries)

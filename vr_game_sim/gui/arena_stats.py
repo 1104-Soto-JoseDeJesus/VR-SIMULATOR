@@ -431,6 +431,30 @@ class SkillStatsRow(QtWidgets.QWidget):
         cast_lbl = QtWidgets.QLabel(str(data.get("casts", 0)))
         layout.addWidget(cast_lbl, 0, 2)
 
+        colors = {
+            "kills": ("#8B0000", "#FF9999"),
+            "healed": ("#006400", "#90EE90"),
+            "shielded": ("#00008B", "#ADD8E6"),
+            "damage_reduced": ("#FF8C00", "#FFD580"),
+            "rage": ("#4B0082", "#D8BFD8"),
+        }
+
+        def setup_bar(bar, total, direct, boost, deep, light, cls):
+            bar.setRange(0, max(1, total))
+            bar.setValue(direct + boost)
+            bar.setFormat(str(direct + boost))
+            bar.setProperty("class", cls)
+            if boost > 0 and direct > 0:
+                ratio = direct / (direct + boost)
+                bar.setStyleSheet(
+                    f"QProgressBar::chunk {{background: QLinearGradient(x1:0, y1:0, x2:1, y2:0, stop:0 {deep}, stop:{ratio:.3f} {deep}, stop:{ratio:.3f} {light}, stop:1 {light};}}"
+                )
+            elif boost > 0:
+                bar.setStyleSheet(f"QProgressBar::chunk {{background-color: {light};}}")
+            else:
+                bar.setStyleSheet("")
+
+        # Kills
         kills_icon = QtWidgets.QLabel()
         kills_path = os.path.join(
             os.path.dirname(__file__), "..", "Icons", "KillsICON.png"
@@ -446,14 +470,11 @@ class SkillStatsRow(QtWidgets.QWidget):
                 )
             )
         layout.addWidget(kills_icon, 0, 3)
-
         kills_bar = QtWidgets.QProgressBar()
-        kills_bar.setRange(0, max(1, total_kills))
-        kills_bar.setValue(data.get("kills", 0))
-        kills_bar.setFormat(str(data.get("kills", 0)))
-        kills_bar.setProperty("class", "kills")
+        setup_bar(kills_bar, total_kills, data.get("kills", 0), data.get("boosted_kills", 0), *colors["kills"], "kills")
         layout.addWidget(kills_bar, 0, 4)
 
+        # Heals
         heals_icon = QtWidgets.QLabel()
         heals_path = os.path.join(
             os.path.dirname(__file__), "..", "Icons", "HealsICON.png"
@@ -469,37 +490,31 @@ class SkillStatsRow(QtWidgets.QWidget):
                 )
             )
         layout.addWidget(heals_icon, 0, 5)
-
         heals_bar = QtWidgets.QProgressBar()
-        heals_bar.setRange(0, max(1, total_healed))
-        heals_bar.setValue(data.get("heals", 0))
-        heals_bar.setFormat(str(data.get("heals", 0)))
-        heals_bar.setProperty("class", "healed")
+        setup_bar(heals_bar, total_healed, data.get("heals", 0), data.get("boosted_heals", 0), *colors["healed"], "healed")
         layout.addWidget(heals_bar, 0, 6)
 
-        rage_icon = QtWidgets.QLabel()
-        rage_path = os.path.join(
-            os.path.dirname(__file__), "..", "Icons", "Rage.png"
+        # Shields
+        shield_icon = QtWidgets.QLabel()
+        shield_path = os.path.join(
+            os.path.dirname(__file__), "..", "Icons", "Shields.png"
         )
-        rage_pix = QtGui.QPixmap(rage_path)
-        if not rage_pix.isNull():
-            rage_icon.setPixmap(
-                rage_pix.scaled(
+        shield_pix = QtGui.QPixmap(shield_path)
+        if not shield_pix.isNull():
+            shield_icon.setPixmap(
+                shield_pix.scaled(
                     size,
                     size,
                     QtCore.Qt.AspectRatioMode.KeepAspectRatio,
                     QtCore.Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        layout.addWidget(rage_icon, 0, 7)
+        layout.addWidget(shield_icon, 0, 7)
+        shield_bar = QtWidgets.QProgressBar()
+        setup_bar(shield_bar, total_shielded, data.get("shielded", 0), data.get("boosted_shielded", 0), *colors["shielded"], "shielded")
+        layout.addWidget(shield_bar, 0, 8)
 
-        rage_bar = QtWidgets.QProgressBar()
-        rage_bar.setRange(0, max(1, total_rage))
-        rage_bar.setValue(data.get("rage", 0))
-        rage_bar.setFormat(str(data.get("rage", 0)))
-        rage_bar.setProperty("class", "rage")
-        layout.addWidget(rage_bar, 0, 8)
-
+        # Damage Reduction
         dr_icon = QtWidgets.QLabel()
         dr_path = os.path.join(
             os.path.dirname(__file__), "..", "Icons", "DamageReduction.png"
@@ -515,36 +530,29 @@ class SkillStatsRow(QtWidgets.QWidget):
                 )
             )
         layout.addWidget(dr_icon, 0, 9)
-
         dr_bar = QtWidgets.QProgressBar()
-        dr_bar.setRange(0, max(1, total_damage_reduced))
-        dr_bar.setValue(data.get("damage_reduced", 0))
-        dr_bar.setFormat(str(data.get("damage_reduced", 0)))
-        dr_bar.setProperty("class", "damage_reduced")
+        setup_bar(dr_bar, total_damage_reduced, data.get("damage_reduced", 0), data.get("boosted_damage_reduced", 0), *colors["damage_reduced"], "damage_reduced")
         layout.addWidget(dr_bar, 0, 10)
 
-        shield_icon = QtWidgets.QLabel()
-        shield_path = os.path.join(
-            os.path.dirname(__file__), "..", "Icons", "Shields.png"
+        # Rage
+        rage_icon = QtWidgets.QLabel()
+        rage_path = os.path.join(
+            os.path.dirname(__file__), "..", "Icons", "Rage.png"
         )
-        shield_pix = QtGui.QPixmap(shield_path)
-        if not shield_pix.isNull():
-            shield_icon.setPixmap(
-                shield_pix.scaled(
+        rage_pix = QtGui.QPixmap(rage_path)
+        if not rage_pix.isNull():
+            rage_icon.setPixmap(
+                rage_pix.scaled(
                     size,
                     size,
                     QtCore.Qt.AspectRatioMode.KeepAspectRatio,
                     QtCore.Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        layout.addWidget(shield_icon, 0, 11)
-
-        shield_bar = QtWidgets.QProgressBar()
-        shield_bar.setRange(0, max(1, total_shielded))
-        shield_bar.setValue(data.get("shielded", 0))
-        shield_bar.setFormat(str(data.get("shielded", 0)))
-        shield_bar.setProperty("class", "shielded")
-        layout.addWidget(shield_bar, 0, 12)
+        layout.addWidget(rage_icon, 0, 11)
+        rage_bar = QtWidgets.QProgressBar()
+        setup_bar(rage_bar, total_rage, data.get("rage", 0), data.get("boosted_rage", 0), *colors["rage"], "rage")
+        layout.addWidget(rage_bar, 0, 12)
 
         layout.setColumnStretch(0, 3)
         layout.setColumnStretch(4, 3)

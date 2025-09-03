@@ -64,6 +64,8 @@ class _ArmyContext:
     path: List[Tuple[float, float]] = field(default_factory=list)
     path_start: Optional[Tuple[float, float]] = None
     speed: float = 50.0
+    # Original movement speed used to restore after temporary boosts.
+    base_speed: float = 50.0
     # Name of the army this one is directly targeting.
     direct_target: Optional[str] = None
     # Whether the army should actively pursue its target.
@@ -191,7 +193,7 @@ class BattlefieldEngine:
             raise ValueError(f"Army with name '{army.name}' already exists")
 
         ctx = _ArmyContext(army=army, team=team, position=position,
-                           path=[], speed=speed)
+                           path=[], speed=speed, base_speed=speed)
         self._armies[army.name] = ctx
 
         # Apply existing team effects and append new shared effects if supplied.
@@ -562,7 +564,11 @@ class BattlefieldEngine:
     def _step_movements(self, dt: float) -> None:
         """Interpolate movement towards the next waypoint in an army's path."""
         for ctx in self._armies.values():
-            if ctx.speed <= 0 or not ctx.path:
+            if not ctx.path:
+                if ctx.speed != ctx.base_speed:
+                    ctx.speed = ctx.base_speed
+                continue
+            if ctx.speed <= 0:
                 continue
             x, y = ctx.position
             wx, wy = ctx.path[0]
@@ -571,11 +577,15 @@ class BattlefieldEngine:
             if dist == 0:
                 ctx.position = (wx, wy)
                 ctx.path.pop(0)
+                if ctx.speed != ctx.base_speed and not ctx.path:
+                    ctx.speed = ctx.base_speed
                 continue
             step = min(dist, ctx.speed * dt)
             if step == dist:
                 ctx.position = (wx, wy)
                 ctx.path.pop(0)
+                if ctx.speed != ctx.base_speed and not ctx.path:
+                    ctx.speed = ctx.base_speed
             else:
                 ctx.position = (x + dx / dist * step, y + dy / dist * step)
 

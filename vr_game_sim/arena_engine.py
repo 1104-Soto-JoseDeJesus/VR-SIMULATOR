@@ -11,9 +11,10 @@ and schedules their initial movement commands.
 """
 
 from collections import defaultdict
+from math import hypot
 from typing import Any, Dict, List, Mapping, Optional
 
-from .battlefield_engine import BattlefieldEngine
+from .battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
 
 
 class ArenaEngine(BattlefieldEngine):
@@ -182,6 +183,27 @@ class ArenaEngine(BattlefieldEngine):
                         or front2.get("march_to")
                     ):
                         self.set_waypoint(front2["army"].name, midpoint)
+
+        # Temporarily boost speed for armies that must travel diagonally so
+        # they still reach their target in ~2 s despite wider row spacing.
+        for entry in entries:
+            army = entry["army"]
+            ctx = self._armies[army.name]
+            target_name = ctx.direct_target
+            if target_name is None:
+                continue
+            tgt_ctx = self._armies.get(target_name)
+            if tgt_ctx is None:
+                continue
+            sx, sy = ctx.position
+            tx, ty = tgt_ctx.position
+            if abs(sy - ty) < 1e-6:
+                continue  # same row
+            dist = hypot(tx - sx, ty - sy)
+            required_sum = (dist - ENGAGEMENT_DISTANCE) / 2.0
+            needed_speed = required_sum - tgt_ctx.base_speed
+            if needed_speed > ctx.base_speed:
+                ctx.speed = needed_speed
 
         # Queue march orders (either waypoints or direct engagements)
         for entry in entries:

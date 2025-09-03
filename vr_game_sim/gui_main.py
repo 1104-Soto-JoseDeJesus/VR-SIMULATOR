@@ -2484,9 +2484,9 @@ class ArenaTab(QtWidgets.QWidget):
         cy = self.view.sceneRect().height() / 2.0
 
         # Vertical offsets for the four columns relative to the centre.  Rows are
-        # spaced further apart but diagonal attackers receive a temporary speed
-        # boost so engagements still occur after roughly 2 s.
-        row_step = default_speed * 1.0
+        # spaced 50% further apart but diagonal attackers receive a temporary
+        # speed boost so engagements still occur after roughly 2 s.
+        row_step = default_speed * 1.5
         offsets = [
             -1.5 * row_step,
             -0.5 * row_step,

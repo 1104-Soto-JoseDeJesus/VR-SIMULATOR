@@ -201,7 +201,7 @@ class ArenaEngine(BattlefieldEngine):
                 continue  # same row
             dist = hypot(tx - sx, ty - sy)
             required_sum = (dist - ENGAGEMENT_DISTANCE) / 2.0
-            needed_speed = required_sum - tgt_ctx.base_speed
+            needed_speed = required_sum - tgt_ctx.speed
             if needed_speed > ctx.base_speed:
                 ctx.speed = needed_speed
 

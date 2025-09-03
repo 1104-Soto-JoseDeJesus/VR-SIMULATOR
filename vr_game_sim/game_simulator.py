@@ -197,20 +197,42 @@ class GameSimulator:
             skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
                 StatType.COOPERATION_SKILL_DAMAGE_MODIFIER)
 
+        current_shield_hp = apply_target.get_current_shield_hp()
         damage_taken_percent_mods = calc_target.get_sum_stat_magnitudes(
             StatType.DAMAGE_TAKEN_MULTIPLIER, attack_type_filter="SKILL"
         )
+        dr_effects = [
+            eff for eff in apply_target.active_effects
+            if eff.effect_type == EffectType.STAT_MOD
+            and eff.config.get('stat_to_mod') == StatType.DAMAGE_TAKEN_MULTIPLIER
+            and eff.magnitude < 0
+            and (not eff.config.get('config_filter', {}).get('attack_type')
+                 or eff.config.get('config_filter', {}).get('attack_type') == "SKILL")
+        ]
+        total_dr_magnitude = sum(eff.magnitude for eff in dr_effects)
+        defender_positive_mags = damage_taken_percent_mods - total_dr_magnitude
+
         total_skill_percentage_points = skill_damage_percent_boosts + damage_taken_percent_mods
         final_skill_damage_multiplier = max(0.05, 1.0 + total_skill_percentage_points)
 
         skill_hp_damage_potential = (own_total_attack / enemy_total_defense) * own_troop_scalar * (
-                    damage_factor / 200.0)
+            damage_factor / 200.0)
         damage_after_percent_mods_no_advantage = skill_hp_damage_potential * final_skill_damage_multiplier
 
         advantage_multiplier = GameSimulator.advantage_adjust(
             source_army.unit, calc_target.unit
         )
         damage_after_all_mods = damage_after_percent_mods_no_advantage * advantage_multiplier
+
+        dmg_multiplier_no_dr = max(
+            0.05,
+            1.0 + skill_damage_percent_boosts + defender_positive_mags,
+        )
+        damage_no_dr = skill_hp_damage_potential * dmg_multiplier_no_dr * advantage_multiplier
+
+        hp_damage_expected = max(0.0, damage_after_all_mods - current_shield_hp)
+        hp_damage_without_dr = max(0.0, damage_no_dr - current_shield_hp)
+        hp_saved = max(0.0, hp_damage_without_dr - hp_damage_expected)
 
         raw_damage_for_logging = damage_after_all_mods
 
@@ -224,6 +246,14 @@ class GameSimulator:
             apply_target.active_effects
         )
         if enemy_hp_per_troop <= 0: enemy_hp_per_troop = 1
+
+        if hp_saved > 0 and total_dr_magnitude < 0:
+            for eff in dr_effects:
+                weight = abs(eff.magnitude) / abs(total_dr_magnitude)
+                troops_saved = (hp_saved * weight) / enemy_hp_per_troop
+                apply_target.skill_damage_reduction_totals[eff.source_skill_id] = (
+                    apply_target.skill_damage_reduction_totals.get(eff.source_skill_id, 0.0) + troops_saved
+                )
 
         potential_skill_kills = 0
         if actual_skill_hp_damage_to_troops > 0:
@@ -597,19 +627,42 @@ class GameSimulator:
         sum_general_attacker_magnitudes = att.get_sum_stat_magnitudes(StatType.GENERAL_DAMAGE_MODIFIER)
 
         attack_type_for_defense_filter = "COUNTER" if is_counter else "BASIC"
+        current_shield_hp = dfd.get_current_shield_hp()
+
         sum_defender_reduction_magnitudes = dfd.get_sum_stat_magnitudes(
             StatType.DAMAGE_TAKEN_MULTIPLIER, attack_type_filter=attack_type_for_defense_filter)
+        dr_effects = [
+            eff for eff in dfd.active_effects
+            if eff.effect_type == EffectType.STAT_MOD
+            and eff.config.get('stat_to_mod') == StatType.DAMAGE_TAKEN_MULTIPLIER
+            and eff.magnitude < 0
+            and (not eff.config.get('config_filter', {}).get('attack_type')
+                 or eff.config.get('config_filter', {}).get('attack_type') == attack_type_for_defense_filter)
+        ]
+        total_dr_magnitude = sum(eff.magnitude for eff in dr_effects)
+        defender_positive_mags = sum_defender_reduction_magnitudes - total_dr_magnitude
 
-        total_additive_percentage_points = (sum_specific_attack_magnitudes +
-                                            sum_general_attacker_magnitudes +
-                                            sum_defender_reduction_magnitudes)
+        total_additive_percentage_points = (
+            sum_specific_attack_magnitudes +
+            sum_general_attacker_magnitudes +
+            sum_defender_reduction_magnitudes
+        )
 
         final_damage_multiplier = max(0.05, 1.0 + total_additive_percentage_points)
-
         damage_with_percent_mods = raw_damage_potential * final_damage_multiplier
 
         advantage_multiplier = GameSimulator.advantage_adjust(att.unit, dfd.unit)
         damage_after_all_percent_mods = damage_with_percent_mods * advantage_multiplier
+
+        dmg_multiplier_no_dr = max(
+            0.05,
+            1.0 + sum_specific_attack_magnitudes + sum_general_attacker_magnitudes + defender_positive_mags,
+        )
+        damage_no_dr = raw_damage_potential * dmg_multiplier_no_dr * advantage_multiplier
+
+        hp_damage_expected = max(0.0, damage_after_all_percent_mods - current_shield_hp)
+        hp_damage_without_dr = max(0.0, damage_no_dr - current_shield_hp)
+        hp_saved = max(0.0, hp_damage_without_dr - hp_damage_expected)
 
         shield_processing_result = dfd.apply_shields_and_get_hp_damage(damage_after_all_percent_mods)
         hp_damage_to_troops = shield_processing_result['hp_damage_to_troops']
@@ -620,6 +673,14 @@ class GameSimulator:
 
         defender_hp_per_troop = dfd.unit.effective_hp_per_troop(dfd.active_effects)
         if defender_hp_per_troop <= 0: defender_hp_per_troop = 1
+
+        if hp_saved > 0 and total_dr_magnitude < 0:
+            for eff in dr_effects:
+                weight = abs(eff.magnitude) / abs(total_dr_magnitude)
+                troops_saved = (hp_saved * weight) / defender_hp_per_troop
+                dfd.skill_damage_reduction_totals[eff.source_skill_id] = (
+                    dfd.skill_damage_reduction_totals.get(eff.source_skill_id, 0.0) + troops_saved
+                )
 
         potential_units_killed_this_hit_rounded = 0
         if hp_damage_to_troops > 0:

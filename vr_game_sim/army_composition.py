@@ -99,6 +99,7 @@ class Army:
     skill_heal_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_shield_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_rage_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    skill_damage_reduction_totals: Dict[str, float] = field(init=False, default_factory=dict)
 
     def __post_init__(self):
         self.reset_for_new_battle()
@@ -1027,6 +1028,7 @@ class Army:
         self.skill_heal_totals.clear()
         self.skill_shield_totals.clear()
         self.skill_rage_totals.clear()
+        self.skill_damage_reduction_totals.clear()
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

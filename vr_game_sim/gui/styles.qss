@@ -35,6 +35,10 @@ QProgressBar[class="rage"]::chunk {
   background-color: #4B0082;
 }
 
+QProgressBar[class="damage_reduced"]::chunk {
+  background-color: #FF8C00;
+}
+
 HeroStatsWidget {
   background-color: transparent;
   border: none;

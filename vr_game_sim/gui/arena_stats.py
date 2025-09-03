@@ -281,9 +281,14 @@ class HeroStatsWidget(QtWidgets.QWidget):
             skills = self._skills[index] if index < len(self._skills) else []
             hero_name = self._hero_names[index] if index < len(self._hero_names) else "Hero"
 
-            # Compute the total shield applied to the entire army across all skills
+            # Compute totals across the entire army
             total_shielded = sum(
                 s.get("shielded", 0)
+                for skill_list in self._skills
+                for s in (skill_list or [])
+            )
+            total_damage_reduced = sum(
+                s.get("damage_reduced", 0)
                 for skill_list in self._skills
                 for s in (skill_list or [])
             )
@@ -305,6 +310,7 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 self._total_healed,
                 total_shielded,
                 total_rage,
+                total_damage_reduced,
                 self,
             )
             dlg.exec()
@@ -394,6 +400,7 @@ class SkillStatsRow(QtWidgets.QWidget):
         total_healed: int,
         total_shielded: int,
         total_rage: int,
+        total_damage_reduced: int,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -470,29 +477,6 @@ class SkillStatsRow(QtWidgets.QWidget):
         heals_bar.setProperty("class", "healed")
         layout.addWidget(heals_bar, 0, 6)
 
-        shield_icon = QtWidgets.QLabel()
-        shield_path = os.path.join(
-            os.path.dirname(__file__), "..", "Icons", "Shields.png"
-        )
-        shield_pix = QtGui.QPixmap(shield_path)
-        if not shield_pix.isNull():
-            shield_icon.setPixmap(
-                shield_pix.scaled(
-                    size,
-                    size,
-                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-                    QtCore.Qt.TransformationMode.SmoothTransformation,
-                )
-            )
-        layout.addWidget(shield_icon, 0, 7)
-
-        shield_bar = QtWidgets.QProgressBar()
-        shield_bar.setRange(0, max(1, total_shielded))
-        shield_bar.setValue(data.get("shielded", 0))
-        shield_bar.setFormat(str(data.get("shielded", 0)))
-        shield_bar.setProperty("class", "shielded")
-        layout.addWidget(shield_bar, 0, 8)
-
         rage_icon = QtWidgets.QLabel()
         rage_path = os.path.join(
             os.path.dirname(__file__), "..", "Icons", "Rage.png"
@@ -507,20 +491,67 @@ class SkillStatsRow(QtWidgets.QWidget):
                     QtCore.Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        layout.addWidget(rage_icon, 0, 9)
+        layout.addWidget(rage_icon, 0, 7)
 
         rage_bar = QtWidgets.QProgressBar()
         rage_bar.setRange(0, max(1, total_rage))
         rage_bar.setValue(data.get("rage", 0))
         rage_bar.setFormat(str(data.get("rage", 0)))
         rage_bar.setProperty("class", "rage")
-        layout.addWidget(rage_bar, 0, 10)
+        layout.addWidget(rage_bar, 0, 8)
+
+        dr_icon = QtWidgets.QLabel()
+        dr_path = os.path.join(
+            os.path.dirname(__file__), "..", "Icons", "DamageReduction.png"
+        )
+        dr_pix = QtGui.QPixmap(dr_path)
+        if not dr_pix.isNull():
+            dr_icon.setPixmap(
+                dr_pix.scaled(
+                    size,
+                    size,
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        layout.addWidget(dr_icon, 0, 9)
+
+        dr_bar = QtWidgets.QProgressBar()
+        dr_bar.setRange(0, max(1, total_damage_reduced))
+        dr_bar.setValue(data.get("damage_reduced", 0))
+        dr_bar.setFormat(str(data.get("damage_reduced", 0)))
+        dr_bar.setProperty("class", "damage_reduced")
+        layout.addWidget(dr_bar, 0, 10)
+
+        shield_icon = QtWidgets.QLabel()
+        shield_path = os.path.join(
+            os.path.dirname(__file__), "..", "Icons", "Shields.png"
+        )
+        shield_pix = QtGui.QPixmap(shield_path)
+        if not shield_pix.isNull():
+            shield_icon.setPixmap(
+                shield_pix.scaled(
+                    size,
+                    size,
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        layout.addWidget(shield_icon, 0, 11)
+
+        shield_bar = QtWidgets.QProgressBar()
+        shield_bar.setRange(0, max(1, total_shielded))
+        shield_bar.setValue(data.get("shielded", 0))
+        shield_bar.setFormat(str(data.get("shielded", 0)))
+        shield_bar.setProperty("class", "shielded")
+        layout.addWidget(shield_bar, 0, 12)
 
         layout.setColumnStretch(0, 3)
         layout.setColumnStretch(4, 3)
         layout.setColumnStretch(6, 3)
         layout.setColumnStretch(8, 3)
         layout.setColumnStretch(10, 3)
+        layout.setColumnStretch(12, 3)
 
 
 class HeroSkillDialog(QtWidgets.QDialog):
@@ -534,6 +565,7 @@ class HeroSkillDialog(QtWidgets.QDialog):
         total_healed: int,
         total_shielded: int,
         total_rage: int,
+        total_damage_reduced: int,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -543,7 +575,7 @@ class HeroSkillDialog(QtWidgets.QDialog):
         for data in skills:
             layout.addWidget(
                 SkillStatsRow(
-                    data, total_kills, total_healed, total_shielded, total_rage
+                    data, total_kills, total_healed, total_shielded, total_rage, total_damage_reduced
                 )
             )
         self.setLayout(layout)

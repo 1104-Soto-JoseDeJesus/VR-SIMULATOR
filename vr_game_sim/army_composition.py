@@ -898,15 +898,26 @@ class Army:
                     if reduction > 0 and self.current_rage > 0:
                         actual = min(self.current_rage, float(reduction))
                         self.current_rage -= actual
-                        if effect.source_skill_id:
+                        if self.simulator and effect.source_skill_id:
+                            src_name = effect.config.get("source_army_name")
+                            src_army = None
+                            if src_name == self.simulator.army1.name:
+                                src_army = self.simulator.army1
+                            elif src_name == self.simulator.army2.name:
+                                src_army = self.simulator.army2
+                            if src_army:
+                                src_army.skill_rage_reduction_totals[effect.source_skill_id] = (
+                                    src_army.skill_rage_reduction_totals.get(effect.source_skill_id, 0.0)
+                                    + actual
+                                )
+                            self.simulator._log_skill_trigger(
+                                self, effect.name,
+                                f"loses {actual:.0f} rage (delayed). New rage: {self.current_rage:.0f}")
+                        elif effect.source_skill_id:
                             self.skill_rage_reduction_totals[effect.source_skill_id] = (
                                 self.skill_rage_reduction_totals.get(effect.source_skill_id, 0.0)
                                 + actual
                             )
-                        if self.simulator:
-                            self.simulator._log_skill_trigger(
-                                self, effect.name,
-                                f"loses {actual:.0f} rage (delayed). New rage: {self.current_rage:.0f}")
                     if effect in self.active_effects:
                         self.active_effects.remove(effect)
 
@@ -1088,16 +1099,28 @@ class Army:
                 if reduction > 0 and self.current_rage > 0:
                     actual = min(self.current_rage, float(reduction))
                     self.current_rage -= actual
-                    if eff.source_skill_id:
-                        self.skill_rage_reduction_totals[eff.source_skill_id] = (
-                            self.skill_rage_reduction_totals.get(eff.source_skill_id, 0.0)
-                            + actual
-                        )
-                    if self.simulator:
+                    if self.simulator and eff.source_skill_id:
+                        source_army_name = eff.config.get("source_army_name")
+                        source_army = None
+                        if source_army_name == self.simulator.army1.name:
+                            source_army = self.simulator.army1
+                        elif source_army_name == self.simulator.army2.name:
+                            source_army = self.simulator.army2
+                        if source_army:
+                            source_army.skill_rage_reduction_totals[eff.source_skill_id] = (
+                                source_army.skill_rage_reduction_totals.get(eff.source_skill_id, 0.0)
+                                + actual
+                            )
                         self.simulator._log_skill_trigger(
                             self,
                             eff.name,
                             f"loses {actual:.0f} rage (delayed). New rage: {self.current_rage:.0f}",
+                        )
+                    elif eff.source_skill_id:
+                        # If no simulator is present, fall back to tracking on self
+                        self.skill_rage_reduction_totals[eff.source_skill_id] = (
+                            self.skill_rage_reduction_totals.get(eff.source_skill_id, 0.0)
+                            + actual
                         )
                 to_remove.append(eff)
         for r in to_remove:

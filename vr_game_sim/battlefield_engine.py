@@ -502,8 +502,21 @@ class BattlefieldEngine:
                     army.active_effects.clear()
                     army.upcoming_effects.clear()
                     army.effects_to_activate_next_round.clear()
-                    # Reapply passive skills without resetting troop counts
+                    # Reapply passive skills without resetting troop counts.
+                    # Remove existing passive skill trigger counts so they
+                    # apply their effects again for this idle army.
+                    passive_ids = {
+                        skill_def.get("id")
+                        for hero in army.heroes
+                        for skill_def in hero.skills
+                        if skill_def.get("trigger") == SkillTriggerType.PASSIVE
+                    }
+                    prev_counts: Dict[str, int] = {}
+                    for sid in passive_ids:
+                        prev_counts[sid] = army.skill_trigger_counts.pop(sid, 0)
                     army._apply_initial_passive_skills()
+                    for sid, prev in prev_counts.items():
+                        army.skill_trigger_counts[sid] = prev + army.skill_trigger_counts.get(sid, 0)
                 army.hero1_rage_skill_used_round = None
                 army.hero1_rage_skill_scheduled_round = None
                 army.hero1_rage_skill_queued_this_round = False

@@ -29,7 +29,7 @@ def test_slot_distances():
     speed = 50.0
     engage_dist = 4 * speed + ENGAGEMENT_DISTANCE
     back_dist = speed * 2
-    lateral = speed * 1
+    lateral = speed * 1.5
 
     def dist(a, b):
         return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
@@ -186,3 +186,42 @@ def test_four_column_pairing_and_fallback():
     # Column 3: no blue armies -> red units retarget to nearest enemy (column 2 front)
     assert engine._armies[a3f.name].direct_target == b2f.name
     assert engine._armies[a3b.name].direct_target == b2f.name
+
+
+def test_diagonal_engagement_time():
+    app = _get_app()
+    from vr_game_sim.gui_main import ArenaTab
+
+    tab = ArenaTab()
+    pos_a = tab.slot_coords["team1"][0]  # top outer
+    pos_b = tab.slot_coords["team2"][1]  # top inner -> diagonal target
+
+    a = make_army("A")
+    b = make_army("B")
+
+    layout = {
+        "red": [{"army": a, "position": pos_a, "column": 0, "row": 0}],
+        "blue": [{"army": b, "position": pos_b, "column": 1, "row": 0}],
+    }
+
+    engine = ArenaEngine()
+    engine.start_arena_battle(layout)
+
+    from math import hypot
+
+    dist = hypot(pos_b[0] - pos_a[0], pos_b[1] - pos_a[1])
+    required_sum = (dist - ENGAGEMENT_DISTANCE) / 2.0
+    ctx_a = engine._armies[a.name]
+    ctx_b = engine._armies[b.name]
+    assert ctx_a.speed + ctx_b.speed == pytest.approx(required_sum)
+
+    elapsed = 0.0
+    while True:
+        engine.tick(0.05)
+        elapsed += 0.05
+        ax, ay = engine._armies[a.name].position
+        bx, by = engine._armies[b.name].position
+        if hypot(ax - bx, ay - by) <= ENGAGEMENT_DISTANCE:
+            break
+        assert elapsed < 3.0
+    assert elapsed == pytest.approx(2.0, abs=0.051)

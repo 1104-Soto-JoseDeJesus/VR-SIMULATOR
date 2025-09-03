@@ -1,6 +1,6 @@
-# === File: army_composition.py ===
 import uuid
 import random
+import math
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Tuple, Set
 
@@ -109,6 +109,25 @@ class Army:
 
     def increment_skill_trigger_count(self, skill_id: str):
         self.skill_trigger_counts[skill_id] = self.skill_trigger_counts.get(skill_id, 0) + 1
+
+    def _get_rage_gain_multiplier(self) -> float:
+        """Return the multiplier to apply to all rage gains."""
+        bonus = sum(
+            eff.config.get("rage_bonus_pct", 0.0)
+            for eff in self.active_effects
+            if eff.name == EFFECT_NAME_BERSERK_FURY_RAGE_GAIN
+        )
+        return 1.0 + bonus
+
+    def add_rage(self, amount: float) -> float:
+        """Add rage to the army, applying any Berserk Fury bonuses."""
+        if amount <= 0:
+            return 0.0
+        multiplier = self._get_rage_gain_multiplier()
+        gained = math.floor(amount * multiplier + 1e-9)
+        self.current_rage += gained
+        self.rage_added_this_round += gained
+        return gained
 
     def _identify_hero_rage_skills(self):
         self.hero1_rage_skill_id = None
@@ -565,7 +584,6 @@ class Army:
                 EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
                 EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
                 EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Add Olena's custom rage gain effect
-                EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
                 EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
                 EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
                 EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
@@ -699,8 +717,7 @@ class Army:
                     if start_gain_round <= current_round <= end_gain_round:
                         rage_to_gain = effect.config.get("rage_per_round", 0)
                         if rage_to_gain > 0:
-                            self.current_rage += rage_to_gain
-                            self.rage_added_this_round += rage_to_gain
+                            self.add_rage(rage_to_gain)
 
             # Handle Olena's Concentration Rage Gain
             elif effect.name == EFFECT_NAME_CONCENTRATION_RAGE_GAIN and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
@@ -718,50 +735,35 @@ class Army:
                     # Round N+1 processing (first round after cast)
                     if current_sim_round == effect_applied_in_round + 1:
                         if base_rage > 0:
-                            self.current_rage += base_rage
-                            self.rage_added_this_round += base_rage
-                            gained_this_tick += base_rage
-                            log_parts.append(f"{base_rage} base rage")
+                            gained = self.add_rage(base_rage)
+                            gained_this_tick += gained
+                            log_parts.append(f"{gained:.0f} base rage")
                         if bonus_rage > 0 and bonus_applied_round == -1:  # Apply bonus only on the first tick if applicable
-                            self.current_rage += bonus_rage
-                            self.rage_added_this_round += bonus_rage
-                            gained_this_tick += bonus_rage
+                            gained_bonus = self.add_rage(bonus_rage)
+                            gained_this_tick += gained_bonus
                             effect.config["bonus_applied_round"] = current_sim_round  # Mark bonus as applied
-                            log_parts.append(f"{bonus_rage} bonus rage")
+                            log_parts.append(f"{gained_bonus:.0f} bonus rage")
 
                     # Round N+2 processing (second round after cast)
                     elif current_sim_round == effect_applied_in_round + 2:
                         if base_rage > 0:
-                            self.current_rage += base_rage
-                            self.rage_added_this_round += base_rage
-                            gained_this_tick += base_rage
-                            log_parts.append(f"{base_rage} base rage")
+                            gained = self.add_rage(base_rage)
+                            gained_this_tick += gained
+                            log_parts.append(f"{gained:.0f} base rage")
 
                     if gained_this_tick > 0:
                         self.simulator._log_skill_trigger(self, effect.name,
                                                           f"gains {', '.join(log_parts)} ({gained_this_tick} total this round). New rage: {self.current_rage:.0f}")
 
-            elif effect.name == EFFECT_NAME_BERSERK_FURY_RAGE_GAIN and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
-                if phase == 'start_of_round':
-                    gain_amt = effect.config.get("rage_per_round", 0)
-                    if gain_amt > 0:
-                        self.current_rage += gain_amt
-                        self.rage_added_this_round += gain_amt
-                        if self.simulator:
-                            self.simulator._log_skill_trigger(
-                                self, effect.name,
-                                f"gains {gain_amt} rage from Berserk Fury. New rage: {self.current_rage:.0f}")
-
             elif effect.name == EFFECT_NAME_DELAYED_RAGE_GAIN and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round' and effect.duration <= 0:
                     rage_amt = effect.config.get("rage_amount", 0)
                     if rage_amt > 0:
-                        self.current_rage += rage_amt
-                        self.rage_added_this_round += rage_amt
+                        gained = self.add_rage(rage_amt)
                         if self.simulator:
                             self.simulator._log_skill_trigger(
                                 self, effect.name,
-                                f"gains {rage_amt} rage (delayed). New rage: {self.current_rage:.0f}")
+                                f"gains {gained:.0f} rage (delayed). New rage: {self.current_rage:.0f}")
                     if effect in self.active_effects:
                         self.active_effects.remove(effect)
 

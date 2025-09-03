@@ -292,6 +292,11 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 for skill_list in self._skills
                 for s in (skill_list or [])
             )
+            total_rage_reduced = sum(
+                s.get("rage_reduced", 0)
+                for skill_list in self._skills
+                for s in (skill_list or [])
+            )
             seen_ids: set[str] = set()
             total_rage = 0
             for skill_list in self._skills:
@@ -309,6 +314,7 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 self._total_kills,
                 self._total_healed,
                 total_shielded,
+                total_rage_reduced,
                 total_rage,
                 total_damage_reduced,
                 self,
@@ -399,6 +405,7 @@ class SkillStatsRow(QtWidgets.QWidget):
         total_kills: int,
         total_healed: int,
         total_shielded: int,
+        total_rage_reduced: int,
         total_rage: int,
         total_damage_reduced: int,
         parent: QtWidgets.QWidget | None = None,
@@ -436,6 +443,7 @@ class SkillStatsRow(QtWidgets.QWidget):
             "healed": ("#006400", "#90EE90"),
             "shielded": ("#00008B", "#ADD8E6"),
             "damage_reduced": ("#FF8C00", "#FFD580"),
+            "rage_reduced": ("#FF1493", "#FFB6C1"),
             "rage": ("#4B0082", "#D8BFD8"),
         }
 
@@ -534,6 +542,26 @@ class SkillStatsRow(QtWidgets.QWidget):
         setup_bar(dr_bar, total_damage_reduced, data.get("damage_reduced", 0), data.get("boosted_damage_reduced", 0), *colors["damage_reduced"], "damage_reduced")
         layout.addWidget(dr_bar, 0, 10)
 
+        # Rage Reduction
+        rr_icon = QtWidgets.QLabel()
+        rr_path = os.path.join(
+            os.path.dirname(__file__), "..", "Icons", "RageReduction.png"
+        )
+        rr_pix = QtGui.QPixmap(rr_path)
+        if not rr_pix.isNull():
+            rr_icon.setPixmap(
+                rr_pix.scaled(
+                    size,
+                    size,
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        layout.addWidget(rr_icon, 0, 11)
+        rr_bar = QtWidgets.QProgressBar()
+        setup_bar(rr_bar, total_rage_reduced, data.get("rage_reduced", 0), data.get("boosted_rage_reduced", 0), *colors["rage_reduced"], "rage_reduced")
+        layout.addWidget(rr_bar, 0, 12)
+
         # Rage
         rage_icon = QtWidgets.QLabel()
         rage_path = os.path.join(
@@ -549,10 +577,10 @@ class SkillStatsRow(QtWidgets.QWidget):
                     QtCore.Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        layout.addWidget(rage_icon, 0, 11)
+        layout.addWidget(rage_icon, 0, 13)
         rage_bar = QtWidgets.QProgressBar()
         setup_bar(rage_bar, total_rage, data.get("rage", 0), data.get("boosted_rage", 0), *colors["rage"], "rage")
-        layout.addWidget(rage_bar, 0, 12)
+        layout.addWidget(rage_bar, 0, 14)
 
         layout.setColumnStretch(0, 3)
         layout.setColumnStretch(4, 3)
@@ -560,6 +588,7 @@ class SkillStatsRow(QtWidgets.QWidget):
         layout.setColumnStretch(8, 3)
         layout.setColumnStretch(10, 3)
         layout.setColumnStretch(12, 3)
+        layout.setColumnStretch(14, 3)
 
 
 class HeroSkillDialog(QtWidgets.QDialog):
@@ -572,6 +601,7 @@ class HeroSkillDialog(QtWidgets.QDialog):
         total_kills: int,
         total_healed: int,
         total_shielded: int,
+        total_rage_reduced: int,
         total_rage: int,
         total_damage_reduced: int,
         parent: QtWidgets.QWidget | None = None,
@@ -583,7 +613,7 @@ class HeroSkillDialog(QtWidgets.QDialog):
         for data in skills:
             layout.addWidget(
                 SkillStatsRow(
-                    data, total_kills, total_healed, total_shielded, total_rage, total_damage_reduced
+                    data, total_kills, total_healed, total_shielded, total_rage_reduced, total_rage, total_damage_reduced
                 )
             )
         self.setLayout(layout)

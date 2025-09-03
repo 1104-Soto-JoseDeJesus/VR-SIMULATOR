@@ -100,12 +100,14 @@ class Army:
     skill_shield_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_rage_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_damage_reduction_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    skill_rage_reduction_totals: Dict[str, float] = field(init=False, default_factory=dict)
     # Totals contributed indirectly via boost effects
     skill_kill_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_heal_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_shield_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_rage_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_damage_reduction_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    skill_rage_reduction_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
 
     def __post_init__(self):
         self.reset_for_new_battle()
@@ -700,6 +702,7 @@ class Army:
                 base_dot_damage_for_log = 0.0
                 final_dot_multiplier_for_log = 1.0
                 dot_damage_after_target_debuffs = 0.0
+                total_positive_dot = 0.0
 
                 if is_special_dot:
                     snap_atk = effect.config.get('snapshotted_attacker_total_attack', 0.0)
@@ -895,6 +898,11 @@ class Army:
                     if reduction > 0 and self.current_rage > 0:
                         actual = min(self.current_rage, float(reduction))
                         self.current_rage -= actual
+                        if effect.source_skill_id:
+                            self.skill_rage_reduction_totals[effect.source_skill_id] = (
+                                self.skill_rage_reduction_totals.get(effect.source_skill_id, 0.0)
+                                + actual
+                            )
                         if self.simulator:
                             self.simulator._log_skill_trigger(
                                 self, effect.name,
@@ -1080,6 +1088,11 @@ class Army:
                 if reduction > 0 and self.current_rage > 0:
                     actual = min(self.current_rage, float(reduction))
                     self.current_rage -= actual
+                    if eff.source_skill_id:
+                        self.skill_rage_reduction_totals[eff.source_skill_id] = (
+                            self.skill_rage_reduction_totals.get(eff.source_skill_id, 0.0)
+                            + actual
+                        )
                     if self.simulator:
                         self.simulator._log_skill_trigger(
                             self,
@@ -1145,11 +1158,13 @@ class Army:
         self.skill_shield_totals.clear()
         self.skill_rage_totals.clear()
         self.skill_damage_reduction_totals.clear()
+        self.skill_rage_reduction_totals.clear()
         self.skill_kill_boost_totals.clear()
         self.skill_heal_boost_totals.clear()
         self.skill_shield_boost_totals.clear()
         self.skill_rage_boost_totals.clear()
         self.skill_damage_reduction_boost_totals.clear()
+        self.skill_rage_reduction_boost_totals.clear()
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

@@ -15,5 +15,5 @@ def test_cannot_target_same_team():
     b = make_army('B')
     engine.add_army(a, 'red', speed=0)
     engine.add_army(b, 'red', speed=0)
-    with pytest.raises(ValueError):
-        engine.set_direct_target('A', 'B')
+    engine.set_direct_target('A', 'B')
+    assert engine._armies['A'].direct_target is None

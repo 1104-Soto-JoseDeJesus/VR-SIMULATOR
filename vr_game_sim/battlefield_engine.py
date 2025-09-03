@@ -29,6 +29,7 @@ engine coordinates multiple duels at a higher level.
 from __future__ import annotations
 
 from collections import defaultdict, deque
+import logging
 import random
 from dataclasses import dataclass, field
 from math import atan2, cos, sin, hypot, pi, degrees, radians
@@ -339,16 +340,16 @@ class BattlefieldEngine:
         """Assign ``defender`` as the direct target for ``attacker``.
 
         ``defender`` may be ``None`` to clear an existing target.  Engagement
-        simulators and graph links are updated to mirror this assignment.  A
-        :class:`ValueError` is raised when attempting to target an army on the
-        same team as the attacker.  When a defender has no current target they
-        will automatically target the attacker in response.
+        simulators and graph links are updated to mirror this assignment.
+        When a defender has no current target they will automatically target
+        the attacker in response.
         """
 
         if attacker not in self._armies:
             raise KeyError("Attacker must be registered before engagement")
 
         atk_ctx = self._armies[attacker]
+
         if (
             self.mode == "arena"
             and defender is not None
@@ -358,26 +359,23 @@ class BattlefieldEngine:
         ):
             # In arena mode retain the first direct target until it is defeated.
             return
+
         old_target = atk_ctx.direct_target
-        if old_target:
-            # Remove active engagement if one exists
-            if (attacker, old_target) in self._engagements:
+
+        if defender is None:
+            if old_target:
+                # Remove engagement from attacker to old target
                 self._engagements.pop((attacker, old_target), None)
+                self._pending_engagements.pop((attacker, old_target), None)
                 self._graph[attacker].discard(old_target)
                 self._graph[old_target].discard(attacker)
                 if self._report_builder is not None:
                     self._report_builder.clear_builder(attacker, old_target)
-            # Remove any pending engagement for the old target
-            self._pending_engagements.pop((attacker, old_target), None)
-
-        if defender is None:
-            if old_target:
+                # Also clear reverse link if the old target still points back
                 rev_ctx = self._armies.get(old_target)
                 if rev_ctx and rev_ctx.direct_target == attacker:
                     self._engagements.pop((old_target, attacker), None)
                     self._pending_engagements.pop((old_target, attacker), None)
-                    self._graph[old_target].discard(attacker)
-                    self._graph[attacker].discard(old_target)
                     if self._report_builder is not None:
                         self._report_builder.clear_builder(old_target, attacker)
                     rev_ctx.direct_target = None
@@ -393,7 +391,21 @@ class BattlefieldEngine:
 
         def_ctx = self._armies[defender]
         if def_ctx.team == atk_ctx.team:
-            raise ValueError("Cannot engage armies on the same team")
+            logging.warning(
+                "Cannot engage armies on the same team: %s vs %s", attacker, defender
+            )
+            return
+
+        if old_target:
+            # Remove active engagement if one exists
+            if (attacker, old_target) in self._engagements:
+                self._engagements.pop((attacker, old_target), None)
+                self._graph[attacker].discard(old_target)
+                self._graph[old_target].discard(attacker)
+                if self._report_builder is not None:
+                    self._report_builder.clear_builder(attacker, old_target)
+            # Remove any pending engagement for the old target
+            self._pending_engagements.pop((attacker, old_target), None)
 
         atk_ctx.direct_target = defender
         atk_ctx.pursue_target = pursue

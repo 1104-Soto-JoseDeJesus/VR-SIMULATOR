@@ -98,6 +98,7 @@ class Army:
     skill_kill_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_heal_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_shield_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    skill_rage_totals: Dict[str, float] = field(init=False, default_factory=dict)
 
     def __post_init__(self):
         self.reset_for_new_battle()
@@ -119,14 +120,18 @@ class Army:
         )
         return 1.0 + bonus
 
-    def add_rage(self, amount: float) -> float:
-        """Add rage to the army, applying any Berserk Fury bonuses."""
+    def add_rage(self, amount: float, source_skill_id: Optional[str] = None) -> float:
+        """Add rage to the army, applying any Berserk Fury bonuses and track source."""
         if amount <= 0:
             return 0.0
         multiplier = self._get_rage_gain_multiplier()
         gained = math.floor(amount * multiplier + 1e-9)
         self.current_rage += gained
         self.rage_added_this_round += gained
+        if source_skill_id:
+            self.skill_rage_totals[source_skill_id] = (
+                self.skill_rage_totals.get(source_skill_id, 0.0) + gained
+            )
         return gained
 
     def _identify_hero_rage_skills(self):
@@ -717,7 +722,7 @@ class Army:
                     if start_gain_round <= current_round <= end_gain_round:
                         rage_to_gain = effect.config.get("rage_per_round", 0)
                         if rage_to_gain > 0:
-                            self.add_rage(rage_to_gain)
+                            self.add_rage(rage_to_gain, effect.source_skill_id)
 
             # Handle Olena's Concentration Rage Gain
             elif effect.name == EFFECT_NAME_CONCENTRATION_RAGE_GAIN and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
@@ -735,11 +740,11 @@ class Army:
                     # Round N+1 processing (first round after cast)
                     if current_sim_round == effect_applied_in_round + 1:
                         if base_rage > 0:
-                            gained = self.add_rage(base_rage)
+                            gained = self.add_rage(base_rage, effect.source_skill_id)
                             gained_this_tick += gained
                             log_parts.append(f"{gained:.0f} base rage")
                         if bonus_rage > 0 and bonus_applied_round == -1:  # Apply bonus only on the first tick if applicable
-                            gained_bonus = self.add_rage(bonus_rage)
+                            gained_bonus = self.add_rage(bonus_rage, effect.source_skill_id)
                             gained_this_tick += gained_bonus
                             effect.config["bonus_applied_round"] = current_sim_round  # Mark bonus as applied
                             log_parts.append(f"{gained_bonus:.0f} bonus rage")
@@ -747,7 +752,7 @@ class Army:
                     # Round N+2 processing (second round after cast)
                     elif current_sim_round == effect_applied_in_round + 2:
                         if base_rage > 0:
-                            gained = self.add_rage(base_rage)
+                            gained = self.add_rage(base_rage, effect.source_skill_id)
                             gained_this_tick += gained
                             log_parts.append(f"{gained:.0f} base rage")
 
@@ -759,7 +764,7 @@ class Army:
                 if phase == 'start_of_round' and effect.duration <= 0:
                     rage_amt = effect.config.get("rage_amount", 0)
                     if rage_amt > 0:
-                        gained = self.add_rage(rage_amt)
+                        gained = self.add_rage(rage_amt, effect.source_skill_id)
                         if self.simulator:
                             self.simulator._log_skill_trigger(
                                 self, effect.name,
@@ -1021,6 +1026,7 @@ class Army:
         self.skill_kill_totals.clear()
         self.skill_heal_totals.clear()
         self.skill_shield_totals.clear()
+        self.skill_rage_totals.clear()
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

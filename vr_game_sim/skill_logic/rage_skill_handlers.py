@@ -836,9 +836,10 @@ def handle_rage_all_kill(triggering_army: ArmyRef, opponent_army: ArmyRef,
     dmg_factor = cfg.get("damage_factor", 0.0)
 
     if dmg_factor > 0:
+        is_h2_delay = event_data.get("is_hero2_delayed_rage", False)
         hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, dmg_factor,
-            is_hero2_rage_skill=event_data.get("is_hero2_delayed_rage", False),
+            is_hero2_rage_skill=is_h2_delay,
             source_skill_def=skill_def)
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
@@ -848,6 +849,47 @@ def handle_rage_all_kill(triggering_army: ArmyRef, opponent_army: ArmyRef,
         log_details.append((f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
                            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed),
                             "potential_kills": kills}))
+
+        if simulator.mode in ("battlefield", "arena"):
+            engine = getattr(simulator, "parent_engine", None)
+            if engine:
+                attackers = engine.get_direct_attackers(triggering_army.name)
+                candidates = [e for e in attackers if e.name != opponent_army.name]
+                ctx_self = engine._armies.get(triggering_army.name)
+                ctx_direct = engine._armies.get(opponent_army.name)
+                if ctx_self and ctx_direct:
+                    hx, hy = ctx_self.position
+                    dx, dy = ctx_direct.position
+                    direct_ang = degrees(atan2(dy - hy, dx - hx))
+                    filtered: List[ArmyRef] = []
+                    for other in candidates:
+                        ctx_o = engine._armies.get(other.name)
+                        if not ctx_o:
+                            continue
+                        ox, oy = ctx_o.position
+                        ang = degrees(atan2(oy - hy, ox - hx))
+                        diff = abs((ang - direct_ang + 180) % 360 - 180)
+                        if diff <= 60:
+                            filtered.append(other)
+                    if len(filtered) > 2:
+                        filtered = random.sample(filtered, 2)
+                    for other in filtered:
+                        hp_dmg2, absorbed2, kills2, raw2 = simulator._calculate_generic_skill_damage(
+                            triggering_army, other, dmg_factor,
+                            is_hero2_rage_skill=is_h2_delay,
+                            source_skill_def=skill_def
+                        )
+                        if hp_dmg2 > 0:
+                            other.pending_hp_damage_this_round += hp_dmg2
+                            damage_dealt_flag = True
+                        if hp_dmg2 > 0 or absorbed2 > 0:
+                            an_effect_happened = True
+                        log_details.append(
+                            (
+                                f"Deals damage (Factor: {dmg_factor}) to {other.name}.",
+                                {"damage_done_hp": round(raw2), "absorbed_hp": round(absorbed2), "potential_kills": kills2}
+                            )
+                        )
 
     atk_buff = cfg.get("attack_buff", 0.0)
     atk_dur = cfg.get("attack_duration", 2)

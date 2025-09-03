@@ -16,11 +16,11 @@ QProgressBar[team="blue"]::chunk {
 }
 
 QProgressBar[class="healed"]::chunk {
-  background-color: #4caf50;
+  background-color: #006400;
 }
 
 QProgressBar[class="kills"]::chunk {
-  background-color: #e53935;
+  background-color: #8B0000;
 }
 
 QProgressBar[class="remaining"]::chunk {
@@ -28,11 +28,11 @@ QProgressBar[class="remaining"]::chunk {
 }
 
 QProgressBar[class="shielded"]::chunk {
-  background-color: #90caf9;
+  background-color: #00008B;
 }
 
 QProgressBar[class="rage"]::chunk {
-  background-color: #ff5722;
+  background-color: #4B0082;
 }
 
 HeroStatsWidget {
@@ -43,12 +43,12 @@ HeroStatsWidget {
 }
 
 QLabel.healed {
-  color: #4caf50;
+  color: #006400;
   font-weight: bold;
 }
 
 QLabel.kills {
-  color: #e53935;
+  color: #8B0000;
   font-weight: bold;
 }
 

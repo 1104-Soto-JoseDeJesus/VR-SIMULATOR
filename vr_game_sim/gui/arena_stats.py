@@ -287,6 +287,16 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 for skill_list in self._skills
                 for s in (skill_list or [])
             )
+            seen_ids: set[str] = set()
+            total_rage = 0
+            for skill_list in self._skills:
+                for s in (skill_list or []):
+                    sid = s.get("id")
+                    if sid == "base_rage" and sid in seen_ids:
+                        continue
+                    if sid == "base_rage":
+                        seen_ids.add(sid)
+                    total_rage += s.get("rage", 0)
 
             dlg = HeroSkillDialog(
                 hero_name,
@@ -294,6 +304,7 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 self._total_kills,
                 self._total_healed,
                 total_shielded,
+                total_rage,
                 self,
             )
             dlg.exec()
@@ -382,6 +393,7 @@ class SkillStatsRow(QtWidgets.QWidget):
         total_kills: int,
         total_healed: int,
         total_shielded: int,
+        total_rage: int,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -481,10 +493,34 @@ class SkillStatsRow(QtWidgets.QWidget):
         shield_bar.setProperty("class", "shielded")
         layout.addWidget(shield_bar, 0, 8)
 
+        rage_icon = QtWidgets.QLabel()
+        rage_path = os.path.join(
+            os.path.dirname(__file__), "..", "Icons", "Rage.png"
+        )
+        rage_pix = QtGui.QPixmap(rage_path)
+        if not rage_pix.isNull():
+            rage_icon.setPixmap(
+                rage_pix.scaled(
+                    size,
+                    size,
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        layout.addWidget(rage_icon, 0, 9)
+
+        rage_bar = QtWidgets.QProgressBar()
+        rage_bar.setRange(0, max(1, total_rage))
+        rage_bar.setValue(data.get("rage", 0))
+        rage_bar.setFormat(str(data.get("rage", 0)))
+        rage_bar.setProperty("class", "rage")
+        layout.addWidget(rage_bar, 0, 10)
+
         layout.setColumnStretch(0, 3)
         layout.setColumnStretch(4, 3)
         layout.setColumnStretch(6, 3)
         layout.setColumnStretch(8, 3)
+        layout.setColumnStretch(10, 3)
 
 
 class HeroSkillDialog(QtWidgets.QDialog):
@@ -497,6 +533,7 @@ class HeroSkillDialog(QtWidgets.QDialog):
         total_kills: int,
         total_healed: int,
         total_shielded: int,
+        total_rage: int,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -504,6 +541,10 @@ class HeroSkillDialog(QtWidgets.QDialog):
         self.setWindowTitle(f"{hero_name} Skill Breakdown")
         layout = QtWidgets.QVBoxLayout(self)
         for data in skills:
-            layout.addWidget(SkillStatsRow(data, total_kills, total_healed, total_shielded))
+            layout.addWidget(
+                SkillStatsRow(
+                    data, total_kills, total_healed, total_shielded, total_rage
+                )
+            )
         self.setLayout(layout)
 

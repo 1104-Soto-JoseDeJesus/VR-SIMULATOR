@@ -679,6 +679,12 @@ class BattlefieldEngine:
                 chain, blocked = find_chain(ref_angle, direction, 45)
                 opp_chain, opp_blocked = find_chain(ref_angle, -direction, 45)
 
+                if closest.arc_target_angle is not None:
+                    if closest.arc_direction == direction:
+                        blocked = True
+                    elif closest.arc_direction == -direction:
+                        opp_blocked = True
+
                 if len(prior) == 2:
                     other = prior[0] if prior[1] is closest else prior[1]
                     other_angle = angles[id(other)]
@@ -693,7 +699,7 @@ class BattlefieldEngine:
                         direction *= -1
                         chain, blocked = opp_chain, opp_blocked
 
-                if blocked and not (opp_chain or opp_blocked):
+                if blocked and not opp_blocked:
                     direction *= -1
                     chain, blocked = opp_chain, opp_blocked
 

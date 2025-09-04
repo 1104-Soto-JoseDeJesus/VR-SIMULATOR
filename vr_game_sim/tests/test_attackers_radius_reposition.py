@@ -163,6 +163,60 @@ def test_flip_when_blocked_by_stationary_army_not_on_slot():
     assert ang3 == pytest.approx(315, abs=1)
 
 
+def test_arrival_blocked_by_moving_neighbour_slides_free_side():
+    engine = BattlefieldEngine()
+    lead = make_army('Lead')
+    helper = make_army('Helper')
+    mover = make_army('Mover')
+    newcomer = make_army('New')
+    dfd = make_army('D')
+
+    engine.add_army(lead, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    angle = math.radians(30)
+    engine.add_army(
+        helper,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    angle = math.radians(-5)
+    engine.add_army(
+        mover,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    angle = math.radians(-2)
+    engine.add_army(
+        newcomer,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    engine.add_army(dfd, 'blue', position=(0, 0), speed=0)
+
+    engine.engage('Lead', 'D')
+    engine.tick(1.0)
+    engine.engage('Helper', 'D')
+    engine.tick(1.0)
+    engine.engage('Mover', 'D')
+    engine.tick(1.0)
+    engine.engage('New', 'D')
+    start = angle_between(engine, 'New', 'D')
+    engine.tick(1.0)  # activate engagement
+    engine.tick(1.0)  # compute slide direction
+    assert engine._armies['New'].arc_direction == 1
+    after = angle_between(engine, 'New', 'D')
+    diff = (after - start + 360) % 360
+    assert 0 < diff < 180
+
+    engine.tick(6.0)
+    assert angle_between(engine, 'New', 'D') == pytest.approx(45, abs=1)
+
+    engine.tick(2.0)
+    assert angle_between(engine, 'New', 'D') == pytest.approx(45, abs=1)
+
+
 def test_pushes_blocking_army_when_farther_than_10_degrees():
     engine = BattlefieldEngine()
     atk1 = make_army('A1')

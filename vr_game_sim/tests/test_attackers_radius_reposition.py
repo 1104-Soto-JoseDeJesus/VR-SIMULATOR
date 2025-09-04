@@ -15,14 +15,15 @@ def angle_between(engine: BattlefieldEngine, name: str, defender: str) -> float:
     dx, dy = dfd.position
     return (math.degrees(math.atan2(ay - dy, ax - dx)) + 360) % 360
 
-def test_second_attacker_moves_counterclockwise_when_close():
+@pytest.mark.parametrize("offset", [5, -5])
+def test_second_attacker_moves_clockwise_when_close(offset):
     engine = BattlefieldEngine()
     atk1 = make_army('A1')
     atk2 = make_army('A2')
     dfd = make_army('D')
 
     engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
-    angle = math.radians(5)
+    angle = math.radians(offset)
     engine.add_army(
         atk2,
         'red',
@@ -37,7 +38,7 @@ def test_second_attacker_moves_counterclockwise_when_close():
     engine.tick(1.0)
 
     engine.tick(8.0)
-    assert angle_between(engine, 'A2', 'D') == pytest.approx(45, abs=1)
+    assert angle_between(engine, 'A2', 'D') == pytest.approx(315, abs=1)
 
 def test_third_attacker_prefers_less_populated_side():
     engine = BattlefieldEngine()

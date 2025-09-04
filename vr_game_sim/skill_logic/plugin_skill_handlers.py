@@ -355,10 +355,17 @@ def handle_plugin_awakening(
     if cleanse_effect_data_template:
         debuffs_to_target_ids = []
         for eff in triggering_army.active_effects:  # Check current active effects
-            is_debuff = (eff.effect_type == EffectType.DEBUFF or
-                         eff.config.get("prevents_counterattack") or
-                         eff.config.get("prevents_basic_attack") or
-                         eff.name == EFFECT_NAME_SILENCE_DEBUFF)  # Include silence
+            is_debuff = (
+                eff.effect_type == EffectType.DEBUFF
+                or (
+                    eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                    and eff.config.get("dot_type")
+                    in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+                )
+                or eff.config.get("prevents_counterattack")
+                or eff.config.get("prevents_basic_attack")
+                or eff.name == EFFECT_NAME_SILENCE_DEBUFF
+            )  # Include silence
             if is_debuff:
                 debuffs_to_target_ids.append(eff.id)
 
@@ -895,10 +902,17 @@ def handle_plugin_wild_indulgence(
 
     debuffs_to_target_ids = []
     for eff in triggering_army.active_effects:
-        is_debuff = (eff.effect_type == EffectType.DEBUFF or
-                     eff.config.get("prevents_counterattack") or
-                     eff.config.get("prevents_basic_attack") or
-                     eff.name == EFFECT_NAME_SILENCE_DEBUFF)
+        is_debuff = (
+            eff.effect_type == EffectType.DEBUFF
+            or (
+                eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                and eff.config.get("dot_type")
+                in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+            )
+            or eff.config.get("prevents_counterattack")
+            or eff.config.get("prevents_basic_attack")
+            or eff.name == EFFECT_NAME_SILENCE_DEBUFF
+        )
         if is_debuff:
             debuffs_to_target_ids.append(eff.id)
 
@@ -972,10 +986,17 @@ def handle_plugin_breaking_free(
 
     debuffs_to_target_ids = []
     for eff in triggering_army.active_effects:
-        is_debuff = (eff.effect_type == EffectType.DEBUFF or
-                     eff.config.get("prevents_counterattack") or
-                     eff.config.get("prevents_basic_attack") or
-                     eff.name == EFFECT_NAME_SILENCE_DEBUFF)
+        is_debuff = (
+            eff.effect_type == EffectType.DEBUFF
+            or (
+                eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                and eff.config.get("dot_type")
+                in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+            )
+            or eff.config.get("prevents_counterattack")
+            or eff.config.get("prevents_basic_attack")
+            or eff.name == EFFECT_NAME_SILENCE_DEBUFF
+        )
         if is_debuff:
             debuffs_to_target_ids.append(eff.id)
 
@@ -1813,6 +1834,11 @@ def handle_plugin_halo_of_sacrifice(
     for eff in triggering_army.active_effects:
         is_debuff = (
             eff.effect_type == EffectType.DEBUFF
+            or (
+                eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                and eff.config.get("dot_type")
+                in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+            )
             or eff.config.get("prevents_counterattack")
             or eff.config.get("prevents_basic_attack")
             or eff.name == EFFECT_NAME_SILENCE_DEBUFF

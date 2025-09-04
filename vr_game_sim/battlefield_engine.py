@@ -655,28 +655,34 @@ class BattlefieldEngine:
                     if not direction:
                         continue
 
-                    def find_chain(start_angle: float, dir_: int, step_angle: float) -> List[_ArmyContext]:
+                    def find_chain(start_angle: float, dir_: int, step_angle: float) -> Tuple[List[_ArmyContext], bool]:
                         chain: List[_ArmyContext] = []
-                        angle = (start_angle + dir_ * step_angle) % 360
+                        angle = start_angle
+                        blocked = False
                         while True:
                             found = None
+                            nearest = step_angle + 5  # small tolerance
                             for n in neighbours:
-                                if n is ctx:
+                                if n is ctx or n in chain:
                                     continue
                                 ang = angles[id(n)]
-                                if abs((ang - angle + 180) % 360 - 180) <= 5:
+                                delta = (ang - angle + 360) % 360 if dir_ == 1 else (angle - ang + 360) % 360
+                                if 0 < delta <= nearest:
+                                    nearest = delta
                                     found = n
-                                    break
-                            if found is None:
+                            if found is None or nearest > step_angle + 5:
+                                break
+                            if found.arc_target_angle is not None:
+                                blocked = True
                                 break
                             chain.append(found)
-                            angle = (angle + dir_ * step_angle) % 360
-                        return chain
+                            angle = angles[id(found)]
+                        return chain, blocked
 
-                    chain = find_chain(other_angle, direction, 45)
-                    opp_chain = find_chain(other_angle, -direction, 45)
+                    chain, blocked = find_chain(other_angle, direction, 45)
+                    opp_chain, opp_blocked = find_chain(other_angle, -direction, 45)
 
-                    if chain and abs(diff) <= 10 and not opp_chain:
+                    if (chain or blocked) and abs(diff) <= 10 and not (opp_chain or opp_blocked):
                         # Target blocked but opposite free and we are very
                         # close to ``other`` – flip direction.
                         direction *= -1

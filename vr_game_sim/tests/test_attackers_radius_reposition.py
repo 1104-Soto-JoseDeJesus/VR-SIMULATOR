@@ -6,7 +6,7 @@ from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANC
 
 
 def make_army(name: str) -> Army:
-    unit = Unit('pikemen', 5, initial_count=1000)
+    unit = Unit('pikemen', 5, initial_count=100000)
     return Army(name, unit)
 
 
@@ -45,6 +45,134 @@ def test_later_attacker_slides_clockwise_when_too_close():
     ang2 = angle_between(engine, 'A2', 'D')
     diff = (ang2 - ang1 + 180) % 360 - 180
     assert diff == pytest.approx(-45, abs=1)
+
+
+def test_switch_to_opposite_when_target_blocked_within_10_degrees():
+    engine = BattlefieldEngine()
+    atk1 = make_army('A1')
+    atk2 = make_army('A2')
+    atk3 = make_army('A3')
+    dfd = make_army('D')
+
+    engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    angle = math.radians(-45)
+    engine.add_army(
+        atk2,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    angle = math.radians(5)
+    engine.add_army(
+        atk3,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    engine.add_army(dfd, 'blue', position=(0, 0), speed=0)
+
+    engine.engage('A1', 'D')
+    engine.tick(1.0)
+    engine.engage('A2', 'D')
+    engine.tick(1.0)
+    engine.engage('A3', 'D')
+    engine.tick(1.0)
+
+    engine.tick(8.0)
+
+    ang3 = angle_between(engine, 'A3', 'D')
+    assert ang3 == pytest.approx(45, abs=1)
+
+
+def test_pushes_blocking_army_when_farther_than_10_degrees():
+    engine = BattlefieldEngine()
+    atk1 = make_army('A1')
+    atk2 = make_army('A2')
+    atk3 = make_army('A3')
+    dfd = make_army('D')
+
+    engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    angle = math.radians(-45)
+    engine.add_army(
+        atk2,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    angle = math.radians(-20)
+    engine.add_army(
+        atk3,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    engine.add_army(dfd, 'blue', position=(0, 0), speed=0)
+
+    engine.engage('A1', 'D')
+    engine.tick(1.0)
+    engine.engage('A2', 'D')
+    engine.tick(1.0)
+    engine.engage('A3', 'D')
+    engine.tick(1.0)
+
+    engine.tick(8.0)
+
+    ang2 = angle_between(engine, 'A2', 'D')
+    ang3 = angle_between(engine, 'A3', 'D')
+    diff = (ang3 - ang2 + 180) % 360 - 180
+    assert ang3 == pytest.approx(315, abs=1)
+    assert diff == pytest.approx(45, abs=1)
+
+
+def test_multiple_armies_same_direction_uses_25_degree_spacing():
+    engine = BattlefieldEngine()
+    atk1 = make_army('A1')
+    atk2 = make_army('A2')
+    atk3 = make_army('A3')
+    atk4 = make_army('A4')
+    dfd = make_army('D')
+
+    engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    angle = math.radians(-45)
+    engine.add_army(
+        atk2,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    angle = math.radians(-90)
+    engine.add_army(
+        atk3,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    angle = math.radians(-20)
+    engine.add_army(
+        atk4,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    engine.add_army(dfd, 'blue', position=(0, 0), speed=0)
+
+    engine.engage('A1', 'D')
+    engine.tick(1.0)
+    engine.engage('A2', 'D')
+    engine.tick(1.0)
+    engine.engage('A3', 'D')
+    engine.tick(1.0)
+    engine.engage('A4', 'D')
+    engine.tick(1.0)
+
+    engine.tick(8.0)
+
+    ang2 = angle_between(engine, 'A2', 'D')
+    ang3 = angle_between(engine, 'A3', 'D')
+    ang4 = angle_between(engine, 'A4', 'D')
+    assert ang4 == pytest.approx(335, abs=1)
+    assert ang2 == pytest.approx(310, abs=1)
+    assert ang3 == pytest.approx(285, abs=1)
 
 
 def test_clockwise_arrival_between_5_and_25_degrees_slides_clockwise():

@@ -246,8 +246,10 @@ class ArenaEngine(BattlefieldEngine):
                     ):
                         self.set_waypoint(front2["army"].name, midpoint)
 
-        # Temporarily boost speed for armies that must travel diagonally so
-        # they still reach their target in ~2 s despite wider row spacing.
+        row_map = {e["army"].name: e.get("row") for e in entries}
+
+        # Temporarily boost speed for armies that must travel diagonally or
+        # from the back row so engagements start at predictable times.
         for entry in entries:
             army = entry["army"]
             ctx = self._armies[army.name]
@@ -259,13 +261,22 @@ class ArenaEngine(BattlefieldEngine):
                 continue
             sx, sy = ctx.position
             tx, ty = tgt_ctx.position
-            if abs(sy - ty) < 1e-6:
-                continue  # same row
             dist = hypot(tx - sx, ty - sy)
-            required_sum = (dist - ENGAGEMENT_DISTANCE) / 2.0
-            needed_speed = required_sum - tgt_ctx.speed
-            if needed_speed > ctx.base_speed:
-                ctx.speed = needed_speed
+            attacker_row = entry.get("row")
+            target_row = row_map.get(target_name)
+            if attacker_row == 1 and target_row == 0:
+                # Back row moving to a front defender – boost to engage in ~4 s.
+                needed_speed = (
+                    dist - 2 * tgt_ctx.speed - ENGAGEMENT_DISTANCE
+                ) / 4.0
+                if needed_speed > ctx.base_speed:
+                    ctx.speed = needed_speed
+            elif abs(sy - ty) > 1e-6:
+                # Diagonal engagement – ensure it completes in roughly 2 s.
+                required_sum = (dist - ENGAGEMENT_DISTANCE) / 2.0
+                needed_speed = required_sum - tgt_ctx.speed + 0.1
+                if needed_speed > ctx.base_speed:
+                    ctx.speed = needed_speed
 
         # Queue march orders (either waypoints or direct engagements)
         for entry in entries:

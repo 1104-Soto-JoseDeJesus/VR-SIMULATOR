@@ -288,7 +288,25 @@ class ArenaEngine(BattlefieldEngine):
                 # travel time remains safely below the 2 s round boundary,
                 # accounting for the initial simulation step and float error.
                 required_sum = (dist - ENGAGEMENT_DISTANCE) / 1.87
-                needed_speed = required_sum - tgt_ctx.speed
+
+                # ``tgt_ctx`` may itself be marching towards a different
+                # opponent.  Only the component of its movement along the
+                # attacker's approach vector helps close the distance.  Project
+                # the defender's velocity onto the attack vector to obtain this
+                # contribution.
+                tgt_component = 0.0
+                if tgt_ctx.direct_target:
+                    other = self._armies.get(tgt_ctx.direct_target)
+                    if other is not None:
+                        mx, my = other.position[0] - tx, other.position[1] - ty
+                        mv_dist = hypot(mx, my)
+                        if mv_dist > 1e-6:
+                            ux, uy = mx / mv_dist, my / mv_dist
+                            ax = (tx - sx) / dist
+                            ay = (ty - sy) / dist
+                            tgt_component = tgt_ctx.speed * (ax * ux + ay * uy)
+
+                needed_speed = required_sum + tgt_component
                 if needed_speed > ctx.base_speed:
                     ctx.speed = needed_speed
 

@@ -682,11 +682,11 @@ class BattlefieldEngine:
                     chain, blocked = find_chain(other_angle, direction, 45)
                     opp_chain, opp_blocked = find_chain(other_angle, -direction, 45)
 
-                    if (chain or blocked) and abs(diff) <= 10 and not (opp_chain or opp_blocked):
-                        # Target blocked but opposite free and we are very
-                        # close to ``other`` – flip direction.
+                    if (chain or blocked) and not (opp_chain or opp_blocked):
+                        # Target blocked but opposite free – flip direction.
                         direction *= -1
-                        chain = []
+                        chain = opp_chain
+                        blocked = opp_blocked
 
                     chain_full = [ctx] + chain
                     step_angle = 45

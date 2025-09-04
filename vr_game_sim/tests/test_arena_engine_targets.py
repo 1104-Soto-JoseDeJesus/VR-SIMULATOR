@@ -1,3 +1,6 @@
+import pytest
+from math import hypot
+
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.army_composition import Army
 from vr_game_sim.arena_engine import ArenaEngine
@@ -161,3 +164,39 @@ def test_front_unit_attacks_back_only_after_front_defeated():
         for round_data in post_rounds
         for action in round_data["combat_actions"]
     )
+
+
+def test_diagonal_misaligned_target_speed_boost():
+    engine = ArenaEngine()
+    diag = make_army("diag")
+    front = make_army("front")
+    enemy = make_army("enemy")
+
+    layout = {
+        "red": [
+            {"army": front, "position": (-130.0, 37.5), "column": 2, "row": 0},
+            {"army": diag, "position": (-130.0, 112.5), "column": 3, "row": 0},
+        ],
+        "blue": [
+            {"army": enemy, "position": (130.0, -37.5), "column": 1, "row": 0},
+        ],
+    }
+
+    engine.start_arena_battle(layout)
+
+    ctx_diag = engine._armies[diag.name]
+    ctx_enemy = engine._armies[enemy.name]
+
+    sx, sy = ctx_diag.position
+    tx, ty = ctx_enemy.position
+    dist = hypot(tx - sx, ty - sy)
+    required_sum = (dist - ENGAGEMENT_DISTANCE) / 1.87
+    def_ctx = engine._armies[ctx_enemy.direct_target]
+    mx, my = def_ctx.position[0] - tx, def_ctx.position[1] - ty
+    mv_dist = hypot(mx, my)
+    ux, uy = mx / mv_dist, my / mv_dist
+    ax = (tx - sx) / dist
+    ay = (ty - sy) / dist
+    expected_speed = required_sum + ctx_enemy.speed * (ax * ux + ay * uy)
+
+    assert ctx_diag.speed == pytest.approx(expected_speed, abs=0.01)

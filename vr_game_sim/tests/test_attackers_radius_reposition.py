@@ -84,6 +84,43 @@ def test_switch_to_opposite_when_target_blocked_within_10_degrees():
     assert ang3 == pytest.approx(45, abs=1)
 
 
+def test_flip_when_blocked_by_stationary_army_not_on_slot():
+    engine = BattlefieldEngine()
+    atk1 = make_army('A1')
+    atk2 = make_army('A2')
+    atk3 = make_army('A3')
+    dfd = make_army('D')
+
+    engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    angle = math.radians(30)
+    engine.add_army(
+        atk2,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    angle = math.radians(5)
+    engine.add_army(
+        atk3,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    engine.add_army(dfd, 'blue', position=(0, 0), speed=0)
+
+    engine.engage('A1', 'D')
+    engine.tick(1.0)
+    engine.engage('A2', 'D')
+    engine.tick(1.0)
+    engine.engage('A3', 'D')
+    engine.tick(1.0)
+
+    engine.tick(8.0)
+
+    ang3 = angle_between(engine, 'A3', 'D')
+    assert ang3 == pytest.approx(315, abs=1)
+
+
 def test_pushes_blocking_army_when_farther_than_10_degrees():
     engine = BattlefieldEngine()
     atk1 = make_army('A1')

@@ -654,7 +654,7 @@ class BattlefieldEngine:
                 direction = 1 if diff > 0 else -1
                 if -10 <= diff <= 10:
                     if len(placed) == 1:
-                        direction = 1
+                        direction = -1
                     else:
                         max_steps = 180 // ref_deg
                         cw_count = sum(

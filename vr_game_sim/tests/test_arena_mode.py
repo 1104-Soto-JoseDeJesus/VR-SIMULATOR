@@ -210,7 +210,7 @@ def test_diagonal_engagement_time():
     from math import hypot
 
     dist = hypot(pos_b[0] - pos_a[0], pos_b[1] - pos_a[1])
-    required_sum = (dist - ENGAGEMENT_DISTANCE) / 1.9
+    required_sum = (dist - ENGAGEMENT_DISTANCE) / 1.87
     ctx_a = engine._armies[a.name]
     ctx_b = engine._armies[b.name]
     assert ctx_a.speed + ctx_b.speed == pytest.approx(required_sum)
@@ -261,7 +261,7 @@ def test_diagonal_attacker_arrives_with_frontline():
         if hypot(dx - ex, dy - ey) <= ENGAGEMENT_DISTANCE:
             break
         assert elapsed < 3.0
-    assert elapsed == pytest.approx(2.0, abs=0.051)
+    assert elapsed == pytest.approx(1.95, abs=0.051)
 
 
 def test_backrow_engagement_time():

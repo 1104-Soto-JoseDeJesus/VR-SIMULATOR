@@ -276,9 +276,9 @@ class ArenaEngine(BattlefieldEngine):
                 # Diagonal attackers previously reached their target a full
                 # combat round later when another friendly was already
                 # engaging the defender.  Boost their speed so the combined
-                # travel time remains slightly below the 2 s round boundary,
-                # accounting for the initial simulation step.
-                required_sum = (dist - ENGAGEMENT_DISTANCE) / 1.9
+                # travel time remains safely below the 2 s round boundary,
+                # accounting for the initial simulation step and float error.
+                required_sum = (dist - ENGAGEMENT_DISTANCE) / 1.87
                 needed_speed = required_sum - tgt_ctx.speed
                 if needed_speed > ctx.base_speed:
                     ctx.speed = needed_speed

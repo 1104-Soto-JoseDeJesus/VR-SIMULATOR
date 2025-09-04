@@ -272,9 +272,11 @@ class ArenaEngine(BattlefieldEngine):
                 if needed_speed > ctx.base_speed:
                     ctx.speed = needed_speed
             elif abs(sy - ty) > 1e-6:
-                # Diagonal engagement – ensure it completes in roughly 2 s.
-                required_sum = (dist - ENGAGEMENT_DISTANCE) / 2.0
-                needed_speed = required_sum - tgt_ctx.speed + 0.1
+                # Diagonal engagement – ensure it completes in exactly 2 s.
+                # Account for the initial simulation step so diagonal units meet
+                # at the same time as opposing front‑line units.
+                required_sum = (dist - ENGAGEMENT_DISTANCE) / 1.95
+                needed_speed = required_sum - tgt_ctx.speed
                 if needed_speed > ctx.base_speed:
                     ctx.speed = needed_speed
 

@@ -210,10 +210,10 @@ def test_diagonal_engagement_time():
     from math import hypot
 
     dist = hypot(pos_b[0] - pos_a[0], pos_b[1] - pos_a[1])
-    required_sum = (dist - ENGAGEMENT_DISTANCE) / 2.0
+    required_sum = (dist - ENGAGEMENT_DISTANCE) / 1.95
     ctx_a = engine._armies[a.name]
     ctx_b = engine._armies[b.name]
-    assert ctx_a.speed + ctx_b.speed == pytest.approx(required_sum + 0.1)
+    assert ctx_a.speed + ctx_b.speed == pytest.approx(required_sum)
 
     elapsed = 0.0
     while True:

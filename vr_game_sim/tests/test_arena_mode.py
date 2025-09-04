@@ -299,3 +299,40 @@ def test_backrow_engagement_time():
             break
         assert elapsed < 6.0
     assert elapsed == pytest.approx(4.0, abs=0.051)
+
+
+def test_diagonal_backrow_engagement_time():
+    app = _get_app()
+    from vr_game_sim.gui_main import ArenaTab
+    from math import hypot
+
+    tab = ArenaTab()
+    pos_front = tab.slot_coords["team1"][1]
+    pos_back = tab.slot_coords["team1"][4]
+    pos_enemy = tab.slot_coords["team2"][1]
+
+    front = make_army("F")
+    back = make_army("B")
+    enemy = make_army("E")
+
+    layout = {
+        "red": [
+            {"army": front, "position": pos_front, "column": 1, "row": 0},
+            {"army": back, "position": pos_back, "column": 0, "row": 1},
+        ],
+        "blue": [{"army": enemy, "position": pos_enemy, "column": 1, "row": 0}],
+    }
+
+    engine = ArenaEngine()
+    engine.start_arena_battle(layout)
+
+    elapsed = 0.0
+    while True:
+        engine.tick(0.05)
+        elapsed += 0.05
+        bx, by = engine._armies[back.name].position
+        ex, ey = engine._armies[enemy.name].position
+        if hypot(bx - ex, by - ey) <= ENGAGEMENT_DISTANCE:
+            break
+        assert elapsed < 6.0
+    assert elapsed == pytest.approx(4.0, abs=0.051)

@@ -266,9 +266,18 @@ class ArenaEngine(BattlefieldEngine):
             target_row = row_map.get(target_name)
             if attacker_row == 1 and target_row == 0:
                 # Back row moving to a front defender – boost to engage in ~4 s.
-                needed_speed = (
-                    dist - 2 * tgt_ctx.speed - ENGAGEMENT_DISTANCE
-                ) / 4.0
+                # Use the defender's base speed for a theoretical forward
+                # advance.  ``tgt_ctx.speed`` may have been temporarily
+                # increased by another attacker which would otherwise reduce
+                # the calculated requirement here and make diagonal back row
+                # arrivals miss the 4 s window.
+                final_dx = (tx - sx) - 2 * tgt_ctx.base_speed
+                final_dy = ty - sy
+                required_dist = hypot(final_dx, final_dy) - ENGAGEMENT_DISTANCE
+                # Apply a small fudge factor (3.95 instead of 4) so the
+                # engagement completes before the 4 s mark even with discrete
+                # simulation steps.
+                needed_speed = required_dist / 3.95
                 if needed_speed > ctx.base_speed:
                     ctx.speed = needed_speed
             elif abs(sy - ty) > 1e-6:

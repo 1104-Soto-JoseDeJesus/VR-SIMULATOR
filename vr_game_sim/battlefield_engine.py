@@ -625,36 +625,77 @@ class BattlefieldEngine:
             centre_ctx = self._armies[centre]
             cx, cy = centre_ctx.position
             neighbours.sort(key=lambda c: c.engaged_at)
+            angles = {
+                id(n): (degrees(atan2(n.position[1] - cy, n.position[0] - cx)) + 360) % 360
+                for n in neighbours
+            }
             for idx in range(1, len(neighbours)):
                 ctx = neighbours[idx]
                 if ctx.arc_target_angle is not None:
                     continue
-                sx, sy = ctx.position
-                curr_angle = degrees(atan2(sy - cy, sx - cx))
-                curr_angle = (curr_angle + 360) % 360
+                curr_angle = angles[id(ctx)]
                 for j in range(idx):
                     other = neighbours[j]
-                    ox, oy = other.position
-                    other_angle = degrees(atan2(oy - cy, ox - cx))
-                    other_angle = (other_angle + 360) % 360
+                    other_angle = angles[id(other)]
                     diff = (curr_angle - other_angle + 180) % 360 - 180
                     # ``diff`` represents how many degrees ``ctx`` sits
                     # clockwise (negative) or anti-clockwise (positive) from
                     # ``other`` based on their current centre positions. Late
                     # arrivals 5° anti-clockwise to 25° clockwise slide 45°
                     # clockwise to make room; those 5.1–25° anti-clockwise
-                    # instead slide 45° anti-clockwise.
+                    # instead slide 45° anti-clockwise.  When the target
+                    # direction is already occupied we may flip to the opposite
+                    # side or push existing armies further around the circle.
 
-                    if -25 <= diff <= 5:
-                        ctx.arc_target_angle = (other_angle - 45) % 360
-                        ctx.arc_direction = -1
-                        ctx.path.clear()
-                        break
-                    elif 5 < diff <= 25:
-                        ctx.arc_target_angle = (other_angle + 45) % 360
-                        ctx.arc_direction = 1
-                        ctx.path.clear()
-                        break
+                    direction = 0
+                    if -25 < diff <= 5:
+                        direction = -1
+                    elif 5 < diff < 25:
+                        direction = 1
+                    if not direction:
+                        continue
+
+                    def find_chain(start_angle: float, dir_: int, step_angle: float) -> List[_ArmyContext]:
+                        chain: List[_ArmyContext] = []
+                        angle = (start_angle + dir_ * step_angle) % 360
+                        while True:
+                            found = None
+                            for n in neighbours:
+                                if n is ctx:
+                                    continue
+                                ang = angles[id(n)]
+                                if abs((ang - angle + 180) % 360 - 180) <= 5:
+                                    found = n
+                                    break
+                            if found is None:
+                                break
+                            chain.append(found)
+                            angle = (angle + dir_ * step_angle) % 360
+                        return chain
+
+                    chain = find_chain(other_angle, direction, 45)
+                    opp_chain = find_chain(other_angle, -direction, 45)
+
+                    if chain and abs(diff) <= 10 and not opp_chain:
+                        # Target blocked but opposite free and we are very
+                        # close to ``other`` – flip direction.
+                        direction *= -1
+                        chain = []
+
+                    chain_full = [ctx] + chain
+                    step_angle = 45
+                    if len(chain_full) > 2:
+                        step_angle = 25
+
+                    for i, army in enumerate(chain_full):
+                        target = (other_angle + direction * step_angle * (i + 1)) % 360
+                        curr = angles[id(army)]
+                        cw = (curr - target + 360) % 360
+                        ccw = (target - curr + 360) % 360
+                        army.arc_target_angle = target
+                        army.arc_direction = 1 if ccw <= cw else -1
+                        army.path.clear()
+                    break
 
         # Progress any pending angular repositioning along the engagement
         # radius.  Combat continues while armies slide along the circle.

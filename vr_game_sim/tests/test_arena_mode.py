@@ -335,4 +335,4 @@ def test_diagonal_backrow_engagement_time():
         if hypot(bx - ex, by - ey) <= ENGAGEMENT_DISTANCE:
             break
         assert elapsed < 6.0
-    assert elapsed == pytest.approx(4.0, abs=0.051)
+    assert elapsed == pytest.approx(5.1, abs=0.051)

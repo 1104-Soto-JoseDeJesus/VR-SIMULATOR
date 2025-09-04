@@ -271,9 +271,14 @@ class ArenaEngine(BattlefieldEngine):
                 # increased by another attacker which would otherwise reduce
                 # the calculated requirement here and make diagonal back row
                 # arrivals miss the 4 s window.
-                final_dx = (tx - sx) - 2 * tgt_ctx.base_speed
-                final_dy = ty - sy
-                required_dist = hypot(final_dx, final_dy) - ENGAGEMENT_DISTANCE
+                dx = tx - sx
+                dy = ty - sy
+                mv = 2 * tgt_ctx.base_speed
+                dist_vec = hypot(dx, dy)
+                if dist_vec > 1e-6:
+                    dx -= mv * dx / dist_vec
+                    dy -= mv * dy / dist_vec
+                required_dist = hypot(dx, dy) - ENGAGEMENT_DISTANCE
                 # Apply a small fudge factor (3.95 instead of 4) so the
                 # engagement completes before the 4 s mark even with discrete
                 # simulation steps.

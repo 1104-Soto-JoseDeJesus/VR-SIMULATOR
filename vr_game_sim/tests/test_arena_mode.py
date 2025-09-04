@@ -210,7 +210,7 @@ def test_diagonal_engagement_time():
     from math import hypot
 
     dist = hypot(pos_b[0] - pos_a[0], pos_b[1] - pos_a[1])
-    required_sum = (dist - ENGAGEMENT_DISTANCE) / 1.95
+    required_sum = (dist - ENGAGEMENT_DISTANCE) / 1.9
     ctx_a = engine._armies[a.name]
     ctx_b = engine._armies[b.name]
     assert ctx_a.speed + ctx_b.speed == pytest.approx(required_sum)
@@ -222,6 +222,43 @@ def test_diagonal_engagement_time():
         ax, ay = engine._armies[a.name].position
         bx, by = engine._armies[b.name].position
         if hypot(ax - bx, ay - by) <= ENGAGEMENT_DISTANCE:
+            break
+        assert elapsed < 3.0
+    assert elapsed == pytest.approx(1.9, abs=0.051)
+
+
+def test_diagonal_attacker_arrives_with_frontline():
+    app = _get_app()
+    from vr_game_sim.gui_main import ArenaTab
+    from math import hypot
+
+    tab = ArenaTab()
+    pos_diag = tab.slot_coords["team1"][0]
+    pos_front = tab.slot_coords["team1"][1]
+    pos_enemy = tab.slot_coords["team2"][1]
+
+    diag = make_army("D")
+    front = make_army("F")
+    enemy = make_army("E")
+
+    layout = {
+        "red": [
+            {"army": front, "position": pos_front, "column": 1, "row": 0},
+            {"army": diag, "position": pos_diag, "column": 0, "row": 0},
+        ],
+        "blue": [{"army": enemy, "position": pos_enemy, "column": 1, "row": 0}],
+    }
+
+    engine = ArenaEngine()
+    engine.start_arena_battle(layout)
+
+    elapsed = 0.0
+    while True:
+        engine.tick(0.05)
+        elapsed += 0.05
+        dx, dy = engine._armies[diag.name].position
+        ex, ey = engine._armies[enemy.name].position
+        if hypot(dx - ex, dy - ey) <= ENGAGEMENT_DISTANCE:
             break
         assert elapsed < 3.0
     assert elapsed == pytest.approx(2.0, abs=0.051)

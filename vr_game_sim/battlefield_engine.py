@@ -83,6 +83,10 @@ class _ArmyContext:
     # indicates no pending repositioning.
     arc_target_angle: Optional[float] = None
     arc_direction: int = 0
+    # Relative slot index around the engagement ring.  ``0`` denotes the
+    # first army to arrive at a target and serves as the reference for all
+    # later positioning.
+    arc_index: int = 0
     # Flag indicating whether passive effects have been reset during the
     # current idle period.  Prevents repeated reapplication of passive skills
     # while an army remains out of combat.
@@ -387,6 +391,7 @@ class BattlefieldEngine:
             atk_ctx.pursue_target = False
             atk_ctx.arc_target_angle = None
             atk_ctx.arc_direction = 0
+            atk_ctx.arc_index = 0
             atk_ctx.engaged_at = 0.0
             return
 
@@ -401,6 +406,7 @@ class BattlefieldEngine:
         atk_ctx.pursue_target = pursue
         atk_ctx.arc_target_angle = None
         atk_ctx.arc_direction = 0
+        atk_ctx.arc_index = 0
         atk_ctx.engaged_at = 0.0
 
         # Compute initial path that stops ``ENGAGEMENT_DISTANCE`` units short of
@@ -610,113 +616,84 @@ class BattlefieldEngine:
                 atk_ctx.path.clear()
                 dfd_ctx.path.clear()
 
-        # Reposition attackers on the engagement radius if they cluster too
-        # closely in angle around their defender.  Later arrivals slide along
-        # the circle to maintain at least 20 degrees separation and end up 45
-        # degrees away from the unit they were crowding.
+        # Reposition attackers around each defender based on arrival order.
         groups: Dict[str, List[_ArmyContext]] = defaultdict(list)
         for (atk, dfd), _ in self._engagements.items():
             groups[dfd].append(self._armies[atk])
-            groups[atk].append(self._armies[dfd])
 
-        for centre, neighbours in groups.items():
-            if len(neighbours) < 2:
+        for centre, attackers in groups.items():
+            if len(attackers) < 2:
                 continue
             centre_ctx = self._armies[centre]
             cx, cy = centre_ctx.position
-            neighbours.sort(key=lambda c: c.engaged_at)
+            attackers.sort(key=lambda c: c.engaged_at)
+            base = attackers[0]
+            shift = base.arc_index
+            for ctx in attackers:
+                ctx.arc_index -= shift
+            base.arc_index = 0
             angles = {
-                id(n): (degrees(atan2(n.position[1] - cy, n.position[0] - cx)) + 360) % 360
-                for n in neighbours
+                id(a): (degrees(atan2(a.position[1] - cy, a.position[0] - cx)) + 360) % 360
+                for a in attackers
             }
-            for idx in range(1, len(neighbours)):
-                ctx = neighbours[idx]
-                if ctx.arc_target_angle is not None:
+            ref_deg = 45 if len(attackers) <= 5 else 30
+            base_angle = angles[id(base)]
+
+            placed = [base]
+            for ctx in attackers[1:]:
+                if ctx.arc_index != 0:
+                    placed.append(ctx)
                     continue
                 curr_angle = angles[id(ctx)]
-
-                prior = neighbours[:idx]
                 closest = min(
-                    prior,
-                    key=lambda n: abs((curr_angle - angles[id(n)] + 180) % 360 - 180),
+                    placed,
+                    key=lambda n: abs((curr_angle - (base_angle + n.arc_index * ref_deg) + 180) % 360 - 180),
                 )
-                ref_angle = angles[id(closest)]
+                ref_angle = (base_angle + closest.arc_index * ref_deg) % 360
                 diff = (curr_angle - ref_angle + 180) % 360 - 180
-                # ``diff`` represents how many degrees ``ctx`` sits clockwise
-                # (negative) or anti-clockwise (positive) from ``closest``.
-                direction = 0
-                if -25 < diff <= 5:
-                    direction = -1
-                elif 5 < diff < 25:
-                    direction = 1
-                if not direction:
-                    continue
+                direction = 1 if diff > 0 else -1
+                if -10 <= diff <= 10:
+                    if len(placed) == 1:
+                        direction = 1
+                    else:
+                        max_steps = 180 // ref_deg
+                        cw_count = sum(
+                            0 < closest.arc_index - p.arc_index <= max_steps
+                            for p in placed
+                            if p is not closest
+                        )
+                        ccw_count = sum(
+                            0 < p.arc_index - closest.arc_index <= max_steps
+                            for p in placed
+                            if p is not closest
+                        )
+                        direction = 1 if ccw_count <= cw_count else -1
+                    new_idx = closest.arc_index + direction
+                elif 10 < abs(diff) < ref_deg:
+                    new_idx = closest.arc_index + (1 if diff > 0 else -1)
+                else:
+                    steps = int(diff / ref_deg)
+                    if steps == 0:
+                        steps = 1 if diff > 0 else -1
+                    new_idx = closest.arc_index + steps
+                while any(p.arc_index == new_idx for p in placed):
+                    new_idx += 1 if direction > 0 else -1
+                ctx.arc_index = new_idx
+                placed.append(ctx)
 
-                def find_chain(start_angle: float, dir_: int, step_angle: float) -> Tuple[List[_ArmyContext], bool]:
-                    chain: List[_ArmyContext] = []
-                    angle = start_angle
-                    blocked = False
-                    while True:
-                        found = None
-                        nearest = step_angle + 5  # small tolerance
-                        for n in neighbours:
-                            if n is ctx or n in chain:
-                                continue
-                            ang = angles[id(n)]
-                            delta = (ang - angle + 360) % 360 if dir_ == 1 else (angle - ang + 360) % 360
-                            if 0 < delta <= nearest:
-                                nearest = delta
-                                found = n
-                        if found is None or nearest > step_angle + 5:
-                            break
-                        if found.arc_target_angle is not None:
-                            blocked = True
-                            break
-                        chain.append(found)
-                        angle = angles[id(found)]
-                    return chain, blocked
-
-                chain, blocked = find_chain(ref_angle, direction, 45)
-                opp_chain, opp_blocked = find_chain(ref_angle, -direction, 45)
-
-                if closest.arc_target_angle is not None:
-                    if closest.arc_direction == direction:
-                        blocked = True
-                    elif closest.arc_direction == -direction:
-                        opp_blocked = True
-
-                if len(prior) == 2:
-                    other = prior[0] if prior[1] is closest else prior[1]
-                    other_angle = angles[id(other)]
-                    delta_other = (other_angle - ref_angle + 180) % 360 - 180
-                    same_side = (direction == 1 and delta_other > 0) or (direction == -1 and delta_other < 0)
-                    if (
-                        same_side
-                        and abs(delta_other) <= 46
-                        and abs(diff) <= 10
-                        and not (opp_chain or opp_blocked)
-                    ):
-                        direction *= -1
-                        chain, blocked = opp_chain, opp_blocked
-
-                if blocked and not opp_blocked:
-                    direction *= -1
-                    chain, blocked = opp_chain, opp_blocked
-
-                chain_full = [ctx] + chain
-                step_angle = 45
-                if len(chain_full) > 2:
-                    step_angle = 25
-
-                for i, army in enumerate(chain_full):
-                    target = (ref_angle + direction * step_angle * (i + 1)) % 360
-                    curr = angles[id(army)]
-                    cw = (curr - target + 360) % 360
-                    ccw = (target - curr + 360) % 360
-                    army.arc_target_angle = target
-                    army.arc_direction = 1 if ccw <= cw else -1
-                    army.path.clear()
-                break
+            for ctx in attackers[1:]:
+                target_angle = (base_angle + ctx.arc_index * ref_deg) % 360
+                curr = angles[id(ctx)]
+                diff_to_target = (curr - target_angle + 180) % 360 - 180
+                if diff_to_target != 0:
+                    cw = (curr - target_angle + 360) % 360
+                    ccw = (target_angle - curr + 360) % 360
+                    ctx.arc_target_angle = target_angle
+                    ctx.arc_direction = 1 if ccw <= cw else -1
+                    ctx.path.clear()
+                else:
+                    ctx.arc_target_angle = None
+                    ctx.arc_direction = 0
 
         # Progress any pending angular repositioning along the engagement
         # radius.  Combat continues while armies slide along the circle.

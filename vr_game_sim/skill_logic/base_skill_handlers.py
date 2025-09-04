@@ -132,10 +132,21 @@ def handle_base_skill_zeal(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: SkillD
             logs.append((f"Deals damage to {opp_army.name}.",
                          {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
     if random.random() < sk_cfg.get("debuff_removal_chance", 0.0):
-        dbuffs_on_army = [eff for eff in trig_army.active_effects if
-                          eff.effect_type == EffectType.DEBUFF or eff.config.get(
-                              "prevents_counterattack") or eff.config.get(
-                              "prevents_basic_attack") or eff.name == EFFECT_NAME_SILENCE_DEBUFF]
+        dbuffs_on_army = [
+            eff
+            for eff in trig_army.active_effects
+            if (
+                eff.effect_type == EffectType.DEBUFF
+                or (
+                    eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                    and eff.config.get("dot_type")
+                    in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+                )
+                or eff.config.get("prevents_counterattack")
+                or eff.config.get("prevents_basic_attack")
+                or eff.name == EFFECT_NAME_SILENCE_DEBUFF
+            )
+        ]
         if dbuffs_on_army:
             dbuff_to_rmv = random.choice(dbuffs_on_army);
             trig_army.active_effects.remove(dbuff_to_rmv)
@@ -880,7 +891,11 @@ def handle_base_skill_throwing_axe(triggering_army: ArmyRef, opponent_army: Army
     cfg = skill_def.get("config", {})
     dmg = cfg.get("damage_factor", 0.0)
     buffed = cfg.get("buffed_damage_factor", dmg)
-    has_buff = any(eff.effect_type != EffectType.DEBUFF and eff.duration != -1 for eff in triggering_army.active_effects)
+    has_buff = any(
+        eff.effect_type not in (EffectType.DEBUFF, EffectType.DAMAGE_OVER_TIME)
+        and eff.duration != -1
+        for eff in triggering_army.active_effects
+    )
     dmg_factor = buffed if has_buff else dmg
     if dmg_factor > 0:
         hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
@@ -1059,7 +1074,21 @@ def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
                    "activate_next_round": True}
         opponent_army._create_and_add_single_effect(pending, skill_def["id"], triggering_army, opponent_army, triggering_army)
     if cfg.get("self_cleanse_count", 1) > 0:
-        own_debuff_ids = [eff.id for eff in triggering_army.active_effects if (eff.effect_type == EffectType.DEBUFF or eff.config.get("prevents_counterattack") or eff.config.get("prevents_basic_attack") or eff.config.get("prevents_rage_skill_cast"))][:cfg.get("self_cleanse_count", 1)]
+        own_debuff_ids = [
+            eff.id
+            for eff in triggering_army.active_effects
+            if (
+                eff.effect_type == EffectType.DEBUFF
+                or (
+                    eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                    and eff.config.get("dot_type")
+                    in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+                )
+                or eff.config.get("prevents_counterattack")
+                or eff.config.get("prevents_basic_attack")
+                or eff.config.get("prevents_rage_skill_cast")
+            )
+        ][: cfg.get("self_cleanse_count", 1)]
         pending_cleanse = {"effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
                            "duration": 0, "config": {"debuff_ids_to_remove": own_debuff_ids,
                                                     "debuff_names_removed_log": [eff.name for eff in triggering_army.active_effects if eff.id in own_debuff_ids]},

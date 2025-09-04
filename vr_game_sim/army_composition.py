@@ -1130,10 +1130,23 @@ class Army:
     def has_active_debuff(self, debuff_name: str) -> bool:
         for effect in self.active_effects:
             if effect.name == debuff_name:
-                if effect.effect_type == EffectType.DEBUFF: return True
-                if effect.config.get("prevents_counterattack"): return True
-                if effect.config.get("prevents_basic_attack"): return True
-                if effect.config.get("prevents_rage_skill_cast"): return True
+                if effect.effect_type == EffectType.DEBUFF:
+                    return True
+                if effect.config.get("prevents_counterattack"):
+                    return True
+                if effect.config.get("prevents_basic_attack"):
+                    return True
+                if effect.config.get("prevents_rage_skill_cast"):
+                    return True
+                if (
+                    effect.effect_type == EffectType.DAMAGE_OVER_TIME
+                    and effect.config.get("dot_type") in [
+                        DoTType.BLEED,
+                        DoTType.POISON,
+                        DoTType.BURN,
+                    ]
+                ):
+                    return True
         return False
 
     def reset_for_new_battle(self):

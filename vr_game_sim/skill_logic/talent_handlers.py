@@ -1233,7 +1233,14 @@ def handle_talent_fearless_pursuit(triggering_army: ArmyRef, opponent_army: Army
     cfg = skill_def.get("config", {})
     dmg = cfg.get("damage_factor", 0.0)
     alt = cfg.get("alt_damage_factor", dmg)
-    if any(eff.effect_type == EffectType.DEBUFF for eff in opponent_army.active_effects):
+    if any(
+        eff.effect_type == EffectType.DEBUFF
+        or (
+            eff.effect_type == EffectType.DAMAGE_OVER_TIME
+            and eff.config.get("dot_type") in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+        )
+        for eff in opponent_army.active_effects
+    ):
         dmg_factor = alt
     else:
         dmg_factor = dmg

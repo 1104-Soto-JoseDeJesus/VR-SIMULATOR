@@ -1,0 +1,138 @@
+[
+  {
+    "army_name": "Athelstan/None",
+    "team": "team1",
+    "column": 0,
+    "row": 0,
+    "speed": 50.0,
+    "config": {
+      "army_name": "Athelstan/None",
+      "unit_type": "archers",
+      "tier": 5,
+      "count": 100000,
+      "atk_mod": 0.0,
+      "def_mod": 0.0,
+      "hp_mod": 0.0,
+      "unrevivable_ratio": 0.65,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Athelstan",
+          "talent_ids": [
+            "talent_erudite",
+            "talent_strategize",
+            "talent_adaptable_to_changes"
+          ],
+          "base_skill_ids": [
+            "base_skill_heart_of_tolerance",
+            "base_skill_holy_enlightenment"
+          ],
+          "plugin_skill_ids": []
+        }
+      ],
+      "team": "red",
+      "speed": 50.0
+    }
+  },
+  {
+    "army_name": "Artur/None",
+    "team": "team1",
+    "column": 1,
+    "row": 0,
+    "speed": 50.0,
+    "config": {
+      "army_name": "Artur/None",
+      "unit_type": "archers",
+      "tier": 5,
+      "count": 100000,
+      "atk_mod": 0.0,
+      "def_mod": 0.0,
+      "hp_mod": 0.0,
+      "unrevivable_ratio": 0.65,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Artur",
+          "talent_ids": [
+            "talent_hellfire_shelter",
+            "talent_pent_up_anger",
+            "talent_furious_fire"
+          ],
+          "base_skill_ids": [
+            "base_skill_torment",
+            "base_skill_incineration"
+          ],
+          "plugin_skill_ids": []
+        }
+      ],
+      "team": "red",
+      "speed": 50.0
+    }
+  },
+  {
+    "army_name": "Freydis/None",
+    "team": "team1",
+    "column": 0,
+    "row": 1,
+    "speed": 50.0,
+    "config": {
+      "army_name": "Freydis/None",
+      "unit_type": "archers",
+      "tier": 5,
+      "count": 100000,
+      "atk_mod": 0.0,
+      "def_mod": 0.0,
+      "hp_mod": 0.0,
+      "unrevivable_ratio": 0.65,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Freydis",
+          "talent_ids": [
+            "talent_heroic_blessing",
+            "talent_battle_chime",
+            "talent_flames_judgment"
+          ],
+          "base_skill_ids": [
+            "base_skill_blades_judgment",
+            "base_skill_desperate_strike"
+          ],
+          "plugin_skill_ids": []
+        }
+      ],
+      "team": "red",
+      "speed": 50.0
+    }
+  },
+  {
+    "army_name": "Harald/None",
+    "team": "team2",
+    "column": 0,
+    "row": 0,
+    "speed": 50.0,
+    "config": {
+      "army_name": "Harald/None",
+      "unit_type": "archers",
+      "tier": 5,
+      "count": 100000,
+      "atk_mod": 0.0,
+      "def_mod": 0.0,
+      "hp_mod": 0.0,
+      "unrevivable_ratio": 0.65,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Harald",
+          "talent_ids": [
+            "talent_battle_preparation",
+            "talent_coordinated_strike",
+            "talent_slow_strike"
+          ],
+          "base_skill_ids": [
+            "base_skill_fleet_raider",
+            "base_skill_raging_smash"
+          ],
+          "plugin_skill_ids": []
+        }
+      ],
+      "team": "blue",
+      "speed": 50.0
+    }
+  }
+]

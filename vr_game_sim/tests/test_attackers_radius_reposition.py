@@ -47,6 +47,48 @@ def test_later_attacker_slides_clockwise_when_too_close():
     assert diff == pytest.approx(-45, abs=1)
 
 
+def test_attacker_flips_to_free_arc_without_oscillation():
+    engine = BattlefieldEngine()
+    freydis = make_army('Freydis')
+    athelstan = make_army('Athelstan')
+    ally = make_army('Ally')
+    dfd = make_army('D')
+
+    engine.add_army(athelstan, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    angle = math.radians(45)
+    engine.add_army(
+        ally,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    angle = math.radians(15)
+    engine.add_army(
+        freydis,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    engine.add_army(dfd, 'blue', position=(0, 0), speed=0)
+
+    engine.engage('Athelstan', 'D')
+    engine.tick(1.0)
+    engine.engage('Ally', 'D')
+    engine.tick(1.0)
+    engine.engage('Freydis', 'D')
+    engine.tick(1.0)
+
+    engine.tick(8.0)
+
+    ang_f = angle_between(engine, 'Freydis', 'D')
+    ang_ally = angle_between(engine, 'Ally', 'D')
+    assert ang_f == pytest.approx(315, abs=1)
+    assert ang_ally == pytest.approx(45, abs=1)
+
+    engine.tick(2.0)
+    assert angle_between(engine, 'Freydis', 'D') == pytest.approx(315, abs=1)
+
+
 def test_switch_to_opposite_when_target_blocked_within_10_degrees():
     engine = BattlefieldEngine()
     atk1 = make_army('A1')
@@ -157,8 +199,8 @@ def test_pushes_blocking_army_when_farther_than_10_degrees():
     ang2 = angle_between(engine, 'A2', 'D')
     ang3 = angle_between(engine, 'A3', 'D')
     diff = (ang3 - ang2 + 180) % 360 - 180
-    assert ang3 == pytest.approx(315, abs=1)
-    assert diff == pytest.approx(45, abs=1)
+    assert ang3 == pytest.approx(45, abs=1)
+    assert diff == pytest.approx(90, abs=1)
 
 
 def test_multiple_armies_same_direction_uses_25_degree_spacing():
@@ -167,6 +209,7 @@ def test_multiple_armies_same_direction_uses_25_degree_spacing():
     atk2 = make_army('A2')
     atk3 = make_army('A3')
     atk4 = make_army('A4')
+    blocker = make_army('B')
     dfd = make_army('D')
 
     engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
@@ -180,6 +223,13 @@ def test_multiple_armies_same_direction_uses_25_degree_spacing():
     angle = math.radians(-90)
     engine.add_army(
         atk3,
+        'red',
+        position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    angle = math.radians(45)
+    engine.add_army(
+        blocker,
         'red',
         position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
         speed=0,
@@ -198,6 +248,8 @@ def test_multiple_armies_same_direction_uses_25_degree_spacing():
     engine.engage('A2', 'D')
     engine.tick(1.0)
     engine.engage('A3', 'D')
+    engine.tick(1.0)
+    engine.engage('B', 'D')
     engine.tick(1.0)
     engine.engage('A4', 'D')
     engine.tick(1.0)

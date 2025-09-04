@@ -618,8 +618,12 @@ class BattlefieldEngine:
 
         # Reposition attackers around each defender based on arrival order.
         groups: Dict[str, List[_ArmyContext]] = defaultdict(list)
-        for (atk, dfd), _ in self._engagements.items():
-            groups[dfd].append(self._armies[atk])
+        for name, ctx in self._armies.items():
+            target = ctx.direct_target
+            if not target:
+                continue
+            if (name, target) in self._engagements or (target, name) in self._engagements:
+                groups[target].append(ctx)
 
         for centre, attackers in groups.items():
             if len(attackers) < 2:

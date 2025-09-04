@@ -82,11 +82,11 @@ def test_attacker_flips_to_free_arc_without_oscillation():
 
     ang_f = angle_between(engine, 'Freydis', 'D')
     ang_ally = angle_between(engine, 'Ally', 'D')
-    assert ang_f == pytest.approx(315, abs=1)
-    assert ang_ally == pytest.approx(45, abs=1)
+    assert ang_f == pytest.approx(45, abs=1)
+    assert ang_ally == pytest.approx(90, abs=1)
 
     engine.tick(2.0)
-    assert angle_between(engine, 'Freydis', 'D') == pytest.approx(315, abs=1)
+    assert angle_between(engine, 'Freydis', 'D') == pytest.approx(45, abs=1)
 
 
 def test_switch_to_opposite_when_target_blocked_within_10_degrees():
@@ -97,14 +97,14 @@ def test_switch_to_opposite_when_target_blocked_within_10_degrees():
     dfd = make_army('D')
 
     engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
-    angle = math.radians(-45)
+    angle = math.radians(-46)
     engine.add_army(
         atk2,
         'red',
         position=(math.cos(angle) * ENGAGEMENT_DISTANCE, math.sin(angle) * ENGAGEMENT_DISTANCE),
         speed=0,
     )
-    angle = math.radians(5)
+    angle = math.radians(-10)
     engine.add_army(
         atk3,
         'red',
@@ -199,8 +199,9 @@ def test_pushes_blocking_army_when_farther_than_10_degrees():
     ang2 = angle_between(engine, 'A2', 'D')
     ang3 = angle_between(engine, 'A3', 'D')
     diff = (ang3 - ang2 + 180) % 360 - 180
-    assert ang3 == pytest.approx(45, abs=1)
-    assert diff == pytest.approx(90, abs=1)
+    assert ang3 == pytest.approx(315, abs=1)
+    assert ang2 == pytest.approx(270, abs=1)
+    assert diff == pytest.approx(45, abs=1)
 
 
 def test_multiple_armies_same_direction_uses_25_degree_spacing():

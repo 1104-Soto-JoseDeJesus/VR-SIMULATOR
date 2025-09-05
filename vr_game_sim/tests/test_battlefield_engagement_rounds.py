@@ -49,6 +49,32 @@ def test_internal_rounds_are_per_attacker():
     assert ctx_c.internal_round == 1
 
 
+def test_army_rounds_are_per_attacker():
+    """Delayed attackers maintain an independent ``army_round`` counter."""
+    engine = BattlefieldEngine()
+    army_a = make_army('A')  # engages first
+    army_b = make_army('B')  # defender
+    army_c = make_army('C')  # joins later
+    for army, team in [(army_a, 'red'), (army_b, 'blue'), (army_c, 'red')]:
+        engine.add_army(army, team, speed=0)
+
+    engine.tick(0.3)
+    engine.engage('A', 'B')
+    engine.tick(0.7)  # round 1 for A/B
+    engine.tick(1.0)  # round 2 for A/B
+    engine.tick(0.2)
+    engine.engage('C', 'B')  # schedule C to join at t=3
+    engine.tick(0.8)  # round 3 for A/B, round 1 for C
+
+    assert army_a.army_round == 3
+    assert army_b.army_round == 3
+    assert army_c.army_round == 1
+
+    engine.tick(1.0)  # round 4 for A/B, round 2 for C
+    assert army_c.army_round == 2
+    assert army_b.army_round == 4
+
+
 def test_round_and_rage_stop_after_idle():
     engine = BattlefieldEngine()
     army_a = make_army('A')

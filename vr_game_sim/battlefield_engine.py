@@ -402,8 +402,13 @@ class BattlefieldEngine:
         if def_ctx.team == atk_ctx.team:
             raise ValueError("Cannot engage armies on the same team")
 
+        prev_internal = atk_ctx.internal_round
+        prev_skill_rounds = dict(atk_ctx.army.skill_last_triggered_round)
+        prev_rage = atk_ctx.army.current_rage
+        reset_applied = False
         if not self._army_in_combat(attacker):
             self._reset_combat_state(atk_ctx)
+            reset_applied = True
         if not self._army_in_combat(defender):
             self._reset_combat_state(def_ctx)
 
@@ -413,6 +418,11 @@ class BattlefieldEngine:
         atk_ctx.arc_direction = 0
         atk_ctx.arc_index = 0
         atk_ctx.engaged_at = 0.0
+
+        if reset_applied and (defender, attacker) in self._engagements:
+            atk_ctx.internal_round = prev_internal
+            atk_ctx.army.skill_last_triggered_round.update(prev_skill_rounds)
+            atk_ctx.army.current_rage = prev_rage
 
         # Compute initial path that stops ``ENGAGEMENT_DISTANCE`` units short of
         # the defender when pursuing.

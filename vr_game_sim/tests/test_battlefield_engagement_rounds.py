@@ -84,3 +84,29 @@ def test_both_armies_attack_each_round():
 
     assert army_a.current_troop_count < 1000
     assert army_b.current_troop_count < 1000
+
+
+def test_retarget_to_attacker_preserves_round_counter():
+    engine = BattlefieldEngine()
+    defender = make_army('D')
+    atk1 = make_army('A1')
+    atk2 = make_army('A2')
+
+    # Position armies so both attackers engage the defender immediately.
+    engine.add_army(defender, 'blue', position=(2, 0), speed=0)
+    engine.add_army(atk1, 'red', position=(0, 0), speed=0)
+    engine.add_army(atk2, 'red', position=(4, 0), speed=0)
+
+    engine.engage('A1', 'D')
+    engine.engage('A2', 'D')
+
+    # First round with A1 as target – ensure combat started.
+    engine.tick(1.0)
+    assert engine._armies['D'].internal_round == 1
+
+    # Manually retarget to the second attacker which is already engaged.
+    engine.set_direct_target('D', 'A2')
+    engine.tick(1.0)
+
+    # Round counter should advance rather than reset.
+    assert engine._armies['D'].internal_round == 2

@@ -59,7 +59,12 @@ class GameSimulator:
         self.army2: Army = army2
         self.army1.register_simulator(self)
         self.army2.register_simulator(self)
-        self.round: int = 0
+        # ``round`` is exposed as a property so any direct assignments made by
+        # tests or helper utilities automatically keep the trigger counter in
+        # sync.  ``_current_round_for_triggers`` is the single source of truth
+        # for interval based skills.
+        self._round: int = 0
+        self._current_round_for_triggers: int = 0
         self.mode: str = mode
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
@@ -72,6 +77,19 @@ class GameSimulator:
         self.army2._apply_initial_passive_skills()
         self.report_builder = report_builder or ReportBuilder()
         self.track_stats = track_stats
+
+    @property
+    def round(self) -> int:
+        return self._round
+
+    @round.setter
+    def round(self, value: int) -> None:
+        self._round = value
+        self._current_round_for_triggers = value
+
+    def get_current_round(self) -> int:
+        """Return the round number used by interval-based trigger checks."""
+        return self._current_round_for_triggers
 
     def _log_active_effects_for_report(self) -> List[str]:
         lines: List[str] = []

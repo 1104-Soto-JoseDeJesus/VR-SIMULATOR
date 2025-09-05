@@ -370,8 +370,10 @@ class GameSimulator:
 
                         is_on_cooldown = False
                         if cooldown is not None:
-                            last_triggered = triggering_army.skill_last_triggered_round.get(skill_id, -(cooldown + 1))
-                            if self.round < last_triggered + cooldown:
+                            last_triggered = triggering_army.skill_last_triggered_round.get(
+                                skill_id, -(cooldown + 1)
+                            )
+                            if triggering_army.army_round < last_triggered + cooldown:
                                 is_on_cooldown = True
                         if is_on_cooldown:
                             continue
@@ -442,7 +444,7 @@ class GameSimulator:
                                 )
 
                             if cooldown is not None:
-                                triggering_army.skill_last_triggered_round[skill_id] = self.round
+                                triggering_army.skill_last_triggered_round[skill_id] = triggering_army.army_round
 
                             if max_triggers > 1:
                                 triggering_army.skill_trigger_counts_this_round[skill_id] = current_triggers + 1
@@ -478,7 +480,7 @@ class GameSimulator:
                 army.hero1_rage_skill_queued_this_round = False
                 army.hero1_rage_skill_scheduled_round = None
             elif hero_slot == 2:
-                if army.hero2_rage_skill_primed_for_round == self.round:
+                if army.hero2_rage_skill_primed_for_round == army.army_round:
                     army.hero2_rage_skill_primed_for_round = None
             return
 
@@ -505,10 +507,13 @@ class GameSimulator:
                     army.hero1_rage_skill_scheduled_round = None
                     army.hero1_rage_skill_queued_this_round = False
                 elif hero_slot == 2:
-                    if army.hero2_rage_skill_primed_for_round == self.round:
+                    if army.hero2_rage_skill_primed_for_round == army.army_round:
                         army.hero2_rage_skill_primed_for_round += 1
-                        self._log_skill_trigger(army, skill_def['name'],
-                                                f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence.")
+                        self._log_skill_trigger(
+                            army,
+                            skill_def['name'],
+                            f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence.",
+                        )
                 return
 
         log_prefix = f"(Delayed Hero 2) " if is_hero2_delayed_trigger else f"{hero_who_triggered_name}'s "
@@ -523,21 +528,21 @@ class GameSimulator:
             # Rage cost is used only as a trigger threshold; all existing rage is reset
             army.current_rage = max(0.0, current_round_rage_gain)
             army.army_used_rage_skill_this_round_for_rage_gain_block = True
-            army.hero1_rage_skill_used_round = self.round
+            army.hero1_rage_skill_used_round = army.army_round
             army.hero1_rage_skill_queued_this_round = False
             delay_rounds = 0
             if army.hero1_rage_skill_scheduled_round is not None:
-                delay_rounds = self.round - army.hero1_rage_skill_scheduled_round
+                delay_rounds = army.army_round - army.hero1_rage_skill_scheduled_round
             army.hero1_rage_skill_scheduled_round = None
 
             if army.hero2_rage_skill_id and len(army.heroes) > 1:
                 if delay_rounds >= 2:
                     army.hero2_rage_skill_primed_for_round = None
                 else:
-                    next_rage_round = self.round + (2 if self.mode == "standard" else 1)
+                    next_rage_round = army.army_round + (2 if self.mode == "standard" else 1)
                     army.hero2_rage_skill_primed_for_round = next_rage_round
         else:
-            if army.hero2_rage_skill_primed_for_round == self.round:
+            if army.hero2_rage_skill_primed_for_round == army.army_round:
                 army.hero2_rage_skill_primed_for_round = None
 
         rage_logic_handler: Optional[RageSkillLogicHandler] = skill_def.get("logic_handler")
@@ -587,12 +592,10 @@ class GameSimulator:
 
     def _apply_base_rage_gain(self) -> None:
         """Grant each army 100 rage at end of round unless their Hero 1 rage skill was used or blocked."""
-        if self.round < 1:
-            for army in [self.army1, self.army2]:
-                army.base_rage_awarded_this_round = False
-            return
-
         for army in [self.army1, self.army2]:
+            if army.army_round < 1:
+                army.base_rage_awarded_this_round = False
+                continue
             # In battlefield mode a defender may participate in multiple
             # engagements within the same global round.  ``_apply_base_rage_gain``
             # can therefore be invoked multiple times for the same army which
@@ -779,6 +782,8 @@ class GameSimulator:
 
         while self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
             self.round += 1
+            for army in (self.army1, self.army2):
+                army.army_round += 1
 
             self.army1.rage_added_this_round = 0.0
             self.army2.rage_added_this_round = 0.0

@@ -8,6 +8,12 @@ from ..effect_system import EffectInstance
 from ..constants import *
 
 
+def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
+    if hasattr(army, "army_round"):
+        return army.army_round
+    return simulator.round if simulator else 0
+
+
 def handle_rage_sharp_pursuit(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinition, ev_data: Dict[str, Any],
                               sim: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
     eff_hpnd, logs, dmg_dealt_flag = False, [], False;
@@ -659,7 +665,7 @@ def handle_rage_concentration(
         "bonus_rage_amount": bonus_rage_conditional if enemy_is_burning_at_cast else 0,
         # Only set bonus if condition met
         "bonus_applied_round": -1,  # Will be set to the round bonus is applied
-        "effect_applied_in_round": simulator.round  # Store the round Concentration was cast
+        "effect_applied_in_round": _get_army_round(triggering_army, simulator)  # Store the round Concentration was cast
     }
 
     rage_gain_effect_data = {

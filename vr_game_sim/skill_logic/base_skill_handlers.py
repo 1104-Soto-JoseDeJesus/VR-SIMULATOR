@@ -8,6 +8,13 @@ from ..skill_system import SkillDefinition, ArmyRef, GameSimulatorRef
 from ..constants import *
 
 
+def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
+    """Return the round counter for ``army`` with a simulator fallback."""
+    if hasattr(army, "army_round"):
+        return army.army_round
+    return _get_army_round(triggering_army, simulator) if simulator else 0
+
+
 def handle_base_skill_planned_attack(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: SkillDefinition,
                                      ev_data: Optional[Dict[str, Any]], sim: GameSimulatorRef) -> Tuple[
     bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
@@ -341,7 +348,7 @@ def handle_base_skill_heart_of_tolerance(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -434,7 +441,7 @@ def handle_base_skill_rapid_fire(  # Verdandi's skill, already exists
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -482,7 +489,7 @@ def handle_base_skill_torment(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -536,7 +543,7 @@ def handle_base_skill_blades_judgment(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -830,7 +837,7 @@ def handle_base_skill_plague(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     cfg = skill_def.get("config", {})
     trigger_interval = cfg.get("trigger_interval", 9)
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     poison_factor = cfg.get("poison_factor", 0.0)

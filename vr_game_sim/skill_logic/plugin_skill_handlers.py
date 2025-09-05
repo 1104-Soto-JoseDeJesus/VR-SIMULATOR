@@ -70,8 +70,10 @@ def handle_plugin_shield_support(
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
+    current_round = simulator.get_current_round()
+    last_round = triggering_army.skill_last_triggered_round.get(skill_id, 0)
 
-    if simulator.round > 0 and simulator.round % trigger_interval == 0:
+    if current_round > 0 and current_round >= last_round + trigger_interval:
         effect_name = skill_config.get("effect_name", EFFECT_NAME_SHIELD_SUPPORT_EFFECT)
         already_has_shield_from_this_skill_this_trigger = any(
             eff.name == effect_name and eff.source_skill_id == skill_id and
@@ -101,6 +103,7 @@ def handle_plugin_shield_support(
                 log_details.append(
                     (f"Grants shield ({created_shield.get_functionality_description()}), active for next {shield_duration + 1} rounds. Est. Mag: {est_mag:.0f}",
                      None))
+                triggering_army.skill_last_triggered_round[skill_id] = current_round
     return an_effect_happened, log_details
 
 
@@ -598,7 +601,9 @@ def handle_plugin_thors_determination(
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
-    if simulator.round > 0 and simulator.round % trigger_interval == 0:
+    current_round = simulator.get_current_round()
+    last_round = triggering_army.skill_last_triggered_round.get(skill_id, 0)
+    if current_round > 0 and current_round >= last_round + trigger_interval:
         buff_name = skill_config.get("buff_name", EFFECT_NAME_THORS_DETERMINATION_BUFF)
         buff_magnitude = skill_config.get("buff_magnitude", 2.25);
         buff_duration = skill_config.get("buff_duration", 1)
@@ -647,6 +652,7 @@ def handle_plugin_thors_determination(
                 log_details.append(
                     (f"Condition met: gains damage reduction ({created_reduction.get_functionality_description()}) starting {activation_time} for {dmg_red_dur + 1} rounds.",
                      None))
+        triggering_army.skill_last_triggered_round[skill_id] = current_round
     return an_effect_happened, log_details
 
 

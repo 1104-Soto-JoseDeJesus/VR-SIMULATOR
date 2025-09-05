@@ -1510,8 +1510,11 @@ def handle_talent_specter_lycan_assault(triggering_army: ArmyRef, opponent_army:
     cfg = skill_def.get("config", {})
     damage_factor = cfg.get("damage_factor", 0.0)
     trigger_interval = cfg.get("trigger_interval", 9)
+    skill_id = skill_def["id"]
+    current_round = simulator.get_current_round()
+    last_round = triggering_army.skill_last_triggered_round.get(skill_id, 0)
 
-    if simulator.round > 0 and simulator.round % trigger_interval == 0:
+    if current_round > 0 and current_round >= last_round + trigger_interval:
         an_effect_happened = True
         if damage_factor > 0:
             hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
@@ -1521,6 +1524,7 @@ def handle_talent_specter_lycan_assault(triggering_army: ArmyRef, opponent_army:
             log_details.append((f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
                                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed),
                                 "potential_kills": kills}))
+        triggering_army.skill_last_triggered_round[skill_id] = current_round
     return an_effect_happened, log_details
 
 

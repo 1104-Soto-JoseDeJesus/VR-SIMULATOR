@@ -501,6 +501,7 @@ class BattlefieldEngine:
             if self.time_elapsed > ctx.last_engaged_time:
                 ctx.internal_round = 0
                 army = ctx.army
+                army.army_round = 0
                 army.current_rage = 0.0
                 army.skill_last_triggered_round.clear()
                 # Do not clear cumulative skill trigger counts here so that
@@ -884,6 +885,7 @@ class BattlefieldEngine:
             army = ctx.army
             if abs(self.time_elapsed - ctx.last_engaged_time) < 1e-6:
                 ctx.internal_round += 1
+                army.army_round = ctx.internal_round
                 army.rage_gained_history.append(army.rage_added_this_round)
                 army.kills_dealt_history.append(army.kills_dealt_this_round)
             self._queue_state_update(army)

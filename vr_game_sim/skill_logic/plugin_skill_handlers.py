@@ -10,6 +10,17 @@ from ..constants import *
 from .utility_skill_handlers import handle_generic_single_damage_skill
 
 
+def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
+    """Return the round counter for ``army``.
+
+    Falls back to ``simulator.round`` when an army specific counter is not
+    available so the handlers continue to function in stand‑alone simulator
+    mode."""
+    if hasattr(army, "army_round"):
+        return army.army_round
+    return simulator.round if simulator else 0
+
+
 def handle_plugin_divine_blessing(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
@@ -29,7 +40,7 @@ def handle_plugin_divine_blessing(
         for eff in eff_list
     )
 
-    if simulator.round == 2 and not is_any_version_active:
+    if _get_army_round(triggering_army, simulator) == 2 and not is_any_version_active:
         initial_duration = skill_config.get("initial_effect_duration", 28)
         effect_data = {"effect_type": EffectType.STAT_MOD, "name": effect_name,
                        "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
@@ -42,7 +53,7 @@ def handle_plugin_divine_blessing(
             log_details.append(
                 (f"Initial effect applied: {created_effect.get_functionality_description()}, lasts {initial_duration + 1} rounds (R2-R{2 + initial_duration}).",
                  None))
-    elif simulator.round > (2 + skill_config.get("initial_effect_duration", 28)) and not is_any_version_active:
+    elif _get_army_round(triggering_army, simulator) > (2 + skill_config.get("initial_effect_duration", 28)) and not is_any_version_active:
         if skill_def["id"] == "plugin_divine_blessing":
             if random.random() < skill_config.get("post_initial_trigger_chance", 0.0):
                 post_initial_duration = skill_config.get("post_initial_effect_duration", 0)
@@ -71,7 +82,7 @@ def handle_plugin_shield_support(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if simulator.round > 0 and simulator.round % trigger_interval == 0:
+    if _get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0:
         effect_name = skill_config.get("effect_name", EFFECT_NAME_SHIELD_SUPPORT_EFFECT)
         already_has_shield_from_this_skill_this_trigger = any(
             eff.name == effect_name and eff.source_skill_id == skill_id and
@@ -273,9 +284,9 @@ def handle_plugin_first_strike_control(
     if not aura_name:
         return False, []
     last_round = triggering_army.skill_last_triggered_round.get(skill_id)
-    if last_round is not None and last_round == simulator.round:
+    if last_round is not None and last_round == _get_army_round(triggering_army, simulator):
         return False, []
-    if simulator.round == apply_on_round:
+    if _get_army_round(triggering_army, simulator) == apply_on_round:
         is_aura_already_active = any(
             eff.name == aura_name
             for eff_list in [
@@ -299,7 +310,7 @@ def handle_plugin_first_strike_control(
                 log_details.append(
                     (f"Applies aura: {created_aura.get_functionality_description()}.", None)
                 )
-                triggering_army.skill_last_triggered_round[skill_id] = simulator.round
+                triggering_army.skill_last_triggered_round[skill_id] = _get_army_round(triggering_army, simulator)
     return an_effect_happened, log_details
 
 
@@ -404,7 +415,7 @@ def handle_plugin_baldr_blessing(
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
     chosen_effect_type = random.choice(["shield", "reduction", "heal"])
     log_details.append((f"Randomly chose '{chosen_effect_type}' effect.", None))
@@ -598,7 +609,7 @@ def handle_plugin_thors_determination(
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
-    if simulator.round > 0 and simulator.round % trigger_interval == 0:
+    if _get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0:
         buff_name = skill_config.get("buff_name", EFFECT_NAME_THORS_DETERMINATION_BUFF)
         buff_magnitude = skill_config.get("buff_magnitude", 2.25);
         buff_duration = skill_config.get("buff_duration", 1)
@@ -798,7 +809,7 @@ def handle_plugin_blessed_negation(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -882,7 +893,7 @@ def handle_plugin_wild_indulgence(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 10)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -948,7 +959,7 @@ def handle_plugin_breaking_free(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 10)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     dmg_buff_mag = skill_config.get("damage_buff_magnitude", 0.0)
@@ -1155,7 +1166,7 @@ def handle_plugin_blessed_by_fate(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
-    current_round = simulator.round
+    current_round = _get_army_round(triggering_army, simulator)
 
     initial_buff_duration = skill_config.get("initial_buff_duration", 29)
     initial_buff_magnitude = skill_config.get("initial_buff_magnitude", 0.50)
@@ -1256,7 +1267,7 @@ def handle_plugin_fiery_detonation(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -1460,7 +1471,7 @@ def handle_plugin_on_alert(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     existing_stacks = sum(
@@ -1504,7 +1515,7 @@ def handle_plugin_helas_curse(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     burn_factor = skill_config.get("burn_factor", 500.0)
@@ -1562,7 +1573,7 @@ def handle_plugin_fearless(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 12)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -1710,7 +1721,7 @@ def handle_plugin_splinter(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 12)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 800.0)
@@ -1955,7 +1966,7 @@ def handle_plugin_blessed_healing(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 12)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     heal_factor = skill_config.get("heal_factor", 850.0)
@@ -2192,7 +2203,7 @@ def handle_plugin_this_too_shall_pass(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     skill_id = skill_def["id"]

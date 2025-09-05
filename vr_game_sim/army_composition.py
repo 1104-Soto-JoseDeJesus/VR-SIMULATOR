@@ -45,6 +45,7 @@ class Army:
     unrevivable_ratio: float = 0.65
     simulator: Optional[GameSimulatorRef] = field(init=False, default=None)
     simulators: List[GameSimulatorRef] = field(init=False, default_factory=list)
+    army_round: int = field(init=False, default=0)
 
     current_troop_count: float = field(init=False, default=0.0)
     active_effects: List[EffectInstance] = field(init=False, default_factory=list)
@@ -470,7 +471,11 @@ class Army:
             if any(eff.name == canonical_effect_name for eff in target_army.active_effects):
                 return None
             if target_army.simulator:
-                current_round = target_army.simulator.round
+                current_round = getattr(
+                    target_army,
+                    "army_round",
+                    target_army.simulator.round,
+                )
                 last_round = target_army.debuff_last_applied_round.get(canonical_effect_name, -999)
                 if current_round < last_round + 2:
                     return None
@@ -838,7 +843,7 @@ class Army:
                 if phase == 'start_of_round':
                     start_gain_round = effect.config.get("start_rage_gain_round", 0);
                     end_gain_round = effect.config.get("end_rage_gain_round", 0)
-                    current_round = self.simulator.round
+                    current_round = getattr(self, "army_round", self.simulator.round if self.simulator else 0)
                     if start_gain_round <= current_round <= end_gain_round:
                         rage_to_gain = effect.config.get("rage_per_round", 0)
                         if rage_to_gain > 0:
@@ -847,7 +852,7 @@ class Army:
             # Handle Olena's Concentration Rage Gain
             elif effect.name == EFFECT_NAME_CONCENTRATION_RAGE_GAIN and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
-                    current_sim_round = self.simulator.round
+                    current_sim_round = getattr(self, "army_round", self.simulator.round if self.simulator else 0)
                     effect_applied_in_round = effect.config.get("effect_applied_in_round", -1)
                     base_rage = effect.config.get("base_rage_amount", 0)
                     bonus_rage = effect.config.get("bonus_rage_amount",
@@ -1176,6 +1181,7 @@ class Army:
         self.started_last_round_with_active_shield = False
         self.healing_hymn_triggered_this_round = False
         self.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+        self.army_round = 0
 
         self.damage_dealt_history = []
         self.heal_received_history = []

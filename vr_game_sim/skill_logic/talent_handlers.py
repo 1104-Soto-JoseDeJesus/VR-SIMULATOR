@@ -9,6 +9,12 @@ from ..constants import *
 from .utility_skill_handlers import handle_generic_single_damage_skill
 
 
+def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
+    if hasattr(army, "army_round"):
+        return army.army_round
+    return simulator.round if simulator else 0
+
+
 def handle_talent_blade_counter(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: SkillDefinition,
                                 ev_data: Optional[Dict[str, Any]], sim: GameSimulatorRef) -> Tuple[
     bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
@@ -245,7 +251,7 @@ def handle_talent_serpents_rage(
     damage_factor = skill_config.get("damage_factor", 0.0)
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if simulator.round > 0 and simulator.round % trigger_interval == 0:
+    if _get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0:
         if damage_factor > 0:
             hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
                 triggering_army, opponent_army, damage_factor,
@@ -398,7 +404,7 @@ def handle_talent_strategize(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     command_buff_magnitude = skill_config.get("command_buff_magnitude", 0.0)
@@ -461,7 +467,7 @@ def handle_talent_adaptable_to_changes(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 6)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -517,7 +523,7 @@ def handle_talent_hunting_experience(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     burn_factor = skill_config.get("burn_factor", 0.0)
@@ -555,7 +561,7 @@ def handle_talent_targeted_strike(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 6)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     damage_factor_base = skill_config.get("damage_factor", 550.0)
@@ -685,7 +691,7 @@ def handle_talent_pent_up_anger(
     skill_config = skill_def.get("config", {})
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     rage_gain = skill_config.get("rage_gain", 0)
@@ -767,7 +773,7 @@ def handle_talent_battle_chime(
     trigger_interval = skill_config.get("trigger_interval", 9)
     skill_id = skill_def["id"]
 
-    if not (simulator.round > 0 and simulator.round % trigger_interval == 0):
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -903,7 +909,7 @@ def handle_talent_godly_wrath(
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
         simulator: GameSimulatorRef
 ) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
-    if simulator.round != 2:
+    if _get_army_round(triggering_army, simulator) != 2:
         return False, []
 
     duration = skill_def.get("config", {}).get("duration", 30)
@@ -983,13 +989,13 @@ def handle_talent_divine_punishment(
 def handle_talent_patient_waiting(triggering_army: ArmyRef, opponent_army: ArmyRef,
                                   skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
                                   simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
-    if simulator.round < 2 or simulator.round > 31:
+    if _get_army_round(triggering_army, simulator) < 2 or _get_army_round(triggering_army, simulator) > 31:
         return False, []
     happened = False
     logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     cfg = skill_def.get("config", {})
     skill_id = skill_def["id"]
-    if simulator.round == 2:
+    if _get_army_round(triggering_army, simulator) == 2:
         buff_mag = cfg.get("buff_magnitude", 0.2)
         duration = cfg.get("duration", 30)
         buff_data = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_PATIENT_WAITING_BUFF,
@@ -1074,7 +1080,7 @@ def handle_talent_adaptable_agility(triggering_army: ArmyRef, opponent_army: Arm
 def handle_talent_battle_preparation(triggering_army: ArmyRef, opponent_army: ArmyRef,
                                      skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
                                      simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
-    if simulator.round != 2:
+    if _get_army_round(triggering_army, simulator) != 2:
         return False, []
     cfg = skill_def.get("config", {})
     duration = cfg.get("duration", 30)
@@ -1189,7 +1195,7 @@ def handle_talent_fatal_bleeding(triggering_army: ArmyRef, opponent_army: ArmyRe
                                  simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
     cfg = skill_def.get("config", {})
     interval = cfg.get("trigger_interval", 6)
-    if simulator.round > 0 and simulator.round % interval == 0:
+    if _get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % interval == 0:
         bleed_factor = cfg.get("bleed_factor", 0.0)
         duration = cfg.get("bleed_duration", 2)
         bleed_data = {"effect_type": EffectType.DAMAGE_OVER_TIME, "name": EFFECT_NAME_FATAL_BLEEDING_DOT,
@@ -1413,7 +1419,7 @@ def handle_talent_high_fighting_spirit(
     buff_magnitude = cfg.get("buff_magnitude", 0.0)
     buff_duration = cfg.get("buff_duration", 0)
 
-    if simulator.round > 0 and simulator.round % trigger_interval == 0:
+    if _get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0:
         if damage_factor > 0:
             hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
                 triggering_army, opponent_army, damage_factor,
@@ -1461,7 +1467,7 @@ def handle_talent_low_whispers(
     duration = cfg.get("duration", 1)
     rage_gain = cfg.get("rage_gain", 0)
 
-    if simulator.round > 0 and simulator.round % trigger_interval == 0:
+    if _get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0:
         buff_data = {
             "effect_type": EffectType.STAT_MOD,
             "name": EFFECT_NAME_LOW_WHISPERS_REDUCTION,
@@ -1511,7 +1517,7 @@ def handle_talent_specter_lycan_assault(triggering_army: ArmyRef, opponent_army:
     damage_factor = cfg.get("damage_factor", 0.0)
     trigger_interval = cfg.get("trigger_interval", 9)
 
-    if simulator.round > 0 and simulator.round % trigger_interval == 0:
+    if _get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0:
         an_effect_happened = True
         if damage_factor > 0:
             hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(

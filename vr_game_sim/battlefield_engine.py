@@ -402,6 +402,11 @@ class BattlefieldEngine:
         if def_ctx.team == atk_ctx.team:
             raise ValueError("Cannot engage armies on the same team")
 
+        if not self._army_in_combat(attacker):
+            self._reset_combat_state(atk_ctx)
+        if not self._army_in_combat(defender):
+            self._reset_combat_state(def_ctx)
+
         atk_ctx.direct_target = defender
         atk_ctx.pursue_target = pursue
         atk_ctx.arc_target_angle = None
@@ -494,48 +499,50 @@ class BattlefieldEngine:
     def _army_in_combat(self, name: str) -> bool:
         return any(name == atk or name == dfd for atk, dfd in self._engagements)
 
+    def _reset_combat_state(self, ctx: _ArmyContext) -> None:
+        ctx.internal_round = 0
+        army = ctx.army
+        army.current_rage = 0.0
+        army.skill_last_triggered_round.clear()
+        # Do not clear cumulative skill trigger counts here so that total cast numbers
+        # persist across engagements. Only per-round counters are reset below.
+        # army.skill_trigger_counts.clear()
+        army.triggered_skills_this_round.clear()
+        army.skill_trigger_counts_this_round.clear()
+        army.skill_triggers_against_this_round.clear()
+        army.hero1_rage_skill_used_round = None
+        army.hero1_rage_skill_scheduled_round = None
+        army.hero1_rage_skill_queued_this_round = False
+        army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+        army.army_used_rage_skill_this_round_for_rage_gain_block = False
+        self._queue_state_update(army)
+
     def _reset_idle_armies(self) -> None:
         for nm, ctx in self._armies.items():
             if self._army_in_combat(nm):
                 continue
-            if self.time_elapsed > ctx.last_engaged_time:
-                ctx.internal_round = 0
-                army = ctx.army
-                army.current_rage = 0.0
-                army.skill_last_triggered_round.clear()
-                # Do not clear cumulative skill trigger counts here so that
-                # total cast numbers persist across engagements.  Only
-                # per-round counters are reset below.
-                # army.skill_trigger_counts.clear()
-                army.triggered_skills_this_round.clear()
-                army.skill_trigger_counts_this_round.clear()
-                army.skill_triggers_against_this_round.clear()
-                if ctx.last_engaged_time > 0 and not ctx.idle_reset_done:
-                    army.active_effects.clear()
-                    army.upcoming_effects.clear()
-                    army.effects_to_activate_next_round.clear()
-                    # Reapply passive skills without resetting troop counts.
-                    # Remove existing passive skill trigger counts so they
-                    # apply their effects again for this idle army.
-                    passive_ids = {
-                        skill_def.get("id")
-                        for hero in army.heroes
-                        for skill_def in hero.skills
-                        if skill_def.get("trigger") == SkillTriggerType.PASSIVE
-                    }
-                    prev_counts: Dict[str, int] = {}
-                    for sid in passive_ids:
-                        prev_counts[sid] = army.skill_trigger_counts.pop(sid, 0)
-                    army._apply_initial_passive_skills()
-                    for sid, prev in prev_counts.items():
-                        army.skill_trigger_counts[sid] = prev + army.skill_trigger_counts.get(sid, 0)
-                    ctx.idle_reset_done = True
-                army.hero1_rage_skill_used_round = None
-                army.hero1_rage_skill_scheduled_round = None
-                army.hero1_rage_skill_queued_this_round = False
-                army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
-                army.army_used_rage_skill_this_round_for_rage_gain_block = False
-                self._queue_state_update(army)
+            self._reset_combat_state(ctx)
+            army = ctx.army
+            if ctx.last_engaged_time > 0 and not ctx.idle_reset_done:
+                army.active_effects.clear()
+                army.upcoming_effects.clear()
+                army.effects_to_activate_next_round.clear()
+                # Reapply passive skills without resetting troop counts.
+                # Remove existing passive skill trigger counts so they apply their
+                # effects again for this idle army.
+                passive_ids = {
+                    skill_def.get("id")
+                    for hero in army.heroes
+                    for skill_def in hero.skills
+                    if skill_def.get("trigger") == SkillTriggerType.PASSIVE
+                }
+                prev_counts: Dict[str, int] = {}
+                for sid in passive_ids:
+                    prev_counts[sid] = army.skill_trigger_counts.pop(sid, 0)
+                army._apply_initial_passive_skills()
+                for sid, prev in prev_counts.items():
+                    army.skill_trigger_counts[sid] = prev + army.skill_trigger_counts.get(sid, 0)
+                ctx.idle_reset_done = True
 
     def _refresh_target_waypoints(self) -> None:
         """Update paths for armies that have a direct target.
@@ -961,6 +968,8 @@ class BattlefieldEngine:
                 "start_of_round", opponent=primary_opponent, skip_dot_at_start=True
             )
             army.activate_queued_effects()
+            if ctx is not None:
+                sim._current_round_for_triggers = ctx.internal_round + 1
             sim._process_skill_triggers(
                 army,
                 primary_opponent,
@@ -992,24 +1001,32 @@ class BattlefieldEngine:
                 and atk_ctx
                 and atk_ctx.direct_target == dfd.name
             ):
+                if atk_ctx is not None:
+                    sim._current_round_for_triggers = atk_ctx.internal_round + 1
                 sim._execute_rage_skills(atk, dfd, is_hero2_delayed_trigger=False)
             if (
                 dfd.hero1_rage_skill_queued_this_round
                 and dfd_ctx
                 and dfd_ctx.direct_target == atk.name
             ):
+                if dfd_ctx is not None:
+                    sim._current_round_for_triggers = dfd_ctx.internal_round + 1
                 sim._execute_rage_skills(dfd, atk, is_hero2_delayed_trigger=False)
             if (
                 atk.hero2_rage_skill_primed_for_round == (atk_ctx.internal_round if atk_ctx else None)
                 and atk_ctx
                 and atk_ctx.direct_target == dfd.name
             ):
+                if atk_ctx is not None:
+                    sim._current_round_for_triggers = atk_ctx.internal_round + 1
                 sim._execute_rage_skills(atk, dfd, is_hero2_delayed_trigger=True)
             if (
                 dfd.hero2_rage_skill_primed_for_round == (dfd_ctx.internal_round if dfd_ctx else None)
                 and dfd_ctx
                 and dfd_ctx.direct_target == atk.name
             ):
+                if dfd_ctx is not None:
+                    sim._current_round_for_triggers = dfd_ctx.internal_round + 1
                 sim._execute_rage_skills(dfd, atk, is_hero2_delayed_trigger=True)
 
         # --- Basic attack sequences ---
@@ -1018,6 +1035,8 @@ class BattlefieldEngine:
             for eff in atk.active_effects
         )
         if not atk_disarmed:
+            if atk_ctx is not None:
+                sim._current_round_for_triggers = atk_ctx.internal_round + 1
             sim._process_skill_triggers(
                 atk, dfd, SkillTriggerType.ON_BASIC_ATTACK,
                 event_data={'opponent_for_shield_calc': dfd, 'direct_target_army': dfd}
@@ -1032,6 +1051,8 @@ class BattlefieldEngine:
             if dfd_ctx and dfd_ctx.direct_target and dfd_ctx.direct_target in self._armies:
                 reactive_target = self._armies[dfd_ctx.direct_target].army
             if not atk_disarmed:
+                if dfd_ctx is not None:
+                    sim._current_round_for_triggers = dfd_ctx.internal_round + 1
                 sim._process_skill_triggers(
                     dfd,
                     atk,
@@ -1044,6 +1065,8 @@ class BattlefieldEngine:
                 )
                 dfd.activate_queued_effects()
                 atk.activate_queued_effects()
+            if dfd_ctx is not None:
+                sim._current_round_for_triggers = dfd_ctx.internal_round + 1
             sim._process_skill_triggers(
                 dfd,
                 atk,
@@ -1068,6 +1091,8 @@ class BattlefieldEngine:
                 for eff in dfd.active_effects
             )
             if not dfd_disarmed:
+                if dfd_ctx is not None:
+                    sim._current_round_for_triggers = dfd_ctx.internal_round + 1
                 sim._process_skill_triggers(
                     dfd, atk, SkillTriggerType.ON_BASIC_ATTACK,
                     event_data={'opponent_for_shield_calc': atk, 'direct_target_army': atk},
@@ -1082,6 +1107,8 @@ class BattlefieldEngine:
                 if atk_ctx and atk_ctx.direct_target and atk_ctx.direct_target in self._armies:
                     reactive_target2 = self._armies[atk_ctx.direct_target].army
                 if not dfd_disarmed:
+                    if atk_ctx is not None:
+                        sim._current_round_for_triggers = atk_ctx.internal_round + 1
                     sim._process_skill_triggers(
                         atk,
                         dfd,
@@ -1094,6 +1121,8 @@ class BattlefieldEngine:
                     )
                     atk.activate_queued_effects()
                     dfd.activate_queued_effects()
+                if atk_ctx is not None:
+                    sim._current_round_for_triggers = atk_ctx.internal_round + 1
                 sim._process_skill_triggers(
                     atk,
                     dfd,

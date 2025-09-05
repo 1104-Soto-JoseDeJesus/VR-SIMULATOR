@@ -10,6 +10,7 @@ from .utility_skill_handlers import handle_generic_single_damage_skill
 
 
 def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
+    """Return the round counter for ``army`` with a simulator fallback."""
     if hasattr(army, "army_round"):
         return army.army_round
     return simulator.round if simulator else 0

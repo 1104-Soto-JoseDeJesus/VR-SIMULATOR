@@ -9,10 +9,16 @@ from ..constants import *
 
 
 def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
-    """Return the round counter for ``army`` with a simulator fallback."""
+    """Return the round counter for ``army``.
+
+    If the army has not yet been assigned its own round counter the
+    simulator's global round is used as a fallback (or ``0`` when no
+    simulator is available).  This avoids referencing opponent data during
+    start-of-round processing.
+    """
     if hasattr(army, "army_round"):
         return army.army_round
-    return _get_army_round(triggering_army, simulator) if simulator else 0
+    return simulator.round if simulator else 0
 
 
 def handle_base_skill_planned_attack(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: SkillDefinition,

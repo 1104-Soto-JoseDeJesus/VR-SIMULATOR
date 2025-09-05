@@ -15,7 +15,7 @@ def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
 
     Falls back to ``simulator.round`` when an army specific counter is not
     available so the handlers continue to function in stand‑alone simulator
-    mode."""
+    mode (or ``0`` when no simulator is supplied)."""
     if hasattr(army, "army_round"):
         return army.army_round
     return simulator.round if simulator else 0

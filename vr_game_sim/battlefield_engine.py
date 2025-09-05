@@ -918,6 +918,12 @@ class BattlefieldEngine:
         atk_ctx = self._armies.get(atk.name)
         dfd_ctx = self._armies.get(dfd.name)
 
+        # Ensure both armies expose their own round counters before any
+        # start-of-round processing so skill handlers never need to fall back
+        # to opponent data.
+        for army, ctx in ((atk, atk_ctx), (dfd, dfd_ctx)):
+            army.army_round = (ctx.internal_round + 1) if ctx else 0
+
         # Determine if any rage skills were scheduled for this round
         for army, ctx in ((atk, atk_ctx), (dfd, dfd_ctx)):
             if ctx is None:

@@ -4514,11 +4514,21 @@ class MainWindow(QtWidgets.QMainWindow):
             half_width = max(left_space, right_space)
             preview_width = vs_pix.width() + 2 * half_width
             preview_height = max(p.height() for p in preview_parts)
+
+            # Account for the width of the right army so a margin is preserved
+            # when shifting it left or right via ``extra_after_vs``.  Calculate a
+            # preliminary VS position using the half-width, then expand the
+            # preview canvas if needed to keep a padding margin on the right.
+            vs_x = half_width
+            right_x = vs_x + vs_pix.width() + padding + extra_after_vs - p2.width()
+            preview_width = max(preview_width, right_x + p2.width() + padding)
+
             preview_pix = QtGui.QPixmap(preview_width, preview_height)
             preview_pix.fill(QtCore.Qt.GlobalColor.transparent)
             painter = QtGui.QPainter(preview_pix)
 
-            # Position the VS icon in the horizontal centre
+            # Position the VS icon in the horizontal centre using the final
+            # width of the preview image
             vs_x = (preview_width - vs_pix.width()) // 2
             vs_y = (preview_height - vs_pix.height()) // 2
             painter.drawPixmap(vs_x, vs_y, vs_pix)
@@ -4528,7 +4538,7 @@ class MainWindow(QtWidgets.QMainWindow):
             y = (preview_height - p1.height()) // 2
             painter.drawPixmap(left_x, y, p1)
 
-            right_x = vs_x + vs_pix.width() + padding + extra_after_vs
+            right_x = vs_x + vs_pix.width() + padding + extra_after_vs - p2.width()
             y = (preview_height - p2.height()) // 2
             painter.drawPixmap(right_x, y, p2)
 

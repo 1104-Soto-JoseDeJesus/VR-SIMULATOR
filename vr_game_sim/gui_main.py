@@ -114,7 +114,14 @@ def make_transparent(
         fmt = fmt_obj.Format_ARGB32
     else:
         fmt = QtGui.QImage.Format_ARGB32
+    if pix.isNull():
+        return pix
     image = pix.toImage().convertToFormat(fmt)
+    # Guard against invalid or empty pixmaps which would otherwise cause
+    # indexing errors when accessing pixel data. Returning the original pixmap
+    # preserves previous behaviour without crashing the application.
+    if image.width() == 0 or image.height() == 0:
+        return pix
     ptr = image.bits()
     ptr.setsize(image.width() * image.height() * 4)
     arr = np.frombuffer(ptr, dtype=np.uint8).reshape(image.height(), image.width(), 4)
@@ -4236,6 +4243,8 @@ class MainWindow(QtWidgets.QMainWindow):
             path = os.path.join(base_hist_dir, fname)
             if os.path.exists(path):
                 pm = QtGui.QPixmap(path)
+                if pm.isNull():
+                    continue
                 pm = make_transparent(pm)
                 hist_pixmaps[os.path.splitext(fname)[0]] = pm
         if not hist_pixmaps:
@@ -4246,9 +4255,7 @@ class MainWindow(QtWidgets.QMainWindow):
         def render_preview(widget: QtWidgets.QWidget) -> QtGui.QPixmap:
             pix = QtGui.QPixmap(widget.size())
             pix.fill(QtCore.Qt.GlobalColor.transparent)
-            flags = QtWidgets.QWidget.RenderFlags(
-                QtWidgets.QWidget.RenderFlag.DrawChildren
-            )
+            flags = QtWidgets.QWidget.RenderFlag.DrawChildren
             widget.render(pix, QtCore.QPoint(), QtGui.QRegion(), flags)
             return pix.scaled(
                 widget.width() * scale,
@@ -4450,6 +4457,8 @@ class MainWindow(QtWidgets.QMainWindow):
             path = os.path.join(base_hist_dir, fname)
             if os.path.exists(path):
                 pm = QtGui.QPixmap(path)
+                if pm.isNull():
+                    continue
                 pm = make_transparent(pm)
                 hist_pixmaps.append(pm)
         if not hist_pixmaps:
@@ -4464,9 +4473,7 @@ class MainWindow(QtWidgets.QMainWindow):
         def render_preview(widget: QtWidgets.QWidget) -> QtGui.QPixmap:
             pix = QtGui.QPixmap(widget.size())
             pix.fill(QtCore.Qt.GlobalColor.transparent)
-            flags = QtWidgets.QWidget.RenderFlags(
-                QtWidgets.QWidget.RenderFlag.DrawChildren
-            )
+            flags = QtWidgets.QWidget.RenderFlag.DrawChildren
             widget.render(pix, QtCore.QPoint(), QtGui.QRegion(), flags)
             return pix.scaled(
                 widget.width() * scale,

@@ -4281,9 +4281,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if len(preview_parts) == 3:
             padding = vs_pix.width() // 2
-            extra_after_vs = 300
             left_space = p1.width() + padding
-            right_space = p2.width() + padding + extra_after_vs
+            right_space = p2.width() + padding
             half_width = max(left_space, right_space)
             preview_width = vs_pix.width() + 2 * half_width
             preview_height = max(p.height() for p in preview_parts)
@@ -4292,9 +4291,9 @@ class MainWindow(QtWidgets.QMainWindow):
             painter = QtGui.QPainter(preview_pix)
             vs_x = (preview_width - vs_pix.width()) // 2
             vs_y = (preview_height - vs_pix.height()) // 2
-            p1_x = vs_x - p1.width() - padding
+            p1_x = vs_x - padding - p1.width()
             p1_y = (preview_height - p1.height()) // 2
-            p2_x = vs_x + vs_pix.width() + padding + extra_after_vs - p2.width()
+            p2_x = vs_x + vs_pix.width() + padding
             p2_y = (preview_height - p2.height()) // 2
             painter.drawPixmap(p1_x, p1_y, p1)
             painter.drawPixmap(vs_x, vs_y, vs_pix)

@@ -1284,7 +1284,6 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         # --- Combine troop icon with hero previews ---
         self.preview_widget = QtWidgets.QWidget()
-        self.preview_widget.setStyleSheet("background-color: #353535;")
         if self.index == 1:
             preview_layout = QtWidgets.QHBoxLayout(self.preview_widget)
         else:
@@ -4243,20 +4242,23 @@ class MainWindow(QtWidgets.QMainWindow):
             return None, {}
 
         scale = 5
-        p1 = self.army1_frame.preview_widget.grab().scaled(
-            self.army1_frame.preview_widget.width() * scale,
-            self.army1_frame.preview_widget.height() * scale,
-            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-            QtCore.Qt.TransformationMode.SmoothTransformation,
-        )
-        p1 = make_transparent(p1)
-        p2 = self.army2_frame.preview_widget.grab().scaled(
-            self.army2_frame.preview_widget.width() * scale,
-            self.army2_frame.preview_widget.height() * scale,
-            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-            QtCore.Qt.TransformationMode.SmoothTransformation,
-        )
-        p2 = make_transparent(p2)
+
+        def render_preview(widget: QtWidgets.QWidget) -> QtGui.QPixmap:
+            pix = QtGui.QPixmap(widget.size())
+            pix.fill(QtCore.Qt.GlobalColor.transparent)
+            flags = QtWidgets.QWidget.RenderFlags(
+                QtWidgets.QWidget.RenderFlag.DrawChildren
+            )
+            widget.render(pix, QtCore.QPoint(), QtGui.QRegion(), flags)
+            return pix.scaled(
+                widget.width() * scale,
+                widget.height() * scale,
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+
+        p1 = render_preview(self.army1_frame.preview_widget)
+        p2 = render_preview(self.army2_frame.preview_widget)
         vs_pix = self.vs_label.pixmap()
         if vs_pix is not None and not vs_pix.isNull():
             vs_pix = vs_pix.scaled(
@@ -4458,20 +4460,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Capture army previews and vs image
         scale = 5
-        p1 = self.army1_frame.preview_widget.grab().scaled(
-            self.army1_frame.preview_widget.width() * scale,
-            self.army1_frame.preview_widget.height() * scale,
-            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-            QtCore.Qt.TransformationMode.SmoothTransformation,
-        )
-        p1 = make_transparent(p1)
-        p2 = self.army2_frame.preview_widget.grab().scaled(
-            self.army2_frame.preview_widget.width() * scale,
-            self.army2_frame.preview_widget.height() * scale,
-            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-            QtCore.Qt.TransformationMode.SmoothTransformation,
-        )
-        p2 = make_transparent(p2)
+
+        def render_preview(widget: QtWidgets.QWidget) -> QtGui.QPixmap:
+            pix = QtGui.QPixmap(widget.size())
+            pix.fill(QtCore.Qt.GlobalColor.transparent)
+            flags = QtWidgets.QWidget.RenderFlags(
+                QtWidgets.QWidget.RenderFlag.DrawChildren
+            )
+            widget.render(pix, QtCore.QPoint(), QtGui.QRegion(), flags)
+            return pix.scaled(
+                widget.width() * scale,
+                widget.height() * scale,
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                QtCore.Qt.TransformationMode.SmoothTransformation,
+            )
+
+        p1 = render_preview(self.army1_frame.preview_widget)
+        p2 = render_preview(self.army2_frame.preview_widget)
         vs_pix = self.vs_label.pixmap()
         if vs_pix is not None and not vs_pix.isNull():
             vs_pix = vs_pix.scaled(

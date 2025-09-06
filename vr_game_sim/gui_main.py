@@ -92,6 +92,45 @@ def save_pdf_layout(pages: list[dict]) -> None:
         pass
 
 
+def make_transparent(
+    pix: QtGui.QPixmap, bg_color: QtGui.QColor | None = None
+) -> QtGui.QPixmap:
+    """Return ``pix`` with background pixels made fully transparent.
+
+    ``QPixmap.createMaskFromColor`` was previously used to strip the
+    ``#353535`` background from histogram images and army previews. That
+    approach converts the mask to 1-bit alpha and removed most detail.  This
+    helper instead inspects each pixel and clears the alpha channel when its
+    colour matches the background (within a small tolerance). Existing
+    transparency in the source pixmap is preserved.
+
+    If ``bg_color`` is ``None`` the colour of the top-left pixel is used as the
+    background, allowing different solid backgrounds to be handled without
+    hard-coding the expected colour.
+    """
+
+    fmt_obj = getattr(QtGui.QImage, "Format", None)
+    if fmt_obj is not None and hasattr(fmt_obj, "Format_ARGB32"):
+        fmt = fmt_obj.Format_ARGB32
+    else:
+        fmt = QtGui.QImage.Format_ARGB32
+    image = pix.toImage().convertToFormat(fmt)
+    ptr = image.bits()
+    ptr.setsize(image.width() * image.height() * 4)
+    arr = np.frombuffer(ptr, dtype=np.uint8).reshape(image.height(), image.width(), 4)
+    if bg_color is None:
+        bg_color = arr[0, 0, :3].copy()
+    else:
+        bg_color = np.array(
+            [bg_color.red(), bg_color.green(), bg_color.blue()], dtype=np.uint8
+        )
+    rgb = arr[:, :, :3].astype(np.int16)
+    diff = np.abs(rgb - bg_color.astype(np.int16))
+    mask = (diff <= 2).all(axis=-1)
+    arr[mask, 3] = 0
+    return QtGui.QPixmap.fromImage(image)
+
+
 class ThousandSepSpinBox(QtWidgets.QSpinBox):
     """QSpinBox that displays numbers with thousand separators."""
 
@@ -1245,6 +1284,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         # --- Combine troop icon with hero previews ---
         self.preview_widget = QtWidgets.QWidget()
+        self.preview_widget.setStyleSheet("background-color: #353535;")
         if self.index == 1:
             preview_layout = QtWidgets.QHBoxLayout(self.preview_widget)
         else:
@@ -4185,33 +4225,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def _generate_preview_and_hist_pixmaps(self) -> tuple[QtGui.QPixmap | None, dict[str, QtGui.QPixmap]]:
         """Return the army preview pixmap and histogram pixmaps."""
 
-        def make_transparent(
-            pix: QtGui.QPixmap, bg_color: QtGui.QColor | None = None
-        ) -> QtGui.QPixmap:
-            fmt_obj = getattr(QtGui.QImage, "Format", None)
-            if fmt_obj is not None and hasattr(fmt_obj, "Format_ARGB32"):
-                fmt = fmt_obj.Format_ARGB32
-            else:
-                fmt = QtGui.QImage.Format_ARGB32
-            image = pix.toImage().convertToFormat(fmt)
-            ptr = image.bits()
-            ptr.setsize(image.width() * image.height() * 4)
-            arr = np.frombuffer(ptr, dtype=np.uint8).reshape(
-                image.height(), image.width(), 4
-            )
-            if bg_color is None:
-                bg_color = arr[0, 0, :3].copy()
-            else:
-                bg_color = np.array(
-                    [bg_color.red(), bg_color.green(), bg_color.blue()],
-                    dtype=np.uint8,
-                )
-            rgb = arr[:, :, :3].astype(np.int16)
-            diff = np.abs(rgb - bg_color.astype(np.int16))
-            mask = (diff <= 2).all(axis=-1)
-            arr[mask, 3] = 0
-            return QtGui.QPixmap.fromImage(image)
-
         image_files = [
             "own_remaining_troops.png",
             "enemy_remaining_troops.png",
@@ -4236,14 +4249,14 @@ class MainWindow(QtWidgets.QMainWindow):
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
-        p1 = make_transparent(p1, QtGui.QColor("#353535"))
+        p1 = make_transparent(p1)
         p2 = self.army2_frame.preview_widget.grab().scaled(
             self.army2_frame.preview_widget.width() * scale,
             self.army2_frame.preview_widget.height() * scale,
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
-        p2 = make_transparent(p2, QtGui.QColor("#353535"))
+        p2 = make_transparent(p2)
         vs_pix = self.vs_label.pixmap()
         if vs_pix is not None and not vs_pix.isNull():
             vs_pix = vs_pix.scaled(
@@ -4423,54 +4436,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def export_summary_image(self) -> None:
         """Combine preview and histogram images into a single PNG."""
-        def make_transparent(
-            pix: QtGui.QPixmap, bg_color: QtGui.QColor | None = None
-        ) -> QtGui.QPixmap:
-            """Return ``pix`` with background pixels made fully transparent.
-
-            ``QPixmap.createMaskFromColor`` was previously used to strip the
-            ``#353535`` background from histogram images and army previews. That
-            approach converts the mask to 1-bit alpha and ended up stripping away
-            most of the figure detail, leaving the exported summary image almost
-            invisible.  Instead we now manually inspect each pixel and clear the
-            alpha channel when its colour matches the background (within a small
-            tolerance).  Existing transparency in the source pixmap is preserved.
-
-            If ``bg_color`` is ``None`` the colour of the top-left pixel is used
-            as the background.  This allows previews and histograms with different
-            solid backgrounds to be made transparent without hard-coding the
-            expected colour.
-            """
-
-            # ``QImage.Format_ARGB32`` was renamed in PyQt6 to live under the
-            # ``QImage.Format`` enum.  Using the old attribute causes an
-            # ``AttributeError`` and crashes the application when exporting the
-            # summary image.  Resolve this by referencing the PyQt6 enum member
-            # correctly.
-            fmt_obj = getattr(QtGui.QImage, "Format", None)
-            if fmt_obj is not None and hasattr(fmt_obj, "Format_ARGB32"):
-                fmt = fmt_obj.Format_ARGB32
-            else:
-                fmt = QtGui.QImage.Format_ARGB32
-            image = pix.toImage().convertToFormat(fmt)
-            ptr = image.bits()
-            ptr.setsize(image.width() * image.height() * 4)
-            arr = np.frombuffer(ptr, dtype=np.uint8).reshape(
-                image.height(), image.width(), 4
-            )
-            if bg_color is None:
-                bg_color = arr[0, 0, :3].copy()
-            else:
-                bg_color = np.array(
-                    [bg_color.red(), bg_color.green(), bg_color.blue()],
-                    dtype=np.uint8,
-                )
-            rgb = arr[:, :, :3].astype(np.int16)
-            diff = np.abs(rgb - bg_color.astype(np.int16))
-            mask = (diff <= 2).all(axis=-1)
-            arr[mask, 3] = 0
-            return QtGui.QPixmap.fromImage(image)
-
         image_files = [
             "own_remaining_troops.png",
             "enemy_remaining_troops.png",
@@ -4499,14 +4464,14 @@ class MainWindow(QtWidgets.QMainWindow):
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
-        p1 = make_transparent(p1, QtGui.QColor("#353535"))
+        p1 = make_transparent(p1)
         p2 = self.army2_frame.preview_widget.grab().scaled(
             self.army2_frame.preview_widget.width() * scale,
             self.army2_frame.preview_widget.height() * scale,
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
-        p2 = make_transparent(p2, QtGui.QColor("#353535"))
+        p2 = make_transparent(p2)
         vs_pix = self.vs_label.pixmap()
         if vs_pix is not None and not vs_pix.isNull():
             vs_pix = vs_pix.scaled(

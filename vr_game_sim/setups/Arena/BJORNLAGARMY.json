@@ -1,0 +1,46 @@
+{
+    "army_name": "Bjorn/Lagertha",
+    "unit_type": "infantry",
+    "tier": 7,
+    "count": 300000,
+    "atk_mod": 2.5,
+    "def_mod": 2.5,
+    "hp_mod": 1.0,
+    "unrevivable_ratio": 0.65,
+    "heroes": [
+        {
+            "hero_name_or_preset": "Bjorn",
+            "talent_ids": [
+                "talent_trained_up",
+                "talent_undefeated",
+                "talent_fatal_bleeding"
+            ],
+            "base_skill_ids": [
+                "base_skill_crippling_pursuit",
+                "base_skill_lethal_fracture"
+            ],
+            "plugin_skill_ids": [
+                "plugin_enrage",
+                "plugin_bloodstained_icefield"
+            ]
+        },
+        {
+            "hero_name_or_preset": "Lagertha",
+            "talent_ids": [
+                "talent_shieldaxe_attack",
+                "talent_chiefs_might",
+                "talent_fatal_strike"
+            ],
+            "base_skill_ids": [
+                "base_skill_shield_breaker",
+                "rage_skill_showdown"
+            ],
+            "plugin_skill_ids": [
+                "plugin_blessed_negation",
+                "plugin_breaking_free"
+            ]
+        }
+    ],
+    "team": "red",
+    "speed": 50.0
+}

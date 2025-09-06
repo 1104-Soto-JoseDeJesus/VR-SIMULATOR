@@ -4236,14 +4236,14 @@ class MainWindow(QtWidgets.QMainWindow):
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
-        p1 = make_transparent(p1)
+        p1 = make_transparent(p1, QtGui.QColor("#353535"))
         p2 = self.army2_frame.preview_widget.grab().scaled(
             self.army2_frame.preview_widget.width() * scale,
             self.army2_frame.preview_widget.height() * scale,
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
-        p2 = make_transparent(p2)
+        p2 = make_transparent(p2, QtGui.QColor("#353535"))
         vs_pix = self.vs_label.pixmap()
         if vs_pix is not None and not vs_pix.isNull():
             vs_pix = vs_pix.scaled(
@@ -4499,14 +4499,14 @@ class MainWindow(QtWidgets.QMainWindow):
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
-        p1 = make_transparent(p1)
+        p1 = make_transparent(p1, QtGui.QColor("#353535"))
         p2 = self.army2_frame.preview_widget.grab().scaled(
             self.army2_frame.preview_widget.width() * scale,
             self.army2_frame.preview_widget.height() * scale,
             QtCore.Qt.AspectRatioMode.KeepAspectRatio,
             QtCore.Qt.TransformationMode.SmoothTransformation,
         )
-        p2 = make_transparent(p2)
+        p2 = make_transparent(p2, QtGui.QColor("#353535"))
         vs_pix = self.vs_label.pixmap()
         if vs_pix is not None and not vs_pix.isNull():
             vs_pix = vs_pix.scaled(

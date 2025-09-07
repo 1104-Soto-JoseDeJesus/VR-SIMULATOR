@@ -4281,7 +4281,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if len(preview_parts) == 3:
             padding = vs_pix.width() // 2
-            extra_after_vs = 300
+            extra_after_vs = 1700
             left_space = p1.width() + padding
             right_space = p2.width() + padding + extra_after_vs
             half_width = max(left_space, right_space)
@@ -4503,7 +4503,7 @@ class MainWindow(QtWidgets.QMainWindow):
             # Introduce a slightly larger padding between the VS icon and the
             # second army preview to make the spacing appear more balanced in
             # the exported summary image.
-            extra_after_vs = 300
+            extra_after_vs = 1700
 
             # Calculate width so the VS icon sits exactly in the middle of the
             # preview image. This may introduce extra blank space on the shorter

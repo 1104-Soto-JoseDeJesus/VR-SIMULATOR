@@ -29,6 +29,8 @@ from .skill_logic.talent_handlers import (
     handle_talent_chiefs_might, handle_talent_fatal_strike,
     handle_talent_high_fighting_spirit, handle_talent_low_whispers,
     handle_talent_specter_lycan_assault, handle_talent_amazing_attack,
+    # ROSKY TALENT HANDLERS
+    handle_talent_blade_wielder, handle_talent_maniacal, handle_talent_pirate_tricks,
     # OLENA TALENT HANDLERS
     handle_talent_multi_shot_arrow, handle_talent_poised_shot,
     # ARTUR TALENT HANDLER
@@ -46,6 +48,8 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_snake_eyes, handle_base_skill_ready_to_pounce,
     handle_base_skill_threatening_blade, handle_base_skill_unyielding_will,
     handle_base_skill_heart_of_tolerance,
+    # ROSKY BASE SKILL HANDLER
+    handle_base_skill_flurry,
     handle_base_skill_rapid_fire,
     # OLENA BASE SKILL HANDLER
     handle_base_skill_enchanted_arrow,
@@ -82,7 +86,9 @@ from .skill_logic.plugin_skill_handlers import (
     handle_plugin_blessed_healing, handle_plugin_dampened_spirits, handle_plugin_rapid_defense,
     handle_plugin_rare_viking_hymn, handle_plugin_rare_defense_up,
     handle_plugin_rest_and_counterattack, handle_plugin_bloodstained_icefield,
-    handle_plugin_this_too_shall_pass
+    handle_plugin_this_too_shall_pass,
+    # ROSKY PLUGIN SKILL HANDLERS
+    handle_plugin_trap_of_despair, handle_plugin_poison_arrow, handle_plugin_divine_shield
 )
 from .skill_logic.rage_skill_handlers import (
     handle_rage_sharp_pursuit, handle_rage_sacred_blade, handle_rage_vital_blessing,
@@ -104,7 +110,9 @@ from .skill_logic.rage_skill_handlers import (
     handle_rage_ruling_trial,
     handle_rage_showdown,
     handle_rage_undead_harvest,
-    handle_rage_all_kill
+    handle_rage_all_kill,
+    # ROSKY RAGE SKILL HANDLER
+    handle_rage_spirit_battleship
 )
 from .skill_logic.utility_skill_handlers import (
     handle_generic_single_damage_skill,
@@ -1028,6 +1036,43 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "config": {"damage_factor": 800.0, "attack_buff": 0.12, "attack_duration": 2}
     },
 
+    # --- Rosky Skills ---
+    "talent_blade_wielder": {
+        "id": "talent_blade_wielder", "name": "Blade Wielder", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_talent_blade_wielder,
+        "config": {"magnitude": 1.5, "duration": 59}
+    },
+    "talent_maniacal": {
+        "id": "talent_maniacal", "name": "Maniacal", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.20, "target": "SELF",
+        "logic_handler": handle_talent_maniacal,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"heal_factor": 350.0, "heal_duration": 1}
+    },
+    "talent_pirate_tricks": {
+        "id": "talent_pirate_tricks", "name": "Pirate Tricks", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE, "trigger_chance": 0.75, "target": "SELF",
+        "logic_handler": handle_talent_pirate_tricks,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"shield_factor": 1250.0, "shield_duration": 2}
+    },
+    "base_skill_flurry": {
+        "id": "base_skill_flurry", "name": "Flurry", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_base_skill_flurry,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 700.0, "buff_details": {"effect_type": EffectType.STAT_MOD,
+                   "name": EFFECT_NAME_FLURRY_REACTIVE_BOOST, "stat_to_mod": StatType.REACTIVE_SKILL_DAMAGE_ADJUST,
+                   "magnitude": 0.50, "duration": 1, "activate_next_round": True}}
+    },
+    "rage_skill_spirit_battleship": {
+        "id": "rage_skill_spirit_battleship", "name": "Spirit Battleship", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_spirit_battleship,
+        "config": {"damage_factor": 2800.0, "def_reduction_magnitude": -0.30, "def_reduction_duration": 3}
+    },
+
 
     # --- Plugin Skills ---
     # ... (All existing plugin skills) ...
@@ -1413,6 +1458,33 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_plugin_this_too_shall_pass,
         "labels": [PluginSkillLabel.COMMAND],
         "config": {"damage_factor": 1000.0, "heal_factor": 1000.0, "trigger_interval": 9}
+    },
+
+    # --- Additional Plugin Skills (Rosky) ---
+    "plugin_trap_of_despair": {
+        "id": "plugin_trap_of_despair", "name": "Trap of Despair", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_trap_of_despair,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 9, "damage_factor": 1300.0, "slow_chance": 0.50, "slow_duration": 1}
+    },
+    "plugin_poison_arrow": {
+        "id": "plugin_poison_arrow", "name": "Poison Arrow", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_poison_arrow,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 9, "poison_factor": 425.0, "poison_duration": 2,
+                   "attack_reduction_chance": 0.35, "attack_reduction_magnitude": -0.15,
+                   "attack_reduction_duration": 1}
+    },
+    "plugin_divine_shield": {
+        "id": "plugin_divine_shield", "name": "Divine Shield", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_plugin_divine_shield,
+        "effects_to_apply": [{"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_DIVINE_SHIELD_STRENGTH,
+                              "stat_to_mod": StatType.SHIELD_STRENGTH_MODIFIER, "magnitude": 0.20, "duration": -1}],
+        "config": {"damage_chance": 0.20, "damage_factor": 850.0,
+                   "immunity_chance": 0.50, "immunity_duration": 0}
     },
 
     # --- Dummy Talent ---

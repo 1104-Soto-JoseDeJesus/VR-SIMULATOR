@@ -1549,3 +1549,93 @@ def handle_talent_amazing_attack(triggering_army: ArmyRef, opponent_army: ArmyRe
             an_effect_happened = True
             log_details.append((f"Gains '{EFFECT_NAME_AMAZING_ATTACK_BUFF}' for this round.", None))
     return an_effect_happened, log_details
+
+
+def handle_talent_blade_wielder(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    if _get_army_round(triggering_army, simulator) != 1:
+        return False, []
+
+    cfg = skill_def.get("config", {})
+    duration = cfg.get("duration", 59)
+    magnitude = cfg.get("magnitude", 1.5)
+    buff_data = {
+        "effect_type": EffectType.STAT_MOD,
+        "name": EFFECT_NAME_BLADE_WIELDER_COUNTER_BOOST,
+        "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+        "magnitude": magnitude,
+        "duration": duration,
+        "activate_next_round": True,
+    }
+    created = triggering_army._create_and_add_single_effect(
+        buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+    )
+    if created:
+        return True, [(
+            f"Gains Counterattack Damage Boost: {created.get_functionality_description()} for {duration + 1} rounds (starting next round).",
+            None,
+        )]
+    return False, []
+
+
+def handle_talent_maniacal(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    heal_factor = cfg.get("heal_factor", 0.0)
+    heal_duration = cfg.get("heal_duration", 1)
+    if heal_factor <= 0:
+        return False, []
+    hot_data = {
+        "effect_type": EffectType.HEAL_OVER_TIME,
+        "name": EFFECT_NAME_MANIACAL_HOT,
+        "magnitude": heal_factor,
+        "duration": heal_duration,
+        "activate_next_round": True,
+    }
+    created = triggering_army._create_and_add_single_effect(
+        hot_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+    )
+    if created:
+        return True, [(
+            f"Applies {created.get_functionality_description()} for next {heal_duration + 1} round(s).",
+            None,
+        )]
+    return False, []
+
+
+def handle_talent_pirate_tricks(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    shield_factor = cfg.get("shield_factor", 0.0)
+    shield_duration = cfg.get("shield_duration", 2)
+    if shield_factor <= 0:
+        return False, []
+    shield_data = {
+        "effect_type": EffectType.SHIELD,
+        "name": EFFECT_NAME_PIRATE_TRICKS_SHIELD,
+        "duration": shield_duration,
+        "magnitude_calc_type": "dynamic_shield_resistance_v1",
+        "shield_factor": shield_factor,
+        "activate_next_round": True,
+    }
+    created_shield = triggering_army._create_and_add_single_effect(
+        shield_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+    )
+    if created_shield:
+        est_mag = simulator._calculate_shield_magnitude_for_logging(
+            triggering_army, opponent_army, float(shield_factor)
+        ) if simulator else created_shield.magnitude
+        return True, [(
+            f"Gains Shield ({created_shield.get_functionality_description()}) for {shield_duration + 1} rounds (starting next round).",
+            {"shield_hp_gained": round(est_mag)},
+        )]
+    return False, []

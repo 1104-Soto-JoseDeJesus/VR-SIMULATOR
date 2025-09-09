@@ -832,6 +832,60 @@ def handle_rage_desperate_strike(
     return an_effect_happened, log_details, damage_dealt_flag
 
 
+def handle_rage_spirit_battleship(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    damage_dealt_flag = False
+
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    dmg_factor = cfg.get("damage_factor", 0.0)
+    if dmg_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, dmg_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_dealt_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    def_red_mag = cfg.get("def_reduction_magnitude", -0.30)
+    def_red_dur = cfg.get("def_reduction_duration", 3)
+    if def_red_mag != 0:
+        debuff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_SPIRIT_BATTLESHIP_DEF_REDUCTION,
+            "stat_to_mod": StatType.BASE_DEFENSE_MULTIPLIER,
+            "magnitude": def_red_mag,
+            "duration": def_red_dur,
+            "activate_next_round": True,
+        }
+        created_debuff = opponent_army._create_and_add_single_effect(
+            debuff_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created_debuff:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_SPIRIT_BATTLESHIP_DEF_REDUCTION}' on {opponent_army.name} for {def_red_dur + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    return an_effect_happened, log_details, damage_dealt_flag
+
+
 # --- Ivor Rage Skill Handler ---
 def handle_rage_all_kill(triggering_army: ArmyRef, opponent_army: ArmyRef,
                          skill_def: SkillDefinition, event_data: Dict[str, Any],

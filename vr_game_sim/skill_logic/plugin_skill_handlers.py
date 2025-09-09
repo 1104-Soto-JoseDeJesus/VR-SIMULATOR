@@ -231,6 +231,173 @@ def handle_plugin_chance_of_reversal(
     return an_effect_happened, log_details
 
 
+def handle_plugin_trap_of_despair(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    interval = cfg.get("trigger_interval", 9)
+
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % interval == 0):
+        return False, []
+
+    dmg_factor = cfg.get("damage_factor", 0.0)
+    if dmg_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, dmg_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    if random.random() < cfg.get("slow_chance", 0.5):
+        slow_dur = cfg.get("slow_duration", 1)
+        slow_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_SLOW_DEBUFF,
+            "duration": slow_dur,
+            "activate_next_round": True,
+            "config": {},
+        }
+        created_slow = opponent_army._create_and_add_single_effect(
+            slow_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_slow:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {opponent_army.name} for {slow_dur + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_poison_arrow(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    interval = cfg.get("trigger_interval", 9)
+
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % interval == 0):
+        return False, []
+
+    poison_factor = cfg.get("poison_factor", 0.0)
+    poison_duration = cfg.get("poison_duration", 2)
+    if poison_factor > 0:
+        poison_data = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_POISON_ARROW_POISON,
+            "magnitude": poison_factor,
+            "duration": poison_duration,
+            "activate_next_round": True,
+            "config": {"dot_type": DoTType.POISON},
+        }
+        created_poison = opponent_army._create_and_add_single_effect(
+            poison_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_poison:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_POISON_ARROW_POISON}' on {opponent_army.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    if random.random() < cfg.get("attack_reduction_chance", 0.35):
+        red_mag = cfg.get("attack_reduction_magnitude", -0.15)
+        red_dur = cfg.get("attack_reduction_duration", 1)
+        debuff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_POISON_ARROW_ATK_REDUCTION,
+            "stat_to_mod": StatType.BASE_ATTACK_MULTIPLIER,
+            "magnitude": red_mag,
+            "duration": red_dur,
+            "activate_next_round": True,
+        }
+        created_debuff = opponent_army._create_and_add_single_effect(
+            debuff_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_debuff:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_POISON_ARROW_ATK_REDUCTION}' on {opponent_army.name} for {red_dur + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_divine_shield(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    if triggering_army.started_round_with_active_shield:
+        if random.random() < cfg.get("damage_chance", 0.20):
+            damage_factor = cfg.get("damage_factor", 0.0)
+            if damage_factor > 0:
+                hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                    triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+                )
+                if hp_damage > 0:
+                    opponent_army.pending_hp_damage_this_round += hp_damage
+                if hp_damage > 0 or absorbed > 0:
+                    an_effect_happened = True
+                log_details.append(
+                    (
+                        f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                        {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                    )
+                )
+        if random.random() < cfg.get("immunity_chance", 0.50):
+            imm_dur = cfg.get("immunity_duration", 0)
+            immunity_data = {
+                "effect_type": EffectType.IMMUNITY,
+                "name": EFFECT_NAME_DIVINE_SHIELD_IMMUNITY,
+                "immune_to": [EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_BROKEN_BLADE_DEBUFF, EFFECT_NAME_SILENCE_DEBUFF],
+                "duration": imm_dur,
+                "activate_next_round": True,
+            }
+            created_immunity = triggering_army._create_and_add_single_effect(
+                immunity_data, skill_id, triggering_army, triggering_army, opponent_army
+            )
+            if created_immunity:
+                an_effect_happened = True
+                log_details.append(
+                    (
+                        f"Gains immunity from Disarm, Broken Blade, and Silence for {imm_dur + 1} round(s) (starting next round).",
+                        None,
+                    )
+                )
+
+    return an_effect_happened, log_details
+
+
+
 def handle_plugin_shield_reflector(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],

@@ -158,6 +158,11 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_plague", "rage_skill_undead_harvest"],
         'plugin_skills': [],
     },
+    'rosky': {
+        'talents': ["talent_blade_wielder", "talent_maniacal", "talent_pirate_tricks"],
+        'base_skills': ["base_skill_flurry", "rage_skill_spirit_battleship"],
+        'plugin_skills': [],
+    },
     'ivor': {
         'talents': ["talent_tactical_rules", "talent_specter_lycan_assault", "talent_amazing_attack"],
         'base_skills': ["base_skill_throwing_axe", "rage_skill_all_kill"],

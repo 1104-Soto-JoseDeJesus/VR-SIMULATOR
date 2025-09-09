@@ -731,6 +731,55 @@ def handle_base_skill_tough_choice(triggering_army: ArmyRef, opponent_army: Army
 
 
 
+def handle_base_skill_flurry(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    damage_factor = cfg.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        calc_target = event_data.get('actual_opponent_for_calc', opponent_army) if event_data else opponent_army
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, calc_target, damage_factor,
+            source_skill_def=skill_def,
+            damage_application_target=opponent_army,
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    buff_details = cfg.get("buff_details")
+    if buff_details:
+        buff_copy = buff_details.copy()
+        if "name" not in buff_copy:
+            buff_copy["name"] = EFFECT_NAME_FLURRY_REACTIVE_BOOST
+        created_buff = triggering_army._create_and_add_single_effect(
+            buff_copy, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created_buff:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Gains Reactive Skill Damage Boost: {created_buff.get_functionality_description()} for {created_buff.duration + 1} round(s) (starting next round).",
+                    None,
+                )
+            )
+
+    return an_effect_happened, log_details
+
+
 # --- Lagertha Base Skill Handler ---
 def handle_base_skill_shield_breaker(
         triggering_army: ArmyRef, opponent_army: ArmyRef,

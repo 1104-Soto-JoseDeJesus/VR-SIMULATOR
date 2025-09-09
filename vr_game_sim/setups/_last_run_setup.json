@@ -4,9 +4,9 @@
         "unit_type": "pikemen",
         "tier": 7,
         "count": 300000,
-        "atk_mod": 2.5,
-        "def_mod": 2.5,
-        "hp_mod": 1.0,
+        "atk_mod": 2.3032,
+        "def_mod": 1.8223,
+        "hp_mod": 0.833,
         "unrevivable_ratio": 0.65,
         "heroes": [
             {
@@ -21,7 +21,7 @@
                     "base_skill_sacred_blade"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_rest_and_counterattack",
+                    "plugin_divine_blessing",
                     "plugin_hymn_of_life"
                 ]
             },
@@ -37,52 +37,52 @@
                     "rage_skill_ruling_trial"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_shield_reflector",
-                    "plugin_divine_blessing"
+                    "plugin_freyas_blessing",
+                    "plugin_rest_and_counterattack"
                 ]
             }
         ]
     },
     {
-        "army_name": "Helgar/Laird",
-        "unit_type": "pikemen",
+        "army_name": "Verdandi/Artur",
+        "unit_type": "archers",
         "tier": 7,
         "count": 300000,
-        "atk_mod": 2.5,
-        "def_mod": 2.5,
-        "hp_mod": 1.0,
+        "atk_mod": 3.53,
+        "def_mod": 1.6875,
+        "hp_mod": 0.833,
         "unrevivable_ratio": 0.65,
         "heroes": [
             {
-                "hero_name_or_preset": "Helgar",
+                "hero_name_or_preset": "Verdandi",
                 "talent_ids": [
-                    "talent_saintly_guardian",
-                    "talent_war_blessing",
-                    "talent_judgement_mark"
+                    "talent_hunting_instinct",
+                    "talent_hunting_experience",
+                    "talent_targeted_strike"
                 ],
                 "base_skill_ids": [
-                    "base_skill_judgements_fury",
-                    "rage_skill_ruling_trial"
+                    "base_skill_rapid_fire",
+                    "base_skill_raining_arrows"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_rest_and_counterattack",
-                    "plugin_hymn_of_life"
+                    "plugin_fiery_detonation",
+                    "plugin_helas_curse"
                 ]
             },
             {
-                "hero_name_or_preset": "Laird",
+                "hero_name_or_preset": "Artur",
                 "talent_ids": [
-                    "talent_holy_shield",
-                    "talent_sacred_counter",
-                    "talent_divine_resistance"
+                    "talent_hellfire_shelter",
+                    "talent_pent_up_anger",
+                    "talent_furious_fire"
                 ],
                 "base_skill_ids": [
-                    "base_skill_flame_guardian",
-                    "base_skill_sacred_blade"
+                    "base_skill_torment",
+                    "base_skill_incineration"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_shield_reflector",
-                    "plugin_divine_blessing"
+                    "plugin_blow_of_chaos",
+                    "plugin_enchanted_pursuit"
                 ]
             }
         ]

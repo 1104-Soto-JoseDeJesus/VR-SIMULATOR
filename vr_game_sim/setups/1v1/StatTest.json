@@ -1,0 +1,90 @@
+[
+    {
+        "army_name": "Laird/Helgar",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 300000,
+        "atk_mod": 2.3032,
+        "def_mod": 1.8223,
+        "hp_mod": 0.833,
+        "unrevivable_ratio": 0.65,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Laird",
+                "talent_ids": [
+                    "talent_holy_shield",
+                    "talent_sacred_counter",
+                    "talent_divine_resistance"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flame_guardian",
+                    "base_skill_sacred_blade"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_blessing",
+                    "plugin_hymn_of_life"
+                ]
+            },
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_freyas_blessing",
+                    "plugin_rest_and_counterattack"
+                ]
+            }
+        ]
+    },
+    {
+        "army_name": "Verdandi/Artur",
+        "unit_type": "archers",
+        "tier": 7,
+        "count": 300000,
+        "atk_mod": 3.53,
+        "def_mod": 1.6875,
+        "hp_mod": 0.833,
+        "unrevivable_ratio": 0.65,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Verdandi",
+                "talent_ids": [
+                    "talent_hunting_instinct",
+                    "talent_hunting_experience",
+                    "talent_targeted_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_rapid_fire",
+                    "base_skill_raining_arrows"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_fiery_detonation",
+                    "plugin_helas_curse"
+                ]
+            },
+            {
+                "hero_name_or_preset": "Artur",
+                "talent_ids": [
+                    "talent_hellfire_shelter",
+                    "talent_pent_up_anger",
+                    "talent_furious_fire"
+                ],
+                "base_skill_ids": [
+                    "base_skill_torment",
+                    "base_skill_incineration"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_blow_of_chaos",
+                    "plugin_enchanted_pursuit"
+                ]
+            }
+        ]
+    }
+]

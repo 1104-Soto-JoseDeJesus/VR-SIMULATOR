@@ -175,6 +175,22 @@
       "unrevivable_ratio": 0.65,
       "heroes": [
         {
+          "hero_name_or_preset": "Lagertha",
+          "talent_ids": [
+            "talent_shieldaxe_attack",
+            "talent_chiefs_might",
+            "talent_fatal_strike"
+          ],
+          "base_skill_ids": [
+            "base_skill_shield_breaker",
+            "rage_skill_showdown"
+          ],
+          "plugin_skill_ids": [
+            "plugin_enrage",
+            "plugin_first_strike"
+          ]
+        },
+        {
           "hero_name_or_preset": "Bjorn",
           "talent_ids": [
             "talent_trained_up",
@@ -186,24 +202,8 @@
             "base_skill_lethal_fracture"
           ],
           "plugin_skill_ids": [
-            "plugin_enrage",
-            "plugin_bloodstained_icefield"
-          ]
-        },
-        {
-          "hero_name_or_preset": "Hobert",
-          "talent_ids": [
-            "talent_bold_shieldaxe",
-            "talent_fearless_pursuit",
-            "talent_steadfast_armor"
-          ],
-          "base_skill_ids": [
-            "base_skill_berserk_fury",
-            "base_skill_brutal_blow"
-          ],
-          "plugin_skill_ids": [
-            "plugin_blessed_negation",
-            "plugin_breaking_free"
+            "plugin_rage_leech",
+            "plugin_odins_asylum"
           ]
         }
       ],

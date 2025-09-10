@@ -356,6 +356,28 @@ def handle_plugin_divine_shield(
     cfg = skill_def.get("config", {})
     skill_id = skill_def["id"]
 
+    # Apply the passive shield strength boost if it hasn't been added yet
+    has_passive_buff = any(
+        eff.name == EFFECT_NAME_DIVINE_SHIELD_STRENGTH and eff.source_skill_id == skill_id
+        for eff_list in [
+            triggering_army.active_effects,
+            triggering_army.upcoming_effects,
+            triggering_army.effects_to_activate_next_round,
+        ]
+        for eff in eff_list
+    )
+    if not has_passive_buff:
+        for eff_data_original in skill_def.get("effects_to_apply", []):
+            eff_data = eff_data_original.copy()
+            created_buff = triggering_army._create_and_add_single_effect(
+                eff_data, skill_id, triggering_army, triggering_army, opponent_army
+            )
+            if created_buff:
+                an_effect_happened = True
+                log_details.append(
+                    (f"Passive bonus: {created_buff.get_functionality_description()}.", None)
+                )
+
     if triggering_army.started_round_with_active_shield:
         if random.random() < cfg.get("damage_chance", 0.20):
             damage_factor = cfg.get("damage_factor", 0.0)

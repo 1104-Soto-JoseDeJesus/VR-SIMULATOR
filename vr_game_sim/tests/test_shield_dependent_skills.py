@@ -108,3 +108,43 @@ def test_shield_attacker_consistent_across_modes(monkeypatch):
     engine.engage("AB", "EB")
     engine.tick(1.0)
     assert "plugin_shield_attacker" in army_b.triggered_skills_this_round
+
+
+def test_shield_reflector_survives_multiple_engagements(monkeypatch):
+    hero = Hero("ReflectHero", [], [], ["plugin_shield_reflector"], SKILL_REGISTRY_GLOBAL)
+    reflector = Army("Reflector", Unit("pikemen", 5, initial_count=10), heroes=[hero])
+    enemy_one = Army("Enemy1", Unit("archers", 5, initial_count=10), heroes=[])
+    enemy_two = Army("Enemy2", Unit("archers", 5, initial_count=10), heroes=[])
+
+    shield_activations: set[tuple[int, int]] = set()
+
+    def fake_shield(self: Army) -> float:
+        if self is reflector:
+            key = (id(self), int(self.army_round))
+            if key not in shield_activations and self.army_round < 2:
+                shield_activations.add(key)
+                return 100.0
+        return 0.0
+
+    monkeypatch.setattr(Army, "get_current_shield_hp", fake_shield)
+    monkeypatch.setattr(
+        GameSimulator,
+        "_calculate_and_log_attack",
+        lambda self, a, b, is_counter=False: (0, 0, 0, 0),
+    )
+
+    engine = BattlefieldEngine(mode="arena")
+    engine.add_army(reflector, "Defenders")
+    engine.add_army(enemy_one, "Attackers")
+    engine.add_army(enemy_two, "Attackers")
+    engine.engage("Enemy1", "Reflector")
+    engine.engage("Enemy2", "Reflector")
+
+    engine.tick(1.0)
+
+    assert reflector.started_round_with_active_shield
+    assert len(reflector.simulators) == 2
+
+    engine.tick(1.0)
+
+    assert "plugin_shield_reflector" in reflector.triggered_skills_this_round

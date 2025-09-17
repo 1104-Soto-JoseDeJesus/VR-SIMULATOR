@@ -210,6 +210,9 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
             unit,
             heroes_list,
             army_config.get("unrevivable_ratio", 0.65),
+            use_dynamic_unrevivable_ratio=army_config.get(
+                "use_dynamic_unrevivable_ratio", False
+            ),
         )
         armies.append(army_obj)
 

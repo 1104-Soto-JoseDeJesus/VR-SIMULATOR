@@ -773,6 +773,89 @@ class GameSimulator:
 
         return hp_damage_to_troops, absorbed_by_shield, damage_after_all_percent_mods, potential_units_killed_this_hit_rounded
 
+    def apply_unrevivable_post_commit(self, mutual_engagement: bool = True) -> None:
+        self._apply_dynamic_unrevivable_between(
+            self.army1, self.army2, mutual_engagement
+        )
+
+    def _apply_dynamic_unrevivable_between(
+        self, army_a: Army, army_b: Army, mutual_engagement: bool
+    ) -> None:
+        self._apply_dynamic_unrevivable_direction(army_a, army_b, mutual_engagement)
+        self._apply_dynamic_unrevivable_direction(army_b, army_a, mutual_engagement)
+        army_a.dynamic_losses_by_opponent.pop(army_b.name, None)
+        army_b.dynamic_losses_by_opponent.pop(army_a.name, None)
+        army_a.dynamic_kills_by_opponent.pop(army_b.name, None)
+        army_b.dynamic_kills_by_opponent.pop(army_a.name, None)
+
+    def _apply_dynamic_unrevivable_direction(
+        self, defender: Army, opponent: Army, mutual_engagement: bool
+    ) -> None:
+        losses = defender.dynamic_losses_by_opponent.get(opponent.name)
+        if not losses:
+            return
+        combat_losses = losses.get("combat", 0.0)
+        skill_losses = losses.get("skill", 0.0)
+        total_losses = combat_losses + skill_losses
+        if total_losses <= 0.0:
+            return
+        if not defender.use_dynamic_unrevivable_ratio:
+            return
+
+        opponent_kills = opponent.dynamic_kills_by_opponent.get(
+            defender.name, {"combat": 0.0, "skill": 0.0}
+        )
+        defender_kills = defender.dynamic_kills_by_opponent.get(
+            opponent.name, {"combat": 0.0, "skill": 0.0}
+        )
+
+        if mutual_engagement:
+            total_combat_kills = defender_kills.get("combat", 0.0) + opponent_kills.get(
+                "combat", 0.0
+            )
+            enemy_combat_kills = opponent_kills.get("combat", 0.0)
+            combat_ratio = 0.2
+            if total_combat_kills > 0:
+                combat_ratio += (enemy_combat_kills / total_combat_kills) * 0.35
+
+            total_skill_kills = defender_kills.get("skill", 0.0) + opponent_kills.get(
+                "skill", 0.0
+            )
+            enemy_skill_kills = opponent_kills.get("skill", 0.0)
+            skill_ratio = 0.2
+            if total_skill_kills > 0:
+                skill_ratio += (enemy_skill_kills / total_skill_kills) * 0.60
+
+            combat_unrevivable = round(combat_losses * combat_ratio)
+            skill_unrevivable = round(skill_losses * skill_ratio)
+            added_unrevivable = combat_unrevivable + skill_unrevivable
+            log_message = (
+                f"vs {opponent.name}: combat ratio {combat_ratio:.2%} on {combat_losses:.1f} "
+                f"losses (+{combat_unrevivable}), skill ratio {skill_ratio:.2%} on "
+                f"{skill_losses:.1f} losses (+{skill_unrevivable}) -> +{added_unrevivable} unrevivable."
+            )
+        else:
+            total_combat_kills = defender_kills.get("combat", 0.0) + opponent_kills.get(
+                "combat", 0.0
+            )
+            enemy_combat_kills = opponent_kills.get("combat", 0.0)
+            combined_ratio = 0.2
+            if total_combat_kills > 0:
+                combined_ratio += (enemy_combat_kills / total_combat_kills) * 0.60
+            combined_losses = combat_losses + skill_losses
+            added_unrevivable = round(combined_losses * combined_ratio)
+            log_message = (
+                f"vs {opponent.name}: non-mutual ratio {combined_ratio:.2%} on {combined_losses:.1f} "
+                f"losses -> +{added_unrevivable} unrevivable."
+            )
+
+        if added_unrevivable > 0:
+            defender.unrevivable_troops = min(
+                defender.unit.initial_count,
+                defender.unrevivable_troops + added_unrevivable,
+            )
+        self._log_skill_trigger(defender, "Dynamic Unrevivable", log_message)
+
     def simulate_battle(self) -> str:
         self.army1.reset_for_new_battle()
         self.army2.reset_for_new_battle()
@@ -801,6 +884,8 @@ class GameSimulator:
             self.army2.damage_contributors_by_skill_this_round = {}
             self.army1.heal_contributors_this_round = {}
             self.army2.heal_contributors_this_round = {}
+            self.army1.clear_dynamic_unrevivable_tracking()
+            self.army2.clear_dynamic_unrevivable_tracking()
 
             self.round_combat_actions_log.clear()
             self.round_skill_triggers_log = {self.army1.name: [], self.army2.name: []}
@@ -967,6 +1052,7 @@ class GameSimulator:
 
             self.army1.commit_pending_healing_and_damage()
             self.army2.commit_pending_healing_and_damage()
+            self.apply_unrevivable_post_commit(mutual_engagement=True)
             if self.track_stats:
                 heal1 = self.army1.pending_hp_healing_this_round
                 heal2 = self.army2.pending_hp_healing_this_round

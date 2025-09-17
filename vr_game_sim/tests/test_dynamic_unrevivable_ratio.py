@@ -80,7 +80,7 @@ def test_dynamic_unrevivable_ratio_skill_heavy_damage():
     assert army._last_dynamic_unrevivable_ratio == pytest.approx(0.8)
 
 
-def test_arena_indirect_attack_uses_combat_share_for_ratio():
+def test_arena_indirect_attack_uses_per_attacker_ratios():
     target = Army(
         "Target",
         Unit("pikemen", 5, initial_count=100),
@@ -126,5 +126,19 @@ def test_arena_indirect_attack_uses_combat_share_for_ratio():
 
     target.commit_pending_healing_and_damage()
 
-    assert target.unrevivable_troops == 11
-    assert target._last_dynamic_unrevivable_ratio == pytest.approx(0.3611111111)
+    direct_ratio = target._calculate_dynamic_unrevivable_ratio(10.0, 5.0)
+    indirect_ratio = target._calculate_dynamic_unrevivable_ratio(2.0, 13.0)
+    expected_unrevivable = (
+        10.0 * direct_ratio[0]
+        + 5.0 * direct_ratio[1]
+        + 2.0 * indirect_ratio[0]
+        + 13.0 * indirect_ratio[1]
+    )
+    expected_increase = round(expected_unrevivable)
+    assert expected_increase == 16
+    assert target.unrevivable_troops == expected_increase
+    total_kills = 30.0
+    expected_effective_ratio = expected_unrevivable / total_kills
+    assert target._last_dynamic_unrevivable_ratio == pytest.approx(
+        expected_effective_ratio
+    )

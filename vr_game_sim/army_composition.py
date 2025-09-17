@@ -462,11 +462,6 @@ class Army:
                         f"effective {effective_ratio:.0%})"
                     )
                 else:
-                    total_kills_all_sources = sum(
-                        max(0.0, data.get("total", 0.0))
-                        for data in kill_breakdown.values()
-                    )
-                    total_combat_all = max(0.0, combat_kills_total)
                     direct_entries: List[Tuple[str, Dict[str, float]]] = []
                     indirect_entries: List[Tuple[str, Dict[str, float]]] = []
                     is_arena_mode = bool(
@@ -517,63 +512,82 @@ class Army:
                         else:
                             direct_entries.append((src, data))
 
-                    direct_combat_total = sum(
-                        max(0.0, entry[1].get("combat", 0.0))
-                        for entry in direct_entries
-                    )
-                    direct_skill_total = sum(
-                        max(0.0, entry[1].get("skill", 0.0))
-                        for entry in direct_entries
-                    )
-                    direct_combat_ratio: Optional[float] = None
-                    direct_skill_ratio: Optional[float] = None
-                    direct_effective_ratio: Optional[float] = None
-                    direct_unrevivable = 0.0
-                    if direct_entries:
-                        (
-                            direct_combat_ratio,
-                            direct_skill_ratio,
-                            direct_effective_ratio,
-                        ) = self._calculate_dynamic_unrevivable_ratio(
-                            direct_combat_total, direct_skill_total
-                        )
-                        direct_unrevivable = (
-                            direct_combat_total * direct_combat_ratio
-                            + direct_skill_total * direct_skill_ratio
-                        )
-
-                    indirect_total_kills = sum(
-                        max(0.0, entry[1].get("total", 0.0))
-                        for entry in indirect_entries
-                    )
-                    indirect_unrevivable = 0.0
-                    indirect_effective_ratio = 0.0
-                    if indirect_entries:
-                        for _, entry in indirect_entries:
+                    def _aggregate_dynamic(entries: List[Tuple[str, Dict[str, float]]]):
+                        total_unrevivable = 0.0
+                        total_kills = 0.0
+                        total_combat = 0.0
+                        total_skill = 0.0
+                        combat_ratio_weighted = 0.0
+                        skill_ratio_weighted = 0.0
+                        for _, entry in entries:
                             combat = max(0.0, entry.get("combat", 0.0))
+                            skill = max(0.0, entry.get("skill", 0.0))
                             total = max(0.0, entry.get("total", 0.0))
-                            if total <= 0:
+                            components_total = combat + skill
+                            if total <= 0.0:
+                                total = components_total
+                            elif components_total > 0.0 and not math.isclose(
+                                total, components_total
+                            ):
+                                total = components_total
+                            if total <= 0.0:
                                 continue
-                            if total_combat_all > 0:
-                                share = combat / total_combat_all
-                            else:
-                                share = 0.5
-                            share = min(1.0, max(0.0, share))
-                            ratio = 0.2 + 0.6 * share
-                            ratio = min(0.8, max(0.2, ratio))
-                            indirect_unrevivable += total * ratio
-                        if indirect_total_kills > 0:
-                            indirect_effective_ratio = (
-                                indirect_unrevivable / indirect_total_kills
+                            (
+                                combat_ratio,
+                                skill_ratio,
+                                _effective_ratio,
+                            ) = self._calculate_dynamic_unrevivable_ratio(
+                                combat, skill
                             )
+                            entry_unrevivable = (
+                                combat * combat_ratio + skill * skill_ratio
+                            )
+                            total_unrevivable += entry_unrevivable
+                            total_kills += total
+                            total_combat += combat
+                            total_skill += skill
+                            if combat > 0.0:
+                                combat_ratio_weighted += combat * combat_ratio
+                            if skill > 0.0:
+                                skill_ratio_weighted += skill * skill_ratio
+                        combat_avg = (
+                            combat_ratio_weighted / total_combat
+                            if total_combat > 0.0
+                            else None
+                        )
+                        skill_avg = (
+                            skill_ratio_weighted / total_skill
+                            if total_skill > 0.0
+                            else None
+                        )
+                        effective_ratio = (
+                            total_unrevivable / total_kills
+                            if total_kills > 0.0
+                            else None
+                        )
+                        return {
+                            "unrevivable": total_unrevivable,
+                            "total_kills": total_kills,
+                            "combat_avg": combat_avg,
+                            "skill_avg": skill_avg,
+                            "effective_ratio": effective_ratio,
+                        }
 
-                    unrevivable_total = direct_unrevivable + indirect_unrevivable
-                    if total_kills_all_sources > 0:
+                    direct_stats = _aggregate_dynamic(direct_entries)
+                    indirect_stats = _aggregate_dynamic(indirect_entries)
+
+                    unrevivable_total = (
+                        direct_stats["unrevivable"] + indirect_stats["unrevivable"]
+                    )
+                    total_kills_all_sources = (
+                        direct_stats["total_kills"] + indirect_stats["total_kills"]
+                    )
+                    if total_kills_all_sources > 0.0:
                         effective_ratio = unrevivable_total / total_kills_all_sources
-                    elif direct_effective_ratio is not None:
-                        effective_ratio = direct_effective_ratio
-                    elif indirect_entries:
-                        effective_ratio = indirect_effective_ratio
+                    elif direct_stats["effective_ratio"] is not None:
+                        effective_ratio = direct_stats["effective_ratio"]
+                    elif indirect_stats["effective_ratio"] is not None:
+                        effective_ratio = indirect_stats["effective_ratio"]
                     else:
                         effective_ratio = 0.0
 
@@ -581,30 +595,38 @@ class Army:
                     unrevivable_increase = round(max(0.0, unrevivable_total))
 
                     note_parts: List[str] = []
-                    has_indirect = bool(indirect_entries)
-                    if (
-                        direct_entries
-                        and direct_combat_ratio is not None
-                        and direct_skill_ratio is not None
-                    ):
-                        if has_indirect:
+                    if direct_entries:
+                        direct_combat_ratio = direct_stats["combat_avg"]
+                        direct_skill_ratio = direct_stats["skill_avg"]
+                        direct_effective_ratio = direct_stats["effective_ratio"]
+                        if direct_combat_ratio is not None:
                             note_parts.append(
                                 f"direct combat ratio {direct_combat_ratio:.0%}"
                             )
+                        if direct_skill_ratio is not None:
                             note_parts.append(
                                 f"direct skill ratio {direct_skill_ratio:.0%}"
                             )
-                        else:
+                        if direct_effective_ratio is not None:
                             note_parts.append(
-                                f"combat ratio {direct_combat_ratio:.0%}"
+                                f"direct effective {direct_effective_ratio:.0%}"
                             )
+                    if indirect_entries:
+                        indirect_combat_ratio = indirect_stats["combat_avg"]
+                        indirect_skill_ratio = indirect_stats["skill_avg"]
+                        indirect_effective_ratio = indirect_stats["effective_ratio"]
+                        if indirect_combat_ratio is not None:
                             note_parts.append(
-                                f"skill ratio {direct_skill_ratio:.0%}"
+                                f"indirect combat ratio {indirect_combat_ratio:.0%}"
                             )
-                    if has_indirect:
-                        note_parts.append(
-                            f"indirect ratio {indirect_effective_ratio:.0%}"
-                        )
+                        if indirect_skill_ratio is not None:
+                            note_parts.append(
+                                f"indirect skill ratio {indirect_skill_ratio:.0%}"
+                            )
+                        if indirect_effective_ratio is not None:
+                            note_parts.append(
+                                f"indirect effective {indirect_effective_ratio:.0%}"
+                            )
                     note_parts.append(f"effective {effective_ratio:.0%}")
                     ratio_note = f" ({', '.join(note_parts)})"
             else:

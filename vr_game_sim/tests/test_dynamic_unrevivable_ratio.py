@@ -1,10 +1,12 @@
+from types import SimpleNamespace
+
 import pytest
 
 from vr_game_sim.army_composition import Army
 from vr_game_sim.unit_definition import Unit
 
 
-def test_dynamic_unrevivable_ratio_uses_damage_share():
+def test_dynamic_unrevivable_ratio_weights_combat_and_skill_kills():
     army = Army(
         "Army1",
         Unit("pikemen", 5, initial_count=100),
@@ -28,13 +30,101 @@ def test_dynamic_unrevivable_ratio_uses_damage_share():
     army.damage_contributors_this_round = {enemy.name: damage_to_army}
     enemy.damage_contributors_this_round = {army.name: damage_to_enemy}
 
-    army.damage_inflicted_this_round = {enemy.name: damage_to_enemy}
-    enemy.damage_inflicted_this_round = {army.name: damage_to_army}
+    army.damage_contributors_by_skill_this_round = {
+        enemy.name: {
+            "basic_attack": hp_a * 10,
+            "skill_fireball": hp_a * 30,
+        }
+    }
+    enemy.damage_contributors_by_skill_this_round = {
+        army.name: {
+            "basic_attack": damage_to_enemy,
+        }
+    }
 
     army.commit_pending_healing_and_damage()
     enemy.commit_pending_healing_and_damage()
 
-    assert army.unrevivable_troops == 24
-    assert enemy.unrevivable_troops == 8
-    assert army._last_dynamic_unrevivable_ratio == pytest.approx(0.6)
-    assert enemy._last_dynamic_unrevivable_ratio == pytest.approx(0.4)
+    assert army.unrevivable_troops == 22
+    assert enemy.unrevivable_troops == 11
+    assert army._last_dynamic_unrevivable_ratio == pytest.approx(0.559375, rel=1e-6)
+    assert enemy._last_dynamic_unrevivable_ratio == pytest.approx(0.55)
+
+
+def test_dynamic_unrevivable_ratio_skill_heavy_damage():
+    army = Army(
+        "Army1",
+        Unit("pikemen", 5, initial_count=100),
+        use_dynamic_unrevivable_ratio=True,
+    )
+    enemy = Army(
+        "Army2",
+        Unit("archers", 5, initial_count=100),
+        use_dynamic_unrevivable_ratio=True,
+    )
+
+    hp_a = army.unit.effective_hp_per_troop([])
+
+    damage_to_army = hp_a * 10
+    army.pending_hp_damage_this_round = damage_to_army
+    army.damage_contributors_this_round = {enemy.name: damage_to_army}
+    army.damage_contributors_by_skill_this_round = {
+        enemy.name: {
+            "skill_fireball": damage_to_army,
+        }
+    }
+
+    army.commit_pending_healing_and_damage()
+
+    assert army.unrevivable_troops == 8
+    assert army._last_dynamic_unrevivable_ratio == pytest.approx(0.8)
+
+
+def test_arena_indirect_attack_uses_combat_share_for_ratio():
+    target = Army(
+        "Target",
+        Unit("pikemen", 5, initial_count=100),
+        use_dynamic_unrevivable_ratio=True,
+    )
+    direct = Army(
+        "Direct",
+        Unit("archers", 5, initial_count=100),
+        use_dynamic_unrevivable_ratio=True,
+    )
+    indirect = Army(
+        "Indirect",
+        Unit("infantry", 5, initial_count=100),
+        use_dynamic_unrevivable_ratio=True,
+    )
+
+    engine = SimpleNamespace(
+        _armies={
+            target.name: SimpleNamespace(direct_target=direct.name),
+            direct.name: SimpleNamespace(direct_target=target.name),
+            indirect.name: SimpleNamespace(direct_target=target.name),
+        }
+    )
+    target.simulator = SimpleNamespace(mode="arena", parent_engine=engine)
+
+    hp = target.unit.effective_hp_per_troop([])
+    total_kills = 30
+    target.pending_hp_damage_this_round = hp * total_kills
+    target.damage_contributors_this_round = {
+        direct.name: hp * 15,
+        indirect.name: hp * 15,
+    }
+    target.damage_contributors_by_skill_this_round = {
+        direct.name: {
+            "basic_attack": hp * 10,
+            "skill_fireball": hp * 5,
+        },
+        indirect.name: {
+            "basic_attack": hp * 2,
+            "skill_chain": hp * 13,
+        },
+    }
+
+    target.commit_pending_healing_and_damage()
+
+    assert target.unrevivable_troops == 11
+    assert target._last_dynamic_unrevivable_ratio == pytest.approx(0.3611111111)

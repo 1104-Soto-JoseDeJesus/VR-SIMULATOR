@@ -43,6 +43,7 @@ class Army:
     unit: Unit
     heroes: List[Hero] = field(default_factory=list)
     unrevivable_ratio: float = 0.65
+    use_dynamic_unrevivable_ratio: bool = False
     simulator: Optional[GameSimulatorRef] = field(init=False, default=None)
     simulators: List[GameSimulatorRef] = field(init=False, default_factory=list)
     army_round: int = field(init=False, default=0)
@@ -58,6 +59,7 @@ class Army:
     pending_hp_damage_this_round: float = field(init=False, default=0.0)
     pending_hp_healing_this_round: float = field(init=False, default=0.0)
     unrevivable_troops: float = field(init=False, default=0.0)
+    _last_dynamic_unrevivable_ratio: float = field(init=False, default=0.0)
 
     skill_trigger_counts: Dict[str, int] = field(init=False, default_factory=dict)
     skill_last_triggered_round: Dict[str, int] = field(init=False, default_factory=dict)
@@ -90,6 +92,7 @@ class Army:
     rage_added_this_round: float = field(init=False, default=0.0)
     kills_dealt_this_round: float = field(init=False, default=0.0)
     damage_contributors_this_round: Dict[str, float] = field(init=False, default_factory=dict)
+    damage_inflicted_this_round: Dict[str, float] = field(init=False, default_factory=dict)
     damage_contributors_by_skill_this_round: Dict[str, Dict[str, float]] = field(
         init=False, default_factory=dict
     )
@@ -174,6 +177,47 @@ class Army:
                         self.hero2_rage_skill_id = skill_def["id"]
                         self.hero2_rage_skill_def = skill_def
                         break
+
+    def _calculate_dynamic_unrevivable_ratio(self) -> float:
+        base_ratio = 0.2
+        dynamic_span = 0.6
+        fallback = base_ratio + dynamic_span * 0.5
+
+        if not self.damage_contributors_this_round:
+            self._last_dynamic_unrevivable_ratio = fallback
+            return fallback
+
+        total_damage_taken = sum(
+            max(0.0, dmg) for dmg in self.damage_contributors_this_round.values()
+        )
+        if total_damage_taken <= 0:
+            self._last_dynamic_unrevivable_ratio = fallback
+            return fallback
+
+        weighted_ratio = 0.0
+        weight_total = 0.0
+        for opponent, damage_taken in self.damage_contributors_this_round.items():
+            damage_taken = max(0.0, damage_taken)
+            if damage_taken <= 0:
+                continue
+            damage_inflicted = max(0.0, self.damage_inflicted_this_round.get(opponent, 0.0))
+            pair_total = damage_taken + damage_inflicted
+            if pair_total <= 0:
+                opponent_share = 0.5
+            else:
+                opponent_share = damage_taken / pair_total
+            ratio_for_pair = base_ratio + dynamic_span * opponent_share
+            weighted_ratio += ratio_for_pair * damage_taken
+            weight_total += damage_taken
+
+        if weight_total <= 0:
+            self._last_dynamic_unrevivable_ratio = fallback
+            return fallback
+
+        ratio = weighted_ratio / weight_total
+        ratio = min(base_ratio + dynamic_span, max(base_ratio, ratio))
+        self._last_dynamic_unrevivable_ratio = ratio
+        return ratio
 
     def _apply_initial_passive_skills(self):
         sim = self.simulator
@@ -331,7 +375,15 @@ class Army:
             lost_round = round(lost_float)
             available_troops = min(round(self.current_troop_count), lost_round)
 
-            unrevivable_increase = round(available_troops * self.unrevivable_ratio)
+            ratio_to_use = self.unrevivable_ratio
+            ratio_note = ""
+            if self.use_dynamic_unrevivable_ratio:
+                ratio_to_use = self._calculate_dynamic_unrevivable_ratio()
+                ratio_note = f" (ratio {ratio_to_use:.0%})"
+            else:
+                self._last_dynamic_unrevivable_ratio = ratio_to_use
+
+            unrevivable_increase = round(available_troops * ratio_to_use)
             for sim in self.simulators:
                 applied_loss_note = (
                     f" Applied loss: {available_troops}."
@@ -341,7 +393,7 @@ class Army:
                 sim._log_skill_trigger(
                     self,
                     "Damage Commitment",
-                    f"Commits {self.pending_hp_damage_this_round:.0f} pending HP damage, resulting in {lost_round} troops lost.{applied_loss_note} {unrevivable_increase} unrevivable.",
+                    f"Commits {self.pending_hp_damage_this_round:.0f} pending HP damage, resulting in {lost_round} troops lost.{applied_loss_note} {unrevivable_increase} unrevivable{ratio_note}.",
                 )
                 for src, dmg in self.damage_contributors_this_round.items():
                     sim._log_skill_trigger(self, "  ↳", f"{src} committed {dmg:.0f} damage")
@@ -1213,6 +1265,8 @@ class Army:
         self.skill_rage_boost_totals.clear()
         self.skill_damage_reduction_boost_totals.clear()
         self.skill_rage_reduction_boost_totals.clear()
+        self.damage_inflicted_this_round = {}
+        self._last_dynamic_unrevivable_ratio = 0.0
 
         self._identify_hero_rage_skills()
         self._apply_initial_passive_skills()

@@ -96,6 +96,9 @@ class Army:
     damage_contributors_by_skill_this_round: Dict[str, Dict[str, float]] = field(
         init=False, default_factory=dict
     )
+    recent_incoming_kills: Dict[str, Dict[str, float]] = field(
+        init=False, default_factory=dict
+    )
     heal_contributors_this_round: Dict[str, Dict[str, float]] = field(
         init=False, default_factory=dict
     )
@@ -182,6 +185,8 @@ class Army:
         self,
         combat_kills: float,
         skill_kills: float,
+        opponent_combat_kills: float,
+        opponent_skill_kills: float,
         *,
         combat_span: float = 0.35,
         skill_span: float = 0.6,
@@ -193,23 +198,24 @@ class Army:
 
         combat_kills = max(0.0, combat_kills)
         skill_kills = max(0.0, skill_kills)
-        total_kills = combat_kills + skill_kills
+        opponent_combat_kills = max(0.0, opponent_combat_kills)
+        opponent_skill_kills = max(0.0, opponent_skill_kills)
 
-        if total_kills <= 0:
-            combat_share = fallback_share
-            skill_share = fallback_share
+        total_combat = combat_kills + opponent_combat_kills
+        total_skill = skill_kills + opponent_skill_kills
+
+        if total_combat > 0:
+            combat_share = combat_kills / total_combat
         else:
-            combat_share = combat_kills / total_kills
-            skill_share = skill_kills / total_kills
-            combat_share = min(1.0, max(0.0, combat_share))
-            skill_share = min(1.0, max(0.0, skill_share))
-            share_sum = combat_share + skill_share
-            if share_sum > 0:
-                combat_share /= share_sum
-                skill_share /= share_sum
-            else:
-                combat_share = fallback_share
-                skill_share = fallback_share
+            combat_share = fallback_share
+
+        if total_skill > 0:
+            skill_share = skill_kills / total_skill
+        else:
+            skill_share = fallback_share
+
+        combat_share = min(1.0, max(0.0, combat_share))
+        skill_share = min(1.0, max(0.0, skill_share))
 
         combat_ratio = base_ratio + combat_span * combat_share
         skill_ratio = base_ratio + skill_span * skill_share
@@ -217,6 +223,7 @@ class Army:
         combat_ratio = min(base_ratio + combat_span, max(base_ratio, combat_ratio))
         skill_ratio = min(base_ratio + skill_span, max(base_ratio, skill_ratio))
 
+        total_kills = combat_kills + skill_kills
         if total_kills > 0:
             effective_ratio = (
                 (combat_kills * combat_ratio) + (skill_kills * skill_ratio)
@@ -446,9 +453,14 @@ class Army:
             ratio_note = ""
             if self.use_dynamic_unrevivable_ratio:
                 if not kill_breakdown:
+                    self.recent_incoming_kills = {}
                     combat_ratio, skill_ratio, effective_ratio = (
                         self._calculate_dynamic_unrevivable_ratio(
-                            combat_kills_total, skill_kills_total
+                            combat_kills_total,
+                            skill_kills_total,
+                            combat_kills_total,
+                            skill_kills_total,
+                            fallback_share=fallback_share,
                         )
                     )
                     unrevivable_total = (
@@ -492,6 +504,103 @@ class Army:
                         else None
                     )
 
+                    def _resolve_attacker_army(name: str) -> Optional["Army"]:
+                        army_obj: Optional[Army] = None
+                        if engine_armies is not None and hasattr(engine_armies, "get"):
+                            ctx = engine_armies.get(name)
+                            if ctx is not None:
+                                army_obj = getattr(ctx, "army", None)
+                        if army_obj is None:
+                            simulators_to_check: List[GameSimulatorRef] = []
+                            if self.simulator is not None:
+                                simulators_to_check.append(self.simulator)
+                            for sim_obj in self.simulators:
+                                if sim_obj not in simulators_to_check:
+                                    simulators_to_check.append(sim_obj)
+                            for sim_obj in simulators_to_check:
+                                army1 = getattr(sim_obj, "army1", None)
+                                army2 = getattr(sim_obj, "army2", None)
+                                if army1 is not None and army1.name == name:
+                                    army_obj = army1
+                                    break
+                                if army2 is not None and army2.name == name:
+                                    army_obj = army2
+                                    break
+                        if army_obj is self:
+                            return None
+                        return army_obj
+
+                    def _compute_opponent_kills(attacker_army: Optional["Army"]) -> Tuple[float, float]:
+                        if attacker_army is None:
+                            return 0.0, 0.0
+                        total_dmg = sum(
+                            max(0.0, dmg)
+                            for dmg in attacker_army.damage_contributors_this_round.values()
+                        )
+                        dmg_from_self = max(
+                            0.0,
+                            attacker_army.damage_contributors_this_round.get(self.name, 0.0),
+                        )
+                        if total_dmg <= 0.0 or dmg_from_self <= 0.0:
+                            if (
+                                attacker_army.pending_hp_damage_this_round > 0.0
+                                and attacker_army.recent_incoming_kills
+                            ):
+                                recent = attacker_army.recent_incoming_kills.get(self.name)
+                                if recent:
+                                    return (
+                                        max(0.0, recent.get("combat", 0.0)),
+                                        max(0.0, recent.get("skill", 0.0)),
+                                    )
+                            return 0.0, 0.0
+                        hp_per_troop = attacker_army.unit.effective_hp_per_troop(
+                            attacker_army.active_effects
+                        )
+                        if hp_per_troop <= 0.0:
+                            hp_per_troop = 1.0
+                        lost_float = attacker_army.pending_hp_damage_this_round / hp_per_troop
+                        lost_round = round(lost_float)
+                        available_troops_attacker = min(
+                            round(attacker_army.current_troop_count), lost_round
+                        )
+                        if available_troops_attacker <= 0:
+                            return 0.0, 0.0
+                        kills_from_self = (
+                            available_troops_attacker * (dmg_from_self / total_dmg)
+                        )
+                        skill_map = attacker_army.damage_contributors_by_skill_this_round.get(
+                            self.name, {}
+                        )
+                        skill_total = sum(max(0.0, val) for val in skill_map.values())
+                        combat_kills_self = 0.0
+                        skill_kills_self = 0.0
+                        if skill_total > 0.0:
+                            for sid, sdmg in skill_map.items():
+                                sdmg = max(0.0, sdmg)
+                                if sdmg <= 0.0:
+                                    continue
+                                share = sdmg / skill_total
+                                kill_amount = kills_from_self * share
+                                if sid in ("basic_attack", "counter_attack"):
+                                    combat_kills_self += kill_amount
+                                else:
+                                    skill_kills_self += kill_amount
+                        else:
+                            combat_kills_self = kills_from_self
+                        total_split_self = combat_kills_self + skill_kills_self
+                        if (
+                            not math.isclose(total_split_self, kills_from_self)
+                            and kills_from_self > 0.0
+                        ):
+                            if total_split_self > 0.0:
+                                adjust_scale = kills_from_self / total_split_self
+                                combat_kills_self *= adjust_scale
+                                skill_kills_self *= adjust_scale
+                            else:
+                                combat_kills_self = kills_from_self
+                                skill_kills_self = 0.0
+                        return combat_kills_self, skill_kills_self
+
                     for src, data in kill_breakdown.items():
                         total_kills_src = max(0.0, data.get("total", 0.0))
                         if total_kills_src <= 0:
@@ -512,6 +621,18 @@ class Army:
                         else:
                             direct_entries.append((src, data))
 
+                    if kill_breakdown:
+                        self.recent_incoming_kills = {
+                            attacker: {
+                                "total": max(0.0, info.get("total", 0.0)),
+                                "combat": max(0.0, info.get("combat", 0.0)),
+                                "skill": max(0.0, info.get("skill", 0.0)),
+                            }
+                            for attacker, info in kill_breakdown.items()
+                        }
+                    else:
+                        self.recent_incoming_kills = {}
+
                     def _aggregate_dynamic(entries: List[Tuple[str, Dict[str, float]]]):
                         total_unrevivable = 0.0
                         total_kills = 0.0
@@ -519,7 +640,7 @@ class Army:
                         total_skill = 0.0
                         combat_ratio_weighted = 0.0
                         skill_ratio_weighted = 0.0
-                        for _, entry in entries:
+                        for source_name, entry in entries:
                             combat = max(0.0, entry.get("combat", 0.0))
                             skill = max(0.0, entry.get("skill", 0.0))
                             total = max(0.0, entry.get("total", 0.0))
@@ -532,12 +653,20 @@ class Army:
                                 total = components_total
                             if total <= 0.0:
                                 continue
+                            attacker_army = _resolve_attacker_army(source_name)
+                            opponent_combat, opponent_skill = _compute_opponent_kills(
+                                attacker_army
+                            )
                             (
                                 combat_ratio,
                                 skill_ratio,
                                 _effective_ratio,
                             ) = self._calculate_dynamic_unrevivable_ratio(
-                                combat, skill
+                                combat,
+                                skill,
+                                opponent_combat,
+                                opponent_skill,
+                                fallback_share=fallback_share,
                             )
                             entry_unrevivable = (
                                 combat * combat_ratio + skill * skill_ratio
@@ -1504,6 +1633,7 @@ class Army:
         self.kills_dealt_this_round = 0.0
         self.damage_contributors_this_round = {}
         self.damage_contributors_by_skill_this_round = {}
+        self.recent_incoming_kills = {}
         self.heal_contributors_this_round = {}
         self.skill_kill_totals.clear()
         self.skill_heal_totals.clear()

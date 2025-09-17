@@ -812,6 +812,7 @@ class BattlefieldEngine:
             army.damage_contributors_this_round = {}
             army.damage_inflicted_this_round = {}
             army.damage_contributors_by_skill_this_round = {}
+            army.recent_incoming_kills = {}
             army.heal_contributors_this_round = {}
 
         unique_armies: List[Army] = []

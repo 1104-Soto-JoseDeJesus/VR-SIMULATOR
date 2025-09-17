@@ -805,6 +805,8 @@ class GameSimulator:
             self.army2.damage_inflicted_this_round = {}
             self.army1.damage_contributors_by_skill_this_round = {}
             self.army2.damage_contributors_by_skill_this_round = {}
+            self.army1.recent_incoming_kills = {}
+            self.army2.recent_incoming_kills = {}
             self.army1.heal_contributors_this_round = {}
             self.army2.heal_contributors_this_round = {}
 

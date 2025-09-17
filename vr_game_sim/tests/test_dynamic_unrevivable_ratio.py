@@ -45,10 +45,10 @@ def test_dynamic_unrevivable_ratio_weights_combat_and_skill_kills():
     army.commit_pending_healing_and_damage()
     enemy.commit_pending_healing_and_damage()
 
-    assert army.unrevivable_troops == 22
-    assert enemy.unrevivable_troops == 11
-    assert army._last_dynamic_unrevivable_ratio == pytest.approx(0.559375, rel=1e-6)
-    assert enemy._last_dynamic_unrevivable_ratio == pytest.approx(0.55)
+    assert army.unrevivable_troops == 27
+    assert enemy.unrevivable_troops == 9
+    assert army._last_dynamic_unrevivable_ratio == pytest.approx(0.6791666667, rel=1e-6)
+    assert enemy._last_dynamic_unrevivable_ratio == pytest.approx(0.4333333333, rel=1e-6)
 
 
 def test_dynamic_unrevivable_ratio_skill_heavy_damage():
@@ -124,10 +124,35 @@ def test_arena_indirect_attack_uses_per_attacker_ratios():
         },
     }
 
+    hp_direct = direct.unit.effective_hp_per_troop([])
+    hp_indirect = indirect.unit.effective_hp_per_troop([])
+
+    direct.pending_hp_damage_this_round = hp_direct * 10
+    direct.damage_contributors_this_round = {
+        target.name: hp_direct * 10,
+    }
+    direct.damage_contributors_by_skill_this_round = {
+        target.name: {
+            "basic_attack": hp_direct * 6,
+            "skill_storm": hp_direct * 4,
+        }
+    }
+
+    indirect.pending_hp_damage_this_round = hp_indirect * 5
+    indirect.damage_contributors_this_round = {
+        target.name: hp_indirect * 5,
+    }
+    indirect.damage_contributors_by_skill_this_round = {
+        target.name: {
+            "basic_attack": hp_indirect * 3,
+            "skill_chain": hp_indirect * 2,
+        }
+    }
+
     target.commit_pending_healing_and_damage()
 
-    direct_ratio = target._calculate_dynamic_unrevivable_ratio(10.0, 5.0)
-    indirect_ratio = target._calculate_dynamic_unrevivable_ratio(2.0, 13.0)
+    direct_ratio = target._calculate_dynamic_unrevivable_ratio(10.0, 5.0, 6.0, 4.0)
+    indirect_ratio = target._calculate_dynamic_unrevivable_ratio(2.0, 13.0, 3.0, 2.0)
     expected_unrevivable = (
         10.0 * direct_ratio[0]
         + 5.0 * direct_ratio[1]
@@ -135,7 +160,7 @@ def test_arena_indirect_attack_uses_per_attacker_ratios():
         + 13.0 * indirect_ratio[1]
     )
     expected_increase = round(expected_unrevivable)
-    assert expected_increase == 16
+    assert expected_increase == 17
     assert target.unrevivable_troops == expected_increase
     total_kills = 30.0
     expected_effective_ratio = expected_unrevivable / total_kills

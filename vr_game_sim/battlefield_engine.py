@@ -946,13 +946,10 @@ class BattlefieldEngine:
             army.activate_queued_effects()
             army.decrement_effect_durations()
 
-        atk.started_last_round_with_active_shield = atk.started_round_with_active_shield
-        dfd.started_last_round_with_active_shield = dfd.started_round_with_active_shield
-        atk.started_round_with_active_shield = atk.get_current_shield_hp() > 0
-        dfd.started_round_with_active_shield = dfd.get_current_shield_hp() > 0
-
         # --- Start of round housekeeping & round based skill triggers ---
         for army in processed_now:
+            army.started_last_round_with_active_shield = army.started_round_with_active_shield
+            army.started_round_with_active_shield = army.get_current_shield_hp() > 0
             opponent = dfd if army is atk else atk
             ctx = atk_ctx if army is atk else dfd_ctx
 

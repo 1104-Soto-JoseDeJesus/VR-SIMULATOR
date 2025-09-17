@@ -36,6 +36,8 @@ from .constants import (
 
 GameSimulatorRef = "GameSimulator"  # Forward reference
 
+COMBAT_SKILL_IDS = {"basic_attack", "counter_attack"}
+
 
 @dataclass(slots=True)
 class Army:
@@ -43,6 +45,7 @@ class Army:
     unit: Unit
     heroes: List[Hero] = field(default_factory=list)
     unrevivable_ratio: float = 0.65
+    use_dynamic_unrevivable_ratio: bool = False
     simulator: Optional[GameSimulatorRef] = field(init=False, default=None)
     simulators: List[GameSimulatorRef] = field(init=False, default_factory=list)
     army_round: int = field(init=False, default=0)
@@ -93,6 +96,12 @@ class Army:
     damage_contributors_by_skill_this_round: Dict[str, Dict[str, float]] = field(
         init=False, default_factory=dict
     )
+    dynamic_losses_by_opponent: Dict[str, Dict[str, float]] = field(
+        init=False, default_factory=dict
+    )
+    dynamic_kills_by_opponent: Dict[str, Dict[str, float]] = field(
+        init=False, default_factory=dict
+    )
     heal_contributors_this_round: Dict[str, Dict[str, float]] = field(
         init=False, default_factory=dict
     )
@@ -117,6 +126,46 @@ class Army:
         self.simulator = simulator
         if simulator not in self.simulators:
             self.simulators.append(simulator)
+
+    def clear_dynamic_unrevivable_tracking(self) -> None:
+        self.dynamic_losses_by_opponent.clear()
+        self.dynamic_kills_by_opponent.clear()
+
+    def _record_dynamic_losses(self, opponent_name: str, combat: float, skill: float) -> None:
+        if combat <= 0 and skill <= 0:
+            return
+        record = self.dynamic_losses_by_opponent.setdefault(
+            opponent_name, {"combat": 0.0, "skill": 0.0}
+        )
+        record["combat"] += combat
+        record["skill"] += skill
+
+    def _record_dynamic_kills(self, opponent_name: str, combat: float, skill: float) -> None:
+        if combat <= 0 and skill <= 0:
+            return
+        record = self.dynamic_kills_by_opponent.setdefault(
+            opponent_name, {"combat": 0.0, "skill": 0.0}
+        )
+        record["combat"] += combat
+        record["skill"] += skill
+
+    def _find_army_by_name(self, name: str) -> Optional["Army"]:
+        if name == self.name:
+            return self
+        if self.simulator is not None:
+            if getattr(self.simulator, "army1", None) and self.simulator.army1.name == name:
+                return self.simulator.army1
+            if getattr(self.simulator, "army2", None) and self.simulator.army2.name == name:
+                return self.simulator.army2
+        for sim in self.simulators:
+            if sim.army1.name == name:
+                return sim.army1
+            if sim.army2.name == name:
+                return sim.army2
+            engine = getattr(sim, "parent_engine", None)
+            if engine and name in engine._armies:
+                return engine._armies[name].army
+        return None
 
     def increment_skill_trigger_count(self, skill_id: str):
         self.skill_trigger_counts[skill_id] = self.skill_trigger_counts.get(skill_id, 0) + 1
@@ -330,43 +379,61 @@ class Army:
             lost_float = self.pending_hp_damage_this_round / hp_per_troop
             lost_round = round(lost_float)
             available_troops = min(round(self.current_troop_count), lost_round)
-
-            unrevivable_increase = round(available_troops * self.unrevivable_ratio)
+            dynamic_mode = self.use_dynamic_unrevivable_ratio
+            unrevivable_increase = (
+                0 if dynamic_mode else round(available_troops * self.unrevivable_ratio)
+            )
             for sim in self.simulators:
                 applied_loss_note = (
                     f" Applied loss: {available_troops}."
                     if available_troops != lost_round
                     else ""
                 )
+                if dynamic_mode:
+                    unrevivable_note = " Dynamic unrevivable pending."
+                else:
+                    unrevivable_note = f" {unrevivable_increase} unrevivable."
                 sim._log_skill_trigger(
                     self,
                     "Damage Commitment",
-                    f"Commits {self.pending_hp_damage_this_round:.0f} pending HP damage, resulting in {lost_round} troops lost.{applied_loss_note} {unrevivable_increase} unrevivable.",
+                    f"Commits {self.pending_hp_damage_this_round:.0f} pending HP damage, resulting in {lost_round} troops lost.{applied_loss_note}{unrevivable_note}",
                 )
                 for src, dmg in self.damage_contributors_this_round.items():
                     sim._log_skill_trigger(self, "  ↳", f"{src} committed {dmg:.0f} damage")
             self.current_troop_count = max(0, self.current_troop_count - available_troops)
-            self.unrevivable_troops = min(
-                self.unit.initial_count,
-                self.unrevivable_troops + unrevivable_increase,
-            )
+            if not dynamic_mode:
+                self.unrevivable_troops = min(
+                    self.unit.initial_count,
+                    self.unrevivable_troops + unrevivable_increase,
+                )
             total_dmg = sum(self.damage_contributors_this_round.values())
             if available_troops > 0 and total_dmg > 0:
                 for src, dmg in self.damage_contributors_this_round.items():
                     kills = available_troops * (dmg / total_dmg)
-                    for sim in self.simulators:
-                        engine = getattr(sim, "parent_engine", None)
-                        if engine and src in engine._armies:
-                            army_obj = engine._armies[src].army
-                            army_obj.kills_dealt_this_round += kills
-                            skill_map = self.damage_contributors_by_skill_this_round.get(src, {})
-                            skill_total = sum(skill_map.values())
-                            if skill_total > 0:
-                                for sid, sdmg in skill_map.items():
-                                    army_obj.skill_kill_totals[sid] = army_obj.skill_kill_totals.get(sid, 0.0) + (
-                                        kills * (sdmg / skill_total)
-                                    )
-                            break
+                    army_obj = self._find_army_by_name(src)
+                    skill_map = self.damage_contributors_by_skill_this_round.get(src, {})
+                    skill_total = sum(skill_map.values())
+                    combat_kills = 0.0
+                    skill_kills = 0.0
+                    if skill_total > 0:
+                        for sid, sdmg in skill_map.items():
+                            portion = kills * (sdmg / skill_total)
+                            if army_obj:
+                                army_obj.skill_kill_totals[sid] = (
+                                    army_obj.skill_kill_totals.get(sid, 0.0) + portion
+                                )
+                            if sid in COMBAT_SKILL_IDS:
+                                combat_kills += portion
+                            else:
+                                skill_kills += portion
+                    else:
+                        combat_kills = kills
+                    if army_obj:
+                        army_obj.kills_dealt_this_round += kills
+                    if combat_kills > 0 or skill_kills > 0:
+                        self._record_dynamic_losses(src, combat_kills, skill_kills)
+                        if army_obj:
+                            army_obj._record_dynamic_kills(self.name, combat_kills, skill_kills)
             self.damage_contributors_this_round = {}
             self.damage_contributors_by_skill_this_round = {}
         # self.pending_hp_damage_this_round = 0.0 # Resetting this at start of round in game_simulator.py
@@ -1201,6 +1268,7 @@ class Army:
         self.damage_contributors_this_round = {}
         self.damage_contributors_by_skill_this_round = {}
         self.heal_contributors_this_round = {}
+        self.clear_dynamic_unrevivable_tracking()
         self.skill_kill_totals.clear()
         self.skill_heal_totals.clear()
         self.skill_shield_totals.clear()

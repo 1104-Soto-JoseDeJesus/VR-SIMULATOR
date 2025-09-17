@@ -812,6 +812,7 @@ class BattlefieldEngine:
             army.damage_contributors_this_round = {}
             army.damage_contributors_by_skill_this_round = {}
             army.heal_contributors_this_round = {}
+            army.clear_dynamic_unrevivable_tracking()
 
         unique_armies: List[Army] = []
         start_processed: set[str] = set()
@@ -839,6 +840,17 @@ class BattlefieldEngine:
         for army in unique_armies:
             army.commit_pending_healing_and_damage()
             self._queue_state_update(army)
+
+        for (atk_name, dfd_name), sim in self._engagements.items():
+            atk_ctx = self._armies.get(atk_name)
+            dfd_ctx = self._armies.get(dfd_name)
+            mutual = (
+                atk_ctx is not None
+                and dfd_ctx is not None
+                and atk_ctx.direct_target == dfd_name
+                and dfd_ctx.direct_target == atk_name
+            )
+            sim.apply_unrevivable_post_commit(mutual_engagement=mutual)
 
         # Emit round reports after committing damage/healing so that
         # "Damage Commitment" entries appear in the same round they belong to.

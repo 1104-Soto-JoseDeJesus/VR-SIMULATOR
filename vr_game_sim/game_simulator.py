@@ -124,6 +124,10 @@ class GameSimulator:
                 defender.damage_contributors_this_round.get(attacker.name, 0.0)
                 + final_hp_damage
             )
+            attacker.damage_inflicted_this_round[defender.name] = (
+                attacker.damage_inflicted_this_round.get(defender.name, 0.0)
+                + final_hp_damage
+            )
             sid = skill_id or ("counter_attack" if is_counter else "basic_attack")
             attacker.increment_skill_trigger_count(sid)
             skill_map = defender.damage_contributors_by_skill_this_round.setdefault(
@@ -797,6 +801,8 @@ class GameSimulator:
             self.army2.pending_hp_healing_this_round = 0.0
             self.army1.damage_contributors_this_round = {}
             self.army2.damage_contributors_this_round = {}
+            self.army1.damage_inflicted_this_round = {}
+            self.army2.damage_inflicted_this_round = {}
             self.army1.damage_contributors_by_skill_this_round = {}
             self.army2.damage_contributors_by_skill_this_round = {}
             self.army1.heal_contributors_this_round = {}

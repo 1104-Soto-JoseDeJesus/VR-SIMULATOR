@@ -329,25 +329,31 @@ class Army:
 
             lost_float = self.pending_hp_damage_this_round / hp_per_troop
             lost_round = round(lost_float)
+            available_troops = min(round(self.current_troop_count), lost_round)
 
-            unrevivable_increase = round(lost_round * self.unrevivable_ratio)
+            unrevivable_increase = round(available_troops * self.unrevivable_ratio)
             for sim in self.simulators:
+                applied_loss_note = (
+                    f" Applied loss: {available_troops}."
+                    if available_troops != lost_round
+                    else ""
+                )
                 sim._log_skill_trigger(
                     self,
                     "Damage Commitment",
-                    f"Commits {self.pending_hp_damage_this_round:.0f} pending HP damage, resulting in {lost_round} troops lost. {unrevivable_increase} unrevivable.",
+                    f"Commits {self.pending_hp_damage_this_round:.0f} pending HP damage, resulting in {lost_round} troops lost.{applied_loss_note} {unrevivable_increase} unrevivable.",
                 )
                 for src, dmg in self.damage_contributors_this_round.items():
                     sim._log_skill_trigger(self, "  ↳", f"{src} committed {dmg:.0f} damage")
-            self.current_troop_count = max(0, self.current_troop_count - lost_round)
+            self.current_troop_count = max(0, self.current_troop_count - available_troops)
             self.unrevivable_troops = min(
                 self.unit.initial_count,
                 self.unrevivable_troops + unrevivable_increase,
             )
             total_dmg = sum(self.damage_contributors_this_round.values())
-            if lost_round > 0 and total_dmg > 0:
+            if available_troops > 0 and total_dmg > 0:
                 for src, dmg in self.damage_contributors_this_round.items():
-                    kills = lost_round * (dmg / total_dmg)
+                    kills = available_troops * (dmg / total_dmg)
                     for sim in self.simulators:
                         engine = getattr(sim, "parent_engine", None)
                         if engine and src in engine._armies:

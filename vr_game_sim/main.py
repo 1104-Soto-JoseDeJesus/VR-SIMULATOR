@@ -13,6 +13,7 @@ import multiprocessing
 import matplotlib
 from matplotlib.ticker import MaxNLocator
 import numpy as np
+from itertools import repeat
 
 # Use a non-interactive backend so matplotlib doesn't block the script when
 # generating figures. This avoids hangs after the battle summary prints.
@@ -31,6 +32,7 @@ from vr_game_sim.unit_definition import Unit as UnitClass
 from vr_game_sim.hero_definition import Hero, HERO_PRESETS
 from vr_game_sim.army_composition import Army
 from vr_game_sim.game_simulator import GameSimulator
+from vr_game_sim import dynamic_unrevivable_config
 from vr_game_sim.interactive_setup import (
     input_choice_numbered,
     input_int,
@@ -228,6 +230,7 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
 def _run_single_battle(
     setup_data: List[Dict[str, Any]],
     seed: int | None = None,
+    dynamic_settings: Dict[str, float] | None = None,
     return_report: bool = False,
 ) -> tuple:
     """Helper to run a single battle.
@@ -239,6 +242,11 @@ def _run_single_battle(
     seed: int | None
         When provided, ``random.seed`` is set before creating the simulator to
         ensure deterministic results.
+    dynamic_settings: Dict[str, float] | None
+        Optional dynamic unrevivable configuration. When provided, the helper
+        applies the values for the duration of this call so that child
+        processes spawned by :func:`run_additional_simulations` honour
+        session-only overrides.
     return_report: bool
         If ``True`` the full battle report text is returned as the final element
         in the tuple. ``GameSimulator`` is instantiated with ``track_stats`` set
@@ -251,6 +259,9 @@ def _run_single_battle(
     """
     if seed is not None:
         random.seed(seed)
+
+    if dynamic_settings is not None:
+        dynamic_unrevivable_config.apply_session_settings(dynamic_settings)
 
     armies = create_armies_from_data(setup_data)
     sim = GameSimulator(armies[0], armies[1], track_stats=return_report)
@@ -293,6 +304,9 @@ def run_additional_simulations(
     # Ensure any previous figures are closed before starting the additional runs
     plt.close("all")
 
+    dynamic_settings = dynamic_unrevivable_config.get_settings()
+    dynamic_settings_payload = dict(dynamic_settings)
+
     own_remaining: List[float] = []
     enemy_remaining: List[float] = []
     rounds_taken: List[int] = []
@@ -313,7 +327,10 @@ def run_additional_simulations(
         with ProcessPoolExecutor(
             max_workers=num_workers, mp_context=multiprocessing.get_context("spawn")
         ) as ex:
-            results_iter = ex.map(_run_single_battle, worker_inputs, seeds)
+            settings_iter = repeat(dynamic_settings_payload, runs)
+            results_iter = ex.map(
+                _run_single_battle, worker_inputs, seeds, settings_iter
+            )
             completed = 0
             for own, enemy, r_taken, diff, winner in results_iter:
                 own_remaining.append(own)
@@ -327,7 +344,9 @@ def run_additional_simulations(
                     progress_callback(completed, runs)
     else:
         for i, seed_val in enumerate(seeds):
-            own, enemy, r_taken, diff, winner = _run_single_battle(setup_data, seed=seed_val)
+            own, enemy, r_taken, diff, winner = _run_single_battle(
+                setup_data, seed=seed_val, dynamic_settings=dynamic_settings_payload
+            )
             own_remaining.append(own)
             enemy_remaining.append(enemy)
             rounds_taken.append(r_taken)
@@ -371,6 +390,7 @@ def run_additional_simulations(
             "winner": winners[best_idx] if best_idx < len(winners) else 0,
             "army1_remaining": battle_results[best_idx][0],
             "army2_remaining": battle_results[best_idx][1],
+            "dynamic_settings": dict(dynamic_settings_payload),
         }
 
     if generate_histograms:
@@ -781,7 +801,10 @@ if __name__ == "__main__":
         )
         if best_match:
             _, _, _, _, _, report_text = _run_single_battle(
-                loaded, seed=best_match["seed"], return_report=True
+                loaded,
+                seed=best_match["seed"],
+                dynamic_settings=best_match.get("dynamic_settings"),
+                return_report=True,
             )
             print(report_text)
         plt.close("all")
@@ -890,7 +913,10 @@ if __name__ == "__main__":
         )
         if best_match:
             _, _, _, _, _, report_text = _run_single_battle(
-                setup_snapshot, seed=best_match["seed"], return_report=True
+                setup_snapshot,
+                seed=best_match["seed"],
+                dynamic_settings=best_match.get("dynamic_settings"),
+                return_report=True,
             )
             print(report_text)
         plt.close("all")

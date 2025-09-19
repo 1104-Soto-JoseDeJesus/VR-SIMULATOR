@@ -18,6 +18,7 @@ from .constants import (
     EFFECT_NAME_SILENCE_DEBUFF,
     EFFECT_NAME_JUDGEMENT_MARKER,
 )
+from .dynamic_unrevivable_config import get_settings as get_dynamic_unrevivable_settings
 from .report_builder import ReportBuilder
 from colorama import Fore
 
@@ -809,22 +810,30 @@ class GameSimulator:
             opponent.name, {"combat": 0.0, "skill": 0.0}
         )
 
+        dynamic_settings = get_dynamic_unrevivable_settings()
+        combat_base = dynamic_settings["combat_base"]
+        combat_bonus = dynamic_settings["combat_bonus_multiplier"]
+        skill_base = dynamic_settings["skill_base"]
+        skill_bonus = dynamic_settings["skill_bonus_multiplier"]
+        non_mutual_base = dynamic_settings["non_mutual_base"]
+        non_mutual_bonus = dynamic_settings["non_mutual_bonus_multiplier"]
+
         if mutual_engagement:
             total_combat_kills = defender_kills.get("combat", 0.0) + opponent_kills.get(
                 "combat", 0.0
             )
             enemy_combat_kills = opponent_kills.get("combat", 0.0)
-            combat_ratio = 0.2
+            combat_ratio = combat_base
             if total_combat_kills > 0:
-                combat_ratio += (enemy_combat_kills / total_combat_kills) * 0.35
+                combat_ratio += (enemy_combat_kills / total_combat_kills) * combat_bonus
 
             total_skill_kills = defender_kills.get("skill", 0.0) + opponent_kills.get(
                 "skill", 0.0
             )
             enemy_skill_kills = opponent_kills.get("skill", 0.0)
-            skill_ratio = 0.2
+            skill_ratio = skill_base
             if total_skill_kills > 0:
-                skill_ratio += (enemy_skill_kills / total_skill_kills) * 0.60
+                skill_ratio += (enemy_skill_kills / total_skill_kills) * skill_bonus
 
             combat_unrevivable = round(combat_losses * combat_ratio)
             skill_unrevivable = round(skill_losses * skill_ratio)
@@ -839,9 +848,9 @@ class GameSimulator:
                 "combat", 0.0
             )
             enemy_combat_kills = opponent_kills.get("combat", 0.0)
-            combined_ratio = 0.2
+            combined_ratio = non_mutual_base
             if total_combat_kills > 0:
-                combined_ratio += (enemy_combat_kills / total_combat_kills) * 0.60
+                combined_ratio += (enemy_combat_kills / total_combat_kills) * non_mutual_bonus
             combined_losses = combat_losses + skill_losses
             added_unrevivable = round(combined_losses * combined_ratio)
             log_message = (

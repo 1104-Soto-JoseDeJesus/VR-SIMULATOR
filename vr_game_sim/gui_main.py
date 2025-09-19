@@ -24,6 +24,7 @@ from matplotlib import pyplot as plt
 
 from vr_game_sim.hero_definition import HERO_PRESETS
 from vr_game_sim.unit_definition import Unit
+from vr_game_sim.army_composition import Army
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.report_builder import ReportBuilder
 from vr_game_sim.battlefield_report_builder import BattlefieldReportBuilder
@@ -2512,9 +2513,125 @@ class BattlefieldTab(QtWidgets.QWidget):
         return super().eventFilter(obj, event)
 
 
+def _skill_stats_entry(
+    army: Army,
+    skill_id: str,
+    name: str,
+    *,
+    casts_override: Any | None = None,
+) -> dict[str, Any]:
+    """Return aggregated statistics for ``skill_id`` from ``army``."""
+
+    entry = {
+        "id": skill_id,
+        "name": name,
+        "casts": army.skill_trigger_counts.get(skill_id, 0),
+        "kills": int(round(army.skill_kill_totals.get(skill_id, 0.0))),
+        "heals": int(round(army.skill_heal_totals.get(skill_id, 0.0))),
+        "shielded": int(round(army.skill_shield_totals.get(skill_id, 0.0))),
+        "rage": int(round(army.skill_rage_totals.get(skill_id, 0.0))),
+        "rage_reduced": int(round(army.skill_rage_reduction_totals.get(skill_id, 0.0))),
+        "damage_reduced": int(round(army.skill_damage_reduction_totals.get(skill_id, 0.0))),
+        "boosted_kills": int(round(army.skill_kill_boost_totals.get(skill_id, 0.0))),
+        "boosted_heals": int(round(army.skill_heal_boost_totals.get(skill_id, 0.0))),
+        "boosted_shielded": int(round(army.skill_shield_boost_totals.get(skill_id, 0.0))),
+        "boosted_rage": int(round(army.skill_rage_boost_totals.get(skill_id, 0.0))),
+        "boosted_rage_reduced": int(
+            round(army.skill_rage_reduction_boost_totals.get(skill_id, 0.0))
+        ),
+        "boosted_damage_reduced": int(
+            round(army.skill_damage_reduction_boost_totals.get(skill_id, 0.0))
+        ),
+    }
+    if casts_override is not None:
+        entry["casts"] = casts_override
+    return entry
+
+
+def _resolve_portraits(cfg: dict) -> tuple[str, str]:
+    """Return portrait paths for the heroes defined in ``cfg``."""
+
+    heroes_cfg = cfg.get("heroes", []) or []
+    base_dir = os.path.dirname(__file__)
+    if heroes_cfg:
+        first_name = heroes_cfg[0].get("hero_name_or_preset", "")
+        portrait1 = os.path.join(
+            base_dir,
+            "Hero Images",
+            f"{first_name.capitalize()}.png",
+        )
+        if len(heroes_cfg) > 1:
+            second_name = heroes_cfg[1].get("hero_name_or_preset", "")
+            portrait2 = os.path.join(
+                base_dir,
+                "Hero Images",
+                f"{second_name.capitalize()}.png",
+            )
+        else:
+            portrait2 = ""
+    else:
+        unit_type = cfg.get("unit_type", "")
+        portrait1 = os.path.join(
+            base_dir,
+            "Icons",
+            f"{unit_type.capitalize()}.png",
+        )
+        portrait2 = ""
+    return portrait1, portrait2
+
+
+def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]:
+    """Collect hero skill statistics for ``army`` using ``cfg`` metadata."""
+
+    portrait1, portrait2 = _resolve_portraits(cfg)
+    heroes_cfg = cfg.get("heroes", []) or []
+    hero_names = [h.get("hero_name_or_preset", "").capitalize() for h in heroes_cfg]
+
+    skill_lists: list[list[dict[str, Any]]] = []
+    for hero in army.heroes:
+        hero_entries: list[dict[str, Any]] = []
+        hero_entries.append(
+            _skill_stats_entry(army, "base_rage", "Base Rage", casts_override="")
+        )
+        for sid, sname in (("basic_attack", "Basic Attack"), ("counter_attack", "Counterattack")):
+            hero_entries.append(_skill_stats_entry(army, sid, sname))
+        for skill_def in getattr(hero, "skills", []) or []:
+            if skill_def.get("id") == "dummy_talent_empty":
+                continue
+            sid = skill_def.get("id", "")
+            hero_entries.append(
+                _skill_stats_entry(army, sid, skill_def.get("name", sid))
+            )
+        skill_lists.append(hero_entries)
+
+    return {
+        "team": team,
+        "name": army.name,
+        "portrait1": portrait1,
+        "portrait2": portrait2,
+        "remaining": int(round(army.current_troop_count)),
+        "initial": int(round(army.unit.initial_count)),
+        "healed": int(round(army.troops_healed_total)),
+        "kills": int(round(sum(army.kills_dealt_history))),
+        "skills": skill_lists,
+        "hero_names": hero_names,
+    }
+
+
+def build_skill_summaries(armies: list[Army], configs: list[dict]) -> list[dict[str, Any]]:
+    """Return summary dictionaries for each ``army`` in order."""
+
+    summaries: list[dict[str, Any]] = []
+    for idx, army in enumerate(armies):
+        cfg = configs[idx] if idx < len(configs) else {}
+        team = "red" if idx == 0 else "blue"
+        summaries.append(build_army_skill_summary(army, cfg, team))
+    return summaries
+
+
 class SimulationWorker(QtCore.QThread):
     progress_update = QtCore.pyqtSignal(int, int)
-    finished_text = QtCore.pyqtSignal(str, object)
+    finished_text = QtCore.pyqtSignal(str, object, object)
     error = QtCore.pyqtSignal(str)
 
     def __init__(
@@ -2581,6 +2698,7 @@ class SimulationWorker(QtCore.QThread):
             sim = GameSimulator(armies[0], armies[1], report_builder, track_stats=True)
             report_text = sim.simulate_battle()
             rounds = report_builder.get_rounds()
+            summary = build_skill_summaries(armies, self.setup_data)
             if self._cancelled.is_set():
                 raise RuntimeError("cancelled")
 
@@ -2588,10 +2706,10 @@ class SimulationWorker(QtCore.QThread):
                 report_text
                 + f"\nWin rate for {armies[0].name}: {win_rate*100:.1f}% over {self.runs} runs.\n"
             )
-            self.finished_text.emit(result_text, rounds)
+            self.finished_text.emit(result_text, rounds, summary)
         except RuntimeError as exc:  # pragma: no cover - GUI feedback
             if str(exc) == "cancelled":
-                self.finished_text.emit("Simulation cancelled.", [])
+                self.finished_text.emit("Simulation cancelled.", [], [])
             else:
                 self.error.emit(str(exc))
         except Exception as exc:  # pragma: no cover - GUI feedback
@@ -3437,124 +3555,13 @@ class ArenaTab(QtWidgets.QWidget):
             for item in self._slot_items.values():
                 item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
             summary = []
-            for (slot_team, _), info in self._slot_army.items():
+            for info in self._slot_army.values():
                 if not info:
                     continue
                 army = info["army"]
-                healed = int(round(army.troops_healed_total))
-                kills = int(round(sum(army.kills_dealt_history)))
-                remaining = int(round(army.current_troop_count))
-                initial = int(round(army.unit.initial_count))
                 cfg = info.get("config", {})
-                heroes_cfg = cfg.get("heroes", [])
-                hero_names = [h.get("hero_name_or_preset", "").capitalize() for h in heroes_cfg]
-                if heroes_cfg:
-                    portrait1 = os.path.join(
-                        os.path.dirname(__file__),
-                        "Hero Images",
-                        f"{heroes_cfg[0]['hero_name_or_preset'].capitalize()}.png",
-                    )
-                    portrait2 = (
-                        os.path.join(
-                            os.path.dirname(__file__),
-                            "Hero Images",
-                            f"{heroes_cfg[1]['hero_name_or_preset'].capitalize()}.png",
-                        )
-                        if len(heroes_cfg) > 1
-                        else ""
-                    )
-                else:
-                    portrait1 = os.path.join(
-                        os.path.dirname(__file__),
-                        "Icons",
-                        f"{cfg.get('unit_type', '').capitalize()}.png",
-                    )
-                    portrait2 = ""
-
-                skill_lists: list[list[dict]] = []
-                for hero in army.heroes:
-                    hero_skill_entries: list[dict] = []
-                    hero_skill_entries.append(
-                            {
-                                "id": "base_rage",
-                                "name": "Base Rage",
-                                "casts": "",
-                                "kills": 0,
-                                "heals": 0,
-                                "shielded": 0,
-                                "rage": int(round(army.skill_rage_totals.get("base_rage", 0.0))),
-                                "rage_reduced": 0,
-                                "damage_reduced": 0,
-                                "boosted_kills": 0,
-                                "boosted_heals": 0,
-                                "boosted_shielded": 0,
-                                "boosted_rage": int(round(army.skill_rage_boost_totals.get("base_rage", 0.0))),
-                                "boosted_rage_reduced": 0,
-                                "boosted_damage_reduced": 0,
-                            }
-                        )
-                    for sid, sname in (
-                        ("basic_attack", "Basic Attack"),
-                        ("counter_attack", "Counterattack"),
-                    ):
-                        hero_skill_entries.append(
-                            {
-                                "id": sid,
-                                "name": sname,
-                                "casts": army.skill_trigger_counts.get(sid, 0),
-                                "kills": int(round(army.skill_kill_totals.get(sid, 0.0))),
-                                "heals": int(round(army.skill_heal_totals.get(sid, 0.0))),
-                                "shielded": int(round(army.skill_shield_totals.get(sid, 0.0))),
-                                "rage": int(round(army.skill_rage_totals.get(sid, 0.0))),
-                                "rage_reduced": int(round(army.skill_rage_reduction_totals.get(sid, 0.0))),
-                                "damage_reduced": int(round(army.skill_damage_reduction_totals.get(sid, 0.0))),
-                                "boosted_kills": int(round(army.skill_kill_boost_totals.get(sid, 0.0))),
-                                "boosted_heals": int(round(army.skill_heal_boost_totals.get(sid, 0.0))),
-                                "boosted_shielded": int(round(army.skill_shield_boost_totals.get(sid, 0.0))),
-                                "boosted_rage": int(round(army.skill_rage_boost_totals.get(sid, 0.0))),
-                                "boosted_rage_reduced": int(round(army.skill_rage_reduction_boost_totals.get(sid, 0.0))),
-                                "boosted_damage_reduced": int(round(army.skill_damage_reduction_boost_totals.get(sid, 0.0))),
-                            }
-                        )
-                    for skill_def in getattr(hero, "skills", []):
-                        if skill_def.get("id") == "dummy_talent_empty":
-                            continue
-                        sid = skill_def.get("id", "")
-                        hero_skill_entries.append(
-                            {
-                                "id": sid,
-                                "name": skill_def.get("name", sid),
-                                "casts": army.skill_trigger_counts.get(sid, 0),
-                                "kills": int(round(army.skill_kill_totals.get(sid, 0.0))),
-                                "heals": int(round(army.skill_heal_totals.get(sid, 0.0))),
-                                "shielded": int(round(army.skill_shield_totals.get(sid, 0.0))),
-                                "rage": int(round(army.skill_rage_totals.get(sid, 0.0))),
-                                "rage_reduced": int(round(army.skill_rage_reduction_totals.get(sid, 0.0))),
-                                "damage_reduced": int(round(army.skill_damage_reduction_totals.get(sid, 0.0))),
-                                "boosted_kills": int(round(army.skill_kill_boost_totals.get(sid, 0.0))),
-                                "boosted_heals": int(round(army.skill_heal_boost_totals.get(sid, 0.0))),
-                                "boosted_shielded": int(round(army.skill_shield_boost_totals.get(sid, 0.0))),
-                                "boosted_rage": int(round(army.skill_rage_boost_totals.get(sid, 0.0))),
-                                "boosted_rage_reduced": int(round(army.skill_rage_reduction_boost_totals.get(sid, 0.0))),
-                                "boosted_damage_reduced": int(round(army.skill_damage_reduction_boost_totals.get(sid, 0.0))),
-                            }
-                        )
-                    skill_lists.append(hero_skill_entries)
-
-                summary.append(
-                    {
-                        "team": info["team"],
-                        "name": army.name,
-                        "portrait1": portrait1,
-                        "portrait2": portrait2,
-                        "remaining": remaining,
-                        "initial": initial,
-                        "healed": healed,
-                        "kills": kills,
-                        "skills": skill_lists,
-                        "hero_names": hero_names,
-                    }
-                )
+                team = info.get("team", "red")
+                summary.append(build_army_skill_summary(army, cfg, team))
             if window is not None and hasattr(window, "update_arena_figures"):
                 window.update_arena_figures(summary)
 
@@ -4094,6 +4101,46 @@ class MainWindow(QtWidgets.QMainWindow):
         fig_layout.addWidget(self.hist_scroll)
         self.tabs.addTab(self.figures_tab, "Figures")
 
+        # --- Skill breakdown tab ---
+        self.skill_breakdown_tab = QtWidgets.QWidget()
+        sb_layout = QtWidgets.QVBoxLayout(self.skill_breakdown_tab)
+        self.skill_breakdown_stack = QtWidgets.QStackedWidget()
+        self.skill_breakdown_placeholder = QtWidgets.QLabel()
+        self.skill_breakdown_placeholder.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignCenter
+        )
+        self.skill_breakdown_placeholder.setWordWrap(True)
+        self.skill_breakdown_stack.addWidget(self.skill_breakdown_placeholder)
+        self.skill_breakdown_scroll = QtWidgets.QScrollArea()
+        self.skill_breakdown_scroll.setWidgetResizable(True)
+        self.skill_breakdown_scroll.setStyleSheet("background: transparent;")
+        self.skill_breakdown_scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        self.skill_breakdown_widget = QtWidgets.QWidget()
+        self.skill_breakdown_widget.setAttribute(
+            QtCore.Qt.WidgetAttribute.WA_StyledBackground, True
+        )
+        sb_bg_path = os.path.join(
+            os.path.dirname(__file__),
+            "Icons",
+            "ArenaSummaryBackground.png",
+        ).replace("\\", "/")
+        self.skill_breakdown_widget.setStyleSheet(
+            f"background-image: url({sb_bg_path});"
+            "background-repeat: no-repeat;"
+            "background-position: center;"
+        )
+        self.skill_breakdown_layout = QtWidgets.QGridLayout(self.skill_breakdown_widget)
+        self.skill_breakdown_layout.setContentsMargins(0, 0, 0, 0)
+        self.skill_breakdown_layout.setSpacing(0)
+        self.skill_breakdown_scroll.setWidget(self.skill_breakdown_widget)
+        self.skill_breakdown_stack.addWidget(self.skill_breakdown_scroll)
+        sb_layout.addWidget(self.skill_breakdown_stack)
+        self.tabs.addTab(self.skill_breakdown_tab, "Skill Breakdowns")
+        self._skill_breakdown_default_message = (
+            "Run Simulation to view skill breakdowns"
+        )
+        self._set_skill_breakdown_message(self._skill_breakdown_default_message)
+
         # Multi-army tabs
         self.tabs.addTab(self.battlefield_tab, "Battlefield")
         self.tabs.addTab(self.battlefield_report_tab, "Battlefield Reports")
@@ -4209,6 +4256,7 @@ class MainWindow(QtWidgets.QMainWindow):
             old_widget.deleteLater()
         self.hist_container = QtWidgets.QWidget()
         self.hist_scroll.setWidget(self.hist_container)
+        self._set_skill_breakdown_message(self._skill_breakdown_default_message)
         self.status.setText("Armies swapped")
 
     def _clear_report(self) -> None:
@@ -4221,6 +4269,48 @@ class MainWindow(QtWidgets.QMainWindow):
             old_widget.deleteLater()
         self.hist_container = QtWidgets.QWidget()
         self.hist_scroll.setWidget(self.hist_container)
+        self._set_skill_breakdown_message(self._skill_breakdown_default_message)
+
+    def _clear_skill_breakdown_layout(self) -> None:
+        """Remove all widgets from the skill breakdown layout."""
+
+        layout = getattr(self, "skill_breakdown_layout", None)
+        if layout is None:
+            return
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+
+    def _set_skill_breakdown_message(self, message: str) -> None:
+        """Show ``message`` in the skill breakdown tab."""
+
+        if not hasattr(self, "skill_breakdown_placeholder"):
+            return
+        self._clear_skill_breakdown_layout()
+        self.skill_breakdown_placeholder.setText(message)
+        self.skill_breakdown_stack.setCurrentWidget(self.skill_breakdown_placeholder)
+
+    def update_skill_breakdowns(self, summary: list[dict[str, Any]]) -> None:
+        """Render hero skill statistics for the most recent simulation."""
+
+        if not summary:
+            self._set_skill_breakdown_message(self._skill_breakdown_default_message)
+            return
+
+        self._clear_skill_breakdown_layout()
+        max_healed = max((entry.get("healed", 0) for entry in summary), default=1)
+        max_kills = max((entry.get("kills", 0) for entry in summary), default=1)
+        red_entries = [e for e in summary if e.get("team", "red") == "red"]
+        blue_entries = [e for e in summary if e.get("team", "blue") == "blue"]
+
+        self.skill_breakdown_layout.addWidget(ArenaStatsHeader(), 0, 0)
+        for row, (red, blue) in enumerate(zip_longest(red_entries, blue_entries), start=1):
+            row_widget = ArenaStatsRow(red, blue, max_healed, max_kills)
+            self.skill_breakdown_layout.addWidget(row_widget, row, 0)
+
+        self.skill_breakdown_stack.setCurrentWidget(self.skill_breakdown_scroll)
 
     def _toggle_report_view(self, checked: bool) -> None:
         if checked:
@@ -4997,6 +5087,7 @@ class MainWindow(QtWidgets.QMainWindow):
         runs = self.runs_spin.value()
         workers = self.workers_spin.value()
         self.status.setText("Running simulation...")
+        self._set_skill_breakdown_message("Generating skill breakdowns…")
         self.progress.setRange(0, runs)
         self.progress.setValue(0)
         self.run_btn.setText("Cancel")
@@ -5059,7 +5150,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 round_item.addChild(army_item)
             target.addTopLevelItem(round_item)
 
-    def _sim_finished(self, text: str, rounds: list[dict]) -> None:
+    def _sim_finished(
+        self, text: str, rounds: list[dict], summary: list[dict] | None
+    ) -> None:
         self.output_text.setPlainText(text)
         self._populate_round_tree(rounds)
         display_histograms(
@@ -5067,6 +5160,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.army1_frame.name_edit.text() or f"Army 1",
             self.army2_frame.name_edit.text() or f"Army 2",
         )
+        if summary:
+            self.update_skill_breakdowns(summary)
+        else:
+            message = self._skill_breakdown_default_message
+            if text.strip().lower().startswith("simulation cancelled"):
+                message = "Simulation cancelled."
+            self._set_skill_breakdown_message(message)
         self.progress.setValue(0)
         self.status.setText("Ready")
         self.run_btn.setEnabled(True)

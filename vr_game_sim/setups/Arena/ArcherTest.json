@@ -1,32 +1,12 @@
 [
   {
-    "army_name": "PLACEHOLDER1",
+    "army_name": "Leif/Helgar",
     "team": "team1",
     "column": 0,
     "row": 0,
     "speed": 50.0,
     "config": {
-      "army_name": "PLACEHOLDER1",
-      "unit_type": "archers",
-      "tier": 5,
-      "count": 1,
-      "atk_mod": 0.0,
-      "def_mod": 0.0,
-      "hp_mod": 0.0,
-      "unrevivable_ratio": 0.65,
-      "heroes": [],
-      "team": "red",
-      "speed": 50.0
-    }
-  },
-  {
-    "army_name": "Laird/Helgar",
-    "team": "team1",
-    "column": 1,
-    "row": 0,
-    "speed": 50.0,
-    "config": {
-      "army_name": "Laird/Helgar",
+      "army_name": "Leif/Helgar",
       "unit_type": "pikemen",
       "tier": 7,
       "count": 300000,
@@ -48,8 +28,8 @@
             "base_skill_sharp_pursuit"
           ],
           "plugin_skill_ids": [
-            "plugin_freyas_blessing",
-            "plugin_hymn_of_life"
+            "plugin_hymn_of_life",
+            "plugin_freyas_blessing"
           ]
         },
         {
@@ -65,7 +45,7 @@
           ],
           "plugin_skill_ids": [
             "plugin_rest_and_counterattack",
-            "plugin_shield_reflector"
+            "plugin_divine_blessing"
           ]
         }
       ],
@@ -74,34 +54,14 @@
     }
   },
   {
-    "army_name": "PLACEHOLDER2",
+    "army_name": "Verdandi/Olena",
     "team": "team1",
-    "column": 2,
-    "row": 0,
-    "speed": 50.0,
-    "config": {
-      "army_name": "PLACEHOLDER2",
-      "unit_type": "archers",
-      "tier": 5,
-      "count": 1,
-      "atk_mod": 0.0,
-      "def_mod": 0.0,
-      "hp_mod": 0.0,
-      "unrevivable_ratio": 0.65,
-      "heroes": [],
-      "team": "red",
-      "speed": 50.0
-    }
-  },
-  {
-    "army_name": "Lagertha/Bjorn",
-    "team": "team2",
     "column": 0,
-    "row": 0,
+    "row": 1,
     "speed": 50.0,
     "config": {
-      "army_name": "Lagertha/Bjorn",
-      "unit_type": "infantry",
+      "army_name": "Verdandi/Olena",
+      "unit_type": "archers",
       "tier": 7,
       "count": 300000,
       "atk_mod": 2.5,
@@ -111,50 +71,50 @@
       "use_dynamic_unrevivable_ratio": true,
       "heroes": [
         {
-          "hero_name_or_preset": "Lagertha",
+          "hero_name_or_preset": "Verdandi",
           "talent_ids": [
-            "talent_shieldaxe_attack",
-            "talent_chiefs_might",
-            "talent_fatal_strike"
+            "talent_hunting_instinct",
+            "talent_hunting_experience",
+            "talent_targeted_strike"
           ],
           "base_skill_ids": [
-            "base_skill_shield_breaker",
-            "rage_skill_showdown"
+            "base_skill_rapid_fire",
+            "base_skill_raining_arrows"
           ],
           "plugin_skill_ids": [
-            "plugin_enrage",
-            "plugin_baldr_blessing"
+            "plugin_first_strike",
+            "plugin_odins_asylum"
           ]
         },
         {
-          "hero_name_or_preset": "Bjorn",
+          "hero_name_or_preset": "Olena",
           "talent_ids": [
-            "talent_trained_up",
-            "talent_undefeated",
-            "talent_fatal_bleeding"
+            "talent_scorching_arrow",
+            "talent_multi_shot_arrow",
+            "talent_poised_shot"
           ],
           "base_skill_ids": [
-            "base_skill_crippling_pursuit",
-            "base_skill_lethal_fracture"
+            "base_skill_enchanted_arrow",
+            "base_skill_concentration"
           ],
           "plugin_skill_ids": [
-            "plugin_breaking_free",
-            "plugin_battle_hymn"
+            "plugin_rage_leech",
+            "plugin_blessed_negation"
           ]
         }
       ],
-      "team": "blue",
+      "team": "red",
       "speed": 50.0
     }
   },
   {
-    "army_name": "Yvette/Helgar",
+    "army_name": "Leif/Helgar2",
     "team": "team2",
-    "column": 1,
+    "column": 0,
     "row": 0,
     "speed": 50.0,
     "config": {
-      "army_name": "Yvette/Helgar",
+      "army_name": "Leif/Helgar2",
       "unit_type": "pikemen",
       "tier": 7,
       "count": 300000,
@@ -165,19 +125,19 @@
       "use_dynamic_unrevivable_ratio": true,
       "heroes": [
         {
-          "hero_name_or_preset": "Yvette",
+          "hero_name_or_preset": "Leif",
           "talent_ids": [
-            "talent_healing_chords",
-            "talent_healing_hymn",
-            "talent_horn_of_countering"
+            "talent_blade_counter",
+            "talent_shield_of_resistance",
+            "talent_revenge_echo"
           ],
           "base_skill_ids": [
-            "base_skill_sanctity_of_life",
-            "base_skill_vital_blessing"
+            "base_skill_planned_attack",
+            "base_skill_sharp_pursuit"
           ],
           "plugin_skill_ids": [
-            "plugin_awakening",
-            "plugin_chance_of_reversal"
+            "plugin_hymn_of_life",
+            "plugin_freyas_blessing"
           ]
         },
         {
@@ -192,8 +152,8 @@
             "rage_skill_ruling_trial"
           ],
           "plugin_skill_ids": [
-            "plugin_divine_blessing",
-            "plugin_hymn_of_life"
+            "plugin_rest_and_counterattack",
+            "plugin_blessed_negation"
           ]
         }
       ],
@@ -202,13 +162,13 @@
     }
   },
   {
-    "army_name": "Artur/Verdandi",
+    "army_name": "Army 1",
     "team": "team2",
-    "column": 2,
-    "row": 0,
+    "column": 0,
+    "row": 1,
     "speed": 50.0,
     "config": {
-      "army_name": "Artur/Verdandi",
+      "army_name": "Army 1",
       "unit_type": "archers",
       "tier": 7,
       "count": 300000,
@@ -219,15 +179,15 @@
       "use_dynamic_unrevivable_ratio": true,
       "heroes": [
         {
-          "hero_name_or_preset": "Artur",
+          "hero_name_or_preset": "Athelstan",
           "talent_ids": [
-            "talent_hellfire_shelter",
-            "talent_pent_up_anger",
-            "talent_furious_fire"
+            "talent_erudite",
+            "talent_strategize",
+            "talent_adaptable_to_changes"
           ],
           "base_skill_ids": [
-            "base_skill_torment",
-            "base_skill_incineration"
+            "base_skill_heart_of_tolerance",
+            "base_skill_holy_enlightenment"
           ],
           "plugin_skill_ids": [
             "plugin_helas_curse",
@@ -247,7 +207,7 @@
           ],
           "plugin_skill_ids": [
             "plugin_rage_leech",
-            "plugin_odins_asylum"
+            "plugin_fiery_detonation"
           ]
         }
       ],

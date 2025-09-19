@@ -35,6 +35,7 @@ from vr_game_sim.main import (
     save_army_to_file,
     load_army_from_file,
 )
+from vr_game_sim import dynamic_unrevivable_config
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
 from vr_game_sim.arena_engine import ArenaEngine
@@ -972,6 +973,113 @@ class PDFLayoutDialog(QtWidgets.QDialog):
         pages = [w.serialize() for w in self._page_widgets]
         save_pdf_layout(pages)
         self.accept()
+
+
+class DynamicUnrevivableDialog(QtWidgets.QDialog):
+    """Dialog exposing coefficients for dynamic unrevivable calculations."""
+
+    settings_applied = QtCore.pyqtSignal()
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Dynamic Unrevivable Ratios")
+
+        layout = QtWidgets.QVBoxLayout(self)
+        form = QtWidgets.QFormLayout()
+        layout.addLayout(form)
+
+        self._combat_base = self._make_percent_spin()
+        self._combat_bonus = self._make_percent_spin()
+        self._skill_base = self._make_percent_spin()
+        self._skill_bonus = self._make_percent_spin()
+        self._non_mutual_base = self._make_percent_spin()
+        self._non_mutual_bonus = self._make_percent_spin()
+
+        form.addRow("Combat base", self._combat_base)
+        form.addRow("Combat bonus multiplier", self._combat_bonus)
+        form.addRow("Skill base", self._skill_base)
+        form.addRow("Skill bonus multiplier", self._skill_bonus)
+        form.addRow("Non-mutual base", self._non_mutual_base)
+        form.addRow("Non-mutual bonus multiplier", self._non_mutual_bonus)
+
+        self._status = QtWidgets.QLabel("")
+        self._status.setWordWrap(True)
+        layout.addWidget(self._status)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        layout.addLayout(btn_row)
+        session_btn = QtWidgets.QPushButton("Session Apply")
+        session_btn.clicked.connect(self._apply_session)
+        btn_row.addWidget(session_btn)
+
+        save_btn = QtWidgets.QPushButton("Universal Save")
+        save_btn.clicked.connect(self._save_universal)
+        btn_row.addWidget(save_btn)
+
+        reset_btn = QtWidgets.QPushButton("Reset to Default")
+        reset_btn.clicked.connect(self._reset_defaults)
+        btn_row.addWidget(reset_btn)
+
+        btn_row.addStretch(1)
+
+        close_btn = QtWidgets.QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        layout.addWidget(close_btn, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+
+        self._load_current_settings()
+
+    @staticmethod
+    def _make_percent_spin() -> QtWidgets.QDoubleSpinBox:
+        spin = QtWidgets.QDoubleSpinBox()
+        spin.setRange(0.0, 300.0)
+        spin.setDecimals(2)
+        spin.setSingleStep(0.1)
+        spin.setSuffix(" %")
+        return spin
+
+    def _load_current_settings(self) -> None:
+        settings = dynamic_unrevivable_config.get_settings()
+        self._combat_base.setValue(settings["combat_base"] * 100.0)
+        self._combat_bonus.setValue(settings["combat_bonus_multiplier"] * 100.0)
+        self._skill_base.setValue(settings["skill_base"] * 100.0)
+        self._skill_bonus.setValue(settings["skill_bonus_multiplier"] * 100.0)
+        self._non_mutual_base.setValue(settings["non_mutual_base"] * 100.0)
+        self._non_mutual_bonus.setValue(settings["non_mutual_bonus_multiplier"] * 100.0)
+        self._status.clear()
+
+    def _gather_settings(self) -> dict[str, float]:
+        return {
+            "combat_base": self._combat_base.value() / 100.0,
+            "combat_bonus_multiplier": self._combat_bonus.value() / 100.0,
+            "skill_base": self._skill_base.value() / 100.0,
+            "skill_bonus_multiplier": self._skill_bonus.value() / 100.0,
+            "non_mutual_base": self._non_mutual_base.value() / 100.0,
+            "non_mutual_bonus_multiplier": self._non_mutual_bonus.value() / 100.0,
+        }
+
+    def _apply_session(self) -> None:
+        settings = self._gather_settings()
+        dynamic_unrevivable_config.apply_session_settings(settings)
+        self._status.setText("Session overrides applied. These values reset on restart.")
+        self.settings_applied.emit()
+
+    def _save_universal(self) -> None:
+        try:
+            dynamic_unrevivable_config.save_universal_settings(
+                self._gather_settings()
+            )
+        except OSError as exc:
+            QtWidgets.QMessageBox.critical(self, "Save Failed", str(exc))
+            return
+        self._status.setText("Universal overrides saved to disk.")
+        self._load_current_settings()
+        self.settings_applied.emit()
+
+    def _reset_defaults(self) -> None:
+        dynamic_unrevivable_config.reset_to_defaults()
+        self._load_current_settings()
+        self._status.setText("Dynamic ratios reset to defaults.")
+        self.settings_applied.emit()
 
 class SkillParamEditor(QtWidgets.QWidget):
     """Widget providing spin boxes for configurable skill parameters."""
@@ -2415,6 +2523,7 @@ class SimulationWorker(QtCore.QThread):
         runs: int,
         num_workers: int,
         seed_target: dict[str, int] | None = None,
+        dynamic_settings: dict[str, float] | None = None,
     ) -> None:
         super().__init__()
         self.setup_data = setup_data
@@ -2422,6 +2531,7 @@ class SimulationWorker(QtCore.QThread):
         self.num_workers = num_workers
         self.seed_target = seed_target
         self._cancelled = threading.Event()
+        self.dynamic_settings = dict(dynamic_settings) if dynamic_settings else None
 
     def cancel(self) -> None:
         """Request the simulation to stop."""
@@ -2433,6 +2543,9 @@ class SimulationWorker(QtCore.QThread):
                 self.progress_update.emit(done, total)
                 if self._cancelled.is_set():
                     raise RuntimeError("cancelled")
+
+            if self.dynamic_settings is not None:
+                dynamic_unrevivable_config.apply_session_settings(self.dynamic_settings)
 
             win_rate, best_match = run_additional_simulations(
                 self.setup_data,
@@ -2448,6 +2561,17 @@ class SimulationWorker(QtCore.QThread):
             seed = best_match.get("seed") if best_match else None
             if seed is not None:
                 random.seed(int(seed))
+
+            active_settings = None
+            if best_match:
+                match_settings = best_match.get("dynamic_settings")
+                if isinstance(match_settings, dict):
+                    active_settings = dict(match_settings)
+            if active_settings is None:
+                active_settings = self.dynamic_settings
+            if active_settings is not None:
+                dynamic_unrevivable_config.apply_session_settings(active_settings)
+                self.dynamic_settings = dict(active_settings)
 
             armies = create_armies_from_data(self.setup_data)
             if self._cancelled.is_set():
@@ -3630,6 +3754,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("Battle Simulator")
         self.seed_target: dict[str, int] | None = None
         self.seed_display: QtWidgets.QLabel | None = None
+        self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
         self.pdf_layout = load_pdf_layout()
@@ -3644,6 +3769,15 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg = PDFLayoutDialog(self)
         if dlg.exec():
             self.pdf_layout = load_pdf_layout()
+
+    def open_dynamic_unrevivable_tool(self) -> None:
+        """Open the dynamic unrevivable configuration dialog."""
+        dlg = DynamicUnrevivableDialog(self)
+        dlg.settings_applied.connect(self._on_dynamic_unrevivable_settings_changed)
+        dlg.exec()
+
+    def _on_dynamic_unrevivable_settings_changed(self) -> None:
+        self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
 
     def _init_tabs(self) -> QtWidgets.QVBoxLayout:
         """Create the central widget and all tabs."""
@@ -3689,6 +3823,8 @@ class MainWindow(QtWidgets.QMainWindow):
         dbg_menu = QtWidgets.QMenu(debug_btn)
         pdf_action = dbg_menu.addAction("PDF Layout")
         pdf_action.triggered.connect(self.open_pdf_layout_tool)
+        dynamic_action = dbg_menu.addAction("Dynamic Unrevivable…")
+        dynamic_action.triggered.connect(self.open_dynamic_unrevivable_tool)
         star_action = dbg_menu.addAction("Star Layout")
         star_action.triggered.connect(self.open_star_overlay_tuner)
         debug_btn.setMenu(dbg_menu)
@@ -4864,7 +5000,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress.setRange(0, runs)
         self.progress.setValue(0)
         self.run_btn.setText("Cancel")
-        self.worker = SimulationWorker(setup_data, runs, workers, self.seed_target)
+        self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
+        self.worker = SimulationWorker(
+            setup_data,
+            runs,
+            workers,
+            self.seed_target,
+            dynamic_settings=self._dynamic_unrevivable_settings,
+        )
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
         )

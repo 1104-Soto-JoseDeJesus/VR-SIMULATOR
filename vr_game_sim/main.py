@@ -279,7 +279,8 @@ def run_additional_simulations(
     verbose: bool = True,
     num_workers: int = 1,
     progress_callback: Optional[Callable[[int, int], None]] = None,
-) -> float:
+    target_outcome: Optional[Dict[str, int]] = None,
+) -> tuple[float, Optional[Dict[str, Any]]]:
     """Runs extra simulations and computes summary statistics.
 
     In addition to the aggregate statistics, a representative battle whose
@@ -287,7 +288,8 @@ def run_additional_simulations(
     stats and its report printed.  If ``num_workers`` is greater than 1,
     simulations are spread across multiple processes. ``progress_callback`` can
     be used to report completion status as ``(completed, total)``. The function
-    returns the win rate for Army 1 as a float between 0 and 1."""
+    returns a tuple of the win rate for Army 1 (between 0 and 1) and metadata
+    describing the battle chosen for replay."""
     # Ensure any previous figures are closed before starting the additional runs
     plt.close("all")
 
@@ -339,20 +341,37 @@ def run_additional_simulations(
     avg_enemy = (
         sum(enemy_remaining) / len(enemy_remaining) if enemy_remaining else 0
     )
-    best_idx = (
-        min(
-            range(runs),
-            key=lambda i: (own_remaining[i] - avg_own) ** 2
-            + (enemy_remaining[i] - avg_enemy) ** 2,
-        )
-        if own_remaining and enemy_remaining
-        else 0
-    )
-    if own_remaining and enemy_remaining:
-        _, _, _, _, _, report_text = _run_single_battle(
-            setup_data, seed=seeds[best_idx], return_report=True
-        )
-        print(report_text)
+    best_idx: int | None = None
+    if battle_results:
+        if target_outcome:
+            desired_winner = target_outcome.get("winner")
+            desired_remaining = target_outcome.get("remaining")
+            if desired_winner in (1, 2) and desired_remaining is not None:
+                remaining_target = float(desired_remaining)
+                candidates: list[tuple[int, float]] = []
+                for idx, winner in enumerate(winners):
+                    if winner != desired_winner:
+                        continue
+                    own_val, enemy_val = battle_results[idx]
+                    remaining = own_val if desired_winner == 1 else enemy_val
+                    candidates.append((idx, abs(float(remaining) - remaining_target)))
+                if candidates:
+                    best_idx = min(candidates, key=lambda item: (item[1], item[0]))[0]
+        if best_idx is None and own_remaining and enemy_remaining:
+            best_idx = min(
+                range(len(battle_results)),
+                key=lambda i: (battle_results[i][0] - avg_own) ** 2
+                + (battle_results[i][1] - avg_enemy) ** 2,
+            )
+
+    best_match: Optional[Dict[str, Any]] = None
+    if best_idx is not None and 0 <= best_idx < len(seeds):
+        best_match = {
+            "seed": seeds[best_idx],
+            "winner": winners[best_idx] if best_idx < len(winners) else 0,
+            "army1_remaining": battle_results[best_idx][0],
+            "army2_remaining": battle_results[best_idx][1],
+        }
 
     if generate_histograms:
         ensure_histogram_dir()
@@ -627,21 +646,21 @@ def run_additional_simulations(
         plt.close("all")
 
     # Determine battle closest to average outcome
-    if verbose and diff_results:
-        closest_idx = best_idx
-        closest_own, closest_enemy = battle_results[closest_idx]
+    if verbose and diff_results and best_idx is not None:
+        selected_own, selected_enemy = battle_results[best_idx]
         winner_text = "Draw"
-        if winners[closest_idx] == 1:
+        if winners[best_idx] == 1:
             winner_text = army1_name
-        elif winners[closest_idx] == 2:
+        elif winners[best_idx] == 2:
             winner_text = army2_name
         print(
-            f"Battle closest to average outcome: #{closest_idx + 1} -> Winner: {winner_text}; {army1_name}: {closest_own:.0f} troops, {army2_name}: {closest_enemy:.0f} troops"
+            f"Selected battle: #{best_idx + 1} -> Winner: {winner_text}; {army1_name}: {selected_own:.0f} troops, {army2_name}: {selected_enemy:.0f} troops"
         )
 
     # Final cleanup to ensure matplotlib does not keep figures open
     plt.close("all")
-    return wins_army1 / runs
+    win_rate = wins_army1 / runs if runs else 0.0
+    return win_rate, best_match
 
 
 def run_interactive_setup() -> List[Army]:
@@ -757,7 +776,14 @@ if __name__ == "__main__":
         loaded = load_setup_from_file(args.setup)
         if not loaded:
             sys.exit(1)
-        run_additional_simulations(loaded, num_workers=os.cpu_count())
+        win_rate, best_match = run_additional_simulations(
+            loaded, num_workers=os.cpu_count()
+        )
+        if best_match:
+            _, _, _, _, _, report_text = _run_single_battle(
+                loaded, seed=best_match["seed"], return_report=True
+            )
+            print(report_text)
         plt.close("all")
         sys.exit(0)
 
@@ -859,7 +885,14 @@ if __name__ == "__main__":
 
     if armies_to_simulate and len(armies_to_simulate) == 2:
         setup_snapshot = get_setup_data_for_saving(armies_to_simulate)
-        run_additional_simulations(setup_snapshot, num_workers=os.cpu_count())
+        win_rate, best_match = run_additional_simulations(
+            setup_snapshot, num_workers=os.cpu_count()
+        )
+        if best_match:
+            _, _, _, _, _, report_text = _run_single_battle(
+                setup_snapshot, seed=best_match["seed"], return_report=True
+            )
+            print(report_text)
         plt.close("all")
         sys.exit(0)
     elif chosen_action != "Q":  # If not quitting and setup failed

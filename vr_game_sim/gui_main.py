@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import random
 from typing import Any, Callable
 import threading
 import math
@@ -150,6 +151,81 @@ class ThousandSepSpinBox(QtWidgets.QSpinBox):
             return int(clean)
         except ValueError:
             return 0
+
+
+class SeedOutcomeDialog(QtWidgets.QDialog):
+    """Dialog that lets the user choose a preferred replay outcome."""
+
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget | None,
+        army1_name: str,
+        army2_name: str,
+        current: dict[str, int] | None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Select Seed Outcome")
+        self._target: dict[str, int] | None = current
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        info = QtWidgets.QLabel(
+            "Choose which battle outcome should be replayed when running a batch."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        self.button_group = QtWidgets.QButtonGroup(self)
+        self.army1_radio = QtWidgets.QRadioButton(army1_name or "Army 1")
+        self.army2_radio = QtWidgets.QRadioButton(army2_name or "Army 2")
+        self.button_group.addButton(self.army1_radio, 1)
+        self.button_group.addButton(self.army2_radio, 2)
+
+        radio_layout = QtWidgets.QHBoxLayout()
+        radio_layout.addWidget(self.army1_radio)
+        radio_layout.addWidget(self.army2_radio)
+        layout.addLayout(radio_layout)
+
+        self.remaining_spin = ThousandSepSpinBox(self)
+        self.remaining_spin.setRange(0, 2_000_000)
+        self.remaining_spin.setSingleStep(1_000)
+        self.remaining_spin.setValue(
+            current["remaining"] if current else 50_000
+        )
+
+        form = QtWidgets.QFormLayout()
+        form.addRow("Remaining troops:", self.remaining_spin)
+        layout.addLayout(form)
+
+        if current and current.get("winner") == 2:
+            self.army2_radio.setChecked(True)
+        else:
+            self.army1_radio.setChecked(True)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            parent=self,
+        )
+        clear_btn = buttons.addButton("Clear", QtWidgets.QDialogButtonBox.ButtonRole.ResetRole)
+        clear_btn.clicked.connect(self._clear)
+        buttons.accepted.connect(self._on_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _on_accept(self) -> None:
+        winner = 1 if self.army1_radio.isChecked() else 2
+        self._target = {"winner": winner, "remaining": int(self.remaining_spin.value())}
+        self.accept()
+
+    def _clear(self) -> None:
+        self._target = None
+        self.accept()
+
+    def target(self) -> dict[str, int] | None:
+        """Return the selected outcome or ``None`` if cleared."""
+
+        return self._target
 
 
 class StarredImageLabel(QtWidgets.QLabel):
@@ -2333,11 +2409,18 @@ class SimulationWorker(QtCore.QThread):
     finished_text = QtCore.pyqtSignal(str, object)
     error = QtCore.pyqtSignal(str)
 
-    def __init__(self, setup_data: list[dict], runs: int, num_workers: int) -> None:
+    def __init__(
+        self,
+        setup_data: list[dict],
+        runs: int,
+        num_workers: int,
+        seed_target: dict[str, int] | None = None,
+    ) -> None:
         super().__init__()
         self.setup_data = setup_data
         self.runs = runs
         self.num_workers = num_workers
+        self.seed_target = seed_target
         self._cancelled = threading.Event()
 
     def cancel(self) -> None:
@@ -2346,6 +2429,26 @@ class SimulationWorker(QtCore.QThread):
 
     def run(self) -> None:
         try:
+            def progress_cb(done: int, total: int) -> None:
+                self.progress_update.emit(done, total)
+                if self._cancelled.is_set():
+                    raise RuntimeError("cancelled")
+
+            win_rate, best_match = run_additional_simulations(
+                self.setup_data,
+                runs=self.runs,
+                verbose=False,
+                progress_callback=progress_cb,
+                num_workers=self.num_workers,
+                target_outcome=self.seed_target,
+            )
+            if self._cancelled.is_set():
+                raise RuntimeError("cancelled")
+
+            seed = best_match.get("seed") if best_match else None
+            if seed is not None:
+                random.seed(int(seed))
+
             armies = create_armies_from_data(self.setup_data)
             if self._cancelled.is_set():
                 raise RuntimeError("cancelled")
@@ -2354,21 +2457,6 @@ class SimulationWorker(QtCore.QThread):
             sim = GameSimulator(armies[0], armies[1], report_builder, track_stats=True)
             report_text = sim.simulate_battle()
             rounds = report_builder.get_rounds()
-            if self._cancelled.is_set():
-                raise RuntimeError("cancelled")
-
-            def progress_cb(done: int, total: int) -> None:
-                self.progress_update.emit(done, total)
-                if self._cancelled.is_set():
-                    raise RuntimeError("cancelled")
-
-            win_rate = run_additional_simulations(
-                self.setup_data,
-                runs=self.runs,
-                verbose=False,
-                progress_callback=progress_cb,
-                num_workers=self.num_workers,
-            )
             if self._cancelled.is_set():
                 raise RuntimeError("cancelled")
 
@@ -3540,6 +3628,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Battle Simulator")
+        self.seed_target: dict[str, int] | None = None
+        self.seed_display: QtWidgets.QLabel | None = None
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
         self.pdf_layout = load_pdf_layout()
@@ -3604,6 +3694,16 @@ class MainWindow(QtWidgets.QMainWindow):
         debug_btn.setMenu(dbg_menu)
         debug_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
         controls.addWidget(debug_btn)
+        seed_btn = QtWidgets.QToolButton()
+        seed_btn.setText("Seed…")
+        seed_btn.clicked.connect(self._choose_seed_target)
+        controls.addWidget(seed_btn)
+        self.seed_display = QtWidgets.QLabel()
+        self.seed_display.setTextInteractionFlags(
+            QtCore.Qt.TextInteractionFlag.NoTextInteraction
+        )
+        controls.addWidget(self.seed_display)
+        self._update_seed_display()
         controls.addStretch()
         setup_layout.addLayout(controls)
 
@@ -3868,6 +3968,29 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.currentChanged.connect(self._on_tab_changed)
 
         return main_layout
+
+    def _choose_seed_target(self) -> None:
+        """Open the seed outcome dialog and store the selection."""
+
+        army1_name = self.army1_frame.name_edit.text() or "Army 1"
+        army2_name = self.army2_frame.name_edit.text() or "Army 2"
+        dlg = SeedOutcomeDialog(self, army1_name, army2_name, self.seed_target)
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            self.seed_target = dlg.target()
+            self._update_seed_display()
+
+    def _update_seed_display(self) -> None:
+        """Refresh the text next to the seed selection button."""
+
+        if not self.seed_display:
+            return
+        if not self.seed_target:
+            self.seed_display.setText("Seed: Auto")
+            return
+        winner = self.seed_target.get("winner", 1)
+        remaining = int(self.seed_target.get("remaining", 0))
+        formatted = f"{remaining:,}".replace(",", "\u202f")
+        self.seed_display.setText(f"Seed: Army\u202f{winner}, {formatted}")
 
     def _init_status_controls(self, main_layout: QtWidgets.QVBoxLayout) -> None:
         """Create status label, progress bar and run options."""
@@ -4741,7 +4864,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress.setRange(0, runs)
         self.progress.setValue(0)
         self.run_btn.setText("Cancel")
-        self.worker = SimulationWorker(setup_data, runs, workers)
+        self.worker = SimulationWorker(setup_data, runs, workers, self.seed_target)
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
         )

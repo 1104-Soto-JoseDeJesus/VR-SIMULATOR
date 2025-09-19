@@ -893,6 +893,8 @@ class GameSimulator:
             self.army2.damage_contributors_by_skill_this_round = {}
             self.army1.heal_contributors_this_round = {}
             self.army2.heal_contributors_this_round = {}
+            self.army1.kills_dealt_this_round = 0.0
+            self.army2.kills_dealt_this_round = 0.0
             self.army1.clear_dynamic_unrevivable_tracking()
             self.army2.clear_dynamic_unrevivable_tracking()
 
@@ -1073,6 +1075,9 @@ class GameSimulator:
                 active_effects=active_lines,
             )
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+                if self.track_stats:
+                    self.army1.kills_dealt_history.append(self.army1.kills_dealt_this_round)
+                    self.army2.kills_dealt_history.append(self.army2.kills_dealt_this_round)
                 break
 
             for army, opponent in [(self.army1, self.army2), (self.army2, self.army1)]:
@@ -1103,6 +1108,8 @@ class GameSimulator:
                 self.army2.shield_received_history.append(prev + self.army2.shield_hp_gained_this_round)
                 self.army1.rage_gained_history.append(self.army1.rage_added_this_round)
                 self.army2.rage_gained_history.append(self.army2.rage_added_this_round)
+                self.army1.kills_dealt_history.append(self.army1.kills_dealt_this_round)
+                self.army2.kills_dealt_history.append(self.army2.kills_dealt_this_round)
 
             for army in [self.army1, self.army2]:
                 if army.current_troop_count <= 0:

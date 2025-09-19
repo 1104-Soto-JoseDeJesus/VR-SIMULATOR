@@ -355,16 +355,24 @@ class Army:
                     )
                     if total_contrib_hp > 0:
                         for src, skills in self.heal_contributors_this_round.items():
+                            healer_army = None
                             for sim in self.simulators:
                                 engine = getattr(sim, "parent_engine", None)
-                                if engine and src in engine._armies:
-                                    healer_army = engine._armies[src].army
-                                    for sid, hp in skills.items():
-                                        portion = actual_healed_hp * (hp / total_contrib_hp)
-                                        healer_army.skill_heal_totals[sid] = healer_army.skill_heal_totals.get(sid, 0.0) + (
-                                            portion / hp_per_troop
-                                        )
+                                if not engine:
+                                    continue
+                                armies = getattr(engine, "_armies", {})
+                                entry = armies.get(src)
+                                if entry:
+                                    healer_army = getattr(entry, "army", entry)
                                     break
+                            if healer_army is None:
+                                healer_army = self._find_army_by_name(src)
+                            if healer_army:
+                                for sid, hp in skills.items():
+                                    portion = actual_healed_hp * (hp / total_contrib_hp)
+                                    healer_army.skill_heal_totals[sid] = healer_army.skill_heal_totals.get(sid, 0.0) + (
+                                        portion / hp_per_troop
+                                    )
 
                     # Preserve the healed amount for logging in the simulator.
                     # It will be cleared at the start of the next round.

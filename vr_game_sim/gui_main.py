@@ -3659,6 +3659,7 @@ def display_histograms(
         "enemy_remaining_troops.png",
         "rounds_to_battle_end.png",
         "victory_distribution.png",
+        "unrevivable_victory_distribution.png",
         "troop_difference.png",
         "diff_vs_rounds.png",
         "rounds_cdf.png",
@@ -4565,6 +4566,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "enemy_remaining_troops.png",
             "rounds_to_battle_end.png",
             "victory_distribution.png",
+            "unrevivable_victory_distribution.png",
             "troop_difference.png",
             "diff_vs_rounds.png",
             "rounds_cdf.png",
@@ -4609,6 +4611,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "enemy_remaining_troops.png",
             "rounds_to_battle_end.png",
             "victory_distribution.png",
+            "unrevivable_victory_distribution.png",
         ]
         base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
         hist_pixmaps: dict[str, QtGui.QPixmap] = {}

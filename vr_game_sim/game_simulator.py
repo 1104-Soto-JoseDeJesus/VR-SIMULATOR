@@ -1189,8 +1189,9 @@ class GameSimulator:
         self.report_builder.emit_final(
             winner,
             self.round,
-            f"Final State: {self.army1.name}: {self.army1.current_troop_count:.0f} troops",
-            f"{self.army2.name}: {self.army2.current_troop_count:.0f} troops")
+            f"Final State: {self.army1.name}: {self.army1.current_troop_count:.0f} troops (Unrevivable: {self.army1.unrevivable_troops:.0f})",
+            f"{self.army2.name}: {self.army2.current_troop_count:.0f} troops (Unrevivable: {self.army2.unrevivable_troops:.0f})",
+        )
         if self.track_stats:
             self._generate_round_figures()
         report_text = self.report_builder.get_report_text()

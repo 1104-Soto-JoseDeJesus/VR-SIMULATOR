@@ -41,7 +41,7 @@ def _patch_randrange(monkeypatch: pytest.MonkeyPatch, seeds: list[int]) -> None:
 
 def _expected_best_index(winner: int, target: int) -> int:
     candidates: list[tuple[int, float]] = []
-    for idx, (_, _, _, _, actual_winner) in enumerate(RESULTS[:RUNS]):
+    for idx, (_, _, _, _, actual_winner, _, _) in enumerate(RESULTS[:RUNS]):
         if actual_winner != winner:
             continue
         remaining = RESULTS[idx][0] if winner == 1 else RESULTS[idx][1]
@@ -54,7 +54,9 @@ def test_seed_selection_prefers_army1(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_randrange(monkeypatch, SEED_SEQUENCE.copy())
     target_remaining = 50_000
     expected_idx = _expected_best_index(1, target_remaining)
-    expected_win_rate = sum(1 for _, _, _, _, winner in RESULTS[:RUNS] if winner == 1) / RUNS
+    expected_win_rate = sum(
+        1 for _, _, _, _, winner, _, _ in RESULTS[:RUNS] if winner == 1
+    ) / RUNS
 
     win_rate, best_match = run_additional_simulations(
         SETUP_DATA,
@@ -104,3 +106,12 @@ def test_seed_selection_prefers_army2(monkeypatch: pytest.MonkeyPatch) -> None:
         if result[4] != 2:
             continue
         assert selected_delta <= abs(result[1] - target_remaining) + 1e-6
+
+
+def test_report_summary_includes_unrevivable() -> None:
+    _, _, _, _, _, _, _, report_text = _run_single_battle(
+        SETUP_DATA, seed=SEED_SEQUENCE[0], return_report=True
+    )
+    summary_lines = report_text.strip().splitlines()[-2:]
+    assert len(summary_lines) == 2
+    assert all("Unrevivable" in line for line in summary_lines)

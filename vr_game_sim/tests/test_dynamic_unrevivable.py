@@ -209,7 +209,7 @@ def test_run_additional_simulations_propagates_dynamic_settings(monkeypatch: pyt
         return_report: bool = False,
     ):
         captured.append(dynamic_settings)
-        base_result = (0, 0, 1, 0, 0)
+        base_result = (0, 0, 1, 0, 0, 0, 0)
         if return_report:
             return (*base_result, "report")
         return base_result

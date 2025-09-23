@@ -1,5 +1,4 @@
 # === File: main.py (with Save/Load Setup Feature) ===
-import math
 import random
 import json
 import os
@@ -8,6 +7,7 @@ import sys
 from typing import List, Optional, Dict, Any, Callable
 import contextlib
 import io
+import math
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
 import matplotlib
@@ -255,7 +255,7 @@ def _run_single_battle(
     Returns
     -------
     tuple
-        ``(own, enemy, rounds, diff, winner[, report_text])``
+        ``(own, enemy, rounds, diff, winner, army1_unrevivable, army2_unrevivable[, report_text])``
     """
     if seed is not None:
         random.seed(seed)
@@ -275,7 +275,9 @@ def _run_single_battle(
     own = sim.army1.current_troop_count
     enemy = sim.army2.current_troop_count
     diff = own - enemy
-    result = (own, enemy, sim.round, diff, winner)
+    army1_unrevivable = sim.army1.unrevivable_troops
+    army2_unrevivable = sim.army2.unrevivable_troops
+    result = (own, enemy, sim.round, diff, winner, army1_unrevivable, army2_unrevivable)
     if return_report:
         report_text = sim.report_builder.get_report_text()
         return (*result, report_text)
@@ -312,6 +314,8 @@ def run_additional_simulations(
     rounds_taken: List[int] = []
     diff_results: List[float] = []
     winners: List[int] = []  # 1 -> army1, 2 -> army2, 0 -> draw
+    army1_unrevivable_totals: List[float] = []
+    army2_unrevivable_totals: List[float] = []
 
     army1_name = (
         setup_data[0].get("army_name", "Army 1") if len(setup_data) > 0 else "Army 1"
@@ -332,19 +336,21 @@ def run_additional_simulations(
                 _run_single_battle, worker_inputs, seeds, settings_iter
             )
             completed = 0
-            for own, enemy, r_taken, diff, winner in results_iter:
+            for own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev in results_iter:
                 own_remaining.append(own)
                 enemy_remaining.append(enemy)
                 rounds_taken.append(r_taken)
                 diff_results.append(diff)
                 winners.append(winner)
+                army1_unrevivable_totals.append(army1_unrev)
+                army2_unrevivable_totals.append(army2_unrev)
                 battle_results.append((own, enemy))
                 completed += 1
                 if progress_callback:
                     progress_callback(completed, runs)
     else:
         for i, seed_val in enumerate(seeds):
-            own, enemy, r_taken, diff, winner = _run_single_battle(
+            own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev = _run_single_battle(
                 setup_data, seed=seed_val, dynamic_settings=dynamic_settings_payload
             )
             own_remaining.append(own)
@@ -352,6 +358,8 @@ def run_additional_simulations(
             rounds_taken.append(r_taken)
             diff_results.append(diff)
             winners.append(winner)
+            army1_unrevivable_totals.append(army1_unrev)
+            army2_unrevivable_totals.append(army2_unrev)
             battle_results.append((own, enemy))
             if progress_callback:
                 progress_callback(i + 1, runs)
@@ -390,6 +398,16 @@ def run_additional_simulations(
             "winner": winners[best_idx] if best_idx < len(winners) else 0,
             "army1_remaining": battle_results[best_idx][0],
             "army2_remaining": battle_results[best_idx][1],
+            "army1_unrevivable": (
+                army1_unrevivable_totals[best_idx]
+                if best_idx < len(army1_unrevivable_totals)
+                else 0.0
+            ),
+            "army2_unrevivable": (
+                army2_unrevivable_totals[best_idx]
+                if best_idx < len(army2_unrevivable_totals)
+                else 0.0
+            ),
             "dynamic_settings": dict(dynamic_settings_payload),
         }
 
@@ -660,6 +678,63 @@ def run_additional_simulations(
                 facecolor=fig.get_facecolor(),
             )
             plt.close(fig)
+
+    if generate_histograms and army1_unrevivable_totals and army2_unrevivable_totals:
+        unrevivable_wins_army1 = 0
+        unrevivable_wins_army2 = 0
+        unrevivable_ties = 0
+        for a1_unrev, a2_unrev in zip(
+            army1_unrevivable_totals, army2_unrevivable_totals
+        ):
+            if math.isclose(a1_unrev, a2_unrev, abs_tol=1e-6):
+                unrevivable_ties += 1
+            elif a1_unrev < a2_unrev:
+                unrevivable_wins_army1 += 1
+            else:
+                unrevivable_wins_army2 += 1
+
+        total_unrev_outcomes = (
+            unrevivable_wins_army1 + unrevivable_wins_army2 + unrevivable_ties
+        )
+        if total_unrev_outcomes > 0:
+            def _format_pct(pct: float) -> str:
+                return f"{pct:.1f}%" if pct > 1e-3 else ""
+
+            with plt.style.context("default"):
+                fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
+                fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+                ax.set_facecolor(HISTOGRAM_BG_COLOR)
+                wedges, texts, autotexts = ax.pie(
+                    [
+                        unrevivable_wins_army1,
+                        unrevivable_wins_army2,
+                        unrevivable_ties,
+                    ],
+                    labels=[army1_name, army2_name, "Tie"],
+                    autopct=_format_pct,
+                    colors=["green", "red", "gray"],
+                    startangle=90,
+                    textprops={
+                        "fontsize": HISTOGRAM_FONT_SIZE,
+                        "color": HISTOGRAM_TEXT_COLOR,
+                    },
+                )
+                for text in texts + autotexts:
+                    text.set_color(HISTOGRAM_TEXT_COLOR)
+                ax.set_title(
+                    "Unrevivable Casualty Advantage",
+                    fontsize=HISTOGRAM_FONT_SIZE,
+                    color=HISTOGRAM_TEXT_COLOR,
+                )
+                ax.axis("equal")
+                fig.tight_layout()
+                fig.savefig(
+                    os.path.join(HISTOGRAM_DIR, "unrevivable_victory_distribution.png"),
+                    dpi=HISTOGRAM_DPI,
+                    bbox_inches="tight",
+                    facecolor=fig.get_facecolor(),
+                )
+                plt.close(fig)
 
     if generate_histograms:
         # Ensure no figures remain open in case others were created

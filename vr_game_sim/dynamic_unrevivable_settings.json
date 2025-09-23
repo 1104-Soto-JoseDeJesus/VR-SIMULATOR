@@ -1,0 +1,8 @@
+{
+  "combat_base": 0.05,
+  "combat_bonus_multiplier": 0.6,
+  "non_mutual_base": 0.05,
+  "non_mutual_bonus_multiplier": 0.6,
+  "skill_base": 0.05,
+  "skill_bonus_multiplier": 0.6
+}

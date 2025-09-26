@@ -995,6 +995,7 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
         self._skill_bonus = self._make_percent_spin()
         self._non_mutual_base = self._make_percent_spin()
         self._non_mutual_bonus = self._make_percent_spin()
+        self._type_multiplier_spins: dict[str, QtWidgets.QDoubleSpinBox] = {}
 
         form.addRow("Combat base", self._combat_base)
         form.addRow("Combat bonus multiplier", self._combat_bonus)
@@ -1002,6 +1003,15 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
         form.addRow("Skill bonus multiplier", self._skill_bonus)
         form.addRow("Non-mutual base", self._non_mutual_base)
         form.addRow("Non-mutual bonus multiplier", self._non_mutual_bonus)
+
+        multiplier_group = QtWidgets.QGroupBox("Troop Type Multipliers")
+        multiplier_layout = QtWidgets.QFormLayout(multiplier_group)
+        for unit_type in ("pikemen", "archers", "infantry"):
+            spin = self._make_multiplier_spin()
+            key = f"{unit_type}_multiplier"
+            self._type_multiplier_spins[key] = spin
+            multiplier_layout.addRow(unit_type.capitalize(), spin)
+        layout.addWidget(multiplier_group)
 
         self._status = QtWidgets.QLabel("")
         self._status.setWordWrap(True)
@@ -1038,6 +1048,15 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
         spin.setSuffix(" %")
         return spin
 
+    @staticmethod
+    def _make_multiplier_spin() -> QtWidgets.QDoubleSpinBox:
+        spin = QtWidgets.QDoubleSpinBox()
+        spin.setRange(0.0, 5.0)
+        spin.setDecimals(2)
+        spin.setSingleStep(0.05)
+        spin.setSuffix(" ×")
+        return spin
+
     def _load_current_settings(self) -> None:
         settings = dynamic_unrevivable_config.get_settings()
         self._combat_base.setValue(settings["combat_base"] * 100.0)
@@ -1046,6 +1065,8 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
         self._skill_bonus.setValue(settings["skill_bonus_multiplier"] * 100.0)
         self._non_mutual_base.setValue(settings["non_mutual_base"] * 100.0)
         self._non_mutual_bonus.setValue(settings["non_mutual_bonus_multiplier"] * 100.0)
+        for key, spin in self._type_multiplier_spins.items():
+            spin.setValue(settings.get(key, 1.0))
         self._status.clear()
 
     def _gather_settings(self) -> dict[str, float]:
@@ -1056,6 +1077,7 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
             "skill_bonus_multiplier": self._skill_bonus.value() / 100.0,
             "non_mutual_base": self._non_mutual_base.value() / 100.0,
             "non_mutual_bonus_multiplier": self._non_mutual_bonus.value() / 100.0,
+            **{key: spin.value() for key, spin in self._type_multiplier_spins.items()},
         }
 
     def _apply_session(self) -> None:

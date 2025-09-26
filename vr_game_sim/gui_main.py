@@ -986,32 +986,27 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
         self.setWindowTitle("Dynamic Unrevivable Ratios")
 
         layout = QtWidgets.QVBoxLayout(self)
-        form = QtWidgets.QFormLayout()
-        layout.addLayout(form)
+        self._type_setting_spins: dict[str, dict[str, QtWidgets.QDoubleSpinBox]] = {}
 
-        self._combat_base = self._make_percent_spin()
-        self._combat_bonus = self._make_percent_spin()
-        self._skill_base = self._make_percent_spin()
-        self._skill_bonus = self._make_percent_spin()
-        self._non_mutual_base = self._make_percent_spin()
-        self._non_mutual_bonus = self._make_percent_spin()
-        self._type_multiplier_spins: dict[str, QtWidgets.QDoubleSpinBox] = {}
+        type_fields = (
+            ("Combat base", "combat_base"),
+            ("Combat bonus multiplier", "combat_bonus_multiplier"),
+            ("Skill base", "skill_base"),
+            ("Skill bonus multiplier", "skill_bonus_multiplier"),
+            ("Non-mutual base", "non_mutual_base"),
+            ("Non-mutual bonus multiplier", "non_mutual_bonus_multiplier"),
+        )
 
-        form.addRow("Combat base", self._combat_base)
-        form.addRow("Combat bonus multiplier", self._combat_bonus)
-        form.addRow("Skill base", self._skill_base)
-        form.addRow("Skill bonus multiplier", self._skill_bonus)
-        form.addRow("Non-mutual base", self._non_mutual_base)
-        form.addRow("Non-mutual bonus multiplier", self._non_mutual_bonus)
-
-        multiplier_group = QtWidgets.QGroupBox("Troop Type Multipliers")
-        multiplier_layout = QtWidgets.QFormLayout(multiplier_group)
         for unit_type in ("pikemen", "archers", "infantry"):
-            spin = self._make_multiplier_spin()
-            key = f"{unit_type}_multiplier"
-            self._type_multiplier_spins[key] = spin
-            multiplier_layout.addRow(unit_type.capitalize(), spin)
-        layout.addWidget(multiplier_group)
+            group = QtWidgets.QGroupBox(f"{unit_type.capitalize()} attacker settings")
+            form = QtWidgets.QFormLayout(group)
+            field_spins: dict[str, QtWidgets.QDoubleSpinBox] = {}
+            for label, key in type_fields:
+                spin = self._make_percent_spin()
+                form.addRow(label, spin)
+                field_spins[key] = spin
+            self._type_setting_spins[unit_type] = field_spins
+            layout.addWidget(group)
 
         self._status = QtWidgets.QLabel("")
         self._status.setWordWrap(True)
@@ -1048,37 +1043,21 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
         spin.setSuffix(" %")
         return spin
 
-    @staticmethod
-    def _make_multiplier_spin() -> QtWidgets.QDoubleSpinBox:
-        spin = QtWidgets.QDoubleSpinBox()
-        spin.setRange(0.0, 5.0)
-        spin.setDecimals(2)
-        spin.setSingleStep(0.05)
-        spin.setSuffix(" ×")
-        return spin
-
     def _load_current_settings(self) -> None:
         settings = dynamic_unrevivable_config.get_settings()
-        self._combat_base.setValue(settings["combat_base"] * 100.0)
-        self._combat_bonus.setValue(settings["combat_bonus_multiplier"] * 100.0)
-        self._skill_base.setValue(settings["skill_base"] * 100.0)
-        self._skill_bonus.setValue(settings["skill_bonus_multiplier"] * 100.0)
-        self._non_mutual_base.setValue(settings["non_mutual_base"] * 100.0)
-        self._non_mutual_bonus.setValue(settings["non_mutual_bonus_multiplier"] * 100.0)
-        for key, spin in self._type_multiplier_spins.items():
-            spin.setValue(settings.get(key, 1.0))
+        for unit_type, spins in self._type_setting_spins.items():
+            for key, spin in spins.items():
+                setting_key = f"{unit_type}_{key}"
+                spin.setValue(settings[setting_key] * 100.0)
         self._status.clear()
 
     def _gather_settings(self) -> dict[str, float]:
-        return {
-            "combat_base": self._combat_base.value() / 100.0,
-            "combat_bonus_multiplier": self._combat_bonus.value() / 100.0,
-            "skill_base": self._skill_base.value() / 100.0,
-            "skill_bonus_multiplier": self._skill_bonus.value() / 100.0,
-            "non_mutual_base": self._non_mutual_base.value() / 100.0,
-            "non_mutual_bonus_multiplier": self._non_mutual_bonus.value() / 100.0,
-            **{key: spin.value() for key, spin in self._type_multiplier_spins.items()},
-        }
+        values: dict[str, float] = {}
+        for unit_type, spins in self._type_setting_spins.items():
+            for key, spin in spins.items():
+                setting_key = f"{unit_type}_{key}"
+                values[setting_key] = spin.value() / 100.0
+        return values
 
     def _apply_session(self) -> None:
         settings = self._gather_settings()

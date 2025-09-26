@@ -15,20 +15,49 @@ from pathlib import Path
 import json
 import math
 import threading
-from typing import Dict, Mapping
+from typing import Dict, Iterable, Mapping
 
 
-DEFAULT_SETTINGS: Dict[str, float] = {
-    "combat_base": 0.2,
-    "combat_bonus_multiplier": 0.35,
-    "skill_base": 0.2,
-    "skill_bonus_multiplier": 0.60,
-    "non_mutual_base": 0.2,
-    "non_mutual_bonus_multiplier": 0.60,
-    "pikemen_multiplier": 1.0,
-    "archers_multiplier": 1.0,
-    "infantry_multiplier": 1.0,
-}
+UNIT_TYPES: tuple[str, ...] = ("pikemen", "archers", "infantry")
+TYPE_SPECIFIC_FIELDS: tuple[str, ...] = (
+    "combat_base",
+    "combat_bonus_multiplier",
+    "skill_base",
+    "skill_bonus_multiplier",
+    "non_mutual_base",
+    "non_mutual_bonus_multiplier",
+)
+
+
+def _build_legacy_expansions() -> Dict[str, tuple[str, ...]]:
+    expansions: Dict[str, tuple[str, ...]] = {}
+    for field in TYPE_SPECIFIC_FIELDS:
+        key = field
+        expansions[key] = tuple(f"{unit_type}_{field}" for unit_type in UNIT_TYPES)
+    return expansions
+
+
+LEGACY_KEY_EXPANSIONS = _build_legacy_expansions()
+_TYPE_MULTIPLIER_KEYS = {f"{unit_type}_multiplier" for unit_type in UNIT_TYPES}
+
+
+def _make_default_settings() -> Dict[str, float]:
+    defaults: Dict[str, float] = {}
+    for unit_type in UNIT_TYPES:
+        defaults.update(
+            {
+                f"{unit_type}_combat_base": 0.2,
+                f"{unit_type}_combat_bonus_multiplier": 0.35,
+                f"{unit_type}_skill_base": 0.2,
+                f"{unit_type}_skill_bonus_multiplier": 0.60,
+                f"{unit_type}_non_mutual_base": 0.2,
+                f"{unit_type}_non_mutual_bonus_multiplier": 0.60,
+            }
+        )
+    return defaults
+
+
+DEFAULT_SETTINGS: Dict[str, float] = _make_default_settings()
 
 _SETTINGS_FILE = Path(__file__).with_name("dynamic_unrevivable_settings.json")
 
@@ -41,7 +70,7 @@ class DynamicConfigError(ValueError):
     """Raised when invalid values are supplied for the configuration."""
 
 
-def _validate_keys(settings: Mapping[str, float]) -> None:
+def _validate_keys(settings: Iterable[str]) -> None:
     unknown = set(settings) - set(DEFAULT_SETTINGS)
     if unknown:
         raise DynamicConfigError(
@@ -55,9 +84,23 @@ def _coerce_values(
 ) -> Dict[str, float]:
     """Return ``base`` merged with ``overrides`` after validating values."""
 
-    _validate_keys(overrides)
-    merged = dict(base)
+    expanded_overrides: Dict[str, float] = {}
+    multiplier_adjustments: Dict[str, float] = {}
     for key, value in overrides.items():
+        if key in _TYPE_MULTIPLIER_KEYS:
+            multiplier_adjustments[key] = value
+            continue
+        expansion = LEGACY_KEY_EXPANSIONS.get(key)
+        if expansion:
+            for new_key in expansion:
+                expanded_overrides[new_key] = value
+        else:
+            expanded_overrides[key] = value
+
+    _validate_keys(expanded_overrides)
+
+    merged = dict(base)
+    for key, value in expanded_overrides.items():
         try:
             numeric = float(value)
         except (TypeError, ValueError) as exc:
@@ -69,6 +112,22 @@ def _coerce_values(
         if numeric < 0.0:
             raise DynamicConfigError(f"Setting '{key}' cannot be negative")
         merged[key] = numeric
+
+    for key, value in multiplier_adjustments.items():
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError) as exc:
+            raise DynamicConfigError(
+                f"Setting '{key}' must be a real number"
+            ) from exc
+        if not math.isfinite(numeric):
+            raise DynamicConfigError(f"Setting '{key}' must be finite")
+        if numeric < 0.0:
+            raise DynamicConfigError(f"Setting '{key}' cannot be negative")
+        unit_type = key.split("_", 1)[0]
+        for field in TYPE_SPECIFIC_FIELDS:
+            merged_key = f"{unit_type}_{field}"
+            merged[merged_key] = merged[merged_key] * numeric
     return merged
 
 
@@ -105,6 +164,19 @@ def get_settings() -> Dict[str, float]:
         if _session_settings:
             result.update(_session_settings)
         return result
+
+
+def get_type_settings(unit_type: str, settings: Mapping[str, float] | None = None) -> Dict[str, float]:
+    """Return the coefficients relevant for the provided ``unit_type`` attacker."""
+
+    normalized = (unit_type or "").lower()
+    if normalized not in UNIT_TYPES:
+        normalized = UNIT_TYPES[0]
+    active = settings or get_settings()
+    return {
+        field: active[f"{normalized}_{field}"]
+        for field in TYPE_SPECIFIC_FIELDS
+    }
 
 
 def apply_session_settings(settings: Mapping[str, float]) -> Dict[str, float]:
@@ -154,11 +226,14 @@ def reset_to_defaults() -> Dict[str, float]:
 
 
 __all__ = [
+    "UNIT_TYPES",
+    "TYPE_SPECIFIC_FIELDS",
     "DEFAULT_SETTINGS",
     "DynamicConfigError",
     "apply_session_settings",
     "clear_session_overrides",
     "get_settings",
+    "get_type_settings",
     "reset_to_defaults",
     "save_universal_settings",
 ]

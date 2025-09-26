@@ -808,10 +808,12 @@ class GameSimulator:
             return
 
         opponent_kills = opponent.dynamic_kills_by_opponent.get(
-            defender.name, {"combat": 0.0, "skill": 0.0}
+            defender.name,
+            {"combat_basic": 0.0, "combat_counter": 0.0, "skill": 0.0},
         )
         defender_kills = defender.dynamic_kills_by_opponent.get(
-            opponent.name, {"combat": 0.0, "skill": 0.0}
+            opponent.name,
+            {"combat_basic": 0.0, "combat_counter": 0.0, "skill": 0.0},
         )
 
         dynamic_settings = get_dynamic_unrevivable_settings()
@@ -820,8 +822,10 @@ class GameSimulator:
             attacker_type if attacker_type in DYNAMIC_UNIT_TYPES else DYNAMIC_UNIT_TYPES[0]
         )
         type_specific = get_dynamic_unrevivable_type_settings(normalized_type, dynamic_settings)
-        combat_base = type_specific["combat_base"]
-        combat_bonus = type_specific["combat_bonus_multiplier"]
+        combat_basic_base = type_specific["combat_basic_base"]
+        combat_basic_bonus = type_specific["combat_basic_bonus_multiplier"]
+        combat_counter_base = type_specific["combat_counter_base"]
+        combat_counter_bonus = type_specific["combat_counter_bonus_multiplier"]
         skill_base = type_specific["skill_base"]
         skill_bonus = type_specific["skill_bonus_multiplier"]
         non_mutual_base = type_specific["non_mutual_base"]
@@ -830,13 +834,33 @@ class GameSimulator:
         type_label = normalized_type.capitalize()
 
         if mutual_engagement:
-            total_combat_kills = defender_kills.get("combat", 0.0) + opponent_kills.get(
-                "combat", 0.0
+            total_basic_kills = defender_kills.get("combat_basic", 0.0) + opponent_kills.get(
+                "combat_basic", 0.0
             )
-            enemy_combat_kills = opponent_kills.get("combat", 0.0)
-            combat_ratio = combat_base
+            enemy_basic_kills = opponent_kills.get("combat_basic", 0.0)
+            total_counter_kills = defender_kills.get(
+                "combat_counter", 0.0
+            ) + opponent_kills.get("combat_counter", 0.0)
+            enemy_counter_kills = opponent_kills.get("combat_counter", 0.0)
+            total_combat_kills = total_basic_kills + total_counter_kills
+
+            basic_ratio = combat_basic_base
+            if total_basic_kills > 0:
+                basic_ratio += (enemy_basic_kills / total_basic_kills) * combat_basic_bonus
+            counter_ratio = combat_counter_base
+            if total_counter_kills > 0:
+                counter_ratio += (
+                    enemy_counter_kills / total_counter_kills
+                ) * combat_counter_bonus
+
             if total_combat_kills > 0:
-                combat_ratio += (enemy_combat_kills / total_combat_kills) * combat_bonus
+                combat_ratio = 0.0
+                if total_basic_kills > 0:
+                    combat_ratio += (total_basic_kills / total_combat_kills) * basic_ratio
+                if total_counter_kills > 0:
+                    combat_ratio += (total_counter_kills / total_combat_kills) * counter_ratio
+            else:
+                combat_ratio = (basic_ratio + counter_ratio) / 2.0
 
             total_skill_kills = defender_kills.get("skill", 0.0) + opponent_kills.get(
                 "skill", 0.0
@@ -850,16 +874,21 @@ class GameSimulator:
             skill_unrevivable = round(skill_losses * skill_ratio)
             added_unrevivable = combat_unrevivable + skill_unrevivable
             log_message = (
-                f"vs {opponent.name}: combat ratio {combat_ratio:.2%} on {combat_losses:.1f} "
+                f"vs {opponent.name}: combat ratio {combat_ratio:.2%} "
+                f"(basic {basic_ratio:.2%}, counter {counter_ratio:.2%}) on {combat_losses:.1f} "
                 f"losses (+{combat_unrevivable}), skill ratio {skill_ratio:.2%} on "
                 f"{skill_losses:.1f} losses (+{skill_unrevivable}) -> +{added_unrevivable} "
                 f"unrevivable (using {type_label} attacker settings)."
             )
         else:
-            total_combat_kills = defender_kills.get("combat", 0.0) + opponent_kills.get(
-                "combat", 0.0
+            total_combat_kills = defender_kills.get("combat_basic", 0.0)
+            total_combat_kills += defender_kills.get("combat_counter", 0.0)
+            total_combat_kills += opponent_kills.get("combat_basic", 0.0)
+            total_combat_kills += opponent_kills.get("combat_counter", 0.0)
+            enemy_combat_kills = (
+                opponent_kills.get("combat_basic", 0.0)
+                + opponent_kills.get("combat_counter", 0.0)
             )
-            enemy_combat_kills = opponent_kills.get("combat", 0.0)
             combined_ratio = non_mutual_base
             if total_combat_kills > 0:
                 combined_ratio += (enemy_combat_kills / total_combat_kills) * non_mutual_bonus

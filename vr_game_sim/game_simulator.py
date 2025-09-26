@@ -18,7 +18,11 @@ from .constants import (
     EFFECT_NAME_SILENCE_DEBUFF,
     EFFECT_NAME_JUDGEMENT_MARKER,
 )
-from .dynamic_unrevivable_config import get_settings as get_dynamic_unrevivable_settings
+from .dynamic_unrevivable_config import (
+    UNIT_TYPES as DYNAMIC_UNIT_TYPES,
+    get_settings as get_dynamic_unrevivable_settings,
+    get_type_settings as get_dynamic_unrevivable_type_settings,
+)
 from .report_builder import ReportBuilder
 from colorama import Fore
 
@@ -811,17 +815,19 @@ class GameSimulator:
         )
 
         dynamic_settings = get_dynamic_unrevivable_settings()
-        combat_base = dynamic_settings["combat_base"]
-        combat_bonus = dynamic_settings["combat_bonus_multiplier"]
-        skill_base = dynamic_settings["skill_base"]
-        skill_bonus = dynamic_settings["skill_bonus_multiplier"]
-        non_mutual_base = dynamic_settings["non_mutual_base"]
-        non_mutual_bonus = dynamic_settings["non_mutual_bonus_multiplier"]
+        attacker_type = (getattr(opponent.unit, "unit_type", "") or "").lower()
+        normalized_type = (
+            attacker_type if attacker_type in DYNAMIC_UNIT_TYPES else DYNAMIC_UNIT_TYPES[0]
+        )
+        type_specific = get_dynamic_unrevivable_type_settings(normalized_type, dynamic_settings)
+        combat_base = type_specific["combat_base"]
+        combat_bonus = type_specific["combat_bonus_multiplier"]
+        skill_base = type_specific["skill_base"]
+        skill_bonus = type_specific["skill_bonus_multiplier"]
+        non_mutual_base = type_specific["non_mutual_base"]
+        non_mutual_bonus = type_specific["non_mutual_bonus_multiplier"]
 
-        unit_type = (getattr(defender.unit, "unit_type", "") or "").lower()
-        multiplier_key = f"{unit_type}_multiplier"
-        unit_multiplier = dynamic_settings.get(multiplier_key, 1.0)
-        type_label = unit_type.capitalize() if unit_type else "Unknown"
+        type_label = normalized_type.capitalize()
 
         if mutual_engagement:
             total_combat_kills = defender_kills.get("combat", 0.0) + opponent_kills.get(
@@ -840,9 +846,6 @@ class GameSimulator:
             if total_skill_kills > 0:
                 skill_ratio += (enemy_skill_kills / total_skill_kills) * skill_bonus
 
-            combat_ratio *= unit_multiplier
-            skill_ratio *= unit_multiplier
-
             combat_unrevivable = round(combat_losses * combat_ratio)
             skill_unrevivable = round(skill_losses * skill_ratio)
             added_unrevivable = combat_unrevivable + skill_unrevivable
@@ -850,7 +853,7 @@ class GameSimulator:
                 f"vs {opponent.name}: combat ratio {combat_ratio:.2%} on {combat_losses:.1f} "
                 f"losses (+{combat_unrevivable}), skill ratio {skill_ratio:.2%} on "
                 f"{skill_losses:.1f} losses (+{skill_unrevivable}) -> +{added_unrevivable} "
-                f"unrevivable (x{unit_multiplier:.2f} {type_label} multiplier)."
+                f"unrevivable (using {type_label} attacker settings)."
             )
         else:
             total_combat_kills = defender_kills.get("combat", 0.0) + opponent_kills.get(
@@ -860,12 +863,11 @@ class GameSimulator:
             combined_ratio = non_mutual_base
             if total_combat_kills > 0:
                 combined_ratio += (enemy_combat_kills / total_combat_kills) * non_mutual_bonus
-            combined_ratio *= unit_multiplier
             combined_losses = combat_losses + skill_losses
             added_unrevivable = round(combined_losses * combined_ratio)
             log_message = (
                 f"vs {opponent.name}: non-mutual ratio {combined_ratio:.2%} on {combined_losses:.1f} "
-                f"losses -> +{added_unrevivable} unrevivable (x{unit_multiplier:.2f} {type_label} multiplier)."
+                f"losses -> +{added_unrevivable} unrevivable (using {type_label} attacker settings)."
             )
 
         if added_unrevivable > 0:

@@ -73,12 +73,18 @@ def test_dynamic_unrevivable_mutual():
 def test_dynamic_unrevivable_mutual_override_changes_result():
     dynamic_unrevivable_config.apply_session_settings(
         {
-            "combat_base": 0.5,
-            "combat_bonus_multiplier": 0.5,
-            "skill_base": 0.5,
-            "skill_bonus_multiplier": 0.5,
-            "non_mutual_base": 0.5,
-            "non_mutual_bonus_multiplier": 0.5,
+            "pikemen_combat_base": 0.5,
+            "pikemen_combat_bonus_multiplier": 0.5,
+            "pikemen_skill_base": 0.5,
+            "pikemen_skill_bonus_multiplier": 0.5,
+            "pikemen_non_mutual_base": 0.5,
+            "pikemen_non_mutual_bonus_multiplier": 0.5,
+            "archers_combat_base": 0.5,
+            "archers_combat_bonus_multiplier": 0.5,
+            "archers_skill_base": 0.5,
+            "archers_skill_bonus_multiplier": 0.5,
+            "archers_non_mutual_base": 0.5,
+            "archers_non_mutual_bonus_multiplier": 0.5,
         }
     )
     army_a, army_b, sim = _create_dynamic_armies()
@@ -116,8 +122,18 @@ def test_dynamic_unrevivable_mutual_override_changes_result():
 def test_dynamic_unrevivable_mutual_troop_multiplier_changes_result():
     dynamic_unrevivable_config.apply_session_settings(
         {
-            "pikemen_multiplier": 0.0,
-            "archers_multiplier": 2.0,
+            "archers_combat_base": 0.0,
+            "archers_combat_bonus_multiplier": 0.0,
+            "archers_skill_base": 0.0,
+            "archers_skill_bonus_multiplier": 0.0,
+            "archers_non_mutual_base": 0.0,
+            "archers_non_mutual_bonus_multiplier": 0.0,
+            "pikemen_combat_base": 0.4,
+            "pikemen_combat_bonus_multiplier": 0.7,
+            "pikemen_skill_base": 0.4,
+            "pikemen_skill_bonus_multiplier": 0.7,
+            "pikemen_non_mutual_base": 0.4,
+            "pikemen_non_mutual_bonus_multiplier": 0.7,
         }
     )
     army_a, army_b, sim = _create_dynamic_armies()
@@ -189,12 +205,18 @@ def test_dynamic_unrevivable_non_mutual():
 def test_dynamic_unrevivable_non_mutual_override_changes_result():
     dynamic_unrevivable_config.apply_session_settings(
         {
-            "combat_base": 0.5,
-            "combat_bonus_multiplier": 0.5,
-            "skill_base": 0.5,
-            "skill_bonus_multiplier": 0.5,
-            "non_mutual_base": 0.5,
-            "non_mutual_bonus_multiplier": 0.5,
+            "pikemen_combat_base": 0.5,
+            "pikemen_combat_bonus_multiplier": 0.5,
+            "pikemen_skill_base": 0.5,
+            "pikemen_skill_bonus_multiplier": 0.5,
+            "pikemen_non_mutual_base": 0.5,
+            "pikemen_non_mutual_bonus_multiplier": 0.5,
+            "archers_combat_base": 0.5,
+            "archers_combat_bonus_multiplier": 0.5,
+            "archers_skill_base": 0.5,
+            "archers_skill_bonus_multiplier": 0.5,
+            "archers_non_mutual_base": 0.5,
+            "archers_non_mutual_bonus_multiplier": 0.5,
         }
     )
     army_a, army_b, sim = _create_dynamic_armies()
@@ -230,12 +252,18 @@ def test_dynamic_unrevivable_non_mutual_override_changes_result():
 
 def test_run_additional_simulations_propagates_dynamic_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     override = {
-        "combat_base": 0.42,
-        "combat_bonus_multiplier": 0.12,
-        "skill_base": 0.37,
-        "skill_bonus_multiplier": 0.88,
-        "non_mutual_base": 0.15,
-        "non_mutual_bonus_multiplier": 0.73,
+        "pikemen_combat_base": 0.42,
+        "pikemen_combat_bonus_multiplier": 0.12,
+        "pikemen_skill_base": 0.37,
+        "pikemen_skill_bonus_multiplier": 0.88,
+        "pikemen_non_mutual_base": 0.15,
+        "pikemen_non_mutual_bonus_multiplier": 0.73,
+        "archers_combat_base": 0.18,
+        "archers_combat_bonus_multiplier": 0.56,
+        "archers_skill_base": 0.27,
+        "archers_skill_bonus_multiplier": 0.63,
+        "archers_non_mutual_base": 0.31,
+        "archers_non_mutual_bonus_multiplier": 0.44,
     }
     dynamic_unrevivable_config.apply_session_settings(override)
 

@@ -20,8 +20,10 @@ from typing import Dict, Iterable, Mapping
 
 UNIT_TYPES: tuple[str, ...] = ("pikemen", "archers", "infantry")
 TYPE_SPECIFIC_FIELDS: tuple[str, ...] = (
-    "combat_base",
-    "combat_bonus_multiplier",
+    "combat_basic_base",
+    "combat_basic_bonus_multiplier",
+    "combat_counter_base",
+    "combat_counter_bonus_multiplier",
     "skill_base",
     "skill_bonus_multiplier",
     "non_mutual_base",
@@ -29,11 +31,26 @@ TYPE_SPECIFIC_FIELDS: tuple[str, ...] = (
 )
 
 
+_LEGACY_COMBAT_FIELD_ALIASES: dict[str, tuple[str, str]] = {
+    "combat_base": ("combat_basic_base", "combat_counter_base"),
+    "combat_bonus_multiplier": (
+        "combat_basic_bonus_multiplier",
+        "combat_counter_bonus_multiplier",
+    ),
+}
+
+
 def _build_legacy_expansions() -> Dict[str, tuple[str, ...]]:
     expansions: Dict[str, tuple[str, ...]] = {}
     for field in TYPE_SPECIFIC_FIELDS:
         key = field
         expansions[key] = tuple(f"{unit_type}_{field}" for unit_type in UNIT_TYPES)
+    for legacy_key, replacements in _LEGACY_COMBAT_FIELD_ALIASES.items():
+        expansions[legacy_key] = tuple(
+            f"{unit_type}_{replacement}"
+            for unit_type in UNIT_TYPES
+            for replacement in replacements
+        )
     return expansions
 
 
@@ -41,13 +58,26 @@ LEGACY_KEY_EXPANSIONS = _build_legacy_expansions()
 _TYPE_MULTIPLIER_KEYS = {f"{unit_type}_multiplier" for unit_type in UNIT_TYPES}
 
 
+def _expand_legacy_combat_key(key: str) -> tuple[str, ...] | None:
+    for legacy_key, replacements in _LEGACY_COMBAT_FIELD_ALIASES.items():
+        suffix = f"_{legacy_key}"
+        if key.endswith(suffix):
+            prefix = key[: -len(suffix)]
+            if not prefix:
+                return None
+            return tuple(f"{prefix}_{replacement}" for replacement in replacements)
+    return None
+
+
 def _make_default_settings() -> Dict[str, float]:
     defaults: Dict[str, float] = {}
     for unit_type in UNIT_TYPES:
         defaults.update(
             {
-                f"{unit_type}_combat_base": 0.2,
-                f"{unit_type}_combat_bonus_multiplier": 0.35,
+                f"{unit_type}_combat_basic_base": 0.2,
+                f"{unit_type}_combat_basic_bonus_multiplier": 0.35,
+                f"{unit_type}_combat_counter_base": 0.2,
+                f"{unit_type}_combat_counter_bonus_multiplier": 0.35,
                 f"{unit_type}_skill_base": 0.2,
                 f"{unit_type}_skill_bonus_multiplier": 0.60,
                 f"{unit_type}_non_mutual_base": 0.2,
@@ -89,6 +119,11 @@ def _coerce_values(
     for key, value in overrides.items():
         if key in _TYPE_MULTIPLIER_KEYS:
             multiplier_adjustments[key] = value
+            continue
+        alias_targets = _expand_legacy_combat_key(key)
+        if alias_targets:
+            for new_key in alias_targets:
+                expanded_overrides[new_key] = value
             continue
         expansion = LEGACY_KEY_EXPANSIONS.get(key)
         if expansion:

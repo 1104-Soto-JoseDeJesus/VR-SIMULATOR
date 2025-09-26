@@ -985,17 +985,26 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
         super().__init__(parent)
         self.setWindowTitle("Dynamic Unrevivable Ratios")
 
-        layout = QtWidgets.QVBoxLayout(self)
+        main_layout = QtWidgets.QVBoxLayout(self)
         self._type_setting_spins: dict[str, dict[str, QtWidgets.QDoubleSpinBox]] = {}
 
         type_fields = (
-            ("Combat base", "combat_base"),
-            ("Combat bonus multiplier", "combat_bonus_multiplier"),
+            ("Combat (Basic) base", "combat_basic_base"),
+            ("Combat (Basic) bonus multiplier", "combat_basic_bonus_multiplier"),
+            ("Combat (Counter) base", "combat_counter_base"),
+            ("Combat (Counter) bonus multiplier", "combat_counter_bonus_multiplier"),
             ("Skill base", "skill_base"),
             ("Skill bonus multiplier", "skill_bonus_multiplier"),
             ("Non-mutual base", "non_mutual_base"),
             ("Non-mutual bonus multiplier", "non_mutual_bonus_multiplier"),
         )
+
+        scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        scroll_content = QtWidgets.QWidget()
+        content_layout = QtWidgets.QVBoxLayout(scroll_content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
 
         for unit_type in ("pikemen", "archers", "infantry"):
             group = QtWidgets.QGroupBox(f"{unit_type.capitalize()} attacker settings")
@@ -1006,14 +1015,18 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
                 form.addRow(label, spin)
                 field_spins[key] = spin
             self._type_setting_spins[unit_type] = field_spins
-            layout.addWidget(group)
+            content_layout.addWidget(group)
+        content_layout.addStretch(1)
+
+        scroll_area.setWidget(scroll_content)
+        main_layout.addWidget(scroll_area)
 
         self._status = QtWidgets.QLabel("")
         self._status.setWordWrap(True)
-        layout.addWidget(self._status)
+        main_layout.addWidget(self._status)
 
         btn_row = QtWidgets.QHBoxLayout()
-        layout.addLayout(btn_row)
+        main_layout.addLayout(btn_row)
         session_btn = QtWidgets.QPushButton("Session Apply")
         session_btn.clicked.connect(self._apply_session)
         btn_row.addWidget(session_btn)
@@ -1030,7 +1043,7 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
 
         close_btn = QtWidgets.QPushButton("Close")
         close_btn.clicked.connect(self.accept)
-        layout.addWidget(close_btn, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        main_layout.addWidget(close_btn, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
 
         self._load_current_settings()
 

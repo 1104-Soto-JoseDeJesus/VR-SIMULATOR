@@ -36,7 +36,9 @@ from .constants import (
 
 GameSimulatorRef = "GameSimulator"  # Forward reference
 
-COMBAT_SKILL_IDS = {"basic_attack", "counter_attack"}
+BASIC_ATTACK_ID = "basic_attack"
+COUNTER_ATTACK_ID = "counter_attack"
+COMBAT_SKILL_IDS = {BASIC_ATTACK_ID, COUNTER_ATTACK_ID}
 
 
 @dataclass(slots=True)
@@ -140,13 +142,17 @@ class Army:
         record["combat"] += combat
         record["skill"] += skill
 
-    def _record_dynamic_kills(self, opponent_name: str, combat: float, skill: float) -> None:
-        if combat <= 0 and skill <= 0:
+    def _record_dynamic_kills(
+        self, opponent_name: str, basic: float, counter: float, skill: float
+    ) -> None:
+        if basic <= 0 and counter <= 0 and skill <= 0:
             return
         record = self.dynamic_kills_by_opponent.setdefault(
-            opponent_name, {"combat": 0.0, "skill": 0.0}
+            opponent_name,
+            {"combat_basic": 0.0, "combat_counter": 0.0, "skill": 0.0},
         )
-        record["combat"] += combat
+        record["combat_basic"] += basic
+        record["combat_counter"] += counter
         record["skill"] += skill
 
     def _find_army_by_name(self, name: str) -> Optional["Army"]:
@@ -421,7 +427,8 @@ class Army:
                     army_obj = self._find_army_by_name(src)
                     skill_map = self.damage_contributors_by_skill_this_round.get(src, {})
                     skill_total = sum(skill_map.values())
-                    combat_kills = 0.0
+                    basic_kills = 0.0
+                    counter_kills = 0.0
                     skill_kills = 0.0
                     if skill_total > 0:
                         for sid, sdmg in skill_map.items():
@@ -430,18 +437,25 @@ class Army:
                                 army_obj.skill_kill_totals[sid] = (
                                     army_obj.skill_kill_totals.get(sid, 0.0) + portion
                                 )
-                            if sid in COMBAT_SKILL_IDS:
-                                combat_kills += portion
+                            if sid == BASIC_ATTACK_ID:
+                                basic_kills += portion
+                            elif sid == COUNTER_ATTACK_ID:
+                                counter_kills += portion
+                            elif sid in COMBAT_SKILL_IDS:
+                                basic_kills += portion
                             else:
                                 skill_kills += portion
                     else:
-                        combat_kills = kills
+                        basic_kills = kills
                     if army_obj:
                         army_obj.kills_dealt_this_round += kills
+                    combat_kills = basic_kills + counter_kills
                     if combat_kills > 0 or skill_kills > 0:
                         self._record_dynamic_losses(src, combat_kills, skill_kills)
                         if army_obj:
-                            army_obj._record_dynamic_kills(self.name, combat_kills, skill_kills)
+                            army_obj._record_dynamic_kills(
+                                self.name, basic_kills, counter_kills, skill_kills
+                            )
             self.damage_contributors_this_round = {}
             self.damage_contributors_by_skill_this_round = {}
         # self.pending_hp_damage_this_round = 0.0 # Resetting this at start of round in game_simulator.py

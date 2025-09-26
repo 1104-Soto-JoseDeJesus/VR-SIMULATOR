@@ -113,6 +113,45 @@ def test_dynamic_unrevivable_mutual_override_changes_result():
     assert army_b.unrevivable_troops == 7
 
 
+def test_dynamic_unrevivable_mutual_troop_multiplier_changes_result():
+    dynamic_unrevivable_config.apply_session_settings(
+        {
+            "pikemen_multiplier": 0.0,
+            "archers_multiplier": 2.0,
+        }
+    )
+    army_a, army_b, sim = _create_dynamic_armies()
+    army_a.clear_dynamic_unrevivable_tracking()
+    army_b.clear_dynamic_unrevivable_tracking()
+    hp_a = army_a.unit.effective_hp_per_troop([])
+    hp_b = army_b.unit.effective_hp_per_troop([])
+
+    army_a.pending_hp_damage_this_round = hp_a * 30
+    army_a.damage_contributors_this_round = {army_b.name: hp_a * 30}
+    army_a.damage_contributors_by_skill_this_round = {
+        army_b.name: {
+            "basic_attack": hp_a * 10,
+            "skill_burst": hp_a * 20,
+        }
+    }
+
+    army_b.pending_hp_damage_this_round = hp_b * 10
+    army_b.damage_contributors_this_round = {army_a.name: hp_b * 10}
+    army_b.damage_contributors_by_skill_this_round = {
+        army_a.name: {
+            "basic_attack": hp_b * 8,
+            "skill_slash": hp_b * 2,
+        }
+    }
+
+    army_a.commit_pending_healing_and_damage()
+    army_b.commit_pending_healing_and_damage()
+    sim.apply_unrevivable_post_commit(mutual_engagement=True)
+
+    assert army_a.unrevivable_troops == 0
+    assert army_b.unrevivable_troops == 7
+
+
 def test_dynamic_unrevivable_non_mutual():
     army_a, army_b, sim = _create_dynamic_armies()
     army_a.clear_dynamic_unrevivable_tracking()

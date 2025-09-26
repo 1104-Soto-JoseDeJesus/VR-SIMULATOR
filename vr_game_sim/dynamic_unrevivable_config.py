@@ -25,6 +25,9 @@ DEFAULT_SETTINGS: Dict[str, float] = {
     "skill_bonus_multiplier": 0.60,
     "non_mutual_base": 0.2,
     "non_mutual_bonus_multiplier": 0.60,
+    "pikemen_multiplier": 1.0,
+    "archers_multiplier": 1.0,
+    "infantry_multiplier": 1.0,
 }
 
 _SETTINGS_FILE = Path(__file__).with_name("dynamic_unrevivable_settings.json")

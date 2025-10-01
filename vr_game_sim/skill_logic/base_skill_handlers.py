@@ -1126,6 +1126,7 @@ def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
                 eff.duration != -1
                 and eff.effect_type != EffectType.SHIELD
                 and eff.effect_type != EffectType.HEAL_OVER_TIME
+                and eff.config.get("is_dispellable", True)
             )
         ][
             : cfg.get("buff_removal_count", 2)

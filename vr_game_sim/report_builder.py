@@ -91,7 +91,7 @@ class ReportBuilder:
                     kills = tr.get('potential_kills')
                     if kills:
                         detail_parts.append(self._c(f"Kills {kills}", Fore.YELLOW))
-                    detail = ", ".join(detail_parts)
+                    detail = ", ".join(detail_parts) if detail_parts else "—"
                     rows.append([tr['skill_name'], tr['effect_description'], detail])
                 self.lines.append(
                     tabulate(rows, headers=["Skill", "Effect", "Details"], tablefmt="grid")

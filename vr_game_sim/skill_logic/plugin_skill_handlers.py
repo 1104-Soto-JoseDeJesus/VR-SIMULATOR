@@ -710,6 +710,7 @@ def handle_plugin_lokis_trick(
                         eff.duration != -1 and  # Don't remove permanent effects
                         eff.name != pending_removal_effect_name and  # Don't target self
                         eff.effect_type != EffectType.HEAL_OVER_TIME and  # Don't remove heal over time
+                        eff.config.get("is_dispellable", True) and
                         ((eff.effect_type == EffectType.STAT_MOD and eff.magnitude > 0) or \
                          (eff.effect_type != EffectType.DEBUFF and eff.effect_type != EffectType.DAMAGE_OVER_TIME))
                 # General buff definition
@@ -1660,35 +1661,54 @@ def handle_plugin_on_alert(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % trigger_interval == 0):
         return False, []
 
-    existing_stacks = sum(
-        1 for eff in triggering_army.active_effects
-        if eff.name == skill_config.get("buff_name", EFFECT_NAME_ON_ALERT_COUNTER_BUFF)
-        and eff.source_skill_id == skill_id
-    )
+    buff_name = skill_config.get("buff_name", EFFECT_NAME_ON_ALERT_COUNTER_BUFF)
+    relevant_effects = [
+        eff
+        for effect_collection in (
+            triggering_army.active_effects,
+            triggering_army.upcoming_effects,
+            triggering_army.effects_to_activate_next_round,
+        )
+        for eff in effect_collection
+        if eff.name == buff_name and eff.source_skill_id == skill_id
+    ]
+    existing_stacks = 0
+    for eff in relevant_effects:
+        eff_stack = int(eff.config.get("stack_count", 1))
+        if eff_stack > existing_stacks:
+            existing_stacks = eff_stack
     max_stacks = skill_config.get("max_stacks", 5)
     if existing_stacks >= max_stacks:
         return False, []
 
     buff_mag = skill_config.get("buff_magnitude", 0.17)
+    total_stacks = existing_stacks + 1
+    total_magnitude = total_stacks * buff_mag
     buff_data = {
         "effect_type": EffectType.STAT_MOD,
-        "name": skill_config.get("buff_name", EFFECT_NAME_ON_ALERT_COUNTER_BUFF),
+        "name": buff_name,
         "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
-        "magnitude": buff_mag,
+        "magnitude": total_magnitude,
         "duration": -1,
-        "activate_next_round": False,
+        "activate_next_round": True,
+        "config": {"is_dispellable": False, "stack_count": total_stacks},
     }
     created_buff = triggering_army._create_and_add_single_effect(
         buff_data, skill_id, triggering_army, triggering_army, opponent_army
     )
     if created_buff:
         an_effect_happened = True
-        log_details.append(
-            (f"Gains permanent counterattack damage buff (+{buff_mag * 100:.0f}%), stack {existing_stacks + 1}/{max_stacks}.", None)
+        total_bonus = total_magnitude * 100
+        log_message = (
+            "Gains permanent counterattack damage buff "
+            f"(+{buff_mag * 100:.0f}% per stack, now +{total_bonus:.0f}% total), "
+            f"stack {total_stacks}/{max_stacks}."
         )
+        log_details.append((log_message, None))
 
     return an_effect_happened, log_details
 

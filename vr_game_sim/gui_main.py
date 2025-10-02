@@ -1288,20 +1288,12 @@ class BonusStatsDialog(QtWidgets.QDialog):
 
         self._add_group(
             content_layout,
-            "Damage Boost",
+            "Damage Boosts",
             [
                 ("Overall", ("damage_boost", "all")),
                 ("vs Pikemen", ("damage_boost", "vs_pikemen")),
                 ("vs Archers", ("damage_boost", "vs_archers")),
                 ("vs Infantry", ("damage_boost", "vs_infantry")),
-            ],
-            normalized,
-        )
-
-        self._add_group(
-            content_layout,
-            "Combat & Skill Damage",
-            [
                 ("Basic Attack Boost", ("basic_boost",)),
                 ("Counterattack Boost", ("counter_boost",)),
                 ("Reactive Skill Damage Boost", ("reactive_skill_boost",)),
@@ -1314,7 +1306,7 @@ class BonusStatsDialog(QtWidgets.QDialog):
 
         self._add_group(
             content_layout,
-            "Shield & Damage Over Time",
+            "Applied Effects Boosts",
             [
                 ("Shield Gain Boost", ("shield_gain",)),
                 ("Burn Boost", ("burn_boost",)),

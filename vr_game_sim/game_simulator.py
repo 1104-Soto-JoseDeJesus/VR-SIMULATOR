@@ -402,13 +402,21 @@ class GameSimulator:
             if 'opponent_for_shield_calc' in event_data:
                 actual_opponent_for_calc = event_data['opponent_for_shield_calc']
 
+        skill_definitions: list[SkillDefinition] = []
         for hero in triggering_army.heroes:
-            for skill_def in hero.skills:
-                if skill_def["id"] == "dummy_talent_empty": continue
-                if skill_def["trigger"] == SkillTriggerType.RAGE_SKILL: continue
-                if skill_def["trigger"] == SkillTriggerType.PASSIVE: continue
+            skill_definitions.extend(hero.skills)
+        gem_skills = getattr(triggering_army, "gem_skills", []) or []
+        skill_definitions.extend(gem_skills)
 
-                if skill_def["trigger"] == trigger_type:
+        for skill_def in skill_definitions:
+            if skill_def["id"] == "dummy_talent_empty":
+                continue
+            if skill_def["trigger"] == SkillTriggerType.RAGE_SKILL:
+                continue
+            if skill_def["trigger"] == SkillTriggerType.PASSIVE:
+                continue
+
+            if skill_def["trigger"] == trigger_type:
                     base_chance = skill_def.get("trigger_chance", 1.0)
                     coop_bonus = 0.0
                     if (

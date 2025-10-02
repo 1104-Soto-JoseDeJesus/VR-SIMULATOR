@@ -218,6 +218,9 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
             ),
             bonus_stats_config=copy.deepcopy(army_config.get("bonus_stats", {})),
         )
+        gem_skills_cfg = army_config.get("gem_skills")
+        if isinstance(gem_skills_cfg, dict):
+            army_obj.set_gem_skills(copy.deepcopy(gem_skills_cfg))
         armies.append(army_obj)
 
     # Ensure ``GameSimulator`` uses a registry with any overrides applied.

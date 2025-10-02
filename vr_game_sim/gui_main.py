@@ -1452,6 +1452,33 @@ class ArmyFrame(QtWidgets.QGroupBox):
         layout.addWidget(self.hero2_combo, row, 1)
         layout.addWidget(self.edit_btn2, row, 2)
         layout.addWidget(self.hero2_info, row, 3)
+        row += 1
+
+        # --- Feature buttons ---
+        self.gear_btn = QtWidgets.QPushButton("Gear")
+        self.mount_skills_btn = QtWidgets.QPushButton("Mount Skills")
+        self.gem_skills_btn = QtWidgets.QPushButton("Gem Skills")
+        self.bonus_stats_btn = QtWidgets.QPushButton("Bonus Stats")
+
+        # Gear and mount skills configuration is not yet available but the
+        # buttons are present for future expansion.
+        self.gear_btn.setEnabled(False)
+        self.mount_skills_btn.setEnabled(False)
+
+        feature_btn_layout = QtWidgets.QHBoxLayout()
+        feature_btn_layout.setSpacing(10)
+        for btn in [
+            self.gear_btn,
+            self.mount_skills_btn,
+            self.gem_skills_btn,
+            self.bonus_stats_btn,
+        ]:
+            btn.setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Expanding,
+                QtWidgets.QSizePolicy.Policy.Fixed,
+            )
+            feature_btn_layout.addWidget(btn)
+        layout.addLayout(feature_btn_layout, row, 0, 1, 4)
         # Extra row for preview content added externally
 
         # --- Troop type icon ---

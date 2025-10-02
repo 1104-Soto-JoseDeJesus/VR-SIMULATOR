@@ -1,6 +1,7 @@
 import uuid
 import random
 import math
+import copy
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Tuple, Set, Iterable
 
@@ -9,6 +10,7 @@ from .unit_definition import Unit
 from .hero_definition import Hero
 from .effect_system import EffectInstance
 from .skill_system import SkillDefinition
+from .skill_definitions import SKILL_REGISTRY_GLOBAL
 from .constants import (
     EFFECT_NAME_BROKEN_BLADE_DEBUFF, EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_SILENCE_DEBUFF,
     EFFECT_NAME_FIRST_STRIKE_RAGE_AURA, EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
@@ -49,6 +51,8 @@ class Army:
     unrevivable_ratio: float = 0.65
     use_dynamic_unrevivable_ratio: bool = False
     bonus_stats_config: Dict[str, Any] = field(default_factory=dict)
+    gem_skill_ids: Dict[str, str] = field(default_factory=dict)
+    gem_skills: List[SkillDefinition] = field(init=False, default_factory=list)
     simulator: Optional[GameSimulatorRef] = field(init=False, default=None)
     simulators: List[GameSimulatorRef] = field(init=False, default_factory=list)
     army_round: int = field(init=False, default=0)
@@ -230,6 +234,36 @@ class Army:
                         self.hero2_rage_skill_id = skill_def["id"]
                         self.hero2_rage_skill_def = skill_def
                         break
+
+    def _reload_gem_skills(self) -> None:
+        """Refresh cached gem skill definitions from the global registry."""
+
+        self.gem_skills = []
+        if not self.gem_skill_ids:
+            return
+        for slot, skill_id in self.gem_skill_ids.items():
+            if not skill_id or not isinstance(skill_id, str):
+                continue
+            skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id)
+            if not skill_def:
+                print(
+                    f"Warning: Gem skill '{skill_id}' for army '{self.name}' not found in registry."
+                )
+                continue
+            self.gem_skills.append(copy.deepcopy(skill_def))
+
+    def set_gem_skills(self, gem_skills: Dict[str, str] | None) -> None:
+        """Assign gem skills to this army using ``gem_skills`` mapping."""
+
+        normalized: Dict[str, str] = {}
+        if gem_skills:
+            for slot, skill_id in gem_skills.items():
+                if not isinstance(slot, str):
+                    continue
+                if isinstance(skill_id, str) and skill_id:
+                    normalized[slot] = skill_id
+        self.gem_skill_ids = normalized
+        self._reload_gem_skills()
 
     def _apply_initial_passive_skills(self):
         sim = self.simulator
@@ -1333,6 +1367,7 @@ class Army:
     def reset_for_new_battle(self):
         self.simulator = None
         self.simulators.clear()
+        self._reload_gem_skills()
         self.current_troop_count = float(self.unit.initial_count)
         self.active_effects.clear()
         self.upcoming_effects.clear()

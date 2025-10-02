@@ -72,6 +72,17 @@ BONUS_STATS_TEMPLATE = {
     "command_skill_boost": 0.0,
 }
 
+GEM_SLOTS: list[tuple[str, str]] = [
+    ("friggs_agate", "Frigg's Agate"),
+    ("tyrs_emerald", "Tyr's Emerald"),
+    ("thors_ruby", "Thor's Ruby"),
+    ("freyas_amethyst", "Freya's Amethyst"),
+    ("odins_amber", "Odin's Amber"),
+    ("heimdalls_sapphire", "Heimdall's Sapphire"),
+]
+
+_RARITY_SORT_ORDER = {"Legendary": 0, "Epic": 1, "Rare": 2, None: 99}
+
 
 def default_bonus_stats() -> dict[str, Any]:
     """Return a fresh bonus stats dictionary with all values zeroed."""
@@ -122,6 +133,27 @@ def serialize_bonus_stats(stats: dict[str, Any]) -> dict[str, Any]:
 def get_pdf_layout_path() -> str:
     """Return path for persisted PDF layout configuration."""
     return os.path.join(os.path.dirname(__file__), "pdf_layout.json")
+
+
+def gem_skill_options_for_slot(slot_key: str) -> list[tuple[str, str]]:
+    """Return ``(label, skill_id)`` pairs for the given gem slot."""
+
+    options: list[tuple[str, str]] = [("None", "")]
+    entries: list[tuple[int, int, str, str]] = []
+    for skill_id, skill_def in SKILL_REGISTRY_GLOBAL.items():
+        if skill_def.get("type") != SkillType.GEM_SKILL:
+            continue
+        cfg = skill_def.get("config", {}) or {}
+        if cfg.get("gem_slot") != slot_key:
+            continue
+        rarity = cfg.get("rarity")
+        sort_key = _RARITY_SORT_ORDER.get(rarity, 99)
+        ui_order = int(cfg.get("ui_order", 0))
+        name = skill_def.get("name", skill_id)
+        entries.append((sort_key, ui_order, name, skill_id))
+    entries.sort(key=lambda item: (item[0], item[1], item[2]))
+    options.extend((name, sid) for _, _, name, sid in entries)
+    return options
 
 
 def load_pdf_layout() -> list[dict]:
@@ -1377,6 +1409,77 @@ class BonusStatsDialog(QtWidgets.QDialog):
         return updated
 
 
+class GemSkillsDialog(QtWidgets.QDialog):
+    """Dialog for selecting gem skills per slot."""
+
+    def __init__(
+        self,
+        selected: dict[str, str] | None,
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Gem Skills")
+        self.setModal(True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        info = QtWidgets.QLabel(
+            "Select one skill for each gem slot. Legendary and Epic variants share mechanics "
+            "with adjusted potency. Skills will trigger automatically based on their described timings."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        container = QtWidgets.QWidget()
+        form = QtWidgets.QFormLayout(container)
+        form.setFieldGrowthPolicy(QtWidgets.QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+
+        self._combos: dict[str, QtWidgets.QComboBox] = {}
+        current = selected or {}
+        for slot_key, slot_label in GEM_SLOTS:
+            combo = QtWidgets.QComboBox()
+            combo.setEditable(True)
+            combo.setInsertPolicy(QtWidgets.QComboBox.InsertPolicy.NoInsert)
+            options = gem_skill_options_for_slot(slot_key)
+            for name, sid in options:
+                combo.addItem(name, sid)
+            completer = QtWidgets.QCompleter([name for name, _ in options], combo)
+            completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+            completer.setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)
+            combo.setCompleter(completer)
+            selected_id = current.get(slot_key, "")
+            if selected_id:
+                idx = combo.findData(selected_id)
+                if idx == -1:
+                    display_name = SKILL_REGISTRY_GLOBAL.get(selected_id, {}).get("name", selected_id)
+                    combo.addItem(display_name, selected_id)
+                    idx = combo.count() - 1
+                combo.setCurrentIndex(idx)
+            form.addRow(f"{slot_label}:", combo)
+            self._combos[slot_key] = combo
+
+        scroll.setWidget(container)
+        layout.addWidget(scroll)
+
+        btn_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        btn_box.accepted.connect(self.accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+    def result(self) -> dict[str, str]:
+        selections: dict[str, str] = {}
+        for slot, combo in self._combos.items():
+            skill_id = combo.currentData()
+            if isinstance(skill_id, str) and skill_id:
+                selections[slot] = skill_id
+        return selections
+
+
 class HeroEditDialog(QtWidgets.QDialog):
     """Dialog to edit or create a hero configuration."""
 
@@ -1677,6 +1780,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.mount_skills_btn.setEnabled(False)
 
         self._bonus_stats = default_bonus_stats()
+        self._gem_skills: dict[str, str] = {slot: "" for slot, _ in GEM_SLOTS}
+        self.gem_skills_btn.clicked.connect(self._open_gem_skills_dialog)
         self.bonus_stats_btn.clicked.connect(self._open_bonus_stats_dialog)
 
         feature_btn_layout = QtWidgets.QHBoxLayout()
@@ -1696,6 +1801,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         # Extra row for preview content added externally
 
         self._update_bonus_stats_button()
+        self._update_gem_skills_button()
 
         # --- Troop type icon ---
         self.unit_icon = QtWidgets.QLabel()
@@ -1996,6 +2102,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         for idx, combo in enumerate(hero_combos, start=1):
             self._hero_selected(idx, combo.currentText())
 
+        self._set_gem_skills(cfg.get("gem_skills"))
         self._set_bonus_stats(cfg.get("bonus_stats"))
 
     def build_config(self) -> dict:
@@ -2039,6 +2146,12 @@ class ArmyFrame(QtWidgets.QGroupBox):
         bonus_stats_serialized = serialize_bonus_stats(self._bonus_stats)
         if bonus_stats_serialized:
             config["bonus_stats"] = bonus_stats_serialized
+
+        gem_skills_serialized = {
+            slot: sid for slot, sid in self._gem_skills.items() if sid
+        }
+        if gem_skills_serialized:
+            config["gem_skills"] = gem_skills_serialized
 
         return config
 
@@ -2108,6 +2221,51 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         summary = "\n".join(entries)
         return count, summary
+
+    def _open_gem_skills_dialog(self) -> None:
+        dlg = GemSkillsDialog(self._gem_skills, self)
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            self._set_gem_skills(dlg.result())
+
+    def _set_gem_skills(self, gem_skills: dict[str, str] | None) -> None:
+        normalized = {slot: "" for slot, _ in GEM_SLOTS}
+        if gem_skills:
+            for slot, sid in gem_skills.items():
+                if slot in normalized and isinstance(sid, str):
+                    normalized[slot] = sid
+        self._gem_skills = normalized
+        self._update_gem_skills_button()
+
+    def _update_gem_skills_button(self) -> None:
+        count, summary = self._gem_skills_summary()
+        if count:
+            self.gem_skills_btn.setText(f"Gem Skills ({count})")
+            self.gem_skills_btn.setToolTip(summary)
+        else:
+            self.gem_skills_btn.setText("Gem Skills")
+            self.gem_skills_btn.setToolTip("No gem skills selected.")
+
+    def _gem_skills_summary(self) -> tuple[int, str]:
+        entries: list[str] = []
+        count = 0
+        for slot_key, slot_label in GEM_SLOTS:
+            sid = self._gem_skills.get(slot_key, "")
+            if not sid:
+                continue
+            count += 1
+            skill_def = SKILL_REGISTRY_GLOBAL.get(sid)
+            if skill_def:
+                name = skill_def.get("name", sid)
+                rarity = skill_def.get("config", {}).get("rarity")
+                if rarity and rarity not in name:
+                    entries.append(f"{slot_label}: {name} ({rarity})")
+                else:
+                    entries.append(f"{slot_label}: {name}")
+            else:
+                entries.append(f"{slot_label}: {sid}")
+        if not entries:
+            return 0, "No gem skills selected."
+        return count, "\n".join(entries)
 
 
 class ArmySetupDialog(QtWidgets.QDialog):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import random
+import copy
 from typing import Any, Callable
 import threading
 import math
@@ -44,6 +45,78 @@ from vr_game_sim.navmesh import NavMesh
 from itertools import zip_longest
 
 from vr_game_sim.gui.arena_stats import ArenaStatsHeader, ArenaStatsRow
+
+
+BONUS_TROOP_TYPES = ("pikemen", "archers", "infantry")
+BONUS_STATS_TEMPLATE = {
+    "damage_reduction": {
+        "all": 0.0,
+        **{f"vs_{t}": 0.0 for t in BONUS_TROOP_TYPES},
+        "reactive": 0.0,
+        "cooperation": 0.0,
+        "command": 0.0,
+    },
+    "damage_boost": {
+        "all": 0.0,
+        **{f"vs_{t}": 0.0 for t in BONUS_TROOP_TYPES},
+    },
+    "shield_gain": 0.0,
+    "burn_boost": 0.0,
+    "poison_boost": 0.0,
+    "lacerate_boost": 0.0,
+    "basic_boost": 0.0,
+    "counter_boost": 0.0,
+    "reactive_skill_boost": 0.0,
+    "rage_skill_boost": 0.0,
+    "cooperation_skill_boost": 0.0,
+    "command_skill_boost": 0.0,
+}
+
+
+def default_bonus_stats() -> dict[str, Any]:
+    """Return a fresh bonus stats dictionary with all values zeroed."""
+
+    return copy.deepcopy(BONUS_STATS_TEMPLATE)
+
+
+def merge_bonus_stats(
+    base: dict[str, Any], overrides: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Merge ``overrides`` into ``base`` without modifying the inputs."""
+
+    result = copy.deepcopy(base)
+    if not overrides:
+        return result
+    for key, value in overrides.items():
+        if key not in result:
+            continue
+        if isinstance(result[key], dict) and isinstance(value, dict):
+            for sub_key, sub_val in value.items():
+                if sub_key in result[key]:
+                    result[key][sub_key] = float(sub_val)
+        elif not isinstance(result[key], dict):
+            result[key] = float(value)
+    return result
+
+
+def serialize_bonus_stats(stats: dict[str, Any]) -> dict[str, Any]:
+    """Return ``stats`` with zero entries removed for persistence."""
+
+    serialized: dict[str, Any] = {}
+    for key, value in stats.items():
+        if isinstance(value, dict):
+            nested = {
+                sub_key: round(float(sub_val), 6)
+                for sub_key, sub_val in value.items()
+                if abs(float(sub_val)) > 1e-9
+            }
+            if nested:
+                serialized[key] = nested
+        else:
+            val = float(value)
+            if abs(val) > 1e-9:
+                serialized[key] = round(val, 6)
+    return serialized
 
 
 def get_pdf_layout_path() -> str:
@@ -1166,6 +1239,152 @@ class SkillParamEditor(QtWidgets.QWidget):
         return overrides
 
 
+class BonusStatsDialog(QtWidgets.QDialog):
+    """Dialog allowing users to edit additive bonus stats for an army."""
+
+    def __init__(
+        self,
+        bonus_stats: dict[str, Any],
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Bonus Stats")
+
+        layout = QtWidgets.QVBoxLayout(self)
+        info = QtWidgets.QLabel(
+            "Values are additive. Use decimals (e.g., 0.3 for +30%). "
+            "Positive values increase boosts while damage reductions subtract from incoming damage. "
+            "All manual bonus stats are permanent and cannot be dispelled or cleansed."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        self._spin_boxes: dict[tuple[str, ...], QtWidgets.QDoubleSpinBox] = {}
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        content = QtWidgets.QWidget()
+        content_layout = QtWidgets.QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(12)
+
+        normalized = merge_bonus_stats(default_bonus_stats(), bonus_stats or {})
+
+        self._add_group(
+            content_layout,
+            "Damage Reduction",
+            [
+                ("Overall", ("damage_reduction", "all")),
+                ("vs Pikemen", ("damage_reduction", "vs_pikemen")),
+                ("vs Archers", ("damage_reduction", "vs_archers")),
+                ("vs Infantry", ("damage_reduction", "vs_infantry")),
+                ("vs Reactive Skills", ("damage_reduction", "reactive")),
+                ("vs Cooperation Skills", ("damage_reduction", "cooperation")),
+                ("vs Command Skills", ("damage_reduction", "command")),
+            ],
+            normalized,
+        )
+
+        self._add_group(
+            content_layout,
+            "Damage Boost",
+            [
+                ("Overall", ("damage_boost", "all")),
+                ("vs Pikemen", ("damage_boost", "vs_pikemen")),
+                ("vs Archers", ("damage_boost", "vs_archers")),
+                ("vs Infantry", ("damage_boost", "vs_infantry")),
+            ],
+            normalized,
+        )
+
+        self._add_group(
+            content_layout,
+            "Combat & Skill Damage",
+            [
+                ("Basic Attack Boost", ("basic_boost",)),
+                ("Counterattack Boost", ("counter_boost",)),
+                ("Reactive Skill Damage Boost", ("reactive_skill_boost",)),
+                ("Rage Skill Damage Boost", ("rage_skill_boost",)),
+                ("Cooperation Skill Damage Boost", ("cooperation_skill_boost",)),
+                ("Command Skill Damage Boost", ("command_skill_boost",)),
+            ],
+            normalized,
+        )
+
+        self._add_group(
+            content_layout,
+            "Shield & Damage Over Time",
+            [
+                ("Shield Gain Boost", ("shield_gain",)),
+                ("Burn Boost", ("burn_boost",)),
+                ("Poison Boost", ("poison_boost",)),
+                ("Lacerate Boost", ("lacerate_boost",)),
+            ],
+            normalized,
+        )
+
+        content_layout.addStretch(1)
+        scroll.setWidget(content)
+        layout.addWidget(scroll, 1)
+
+        btn_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        btn_box.accepted.connect(self.accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+    def _make_spin_box(self) -> QtWidgets.QDoubleSpinBox:
+        spin = QtWidgets.QDoubleSpinBox()
+        spin.setRange(-5.0, 5.0)
+        spin.setDecimals(4)
+        spin.setSingleStep(0.01)
+        return spin
+
+    def _add_group(
+        self,
+        parent_layout: QtWidgets.QVBoxLayout,
+        title: str,
+        fields: list[tuple[str, tuple[str, ...]]],
+        stats: dict[str, Any],
+    ) -> None:
+        group = QtWidgets.QGroupBox(title)
+        form = QtWidgets.QFormLayout(group)
+        form.setLabelAlignment(
+            QtCore.Qt.AlignmentFlag.AlignRight
+            | QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
+        form.setFormAlignment(QtCore.Qt.AlignmentFlag.AlignTop)
+        for label, path in fields:
+            spin = self._make_spin_box()
+            spin.setValue(self._lookup_value(stats, path))
+            form.addRow(f"{label}:", spin)
+            self._spin_boxes[path] = spin
+        parent_layout.addWidget(group)
+
+    def _lookup_value(self, stats: dict[str, Any], path: tuple[str, ...]) -> float:
+        current: Any = stats
+        for key in path:
+            if not isinstance(current, dict):
+                return 0.0
+            current = current.get(key, 0.0)
+        try:
+            return float(current)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def result(self) -> dict[str, Any]:
+        updated = default_bonus_stats()
+        for path, spin in self._spin_boxes.items():
+            if len(path) == 1:
+                updated[path[0]] = float(spin.value())
+            elif len(path) == 2:
+                updated[path[0]][path[1]] = float(spin.value())
+        return updated
+
+
 class HeroEditDialog(QtWidgets.QDialog):
     """Dialog to edit or create a hero configuration."""
 
@@ -1465,6 +1684,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.gear_btn.setEnabled(False)
         self.mount_skills_btn.setEnabled(False)
 
+        self._bonus_stats = default_bonus_stats()
+        self.bonus_stats_btn.clicked.connect(self._open_bonus_stats_dialog)
+
         feature_btn_layout = QtWidgets.QHBoxLayout()
         feature_btn_layout.setSpacing(10)
         for btn in [
@@ -1480,6 +1702,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
             feature_btn_layout.addWidget(btn)
         layout.addLayout(feature_btn_layout, row, 0, 1, 4)
         # Extra row for preview content added externally
+
+        self._update_bonus_stats_button()
 
         # --- Troop type icon ---
         self.unit_icon = QtWidgets.QLabel()
@@ -1780,6 +2004,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
         for idx, combo in enumerate(hero_combos, start=1):
             self._hero_selected(idx, combo.currentText())
 
+        self._set_bonus_stats(cfg.get("bonus_stats"))
+
     def build_config(self) -> dict:
         heroes_cfg = []
         for idx, combo in enumerate([self.hero1_combo, self.hero2_combo], start=1):
@@ -1805,7 +2031,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     cfg["skill_overrides"] = overrides
                 heroes_cfg.append(cfg)
 
-        return {
+        config = {
             "army_name": self.name_edit.text() or f"Army {self.index}",
             "unit_type": self.unit_combo.currentText(),
             "tier": int(self.tier_spin.value()),
@@ -1817,6 +2043,79 @@ class ArmyFrame(QtWidgets.QGroupBox):
             "use_dynamic_unrevivable_ratio": self.dynamic_unrevivable_button.isChecked(),
             "heroes": heroes_cfg,
         }
+
+        bonus_stats_serialized = serialize_bonus_stats(self._bonus_stats)
+        if bonus_stats_serialized:
+            config["bonus_stats"] = bonus_stats_serialized
+
+        return config
+
+    def _open_bonus_stats_dialog(self) -> None:
+        dlg = BonusStatsDialog(self._bonus_stats, self)
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            self._set_bonus_stats(dlg.result())
+
+    def _set_bonus_stats(self, stats: dict[str, Any] | None) -> None:
+        self._bonus_stats = merge_bonus_stats(default_bonus_stats(), stats or {})
+        self._update_bonus_stats_button()
+
+    def _update_bonus_stats_button(self) -> None:
+        count, summary = self._bonus_stats_summary()
+        if count:
+            self.bonus_stats_btn.setText(f"Bonus Stats ({count})")
+            self.bonus_stats_btn.setToolTip(summary)
+        else:
+            self.bonus_stats_btn.setText("Bonus Stats")
+            self.bonus_stats_btn.setToolTip("No manual bonus stats configured.")
+
+    def _bonus_stats_summary(self) -> tuple[int, str]:
+        entries: list[str] = []
+        count = 0
+
+        def fmt_percent(value: float, invert: bool = False) -> str:
+            percent = -value * 100 if invert else value * 100
+            return f"{percent:+.1f}%"
+
+        def add_entry(label: str, value: float, invert: bool = False) -> None:
+            nonlocal count
+            if abs(value) <= 1e-9:
+                return
+            count += 1
+            entries.append(f"{label}: {fmt_percent(value, invert)}")
+
+        dr = self._bonus_stats.get("damage_reduction", {})
+        add_entry("Damage Reduction", float(dr.get("all", 0.0)), True)
+        for troop in BONUS_TROOP_TYPES:
+            add_entry(
+                f"Damage Reduction vs {troop.title()}",
+                float(dr.get(f"vs_{troop}", 0.0)),
+                True,
+            )
+        add_entry("Damage Reduction vs Reactive Skills", float(dr.get("reactive", 0.0)), True)
+        add_entry("Damage Reduction vs Cooperation Skills", float(dr.get("cooperation", 0.0)), True)
+        add_entry("Damage Reduction vs Command Skills", float(dr.get("command", 0.0)), True)
+
+        db = self._bonus_stats.get("damage_boost", {})
+        add_entry("Damage Boost", float(db.get("all", 0.0)))
+        for troop in BONUS_TROOP_TYPES:
+            add_entry(
+                f"Damage Boost vs {troop.title()}",
+                float(db.get(f"vs_{troop}", 0.0)),
+            )
+
+        add_entry("Shield Gain Boost", float(self._bonus_stats.get("shield_gain", 0.0)))
+        add_entry("Burn Boost", float(self._bonus_stats.get("burn_boost", 0.0)))
+        add_entry("Poison Boost", float(self._bonus_stats.get("poison_boost", 0.0)))
+        add_entry("Lacerate Boost", float(self._bonus_stats.get("lacerate_boost", 0.0)))
+        add_entry("Basic Attack Boost", float(self._bonus_stats.get("basic_boost", 0.0)))
+        add_entry("Counterattack Boost", float(self._bonus_stats.get("counter_boost", 0.0)))
+        add_entry("Reactive Skill Damage Boost", float(self._bonus_stats.get("reactive_skill_boost", 0.0)))
+        add_entry("Rage Skill Damage Boost", float(self._bonus_stats.get("rage_skill_boost", 0.0)))
+        add_entry("Cooperation Skill Damage Boost", float(self._bonus_stats.get("cooperation_skill_boost", 0.0)))
+        add_entry("Command Skill Damage Boost", float(self._bonus_stats.get("command_skill_boost", 0.0)))
+
+        summary = "\n".join(entries)
+        return count, summary
 
 
 class ArmySetupDialog(QtWidgets.QDialog):

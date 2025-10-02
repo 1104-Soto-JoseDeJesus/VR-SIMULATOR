@@ -560,7 +560,7 @@ def handle_plugin_awakening(
                 or (
                     eff.effect_type == EffectType.DAMAGE_OVER_TIME
                     and eff.config.get("dot_type")
-                    in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+                    in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
                 )
                 or eff.config.get("prevents_counterattack")
                 or eff.config.get("prevents_basic_attack")
@@ -1108,7 +1108,7 @@ def handle_plugin_wild_indulgence(
             or (
                 eff.effect_type == EffectType.DAMAGE_OVER_TIME
                 and eff.config.get("dot_type")
-                in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+                in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
             )
             or eff.config.get("prevents_counterattack")
             or eff.config.get("prevents_basic_attack")
@@ -1192,7 +1192,7 @@ def handle_plugin_breaking_free(
             or (
                 eff.effect_type == EffectType.DAMAGE_OVER_TIME
                 and eff.config.get("dot_type")
-                in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+                in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
             )
             or eff.config.get("prevents_counterattack")
             or eff.config.get("prevents_basic_attack")
@@ -2057,7 +2057,7 @@ def handle_plugin_halo_of_sacrifice(
             or (
                 eff.effect_type == EffectType.DAMAGE_OVER_TIME
                 and eff.config.get("dot_type")
-                in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+                in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
             )
             or eff.config.get("prevents_counterattack")
             or eff.config.get("prevents_basic_attack")

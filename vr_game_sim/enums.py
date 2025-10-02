@@ -30,6 +30,7 @@ class DoTType(Enum): # NEW ENUM for specific DoT types
     BLEED = "BLEED"
     POISON = "POISON"
     BURN = "BURN"
+    LACERATE = "LACERATE"
     GENERIC = "GENERIC" # For existing/other DoTs not following the new rules
 
 class StatType(Enum):
@@ -64,16 +65,19 @@ class StatType(Enum):
     BLEED_DAMAGE_BOOST = "bleed_damage_boost"
     POISON_DAMAGE_BOOST = "poison_damage_boost"
     BURN_DAMAGE_BOOST = "burn_damage_boost"
+    LACERATE_DAMAGE_BOOST = "lacerate_damage_boost"
 
     # Specific DoT Damage Reductions (applied on target)
     BLEED_DAMAGE_REDUCTION = "bleed_damage_reduction"
     POISON_DAMAGE_REDUCTION = "poison_damage_reduction"
     BURN_DAMAGE_REDUCTION = "burn_damage_reduction"
+    LACERATE_DAMAGE_REDUCTION = "lacerate_damage_reduction"
 
     # NEW StatType for Athelstan's "Strategize"
     COMMAND_SKILL_DAMAGE_MODIFIER = "command_skill_damage_modifier" # For skills that trigger periodically (e.g. every X rounds)
     COOPERATION_TRIGGER_RATE_MODIFIER = "cooperation_trigger_rate_modifier"
     COOPERATION_SKILL_DAMAGE_MODIFIER = "cooperation_skill_damage_modifier"
+    RAGE_SKILL_DAMAGE_MODIFIER = "rage_skill_damage_modifier"
 
 
 class SkillType(Enum):

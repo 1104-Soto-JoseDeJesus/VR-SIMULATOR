@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from .enums import SkillTriggerType, StatType, EffectType, SkillType, DoTType, PluginSkillLabel
 from .unit_definition import Unit
 from .army_composition import Army
+from .effect_system import EffectInstance
 from .skill_system import SkillDefinition, SkillLogicHandler, RageSkillLogicHandler
 from .skill_definitions import SKILL_REGISTRY_GLOBAL
 from .constants import (
@@ -162,18 +163,51 @@ class GameSimulator:
         if enemy_total_defense <= 0: enemy_total_defense = 1
 
         own_troop_scalar = GameSimulator.troop_scalar(source_army.current_troop_count)
-        skill_damage_percent_boosts = source_army.get_sum_stat_magnitudes(StatType.GENERAL_DAMAGE_MODIFIER)
+        target_unit_type = calc_target.unit.unit_type
+        attacker_unit_type = source_army.unit.unit_type
+
+        skill_label_context = None
+        if source_skill_def:
+            labels = source_skill_def.get("labels", []) or []
+            if PluginSkillLabel.REACTIVE in labels:
+                skill_label_context = PluginSkillLabel.REACTIVE.value.upper()
+            elif PluginSkillLabel.COOPERATION in labels:
+                skill_label_context = PluginSkillLabel.COOPERATION.value.upper()
+            elif PluginSkillLabel.COMMAND in labels:
+                skill_label_context = PluginSkillLabel.COMMAND.value.upper()
+
+        skill_damage_percent_boosts = source_army.get_sum_stat_magnitudes(
+            StatType.GENERAL_DAMAGE_MODIFIER,
+            attack_type_filter="SKILL",
+            target_unit_type=target_unit_type,
+            skill_label=skill_label_context,
+        )
         relevant_stats = {StatType.GENERAL_DAMAGE_MODIFIER}
         current_skill_trigger_type = source_skill_def.get("trigger") if source_skill_def else None
 
         if current_skill_trigger_type == SkillTriggerType.RAGE_SKILL:
+            skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
+                StatType.RAGE_SKILL_DAMAGE_MODIFIER,
+                attack_type_filter="SKILL",
+                target_unit_type=target_unit_type,
+                skill_label=skill_label_context,
+            )
+            relevant_stats.add(StatType.RAGE_SKILL_DAMAGE_MODIFIER)
             if not is_hero2_rage_skill:
                 skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
-                    StatType.HERO1_RAGE_SKILL_DAMAGE_MODIFIER)
+                    StatType.HERO1_RAGE_SKILL_DAMAGE_MODIFIER,
+                    attack_type_filter="SKILL",
+                    target_unit_type=target_unit_type,
+                    skill_label=skill_label_context,
+                )
                 relevant_stats.add(StatType.HERO1_RAGE_SKILL_DAMAGE_MODIFIER)
             elif is_hero2_rage_skill:
                 skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
-                    StatType.HERO2_RAGE_SKILL_DAMAGE_MODIFIER)
+                    StatType.HERO2_RAGE_SKILL_DAMAGE_MODIFIER,
+                    attack_type_filter="SKILL",
+                    target_unit_type=target_unit_type,
+                    skill_label=skill_label_context,
+                )
                 relevant_stats.add(StatType.HERO2_RAGE_SKILL_DAMAGE_MODIFIER)
 
         if (
@@ -183,7 +217,10 @@ class GameSimulator:
             and PluginSkillLabel.COMMAND in source_skill_def.get("labels", [])
         ):
             skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
-                StatType.COMMAND_SKILL_DAMAGE_MODIFIER
+                StatType.COMMAND_SKILL_DAMAGE_MODIFIER,
+                attack_type_filter="SKILL",
+                target_unit_type=target_unit_type,
+                skill_label=skill_label_context,
             )
             relevant_stats.add(StatType.COMMAND_SKILL_DAMAGE_MODIFIER)
 
@@ -199,36 +236,53 @@ class GameSimulator:
             and PluginSkillLabel.REACTIVE in source_skill_def.get("labels", [])
         ):
             skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
-                StatType.REACTIVE_SKILL_DAMAGE_ADJUST
+                StatType.REACTIVE_SKILL_DAMAGE_ADJUST,
+                attack_type_filter="SKILL",
+                target_unit_type=target_unit_type,
+                skill_label=skill_label_context,
             )
             relevant_stats.add(StatType.REACTIVE_SKILL_DAMAGE_ADJUST)
 
         if source_skill_def and PluginSkillLabel.COOPERATION in source_skill_def.get("labels", []):
             skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
-                StatType.COOPERATION_SKILL_DAMAGE_MODIFIER)
+                StatType.COOPERATION_SKILL_DAMAGE_MODIFIER,
+                attack_type_filter="SKILL",
+                target_unit_type=target_unit_type,
+                skill_label=skill_label_context,
+            )
             relevant_stats.add(StatType.COOPERATION_SKILL_DAMAGE_MODIFIER)
 
-        positive_boost_effects = [
-            eff
-            for eff in source_army.active_effects
-            if eff.effect_type == EffectType.STAT_MOD
-            and eff.magnitude > 0
-            and eff.config.get("stat_to_mod") in relevant_stats
-        ]
+        positive_boost_effects: list[EffectInstance] = []
+        for stat in relevant_stats:
+            positive_boost_effects.extend(
+                eff
+                for eff in source_army.iter_stat_effects(
+                    stat,
+                    attack_type_filter="SKILL",
+                    target_unit_type=target_unit_type,
+                    skill_label=skill_label_context,
+                )
+                if eff.magnitude > 0
+            )
         total_positive_boost = sum(eff.magnitude for eff in positive_boost_effects)
         attacker_negative_mags = skill_damage_percent_boosts - total_positive_boost
 
         current_shield_hp = apply_target.get_current_shield_hp()
         damage_taken_percent_mods = calc_target.get_sum_stat_magnitudes(
-            StatType.DAMAGE_TAKEN_MULTIPLIER, attack_type_filter="SKILL"
+            StatType.DAMAGE_TAKEN_MULTIPLIER,
+            attack_type_filter="SKILL",
+            attacker_unit_type=attacker_unit_type,
+            skill_label=skill_label_context,
         )
         dr_effects = [
-            eff for eff in apply_target.active_effects
-            if eff.effect_type == EffectType.STAT_MOD
-            and eff.config.get('stat_to_mod') == StatType.DAMAGE_TAKEN_MULTIPLIER
-            and eff.magnitude < 0
-            and (not eff.config.get('config_filter', {}).get('attack_type')
-                 or eff.config.get('config_filter', {}).get('attack_type') == "SKILL")
+            eff
+            for eff in apply_target.iter_stat_effects(
+                StatType.DAMAGE_TAKEN_MULTIPLIER,
+                attack_type_filter="SKILL",
+                attacker_unit_type=attacker_unit_type,
+                skill_label=skill_label_context,
+            )
+            if eff.magnitude < 0
         ]
         total_dr_magnitude = sum(eff.magnitude for eff in dr_effects)
         defender_positive_mags = damage_taken_percent_mods - total_dr_magnitude
@@ -668,16 +722,38 @@ class GameSimulator:
         raw_damage_potential = (attacker_effective_atk / defender_effective_def) * troop_count_scalar
 
         specific_attack_stat = StatType.COUNTER_DAMAGE_ADJUST if is_counter else StatType.BASIC_DAMAGE_ADJUST
-        sum_specific_attack_magnitudes = att.get_sum_stat_magnitudes(specific_attack_stat)
-        sum_general_attacker_magnitudes = att.get_sum_stat_magnitudes(StatType.GENERAL_DAMAGE_MODIFIER)
+        target_unit_type = dfd.unit.unit_type
+        attacker_unit_type = att.unit.unit_type
+        attack_type_for_defense_filter = "COUNTER" if is_counter else "BASIC"
+        sum_specific_attack_magnitudes = att.get_sum_stat_magnitudes(
+            specific_attack_stat,
+            attack_type_filter=attack_type_for_defense_filter,
+            target_unit_type=target_unit_type,
+        )
+        sum_general_attacker_magnitudes = att.get_sum_stat_magnitudes(
+            StatType.GENERAL_DAMAGE_MODIFIER,
+            attack_type_filter=attack_type_for_defense_filter,
+            target_unit_type=target_unit_type,
+        )
 
         positive_boost_effects = [
             eff
-            for eff in att.active_effects
-            if eff.effect_type == EffectType.STAT_MOD
-            and eff.magnitude > 0
-            and eff.config.get("stat_to_mod") in {specific_attack_stat, StatType.GENERAL_DAMAGE_MODIFIER}
+            for eff in att.iter_stat_effects(
+                specific_attack_stat,
+                attack_type_filter=attack_type_for_defense_filter,
+                target_unit_type=target_unit_type,
+            )
+            if eff.magnitude > 0
         ]
+        positive_boost_effects.extend(
+            eff
+            for eff in att.iter_stat_effects(
+                StatType.GENERAL_DAMAGE_MODIFIER,
+                attack_type_filter=attack_type_for_defense_filter,
+                target_unit_type=target_unit_type,
+            )
+            if eff.magnitude > 0
+        )
         total_positive_boost = sum(eff.magnitude for eff in positive_boost_effects)
         attacker_negative_mags = (
             sum_specific_attack_magnitudes
@@ -685,18 +761,21 @@ class GameSimulator:
             - total_positive_boost
         )
 
-        attack_type_for_defense_filter = "COUNTER" if is_counter else "BASIC"
         current_shield_hp = dfd.get_current_shield_hp()
 
         sum_defender_reduction_magnitudes = dfd.get_sum_stat_magnitudes(
-            StatType.DAMAGE_TAKEN_MULTIPLIER, attack_type_filter=attack_type_for_defense_filter)
+            StatType.DAMAGE_TAKEN_MULTIPLIER,
+            attack_type_filter=attack_type_for_defense_filter,
+            attacker_unit_type=attacker_unit_type,
+        )
         dr_effects = [
-            eff for eff in dfd.active_effects
-            if eff.effect_type == EffectType.STAT_MOD
-            and eff.config.get('stat_to_mod') == StatType.DAMAGE_TAKEN_MULTIPLIER
-            and eff.magnitude < 0
-            and (not eff.config.get('config_filter', {}).get('attack_type')
-                 or eff.config.get('config_filter', {}).get('attack_type') == attack_type_for_defense_filter)
+            eff
+            for eff in dfd.iter_stat_effects(
+                StatType.DAMAGE_TAKEN_MULTIPLIER,
+                attack_type_filter=attack_type_for_defense_filter,
+                attacker_unit_type=attacker_unit_type,
+            )
+            if eff.magnitude < 0
         ]
         total_dr_magnitude = sum(eff.magnitude for eff in dr_effects)
         defender_positive_mags = sum_defender_reduction_magnitudes - total_dr_magnitude

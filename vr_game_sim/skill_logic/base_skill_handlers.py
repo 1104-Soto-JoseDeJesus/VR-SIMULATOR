@@ -153,7 +153,7 @@ def handle_base_skill_zeal(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: SkillD
                 or (
                     eff.effect_type == EffectType.DAMAGE_OVER_TIME
                     and eff.config.get("dot_type")
-                    in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+                    in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
                 )
                 or eff.config.get("prevents_counterattack")
                 or eff.config.get("prevents_basic_attack")
@@ -1145,7 +1145,7 @@ def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
                 or (
                     eff.effect_type == EffectType.DAMAGE_OVER_TIME
                     and eff.config.get("dot_type")
-                    in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+                    in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
                 )
                 or eff.config.get("prevents_counterattack")
                 or eff.config.get("prevents_basic_attack")

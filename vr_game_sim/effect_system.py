@@ -93,9 +93,13 @@ class EffectInstance:
             elif stat_to_mod_val == StatType.BLEED_DAMAGE_BOOST: desc_parts.append(f"{self.magnitude * 100:+.0f}% to Bleed Damage Dealt")
             elif stat_to_mod_val == StatType.POISON_DAMAGE_BOOST: desc_parts.append(f"{self.magnitude * 100:+.0f}% to Poison Damage Dealt")
             elif stat_to_mod_val == StatType.BURN_DAMAGE_BOOST: desc_parts.append(f"{self.magnitude * 100:+.0f}% to Burn Damage Dealt")
+            elif stat_to_mod_val == StatType.LACERATE_DAMAGE_BOOST: desc_parts.append(f"{self.magnitude * 100:+.0f}% to Lacerate Damage Dealt")
             elif stat_to_mod_val == StatType.BLEED_DAMAGE_REDUCTION: desc_parts.append(f"Reduces Bleed Damage Taken by {abs(self.magnitude * 100):.0f}%")
             elif stat_to_mod_val == StatType.POISON_DAMAGE_REDUCTION: desc_parts.append(f"Reduces Poison Damage Taken by {abs(self.magnitude * 100):.0f}%")
             elif stat_to_mod_val == StatType.BURN_DAMAGE_REDUCTION: desc_parts.append(f"Reduces Burn Damage Taken by {abs(self.magnitude * 100):.0f}%")
+            elif stat_to_mod_val == StatType.LACERATE_DAMAGE_REDUCTION: desc_parts.append(f"Reduces Lacerate Damage Taken by {abs(self.magnitude * 100):.0f}%")
+            elif stat_to_mod_val == StatType.RAGE_SKILL_DAMAGE_MODIFIER:
+                desc_parts.append(f"{self.magnitude * 100:+.0f}% to Rage Skill Damage")
             else:
                 desc_parts.append(f"{self.magnitude * 100:+.0f}% to {stat_name}")
 

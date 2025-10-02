@@ -1,6 +1,7 @@
 # === File: main.py (with Save/Load Setup Feature) ===
 import random
 import json
+import copy
 import os
 import argparse
 import sys
@@ -215,6 +216,7 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
             use_dynamic_unrevivable_ratio=army_config.get(
                 "use_dynamic_unrevivable_ratio", False
             ),
+            bonus_stats_config=copy.deepcopy(army_config.get("bonus_stats", {})),
         )
         armies.append(army_obj)
 

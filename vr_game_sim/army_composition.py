@@ -2,7 +2,7 @@ import uuid
 import random
 import math
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any, Tuple, Set
+from typing import List, Optional, Dict, Any, Tuple, Set, Iterable
 
 from .enums import EffectType, SkillTriggerType, StatType, DoTType
 from .unit_definition import Unit
@@ -48,6 +48,7 @@ class Army:
     heroes: List[Hero] = field(default_factory=list)
     unrevivable_ratio: float = 0.65
     use_dynamic_unrevivable_ratio: bool = False
+    bonus_stats_config: Dict[str, Any] = field(default_factory=dict)
     simulator: Optional[GameSimulatorRef] = field(init=False, default=None)
     simulators: List[GameSimulatorRef] = field(init=False, default_factory=list)
     army_round: int = field(init=False, default=0)
@@ -289,18 +290,83 @@ class Army:
                         self.increment_skill_trigger_count(skill_def["id"])
         self.activate_queued_effects()
 
-    def get_sum_stat_magnitudes(self, stat_type: StatType, attack_type_filter: Optional[str] = None) -> float:
-        sum_of_magnitudes = 0.0
+    @staticmethod
+    def _filter_match(filter_value: Any, candidate: Optional[str]) -> bool:
+        if isinstance(filter_value, (list, tuple, set)):
+            return any(Army._filter_match(val, candidate) for val in filter_value)
+        if candidate is None:
+            return False
+        return str(filter_value).lower() == str(candidate).lower()
+
+    def _effect_matches_filters(
+        self,
+        effect: EffectInstance,
+        attack_type_filter: Optional[str] = None,
+        target_unit_type: Optional[str] = None,
+        attacker_unit_type: Optional[str] = None,
+        skill_label: Optional[str] = None,
+    ) -> bool:
+        cfg_filter = effect.config.get("config_filter")
+        if not cfg_filter:
+            return True
+        if not isinstance(cfg_filter, dict):
+            return True
+        if "attack_type" in cfg_filter:
+            if not self._filter_match(cfg_filter["attack_type"], attack_type_filter):
+                return False
+        if "target_unit_type" in cfg_filter:
+            if not self._filter_match(cfg_filter["target_unit_type"], target_unit_type):
+                return False
+        if "attacker_unit_type" in cfg_filter:
+            if not self._filter_match(cfg_filter["attacker_unit_type"], attacker_unit_type):
+                return False
+        if "skill_label" in cfg_filter:
+            if not self._filter_match(cfg_filter["skill_label"], skill_label):
+                return False
+        return True
+
+    def iter_stat_effects(
+        self,
+        stat_type: StatType,
+        *,
+        attack_type_filter: Optional[str] = None,
+        target_unit_type: Optional[str] = None,
+        attacker_unit_type: Optional[str] = None,
+        skill_label: Optional[str] = None,
+    ) -> Iterable[EffectInstance]:
         for effect in self.active_effects:
-            if effect.effect_type == EffectType.STAT_MOD and effect.config.get('stat_to_mod') == stat_type:
-                eff_filter = effect.config.get('config_filter', {}).get('attack_type')
-                if attack_type_filter:
-                    if not eff_filter or eff_filter == attack_type_filter:
-                        sum_of_magnitudes += effect.magnitude
-                else:
-                    if not eff_filter:
-                        sum_of_magnitudes += effect.magnitude
-        return sum_of_magnitudes
+            if effect.effect_type != EffectType.STAT_MOD:
+                continue
+            if effect.config.get("stat_to_mod") != stat_type:
+                continue
+            if not self._effect_matches_filters(
+                effect,
+                attack_type_filter=attack_type_filter,
+                target_unit_type=target_unit_type,
+                attacker_unit_type=attacker_unit_type,
+                skill_label=skill_label,
+            ):
+                continue
+            yield effect
+
+    def get_sum_stat_magnitudes(
+        self,
+        stat_type: StatType,
+        attack_type_filter: Optional[str] = None,
+        target_unit_type: Optional[str] = None,
+        attacker_unit_type: Optional[str] = None,
+        skill_label: Optional[str] = None,
+    ) -> float:
+        return sum(
+            eff.magnitude
+            for eff in self.iter_stat_effects(
+                stat_type,
+                attack_type_filter=attack_type_filter,
+                target_unit_type=target_unit_type,
+                attacker_unit_type=attacker_unit_type,
+                skill_label=skill_label,
+            )
+        )
 
     def get_current_shield_hp(self) -> float:
         return sum(effect.magnitude for effect in self.active_effects if
@@ -595,11 +661,20 @@ class Army:
 
         dot_type_value = effect_data.get('dot_type')
         is_special_dot = False
-        if isinstance(dot_type_value, DoTType) and dot_type_value in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]:
+        if isinstance(dot_type_value, DoTType) and dot_type_value in [
+            DoTType.BLEED,
+            DoTType.POISON,
+            DoTType.BURN,
+            DoTType.LACERATE,
+        ]:
             is_special_dot = True
         elif isinstance(dot_type_value, str) and dot_type_value.upper() in [d.value for d in
-                                                                            [DoTType.BLEED, DoTType.POISON,
-                                                                             DoTType.BURN]]:
+                                                                            [
+                                                                                DoTType.BLEED,
+                                                                                DoTType.POISON,
+                                                                                DoTType.BURN,
+                                                                                DoTType.LACERATE,
+                                                                            ]]:
             is_special_dot = True
             dot_type_value = DoTType(dot_type_value.upper())
 
@@ -797,6 +872,7 @@ class Army:
                     DoTType.BLEED,
                     DoTType.POISON,
                     DoTType.BURN,
+                    DoTType.LACERATE,
                 ]
                 potential_dot_damage_tick = 0.0
                 base_dot_damage_for_log = 0.0
@@ -827,6 +903,8 @@ class Army:
                             specific_stat = StatType.POISON_DAMAGE_BOOST
                         elif dot_type == DoTType.BURN:
                             specific_stat = StatType.BURN_DAMAGE_BOOST
+                        elif dot_type == DoTType.LACERATE:
+                            specific_stat = StatType.LACERATE_DAMAGE_BOOST
                         if specific_stat:
                             current_specific_dot_boost = caster_army.get_sum_stat_magnitudes(
                                 specific_stat
@@ -847,6 +925,8 @@ class Army:
                         current_specific_dot_reduction = self.get_sum_stat_magnitudes(StatType.POISON_DAMAGE_REDUCTION)
                     elif dot_type == DoTType.BURN:
                         current_specific_dot_reduction = self.get_sum_stat_magnitudes(StatType.BURN_DAMAGE_REDUCTION)
+                    elif dot_type == DoTType.LACERATE:
+                        current_specific_dot_reduction = self.get_sum_stat_magnitudes(StatType.LACERATE_DAMAGE_REDUCTION)
 
                     base_dot_damage_for_log = ((snap_atk / snap_def) * snap_scalar * (status_factor / 200.0))
                     # IMPORTANT: DoTs are NOT affected by general DAMAGE_TAKEN_MULTIPLIER. Only specific DoT boosts/reductions.
@@ -1244,6 +1324,7 @@ class Army:
                         DoTType.BLEED,
                         DoTType.POISON,
                         DoTType.BURN,
+                        DoTType.LACERATE,
                     ]
                 ):
                     return True
@@ -1305,7 +1386,137 @@ class Army:
         self.skill_rage_reduction_boost_totals.clear()
 
         self._identify_hero_rage_skills()
+        self._apply_bonus_stats()
         self._apply_initial_passive_skills()
+
+    def _apply_bonus_stats(self) -> None:
+        if not self.bonus_stats_config:
+            return
+
+        def add_effect(
+            magnitude: float,
+            stat_type: StatType,
+            name: str,
+            *,
+            filter_cfg: Optional[Dict[str, Any]] = None,
+        ) -> None:
+            if abs(magnitude) <= 1e-9:
+                return
+            config = {
+                "stat_to_mod": stat_type,
+                "is_dispellable": False,
+                "manual_bonus_stat": True,
+            }
+            if filter_cfg:
+                config["config_filter"] = filter_cfg
+            effect = EffectInstance(
+                uuid.uuid4(),
+                "manual_bonus_stats",
+                EffectType.STAT_MOD,
+                -1,
+                magnitude,
+                config,
+                name=f"Bonus Stat: {name}",
+                applied_this_round=False,
+            )
+            self.active_effects.append(effect)
+
+        cfg = self.bonus_stats_config
+        damage_reduction = cfg.get("damage_reduction", {}) or {}
+        add_effect(
+            -float(damage_reduction.get("all", 0.0)),
+            StatType.DAMAGE_TAKEN_MULTIPLIER,
+            "Damage Reduction",
+        )
+        for troop in ("pikemen", "archers", "infantry"):
+            val = -float(damage_reduction.get(f"vs_{troop}", 0.0))
+            add_effect(
+                val,
+                StatType.DAMAGE_TAKEN_MULTIPLIER,
+                f"Damage Reduction vs {troop.title()}",
+                filter_cfg={"attacker_unit_type": troop},
+            )
+        for label_key, label_name in (
+            ("reactive", "Reactive"),
+            ("cooperation", "Cooperation"),
+            ("command", "Command"),
+        ):
+            val = -float(damage_reduction.get(label_key, 0.0))
+            add_effect(
+                val,
+                StatType.DAMAGE_TAKEN_MULTIPLIER,
+                f"Damage Reduction vs {label_name} Skills",
+                filter_cfg={
+                    "skill_label": label_name.upper(),
+                    "attack_type": "SKILL",
+                },
+            )
+
+        damage_boost = cfg.get("damage_boost", {}) or {}
+        add_effect(
+            float(damage_boost.get("all", 0.0)),
+            StatType.GENERAL_DAMAGE_MODIFIER,
+            "Damage Boost",
+        )
+        for troop in ("pikemen", "archers", "infantry"):
+            val = float(damage_boost.get(f"vs_{troop}", 0.0))
+            add_effect(
+                val,
+                StatType.GENERAL_DAMAGE_MODIFIER,
+                f"Damage Boost vs {troop.title()}",
+                filter_cfg={"target_unit_type": troop},
+            )
+
+        add_effect(
+            float(cfg.get("shield_gain", 0.0)),
+            StatType.SHIELD_STRENGTH_MODIFIER,
+            "Shield Gain",
+        )
+        add_effect(
+            float(cfg.get("burn_boost", 0.0)),
+            StatType.BURN_DAMAGE_BOOST,
+            "Burn Boost",
+        )
+        add_effect(
+            float(cfg.get("poison_boost", 0.0)),
+            StatType.POISON_DAMAGE_BOOST,
+            "Poison Boost",
+        )
+        add_effect(
+            float(cfg.get("lacerate_boost", 0.0)),
+            StatType.LACERATE_DAMAGE_BOOST,
+            "Lacerate Boost",
+        )
+        add_effect(
+            float(cfg.get("basic_boost", 0.0)),
+            StatType.BASIC_DAMAGE_ADJUST,
+            "Basic Attack Boost",
+        )
+        add_effect(
+            float(cfg.get("counter_boost", 0.0)),
+            StatType.COUNTER_DAMAGE_ADJUST,
+            "Counterattack Boost",
+        )
+        add_effect(
+            float(cfg.get("reactive_skill_boost", 0.0)),
+            StatType.REACTIVE_SKILL_DAMAGE_ADJUST,
+            "Reactive Skill Damage Boost",
+        )
+        add_effect(
+            float(cfg.get("rage_skill_boost", 0.0)),
+            StatType.RAGE_SKILL_DAMAGE_MODIFIER,
+            "Rage Skill Damage Boost",
+        )
+        add_effect(
+            float(cfg.get("cooperation_skill_boost", 0.0)),
+            StatType.COOPERATION_SKILL_DAMAGE_MODIFIER,
+            "Cooperation Skill Damage Boost",
+        )
+        add_effect(
+            float(cfg.get("command_skill_boost", 0.0)),
+            StatType.COMMAND_SKILL_DAMAGE_MODIFIER,
+            "Command Skill Damage Boost",
+        )
 
     def __repr__(self):
         hero_names = [h.name for h in self.heroes if h] if self.heroes else []

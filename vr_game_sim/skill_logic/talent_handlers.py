@@ -1244,7 +1244,12 @@ def handle_talent_fearless_pursuit(triggering_army: ArmyRef, opponent_army: Army
         eff.effect_type == EffectType.DEBUFF
         or (
             eff.effect_type == EffectType.DAMAGE_OVER_TIME
-            and eff.config.get("dot_type") in [DoTType.BLEED, DoTType.POISON, DoTType.BURN]
+            and eff.config.get("dot_type") in [
+                DoTType.BLEED,
+                DoTType.POISON,
+                DoTType.BURN,
+                DoTType.LACERATE,
+            ]
         )
         for eff in opponent_army.active_effects
     ):

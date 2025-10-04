@@ -84,8 +84,22 @@ JEWEL_SLOTS: list[tuple[str, str]] = [
     ("heimdalls_sapphire", "Heimdall's Sapphire"),
 ]
 
+# Map each jewel slot to the hero index the jewel is socketed for.  The first
+# hero receives the first three jewels, while the second hero receives the
+# remaining three.  ``GEM_SLOT_HERO_INDEX`` mirrors the same structure to keep
+# backwards compatibility with older configuration terminology.
+JEWEL_SLOT_HERO_INDEX: dict[str, int] = {
+    "friggs_agate": 0,
+    "tyrs_emerald": 0,
+    "thors_ruby": 0,
+    "freyas_amethyst": 1,
+    "odins_amber": 1,
+    "heimdalls_sapphire": 1,
+}
+
 # Backwards compatibility for older saved configurations referencing gem slots.
 GEM_SLOTS = JEWEL_SLOTS
+GEM_SLOT_HERO_INDEX = JEWEL_SLOT_HERO_INDEX
 
 _RARITY_SORT_ORDER = {"Legendary": 0, "Epic": 1, "Rare": 2, None: 99}
 
@@ -3123,6 +3137,39 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
                 _skill_stats_entry(army, sid, skill_def.get("name", sid))
             )
         skill_lists.append(hero_entries)
+
+    gem_skill_ids = getattr(army, "gem_skill_ids", {}) or {}
+    if gem_skill_ids:
+        if not skill_lists:
+            skill_lists.append([])
+
+        gem_entries_by_idx: dict[int, list[tuple[tuple[int, int, str], dict[str, Any]]]] = {}
+        for slot, skill_id in gem_skill_ids.items():
+            if not isinstance(skill_id, str) or not skill_id:
+                continue
+            skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id)
+            if not skill_def:
+                continue
+            hero_index = JEWEL_SLOT_HERO_INDEX.get(slot, 0)
+            target_index = hero_index if hero_index >= 0 else 0
+            while len(skill_lists) <= target_index:
+                skill_lists.append([])
+            entry = _skill_stats_entry(
+                army,
+                skill_id,
+                skill_def.get("name", skill_id),
+            )
+            config = skill_def.get("config", {}) or {}
+            rarity = config.get("rarity")
+            rarity_sort = _RARITY_SORT_ORDER.get(rarity, 99)
+            ui_order = int(config.get("ui_order", 0))
+            sort_key = (rarity_sort, ui_order, entry.get("name", skill_id))
+            bucket = gem_entries_by_idx.setdefault(target_index, [])
+            bucket.append((sort_key, entry))
+
+        for idx, entries in gem_entries_by_idx.items():
+            entries.sort(key=lambda item: item[0])
+            skill_lists[idx].extend(entry for _, entry in entries)
 
     return {
         "team": team,

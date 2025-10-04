@@ -11,6 +11,8 @@ from vr_game_sim.enums import (
     SkillType,
     PluginSkillLabel,
 )
+from vr_game_sim.hero_definition import Hero
+from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
 
 
 def _make_skill_def() -> dict:
@@ -125,3 +127,58 @@ def test_gem_retribution_counts_kills():
     defender.commit_pending_healing_and_damage()
 
     assert defender.skill_kill_totals.get("gem_retribution", 0.0) > 0.0
+
+
+def test_skill_summary_includes_gem_skills():
+    gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
+    build_army_skill_summary = gui_main.build_army_skill_summary
+
+    hero1 = Hero(
+        "HeroOne",
+        ["dummy_talent_empty", "dummy_talent_empty", "dummy_talent_empty"],
+        [],
+        [],
+        SKILL_REGISTRY_GLOBAL,
+    )
+    hero2 = Hero(
+        "HeroTwo",
+        ["dummy_talent_empty", "dummy_talent_empty", "dummy_talent_empty"],
+        [],
+        [],
+        SKILL_REGISTRY_GLOBAL,
+    )
+    unit = Unit(unit_type="infantry", tier=5, initial_count=100)
+    army = Army(name="SummaryArmy", unit=unit, heroes=[hero1, hero2])
+
+    gem1 = "gem_friggs_agate_piercing_pikes_legendary"
+    gem2 = "gem_freyas_amethyst_fearless_blades_legendary"
+    army.set_gem_skills({
+        "friggs_agate": gem1,
+        "freyas_amethyst": gem2,
+    })
+    army.skill_trigger_counts[gem1] = 2
+    army.skill_kill_totals[gem1] = 5
+    army.skill_trigger_counts[gem2] = 3
+    army.skill_heal_totals[gem2] = 7
+
+    cfg = {
+        "heroes": [
+            {"hero_name_or_preset": "HeroOne"},
+            {"hero_name_or_preset": "HeroTwo"},
+        ]
+    }
+
+    summary = build_army_skill_summary(army, cfg, "red")
+    hero1_skills = summary["skills"][0]
+    hero2_skills = summary["skills"][1]
+
+    gem1_entry = next((entry for entry in hero1_skills if entry["id"] == gem1), None)
+    gem2_entry = next((entry for entry in hero2_skills if entry["id"] == gem2), None)
+
+    assert gem1_entry is not None
+    assert gem1_entry["casts"] == 2
+    assert gem1_entry["kills"] == 5
+
+    assert gem2_entry is not None
+    assert gem2_entry["casts"] == 3
+    assert gem2_entry["heals"] == 7

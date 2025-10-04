@@ -59,6 +59,9 @@ BONUS_STATS_TEMPLATE = {
     "damage_boost": {
         "all": 0.0,
         **{f"vs_{t}": 0.0 for t in BONUS_TROOP_TYPES},
+        "reactive_crit_rate": 0.0,
+        "cooperation_crit_rate": 0.0,
+        "command_crit_rate": 0.0,
     },
     "shield_gain": 0.0,
     "burn_boost": 0.0,
@@ -1335,6 +1338,18 @@ class BonusStatsDialog(QtWidgets.QDialog):
                 ("Rage Skill Damage Boost", ("rage_skill_boost",)),
                 ("Cooperation Skill Damage Boost", ("cooperation_skill_boost",)),
                 ("Command Skill Damage Boost", ("command_skill_boost",)),
+                (
+                    "Reactive Skill Critical Rate",
+                    ("damage_boost", "reactive_crit_rate"),
+                ),
+                (
+                    "Cooperation Skill Critical Rate",
+                    ("damage_boost", "cooperation_crit_rate"),
+                ),
+                (
+                    "Command Skill Critical Rate",
+                    ("damage_boost", "command_crit_rate"),
+                ),
             ],
             normalized,
         )
@@ -2210,6 +2225,18 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 f"Damage Boost vs {troop.title()}",
                 float(db.get(f"vs_{troop}", 0.0)),
             )
+        add_entry(
+            "Reactive Skill Critical Rate",
+            float(db.get("reactive_crit_rate", 0.0)),
+        )
+        add_entry(
+            "Cooperation Skill Critical Rate",
+            float(db.get("cooperation_crit_rate", 0.0)),
+        )
+        add_entry(
+            "Command Skill Critical Rate",
+            float(db.get("command_crit_rate", 0.0)),
+        )
 
         add_entry("Shield Gain Boost", float(self._bonus_stats.get("shield_gain", 0.0)))
         add_entry("Burn Boost", float(self._bonus_stats.get("burn_boost", 0.0)))

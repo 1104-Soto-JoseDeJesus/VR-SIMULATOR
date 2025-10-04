@@ -79,6 +79,9 @@ class StatType(Enum):
     COOPERATION_SKILL_DAMAGE_MODIFIER = "cooperation_skill_damage_modifier"
     PASSIVE_SKILL_DAMAGE_MODIFIER = "passive_skill_damage_modifier"
     RAGE_SKILL_DAMAGE_MODIFIER = "rage_skill_damage_modifier"
+    REACTIVE_SKILL_CRIT_RATE = "reactive_skill_crit_rate"
+    COOPERATION_SKILL_CRIT_RATE = "cooperation_skill_crit_rate"
+    COMMAND_SKILL_CRIT_RATE = "command_skill_crit_rate"
 
 
 class SkillType(Enum):

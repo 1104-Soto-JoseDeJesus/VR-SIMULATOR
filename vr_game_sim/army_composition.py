@@ -411,6 +411,33 @@ class Army:
         return sum(effect.magnitude for effect in self.active_effects if
                    effect.effect_type == EffectType.SHIELD and effect.magnitude > 0)
 
+    def preview_shield_absorption(self, incoming_damage: float) -> tuple[float, float]:
+        """Return the (hp_damage_to_troops, absorbed_by_shield) without altering shields."""
+
+        if incoming_damage <= 0:
+            return 0.0, 0.0
+
+        hp_dmg_final = incoming_damage
+        absorbed_total = 0.0
+
+        active_shields = sorted(
+            [
+                eff
+                for eff in self.active_effects
+                if eff.effect_type == EffectType.SHIELD and eff.magnitude > 0
+            ],
+            key=lambda e: e.duration,
+        )
+
+        for shield_eff in active_shields:
+            if hp_dmg_final <= 0:
+                break
+            can_absorb = min(hp_dmg_final, shield_eff.magnitude)
+            hp_dmg_final -= can_absorb
+            absorbed_total += can_absorb
+
+        return max(0.0, hp_dmg_final), absorbed_total
+
     def apply_shields_and_get_hp_damage(self, damage_after_percent_mods: float) -> Dict[str, float]:
         hp_dmg_final = damage_after_percent_mods
         absorbed_total = 0.0
@@ -1509,6 +1536,37 @@ class Army:
                 StatType.GENERAL_DAMAGE_MODIFIER,
                 f"Damage Boost vs {troop.title()}",
                 filter_cfg={"target_unit_type": troop},
+            )
+
+        crit_entries = [
+            (
+                "reactive_crit_rate",
+                StatType.REACTIVE_SKILL_CRIT_RATE,
+                "Reactive Skill Critical Rate",
+                "REACTIVE",
+            ),
+            (
+                "cooperation_crit_rate",
+                StatType.COOPERATION_SKILL_CRIT_RATE,
+                "Cooperation Skill Critical Rate",
+                "COOPERATION",
+            ),
+            (
+                "command_crit_rate",
+                StatType.COMMAND_SKILL_CRIT_RATE,
+                "Command Skill Critical Rate",
+                "COMMAND",
+            ),
+        ]
+        for key, stat, label, skill_label in crit_entries:
+            add_effect(
+                float(damage_boost.get(key, 0.0)),
+                stat,
+                label,
+                filter_cfg={
+                    "skill_label": skill_label,
+                    "attack_type": "SKILL",
+                },
             )
 
         add_effect(

@@ -160,8 +160,11 @@ class GameSimulator:
         calc_target = target_army
         apply_target = damage_application_target or target_army
 
-        if apply_target and self._attempt_evasion(apply_target, source_army, "SKILL", source_skill_def):
-            return 0.0, 0.0, 0, 0.0
+        evasion_effect = None
+        if apply_target:
+            evasion_effect = self._attempt_evasion(
+                apply_target, source_army, "SKILL", source_skill_def
+            )
 
         own_total_attack = source_army.unit.effective_attack(source_army.active_effects)
         enemy_total_defense = calc_target.unit.effective_defense(calc_target.active_effects)
@@ -314,6 +317,25 @@ class GameSimulator:
         defender_positive_mags = damage_taken_percent_mods - total_dr_magnitude
 
         total_skill_percentage_points = skill_damage_percent_boosts + damage_taken_percent_mods
+
+        crit_stat_lookup = {
+            PluginSkillLabel.REACTIVE.value.upper(): StatType.REACTIVE_SKILL_CRIT_RATE,
+            PluginSkillLabel.COOPERATION.value.upper(): StatType.COOPERATION_SKILL_CRIT_RATE,
+            PluginSkillLabel.COMMAND.value.upper(): StatType.COMMAND_SKILL_CRIT_RATE,
+        }
+        crit_rate = 0.0
+        crit_stat = crit_stat_lookup.get(skill_label_context or "")
+        if crit_stat is not None:
+            crit_rate = source_army.get_sum_stat_magnitudes(
+                crit_stat,
+                attack_type_filter="SKILL",
+                target_unit_type=target_unit_type,
+                skill_label=skill_label_context,
+            )
+            crit_rate = max(0.0, min(1.0, crit_rate))
+        if crit_rate > 0 and random.random() < crit_rate:
+            total_skill_percentage_points += 0.5
+
         final_skill_damage_multiplier = max(0.05, 1.0 + total_skill_percentage_points)
 
         skill_hp_damage_potential = (own_total_attack / enemy_total_defense) * own_troop_scalar * (
@@ -338,12 +360,50 @@ class GameSimulator:
             skill_hp_damage_potential * dmg_multiplier_no_boost * advantage_multiplier
         )
 
-        hp_damage_expected = max(0.0, damage_after_all_mods - current_shield_hp)
+        preview_hp_damage_to_troops, preview_absorbed_by_shield = apply_target.preview_shield_absorption(
+            damage_after_all_mods
+        )
+        hp_damage_expected = preview_hp_damage_to_troops
         hp_damage_without_dr = max(0.0, damage_no_dr - current_shield_hp)
         hp_saved = max(0.0, hp_damage_without_dr - hp_damage_expected)
         hp_damage_without_boost = max(0.0, damage_no_boost - current_shield_hp)
 
         raw_damage_for_logging = damage_after_all_mods
+
+        if evasion_effect is not None:
+            prevented_note = ""
+            troops_saved = 0.0
+            if hp_damage_expected > 0:
+                enemy_hp_per_troop = apply_target.unit.effective_hp_per_troop(
+                    apply_target.active_effects
+                )
+                if enemy_hp_per_troop <= 0:
+                    enemy_hp_per_troop = 1
+                troops_saved = hp_damage_expected / enemy_hp_per_troop
+                if troops_saved > 0:
+                    apply_target.skill_damage_reduction_totals[evasion_effect.source_skill_id] = (
+                        apply_target.skill_damage_reduction_totals.get(
+                            evasion_effect.source_skill_id, 0.0
+                        )
+                        + troops_saved
+                    )
+                prevented_note = f" preventing {hp_damage_expected:.0f} damage"
+                if troops_saved > 0:
+                    prevented_note += f" (~{troops_saved:.1f} troops)"
+            elif preview_absorbed_by_shield > 0:
+                prevented_note = f" preventing {preview_absorbed_by_shield:.0f} damage"
+
+            attack_desc = "skill"
+            if source_skill_def:
+                skill_name = source_skill_def.get("name") or source_skill_def.get("id", "skill")
+                attack_desc = f"skill '{skill_name}'"
+            attacker_name = source_army.name if source_army else "Unknown"
+            self._log_skill_trigger(
+                apply_target,
+                evasion_effect.name,
+                f"evades the {attack_desc} from {attacker_name}{prevented_note}.",
+            )
+            return 0.0, 0.0, 0, 0.0
 
         damage_result_skill = apply_target.apply_shields_and_get_hp_damage(
             damage_after_all_mods
@@ -420,8 +480,8 @@ class GameSimulator:
         attacker: Army,
         attack_type: str,
         source_skill_def: Optional[SkillDefinition],
-    ) -> bool:
-        """Return ``True`` if defender evades the pending direct damage."""
+    ) -> Optional[EffectInstance]:
+        """Return the evasion effect instance when the attack is avoided."""
 
         evasion_effects = [
             eff
@@ -438,7 +498,7 @@ class GameSimulator:
             )
         ]
         if not evasion_effects:
-            return False
+            return None
 
         random.shuffle(evasion_effects)
         for effect in evasion_effects:
@@ -448,24 +508,9 @@ class GameSimulator:
             if random.random() >= chance:
                 continue
 
-            attack_desc = attack_type.lower()
-            if attack_type.upper() == "SKILL" and source_skill_def:
-                skill_name = source_skill_def.get("name") or source_skill_def.get("id", "skill")
-                attack_desc = f"skill '{skill_name}'"
-            elif attack_type.upper() == "COUNTER":
-                attack_desc = "counter-attack"
-            elif attack_type.upper() == "BASIC":
-                attack_desc = "basic attack"
+            return effect
 
-            attacker_name = attacker.name if attacker else "Unknown"
-            self._log_skill_trigger(
-                defender,
-                effect.name,
-                f"evades the {attack_desc} from {attacker_name}.",
-            )
-            return True
-
-        return False
+        return None
 
     def _apply_retribution_damage(
         self,
@@ -861,8 +906,7 @@ class GameSimulator:
                 return 0.0, 0.0, 0.0, 0
 
         attack_type_code = "COUNTER" if is_counter else "BASIC"
-        if self._attempt_evasion(dfd, att, attack_type_code, None):
-            return 0.0, 0.0, 0.0, 0
+        evasion_effect = self._attempt_evasion(dfd, att, attack_type_code, None)
 
         attacker_effective_atk = att.unit.effective_attack(att.active_effects)
         defender_effective_def = dfd.unit.effective_defense(dfd.active_effects)
@@ -954,10 +998,41 @@ class GameSimulator:
         )
         damage_no_boost = raw_damage_potential * dmg_multiplier_no_boost * advantage_multiplier
 
-        hp_damage_expected = max(0.0, damage_after_all_percent_mods - current_shield_hp)
+        preview_hp_damage_to_troops, preview_absorbed_by_shield = dfd.preview_shield_absorption(
+            damage_after_all_percent_mods
+        )
+        hp_damage_expected = preview_hp_damage_to_troops
         hp_damage_without_dr = max(0.0, damage_no_dr - current_shield_hp)
         hp_saved = max(0.0, hp_damage_without_dr - hp_damage_expected)
         hp_damage_without_boost = max(0.0, damage_no_boost - current_shield_hp)
+
+        if evasion_effect is not None:
+            prevented_note = ""
+            troops_saved = 0.0
+            if hp_damage_expected > 0:
+                defender_hp_per_troop = dfd.unit.effective_hp_per_troop(dfd.active_effects)
+                if defender_hp_per_troop <= 0:
+                    defender_hp_per_troop = 1
+                troops_saved = hp_damage_expected / defender_hp_per_troop
+                if troops_saved > 0:
+                    dfd.skill_damage_reduction_totals[evasion_effect.source_skill_id] = (
+                        dfd.skill_damage_reduction_totals.get(evasion_effect.source_skill_id, 0.0)
+                        + troops_saved
+                    )
+                prevented_note = f" preventing {hp_damage_expected:.0f} damage"
+                if troops_saved > 0:
+                    prevented_note += f" (~{troops_saved:.1f} troops)"
+            elif preview_absorbed_by_shield > 0:
+                prevented_note = f" preventing {preview_absorbed_by_shield:.0f} damage"
+
+            attack_desc = "counter-attack" if is_counter else "basic attack"
+            attacker_name = att.name if att else "Unknown"
+            self._log_skill_trigger(
+                dfd,
+                evasion_effect.name,
+                f"evades the {attack_desc} from {attacker_name}{prevented_note}.",
+            )
+            return 0.0, 0.0, 0.0, 0
 
         shield_processing_result = dfd.apply_shields_and_get_hp_damage(damage_after_all_percent_mods)
         hp_damage_to_troops = shield_processing_result['hp_damage_to_troops']

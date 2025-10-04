@@ -4716,6 +4716,56 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.addTab(self.arena_report_tab, "Arena Reports")
         self.tabs.addTab(self.arena_figures_tab, "Arena Figures")
 
+        tab_bar = self.tabs.tabBar()
+        tab_bar.setStyleSheet(
+            """
+            QTabBar::tab {
+                color: #f0f0f0;
+                padding: 6px 14px;
+                margin-right: 1px;
+                background: #2b2b2b;
+                border: 1px solid #1c1c1c;
+            }
+            QTabBar::tab:!selected {
+                margin-top: 2px;
+            }
+            QTabBar::tab:selected {
+                color: #ffffff;
+                border-bottom-color: #ffffff;
+            }
+            QTabBar::tab:nth-child(1),
+            QTabBar::tab:nth-child(2),
+            QTabBar::tab:nth-child(3),
+            QTabBar::tab:nth-child(4) {
+                background: #00008B;
+            }
+            QTabBar::tab:nth-child(1):selected,
+            QTabBar::tab:nth-child(2):selected,
+            QTabBar::tab:nth-child(3):selected,
+            QTabBar::tab:nth-child(4):selected {
+                background: #0019A6;
+            }
+            QTabBar::tab:nth-child(5),
+            QTabBar::tab:nth-child(6) {
+                background: #006400;
+            }
+            QTabBar::tab:nth-child(5):selected,
+            QTabBar::tab:nth-child(6):selected {
+                background: #007A00;
+            }
+            QTabBar::tab:nth-child(7),
+            QTabBar::tab:nth-child(8),
+            QTabBar::tab:nth-child(9) {
+                background: #8B0000;
+            }
+            QTabBar::tab:nth-child(7):selected,
+            QTabBar::tab:nth-child(8):selected,
+            QTabBar::tab:nth-child(9):selected {
+                background: #A00000;
+            }
+            """
+        )
+
         self.tabs.currentChanged.connect(self._on_tab_changed)
 
         return main_layout

@@ -22,6 +22,11 @@ from .constants import (
     EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
     EFFECT_NAME_DELAYED_RAGE_GAIN,
     EFFECT_NAME_DELAYED_RAGE_REDUCTION,
+    EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
+    EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
+    EFFECT_NAME_HEIMDALL_STEALTH_EVASION,
+    EFFECT_NAME_HEIMDALL_RETRIBUTION,
+    EFFECT_NAME_HEIMDALL_DAMAGE_REDUCTION,
     EFFECT_NAME_PENDING_HEROIC_BLESSING_DEBUFF,
     EFFECT_NAME_PENDING_HEROIC_BLESSING_BUFF,
     EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF,
@@ -236,7 +241,7 @@ class Army:
                         break
 
     def _reload_gem_skills(self) -> None:
-        """Refresh cached gem skill definitions from the global registry."""
+        """Refresh cached jewel skill definitions from the global registry."""
 
         self.gem_skills = []
         if not self.gem_skill_ids:
@@ -247,13 +252,13 @@ class Army:
             skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id)
             if not skill_def:
                 print(
-                    f"Warning: Gem skill '{skill_id}' for army '{self.name}' not found in registry."
+                    f"Warning: Jewel skill '{skill_id}' for army '{self.name}' not found in registry."
                 )
                 continue
             self.gem_skills.append(copy.deepcopy(skill_def))
 
     def set_gem_skills(self, gem_skills: Dict[str, str] | None) -> None:
-        """Assign gem skills to this army using ``gem_skills`` mapping."""
+        """Assign jewel skills to this army using ``gem_skills`` mapping."""
 
         normalized: Dict[str, str] = {}
         if gem_skills:
@@ -889,6 +894,8 @@ class Army:
                 EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Add Olena's custom rage gain effect
                 EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
                 EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
+                EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
+                EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
                 EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
             ]
             if (
@@ -1201,7 +1208,8 @@ class Army:
 
 
             elif effect.name in [EFFECT_NAME_PENDING_AWAKENING_CLEANSE, EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
-                                 EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE] \
+                                 EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
+                                 EFFECT_NAME_PENDING_HEIMDALL_PURIFY] \
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
                     debuff_ids_to_remove = effect.config.get("debuff_ids_to_remove", [])
@@ -1223,6 +1231,7 @@ class Army:
             elif effect.name in [EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
                                  EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
                                  EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
+                                 EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
                                  EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL] \
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':

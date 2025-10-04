@@ -77,6 +77,7 @@ class StatType(Enum):
     COMMAND_SKILL_DAMAGE_MODIFIER = "command_skill_damage_modifier" # For skills that trigger periodically (e.g. every X rounds)
     COOPERATION_TRIGGER_RATE_MODIFIER = "cooperation_trigger_rate_modifier"
     COOPERATION_SKILL_DAMAGE_MODIFIER = "cooperation_skill_damage_modifier"
+    PASSIVE_SKILL_DAMAGE_MODIFIER = "passive_skill_damage_modifier"
     RAGE_SKILL_DAMAGE_MODIFIER = "rage_skill_damage_modifier"
 
 

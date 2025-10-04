@@ -1,0 +1,92 @@
+[
+    {
+        "army_name": "Artur/Verdandi",
+        "unit_type": "archers",
+        "tier": 7,
+        "count": 350000,
+        "atk_mod": 2.75,
+        "def_mod": 2.75,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Verdandi",
+                "talent_ids": [
+                    "talent_hunting_instinct",
+                    "talent_hunting_experience",
+                    "talent_targeted_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_rapid_fire",
+                    "base_skill_raining_arrows"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_helas_curse",
+                    "plugin_rage_leech"
+                ]
+            },
+            {
+                "hero_name_or_preset": "Artur",
+                "talent_ids": [
+                    "talent_hellfire_shelter",
+                    "talent_pent_up_anger",
+                    "talent_furious_fire"
+                ],
+                "base_skill_ids": [
+                    "base_skill_torment",
+                    "base_skill_incineration"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_fiery_rage",
+                    "plugin_first_strike"
+                ]
+            }
+        ]
+    },
+    {
+        "army_name": "Artur2/Verdandi2",
+        "unit_type": "archers",
+        "tier": 7,
+        "count": 350000,
+        "atk_mod": 2.75,
+        "def_mod": 2.75,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Verdandi",
+                "talent_ids": [
+                    "talent_hunting_instinct",
+                    "talent_hunting_experience",
+                    "talent_targeted_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_rapid_fire",
+                    "base_skill_raining_arrows"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_helas_curse",
+                    "plugin_rage_leech"
+                ]
+            },
+            {
+                "hero_name_or_preset": "Artur",
+                "talent_ids": [
+                    "talent_hellfire_shelter",
+                    "talent_pent_up_anger",
+                    "talent_furious_fire"
+                ],
+                "base_skill_ids": [
+                    "base_skill_torment",
+                    "base_skill_incineration"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_fiery_rage",
+                    "plugin_fiery_detonation"
+                ]
+            }
+        ]
+    }
+]

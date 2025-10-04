@@ -103,6 +103,22 @@ GEM_SLOT_HERO_INDEX = JEWEL_SLOT_HERO_INDEX
 
 _RARITY_SORT_ORDER = {"Legendary": 0, "Epic": 1, "Rare": 2, None: 99}
 
+_JEWEL_SLOT_ICON_PATHS: dict[str, str] = {
+    slot: os.path.join(
+        os.path.dirname(__file__),
+        "Icons",
+        filename,
+    )
+    for slot, filename in {
+        "friggs_agate": "Frigg's Agate.png",
+        "tyrs_emerald": "Tyr's Emerald.png",
+        "thors_ruby": "Thor's Ruby.png",
+        "freyas_amethyst": "Freya's Amethyst.png",
+        "odins_amber": "Odin's Amber.png",
+        "heimdalls_sapphire": "Heimdall's Sapphire.png",
+    }.items()
+}
+
 
 def default_bonus_stats() -> dict[str, Any]:
     """Return a fresh bonus stats dictionary with all values zeroed."""
@@ -1881,19 +1897,47 @@ class ArmyFrame(QtWidgets.QGroupBox):
         hero2_preview_widget.setLayout(hero2_preview_layout)
 
         # --- Combine troop icon with hero previews ---
+        self._jewel_slot_widgets: dict[str, dict[str, QtWidgets.QWidget]] = {}
+        hero1_jewels_widget = self._create_jewel_grid(JEWEL_SLOTS[:3])
+        hero2_jewels_widget = self._create_jewel_grid(JEWEL_SLOTS[3:])
+
+        hero1_container = QtWidgets.QWidget()
+        hero1_container_layout = QtWidgets.QVBoxLayout(hero1_container)
+        hero1_container_layout.setContentsMargins(0, 0, 0, 0)
+        hero1_container_layout.setSpacing(10)
+        hero1_container_layout.addWidget(
+            hero1_preview_widget, alignment=QtCore.Qt.AlignmentFlag.AlignCenter
+        )
+        hero1_container_layout.addWidget(
+            hero1_jewels_widget, alignment=QtCore.Qt.AlignmentFlag.AlignCenter
+        )
+
+        hero2_container = QtWidgets.QWidget()
+        hero2_container_layout = QtWidgets.QVBoxLayout(hero2_container)
+        hero2_container_layout.setContentsMargins(0, 0, 0, 0)
+        hero2_container_layout.setSpacing(10)
+        hero2_container_layout.addWidget(
+            hero2_preview_widget, alignment=QtCore.Qt.AlignmentFlag.AlignCenter
+        )
+        hero2_container_layout.addWidget(
+            hero2_jewels_widget, alignment=QtCore.Qt.AlignmentFlag.AlignCenter
+        )
+
+        self._hero_jewel_widgets: list[QtWidgets.QWidget] = [
+            hero1_jewels_widget,
+            hero2_jewels_widget,
+        ]
+
         self.preview_widget = QtWidgets.QWidget()
-        if self.index == 1:
-            preview_layout = QtWidgets.QHBoxLayout(self.preview_widget)
-        else:
-            preview_layout = QtWidgets.QHBoxLayout(self.preview_widget)
+        preview_layout = QtWidgets.QHBoxLayout(self.preview_widget)
         preview_layout.setContentsMargins(0, 0, 0, 0)
         preview_layout.setSpacing(30)
 
         heroes_layout = QtWidgets.QVBoxLayout()
         heroes_layout.setContentsMargins(0, 0, 0, 0)
         heroes_layout.setSpacing(30)
-        heroes_layout.addWidget(hero1_preview_widget)
-        heroes_layout.addWidget(hero2_preview_widget)
+        heroes_layout.addWidget(hero1_container)
+        heroes_layout.addWidget(hero2_container)
         heroes_widget = QtWidgets.QWidget()
         heroes_widget.setLayout(heroes_layout)
 
@@ -1910,6 +1954,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self._hero_selected(1, self.hero1_combo.currentText())
         self._hero_selected(2, self.hero2_combo.currentText())
         self._unit_changed(self.unit_combo.currentText())
+        self._update_jewel_previews()
 
     def _add_custom_option(self, name: str) -> None:
         if name not in self.hero_options:
@@ -2279,6 +2324,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     normalized[slot] = sid
         self._gem_skills = normalized
         self._update_gem_skills_button()
+        self._update_jewel_previews()
 
     def _update_gem_skills_button(self) -> None:
         count, summary = self._gem_skills_summary()
@@ -2310,6 +2356,71 @@ class ArmyFrame(QtWidgets.QGroupBox):
         if not entries:
             return 0, "No jewel skills selected."
         return count, "\n".join(entries)
+
+    def _create_jewel_grid(self, slots: list[tuple[str, str]]) -> QtWidgets.QWidget:
+        widget = QtWidgets.QWidget()
+        grid = QtWidgets.QGridLayout(widget)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(20)
+        grid.setVerticalSpacing(10)
+        font = QtGui.QFont("Times New Roman", 8)
+        for col, (slot_key, _slot_label) in enumerate(slots):
+            slot_widget = QtWidgets.QWidget()
+            layout = QtWidgets.QVBoxLayout(slot_widget)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(6)
+            icon = QtWidgets.QLabel()
+            icon.setFixedSize(60, 60)
+            icon.setScaledContents(True)
+            icon.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            name_label = QtWidgets.QLabel()
+            name_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            name_label.setWordWrap(True)
+            name_label.setFont(font)
+            name_label.setStyleSheet("color: white;")
+            layout.addWidget(icon, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(name_label)
+            grid.addWidget(slot_widget, 0, col)
+            self._jewel_slot_widgets[slot_key] = {
+                "container": slot_widget,
+                "icon": icon,
+                "label": name_label,
+            }
+            slot_widget.hide()
+        widget.hide()
+        return widget
+
+    def _update_jewel_previews(self) -> None:
+        if not getattr(self, "_jewel_slot_widgets", None):
+            return
+        hero_widgets = getattr(self, "_hero_jewel_widgets", [])
+        hero_has_visible = [False, False]
+        for slot_key, widgets in self._jewel_slot_widgets.items():
+            container = widgets["container"]
+            icon_label = widgets["icon"]
+            name_label = widgets["label"]
+            skill_id = self._gem_skills.get(slot_key, "")
+            hero_idx = JEWEL_SLOT_HERO_INDEX.get(slot_key, 0)
+            if skill_id:
+                icon_path = _JEWEL_SLOT_ICON_PATHS.get(slot_key, "")
+                pix = QtGui.QPixmap()
+                if icon_path and os.path.exists(icon_path):
+                    pix = QtGui.QPixmap(icon_path)
+                if not pix.isNull():
+                    icon_label.setPixmap(pix)
+                else:
+                    icon_label.clear()
+                skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id, {})
+                name_label.setText(skill_def.get("name", skill_id))
+                container.show()
+                hero_has_visible[hero_idx] = True
+            else:
+                icon_label.clear()
+                name_label.clear()
+                container.hide()
+        for idx, widget in enumerate(hero_widgets):
+            if idx < len(hero_has_visible):
+                widget.setVisible(hero_has_visible[idx])
 
 
 class ArmySetupDialog(QtWidgets.QDialog):

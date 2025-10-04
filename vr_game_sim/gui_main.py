@@ -4361,6 +4361,19 @@ class MainWindow(QtWidgets.QMainWindow):
         main_layout = QtWidgets.QVBoxLayout(central)
 
         self.tabs = QtWidgets.QTabWidget()
+        self.tabs.setStyleSheet(
+            """
+            QTabBar::tab {
+                margin-right: 0px;
+            }
+            QTabBar::tab:nth-child(4) {
+                margin-right: 12px;
+            }
+            QTabBar::tab:nth-child(6) {
+                margin-right: 12px;
+            }
+            """
+        )
         main_layout.addWidget(self.tabs)
 
         # Remember the directory last used when loading/saving setups

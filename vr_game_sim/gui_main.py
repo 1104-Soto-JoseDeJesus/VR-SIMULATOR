@@ -72,7 +72,7 @@ BONUS_STATS_TEMPLATE = {
     "command_skill_boost": 0.0,
 }
 
-GEM_SLOTS: list[tuple[str, str]] = [
+JEWEL_SLOTS: list[tuple[str, str]] = [
     ("friggs_agate", "Frigg's Agate"),
     ("tyrs_emerald", "Tyr's Emerald"),
     ("thors_ruby", "Thor's Ruby"),
@@ -80,6 +80,9 @@ GEM_SLOTS: list[tuple[str, str]] = [
     ("odins_amber", "Odin's Amber"),
     ("heimdalls_sapphire", "Heimdall's Sapphire"),
 ]
+
+# Backwards compatibility for older saved configurations referencing gem slots.
+GEM_SLOTS = JEWEL_SLOTS
 
 _RARITY_SORT_ORDER = {"Legendary": 0, "Epic": 1, "Rare": 2, None: 99}
 
@@ -136,7 +139,7 @@ def get_pdf_layout_path() -> str:
 
 
 def gem_skill_options_for_slot(slot_key: str) -> list[tuple[str, str]]:
-    """Return ``(label, skill_id)`` pairs for the given gem slot."""
+    """Return ``(label, skill_id)`` pairs for the given jewel slot."""
 
     options: list[tuple[str, str]] = [("None", "")]
     entries: list[tuple[int, int, str, str]] = []
@@ -1409,8 +1412,8 @@ class BonusStatsDialog(QtWidgets.QDialog):
         return updated
 
 
-class GemSkillsDialog(QtWidgets.QDialog):
-    """Dialog for selecting gem skills per slot."""
+class JewelSkillsDialog(QtWidgets.QDialog):
+    """Dialog for selecting jewel skills per slot."""
 
     def __init__(
         self,
@@ -1418,12 +1421,12 @@ class GemSkillsDialog(QtWidgets.QDialog):
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Gem Skills")
+        self.setWindowTitle("Jewel Skills")
         self.setModal(True)
 
         layout = QtWidgets.QVBoxLayout(self)
         info = QtWidgets.QLabel(
-            "Select one skill for each gem slot. Legendary and Epic variants share mechanics "
+            "Select one skill for each jewel slot. Legendary and Epic variants share mechanics "
             "with adjusted potency. Skills will trigger automatically based on their described timings."
         )
         info.setWordWrap(True)
@@ -1438,7 +1441,7 @@ class GemSkillsDialog(QtWidgets.QDialog):
 
         self._combos: dict[str, QtWidgets.QComboBox] = {}
         current = selected or {}
-        for slot_key, slot_label in GEM_SLOTS:
+        for slot_key, slot_label in JEWEL_SLOTS:
             combo = QtWidgets.QComboBox()
             combo.setEditable(True)
             combo.setInsertPolicy(QtWidgets.QComboBox.InsertPolicy.NoInsert)
@@ -1771,7 +1774,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         # --- Feature buttons ---
         self.gear_btn = QtWidgets.QPushButton("Gear")
         self.mount_skills_btn = QtWidgets.QPushButton("Mount Skills")
-        self.gem_skills_btn = QtWidgets.QPushButton("Gem Skills")
+        self.gem_skills_btn = QtWidgets.QPushButton("Jewel Skills")
         self.bonus_stats_btn = QtWidgets.QPushButton("Bonus Stats")
 
         # Gear and mount skills configuration is not yet available but the
@@ -1780,7 +1783,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.mount_skills_btn.setEnabled(False)
 
         self._bonus_stats = default_bonus_stats()
-        self._gem_skills: dict[str, str] = {slot: "" for slot, _ in GEM_SLOTS}
+        self._gem_skills: dict[str, str] = {slot: "" for slot, _ in JEWEL_SLOTS}
         self.gem_skills_btn.clicked.connect(self._open_gem_skills_dialog)
         self.bonus_stats_btn.clicked.connect(self._open_bonus_stats_dialog)
 
@@ -2223,12 +2226,12 @@ class ArmyFrame(QtWidgets.QGroupBox):
         return count, summary
 
     def _open_gem_skills_dialog(self) -> None:
-        dlg = GemSkillsDialog(self._gem_skills, self)
+        dlg = JewelSkillsDialog(self._gem_skills, self)
         if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             self._set_gem_skills(dlg.result())
 
     def _set_gem_skills(self, gem_skills: dict[str, str] | None) -> None:
-        normalized = {slot: "" for slot, _ in GEM_SLOTS}
+        normalized = {slot: "" for slot, _ in JEWEL_SLOTS}
         if gem_skills:
             for slot, sid in gem_skills.items():
                 if slot in normalized and isinstance(sid, str):
@@ -2239,16 +2242,16 @@ class ArmyFrame(QtWidgets.QGroupBox):
     def _update_gem_skills_button(self) -> None:
         count, summary = self._gem_skills_summary()
         if count:
-            self.gem_skills_btn.setText(f"Gem Skills ({count})")
+            self.gem_skills_btn.setText(f"Jewel Skills ({count})")
             self.gem_skills_btn.setToolTip(summary)
         else:
-            self.gem_skills_btn.setText("Gem Skills")
-            self.gem_skills_btn.setToolTip("No gem skills selected.")
+            self.gem_skills_btn.setText("Jewel Skills")
+            self.gem_skills_btn.setToolTip("No jewel skills selected.")
 
     def _gem_skills_summary(self) -> tuple[int, str]:
         entries: list[str] = []
         count = 0
-        for slot_key, slot_label in GEM_SLOTS:
+        for slot_key, slot_label in JEWEL_SLOTS:
             sid = self._gem_skills.get(slot_key, "")
             if not sid:
                 continue
@@ -2264,7 +2267,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             else:
                 entries.append(f"{slot_label}: {sid}")
         if not entries:
-            return 0, "No gem skills selected."
+            return 0, "No jewel skills selected."
         return count, "\n".join(entries)
 
 

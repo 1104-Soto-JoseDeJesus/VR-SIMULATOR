@@ -14,6 +14,8 @@ from .constants import (
     EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
     EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
     EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
+    EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
+    EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
     EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
     EFFECT_NAME_DELAYED_RAGE_GAIN,
     EFFECT_NAME_DELAYED_RAGE_REDUCTION,
@@ -21,7 +23,9 @@ from .constants import (
     EFFECT_NAME_WAR_BLESSING_SHIELD,
     EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF,
     EFFECT_NAME_JUDGEMENT_MARKER,
-    EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
+    EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
+    EFFECT_NAME_HEIMDALL_STEALTH_EVASION,
+    EFFECT_NAME_HEIMDALL_RETRIBUTION,
 )
 
 @dataclass(slots=True)
@@ -87,6 +91,8 @@ class EffectInstance:
                 desc_parts.append(f"{verb} Cooperation Skill Trigger Rate by {abs(self.magnitude * 100):.0f}%")
             elif stat_to_mod_val == StatType.COOPERATION_SKILL_DAMAGE_MODIFIER:
                 desc_parts.append(f"{self.magnitude * 100:+.0f}% to Cooperation Skill Damage")
+            elif stat_to_mod_val == StatType.PASSIVE_SKILL_DAMAGE_MODIFIER:
+                desc_parts.append(f"{self.magnitude * 100:+.0f}% to Passive Skill Damage")
             elif stat_to_mod_val == StatType.GENERAL_DAMAGE_MODIFIER:
                 verb = "Reduces General Damage Dealt by" if self.magnitude < 0 else "Increases General Damage Dealt by"
                 desc_parts.append(f"{verb} {abs(self.magnitude * 100):.0f}%")
@@ -147,11 +153,19 @@ class EffectInstance:
                 rage_gain = self.config.get('rage_per_round', 0)
                 start_round = self.config.get('start_rage_gain_round', '?'); end_round = self.config.get('end_rage_gain_round', '?')
                 desc_parts.append(f"Grants {rage_gain} rage each round (R{start_round}-R{end_round}, unaffected by restrictions)")
-            elif self.name in [EFFECT_NAME_PENDING_AWAKENING_CLEANSE, EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE, EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE]:
+            elif self.name in [
+                EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
+                EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
+                EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
+                EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
+            ]:
                 desc_parts.append("Pending debuff cleanse for start of next round")
-            elif self.name in [EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
-                               EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
-                               EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL]:
+            elif self.name in [
+                EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
+                EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
+                EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
+                EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
+            ]:
                 desc_parts.append("Pending buff removal for start of next round")
             elif self.name == EFFECT_NAME_DELAYED_RAGE_GAIN:
                 amt = self.config.get('rage_amount', 0)
@@ -159,6 +173,14 @@ class EffectInstance:
             elif self.name == EFFECT_NAME_DELAYED_RAGE_REDUCTION:
                 amt = self.config.get('rage_reduction', 0)
                 desc_parts.append(f"Reduce rage by {amt} next round")
+            elif self.name == EFFECT_NAME_HEIMDALL_STEALTH_EVASION:
+                chance = self.config.get('evasion_chance', 0) * 100
+                desc_parts.append(
+                    f"Evasion: {chance:.1f}% chance to ignore basic, counter, and direct skill damage"
+                )
+            elif self.name == EFFECT_NAME_HEIMDALL_RETRIBUTION:
+                rate = self.config.get('retribution_rate', 0) * 100
+                desc_parts.append(f"Retribution: returns {rate:.1f}% of direct damage received")
             elif self.name == EFFECT_NAME_JUDGEMENT_MARKER:
                 desc_parts.append("Judgement Marker")
             elif self.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS:

@@ -46,10 +46,10 @@ directory of your choice.
 The adjacent **Export Summary Image** button saves a single PNG containing the
 army preview along with all histograms.
 
-### Gem skills
+### Jewel skills
 
-Press **Gem Skills** on an army frame to assign socketed abilities. Each of the
-six gem slots accepts one skill, and the picker dialog provides searchable
+Press **Jewel Skills** on an army frame to assign socketed abilities. Each of the
+six jewel slots accepts one skill, and the picker dialog provides searchable
 dropdowns that include both legendary and epic variants. Selected skills are
 saved with your setup and applied automatically during simulations.
 

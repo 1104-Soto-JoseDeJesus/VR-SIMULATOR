@@ -18,6 +18,8 @@ from .constants import (
     EFFECT_NAME_DISARM_DEBUFF,
     EFFECT_NAME_SILENCE_DEBUFF,
     EFFECT_NAME_JUDGEMENT_MARKER,
+    EFFECT_NAME_HEIMDALL_STEALTH_EVASION,
+    EFFECT_NAME_HEIMDALL_RETRIBUTION,
 )
 from .dynamic_unrevivable_config import (
     UNIT_TYPES as DYNAMIC_UNIT_TYPES,
@@ -158,6 +160,9 @@ class GameSimulator:
         calc_target = target_army
         apply_target = damage_application_target or target_army
 
+        if apply_target and self._attempt_evasion(apply_target, source_army, "SKILL", source_skill_def):
+            return 0.0, 0.0, 0, 0.0
+
         own_total_attack = source_army.unit.effective_attack(source_army.active_effects)
         enemy_total_defense = calc_target.unit.effective_defense(calc_target.active_effects)
         if enemy_total_defense <= 0: enemy_total_defense = 1
@@ -167,6 +172,7 @@ class GameSimulator:
         attacker_unit_type = source_army.unit.unit_type
 
         skill_label_context = None
+        labels: list[PluginSkillLabel] = []
         if source_skill_def:
             labels = source_skill_def.get("labels", []) or []
             if PluginSkillLabel.REACTIVE in labels:
@@ -251,6 +257,26 @@ class GameSimulator:
                 skill_label=skill_label_context,
             )
             relevant_stats.add(StatType.COOPERATION_SKILL_DAMAGE_MODIFIER)
+
+        if (
+            source_skill_def
+            and current_skill_trigger_type != SkillTriggerType.RAGE_SKILL
+            and PluginSkillLabel.COMMAND not in labels
+            and PluginSkillLabel.COOPERATION not in labels
+            and PluginSkillLabel.REACTIVE not in labels
+            and source_skill_def.get("type") in {
+                SkillType.PLUGIN_SKILL,
+                SkillType.BASE_SKILL,
+                SkillType.TALENT,
+            }
+        ):
+            skill_damage_percent_boosts += source_army.get_sum_stat_magnitudes(
+                StatType.PASSIVE_SKILL_DAMAGE_MODIFIER,
+                attack_type_filter="SKILL",
+                target_unit_type=target_unit_type,
+                skill_label=skill_label_context,
+            )
+            relevant_stats.add(StatType.PASSIVE_SKILL_DAMAGE_MODIFIER)
 
         positive_boost_effects: list[EffectInstance] = []
         for stat in relevant_stats:
@@ -365,6 +391,17 @@ class GameSimulator:
                 source_army.name, {}
             )
             skill_map[sid] = skill_map.get(sid, 0.0) + actual_skill_hp_damage_to_troops
+
+        if actual_skill_hp_damage_to_troops > 0 and apply_target:
+            skill_name = "skill damage"
+            if source_skill_def:
+                skill_name = f"skill '{source_skill_def.get('name', source_skill_def.get('id', 'skill'))}'"
+            self._apply_retribution_damage(
+                defender=apply_target,
+                attacker=source_army,
+                damage_taken=actual_skill_hp_damage_to_troops,
+                context_desc=skill_name,
+            )
         # Skill damage is tracked for commitment totals but no longer logged
         # as a combat action.  This keeps combat action reports focused on
         # basic and counter attacks while skill effects are reported solely in
@@ -376,6 +413,107 @@ class GameSimulator:
             potential_skill_kills,
             raw_damage_for_logging,
         )
+
+    def _attempt_evasion(
+        self,
+        defender: Army,
+        attacker: Army,
+        attack_type: str,
+        source_skill_def: Optional[SkillDefinition],
+    ) -> bool:
+        """Return ``True`` if defender evades the pending direct damage."""
+
+        evasion_effects = [
+            eff
+            for eff in defender.active_effects
+            if eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+            and eff.config.get("evasion_chance", 0) > 0
+            and (
+                not eff.config.get("applies_to")
+                or attack_type.upper()
+                in {
+                    str(entry).upper()
+                    for entry in (eff.config.get("applies_to") or [])
+                }
+            )
+        ]
+        if not evasion_effects:
+            return False
+
+        random.shuffle(evasion_effects)
+        for effect in evasion_effects:
+            chance = float(effect.config.get("evasion_chance", 0))
+            if chance <= 0:
+                continue
+            if random.random() >= chance:
+                continue
+
+            attack_desc = attack_type.lower()
+            if attack_type.upper() == "SKILL" and source_skill_def:
+                skill_name = source_skill_def.get("name") or source_skill_def.get("id", "skill")
+                attack_desc = f"skill '{skill_name}'"
+            elif attack_type.upper() == "COUNTER":
+                attack_desc = "counter-attack"
+            elif attack_type.upper() == "BASIC":
+                attack_desc = "basic attack"
+
+            attacker_name = attacker.name if attacker else "Unknown"
+            self._log_skill_trigger(
+                defender,
+                effect.name,
+                f"evades the {attack_desc} from {attacker_name}.",
+            )
+            return True
+
+        return False
+
+    def _apply_retribution_damage(
+        self,
+        defender: Army,
+        attacker: Army,
+        damage_taken: float,
+        context_desc: str,
+    ) -> None:
+        """Apply retribution damage from defender back to attacker if applicable."""
+
+        if damage_taken <= 0 or attacker.current_troop_count <= 0:
+            return
+
+        retribution_effects = [
+            eff
+            for eff in defender.active_effects
+            if eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+            and eff.config.get("retribution_rate", 0) > 0
+        ]
+        if not retribution_effects:
+            return
+
+        for effect in retribution_effects:
+            rate = float(effect.config.get("retribution_rate", 0))
+            if rate <= 0:
+                continue
+            returned_hp = damage_taken * rate
+            if returned_hp <= 0:
+                continue
+
+            attacker.pending_hp_damage_this_round += returned_hp
+            defender_name = defender.name
+            attacker.damage_contributors_this_round[defender_name] = (
+                attacker.damage_contributors_this_round.get(defender_name, 0.0)
+                + returned_hp
+            )
+            skill_map = attacker.damage_contributors_by_skill_this_round.setdefault(
+                defender_name, {}
+            )
+            skill_map[effect.source_skill_id] = skill_map.get(
+                effect.source_skill_id, 0.0
+            ) + returned_hp
+
+            self._log_skill_trigger(
+                defender,
+                effect.name,
+                f"reflects {returned_hp:.0f} damage back to {attacker.name} ({context_desc}).",
+            )
 
     def _calculate_shield_magnitude_for_logging(self, owner_army: Army, opponent_for_calc: Army,
                                                 shield_factor: float) -> float:
@@ -722,6 +860,10 @@ class GameSimulator:
                 self._log_skill_trigger(att, effect.name, f"{att.name} cannot {action_name_log} due to {effect.name}.")
                 return 0.0, 0.0, 0.0, 0
 
+        attack_type_code = "COUNTER" if is_counter else "BASIC"
+        if self._attempt_evasion(dfd, att, attack_type_code, None):
+            return 0.0, 0.0, 0.0, 0
+
         attacker_effective_atk = att.unit.effective_attack(att.active_effects)
         defender_effective_def = dfd.unit.effective_defense(dfd.active_effects)
         if defender_effective_def <= 0: defender_effective_def = 1
@@ -862,6 +1004,15 @@ class GameSimulator:
             is_counter=is_counter,
             skill_id=sid,
         )
+
+        if hp_damage_to_troops > 0:
+            context = "counter-attack" if is_counter else "basic attack"
+            self._apply_retribution_damage(
+                defender=dfd,
+                attacker=att,
+                damage_taken=hp_damage_to_troops,
+                context_desc=context,
+            )
 
         return hp_damage_to_troops, absorbed_by_shield, damage_after_all_percent_mods, potential_units_killed_this_hit_rounded
 

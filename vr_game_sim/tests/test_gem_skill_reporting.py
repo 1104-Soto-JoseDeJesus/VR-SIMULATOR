@@ -62,6 +62,84 @@ def test_reactive_crit_rate_increases_damage():
     assert pytest.approx(crit_damage / base_damage, rel=1e-6) == 1.5
 
 
+def test_reactive_crit_rate_increases_healing():
+    skill_def = _make_skill_def()
+    SKILL_REGISTRY_GLOBAL[skill_def["id"]] = skill_def
+    try:
+        attacker, defender, _ = _make_armies()
+        random.seed(0)
+        base_heal = defender.calculate_and_add_pending_healing(
+            heal_factor=200.0,
+            healer_army=attacker,
+            opponent_of_healer=defender,
+            source_skill_id=skill_def["id"],
+        )
+
+        attacker2, defender2, _ = _make_armies(
+            {"damage_boost": {"reactive_crit_rate": 1.0}}
+        )
+        random.seed(0)
+        crit_heal = defender2.calculate_and_add_pending_healing(
+            heal_factor=200.0,
+            healer_army=attacker2,
+            opponent_of_healer=defender2,
+            source_skill_id=skill_def["id"],
+        )
+
+        assert crit_heal > base_heal
+        assert pytest.approx(crit_heal / base_heal, rel=1e-6) == 1.5
+    finally:
+        SKILL_REGISTRY_GLOBAL.pop(skill_def["id"], None)
+
+
+def test_reactive_crit_rate_increases_shield():
+    skill_def = _make_skill_def()
+    SKILL_REGISTRY_GLOBAL[skill_def["id"]] = skill_def
+    try:
+        attacker, defender, _ = _make_armies()
+        random.seed(0)
+        shield_effect = defender._create_and_add_single_effect(
+            {
+                "effect_type": EffectType.SHIELD,
+                "name": "Test Shield",
+                "duration": 1,
+                "shield_factor": 200.0,
+                "magnitude_calc_type": "dynamic_shield_resistance_v1",
+            },
+            skill_def["id"],
+            defender,
+            defender,
+            attacker,
+        )
+        assert shield_effect is not None
+        base_shield = shield_effect.magnitude
+
+        attacker2, defender2, _ = _make_armies(
+            {"damage_boost": {"reactive_crit_rate": 1.0}}
+        )
+        random.seed(0)
+        crit_shield_effect = defender2._create_and_add_single_effect(
+            {
+                "effect_type": EffectType.SHIELD,
+                "name": "Test Shield",
+                "duration": 1,
+                "shield_factor": 200.0,
+                "magnitude_calc_type": "dynamic_shield_resistance_v1",
+            },
+            skill_def["id"],
+            defender2,
+            defender2,
+            attacker2,
+        )
+        assert crit_shield_effect is not None
+        crit_shield = crit_shield_effect.magnitude
+
+        assert crit_shield > base_shield
+        assert pytest.approx(crit_shield / base_shield, rel=1e-6) == 1.5
+    finally:
+        SKILL_REGISTRY_GLOBAL.pop(skill_def["id"], None)
+
+
 def test_gem_evasion_counts_damage_reduction():
     skill_def = _make_skill_def()
     attacker, defender, sim = _make_armies()

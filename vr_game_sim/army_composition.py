@@ -5,7 +5,7 @@ import copy
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Tuple, Set, Iterable
 
-from .enums import EffectType, SkillTriggerType, StatType, DoTType
+from .enums import EffectType, SkillTriggerType, StatType, DoTType, PluginSkillLabel
 from .unit_definition import Unit
 from .hero_definition import Hero
 from .effect_system import EffectInstance
@@ -42,6 +42,29 @@ from .constants import (
 )
 
 GameSimulatorRef = "GameSimulator"  # Forward reference
+
+
+def _resolve_skill_label_context(skill_def: Optional[SkillDefinition]) -> Optional[str]:
+    """Return the uppercase skill label context for crit calculations."""
+
+    if not skill_def:
+        return None
+
+    labels = skill_def.get("labels", []) or []
+    if PluginSkillLabel.REACTIVE in labels:
+        return PluginSkillLabel.REACTIVE.value.upper()
+    if PluginSkillLabel.COOPERATION in labels:
+        return PluginSkillLabel.COOPERATION.value.upper()
+    if PluginSkillLabel.COMMAND in labels:
+        return PluginSkillLabel.COMMAND.value.upper()
+    return None
+
+
+_SKILL_CRIT_RATE_LOOKUP: dict[str, StatType] = {
+    PluginSkillLabel.REACTIVE.value.upper(): StatType.REACTIVE_SKILL_CRIT_RATE,
+    PluginSkillLabel.COOPERATION.value.upper(): StatType.COOPERATION_SKILL_CRIT_RATE,
+    PluginSkillLabel.COMMAND.value.upper(): StatType.COMMAND_SKILL_CRIT_RATE,
+}
 
 BASIC_ATTACK_ID = "basic_attack"
 COUNTER_ATTACK_ID = "counter_attack"
@@ -603,6 +626,22 @@ class Army:
 
         healer_atk = healer_army.unit.effective_attack(healer_army.active_effects)
         healer_troop_scalar = self.simulator.troop_scalar(healer_army.current_troop_count)
+        skill_def = SKILL_REGISTRY_GLOBAL.get(source_skill_id) if source_skill_id else None
+        skill_label_context = _resolve_skill_label_context(skill_def)
+        crit_bonus = 0.0
+        if skill_label_context and healer_army.current_troop_count > 0:
+            crit_stat = _SKILL_CRIT_RATE_LOOKUP.get(skill_label_context)
+            if crit_stat is not None:
+                crit_rate = healer_army.get_sum_stat_magnitudes(
+                    crit_stat,
+                    attack_type_filter="SKILL",
+                    target_unit_type=self.unit.unit_type,
+                    skill_label=skill_label_context,
+                )
+                crit_rate = max(0.0, min(1.0, crit_rate))
+                if crit_rate > 0 and random.random() < crit_rate:
+                    crit_bonus = 0.5
+
         total_heal_adj_recipient = self.get_sum_stat_magnitudes(StatType.HEAL_ADJUSTMENT)
         positive_heal_adj_effects = [
             eff
@@ -613,12 +652,10 @@ class Army:
         ]
         total_positive_heal_adj = sum(eff.magnitude for eff in positive_heal_adj_effects)
         total_negative_heal_adj = total_heal_adj_recipient - total_positive_heal_adj
-        heal_adj_mult = (
-            1.0
-            + total_negative_heal_adj
-            + total_positive_heal_adj
-            + skill_heal_adjustment_magnitude
-        )
+        base_heal_multiplier = 1.0 + total_negative_heal_adj + skill_heal_adjustment_magnitude
+        if crit_bonus > 0:
+            base_heal_multiplier += crit_bonus
+        heal_adj_mult = base_heal_multiplier + total_positive_heal_adj
         opp_def_calc = opponent_of_healer.unit.effective_defense(opponent_of_healer.active_effects)
         if opp_def_calc == 0: opp_def_calc = 1
 
@@ -630,12 +667,11 @@ class Army:
         )
 
         if hp_healed_raw > 0 and total_positive_heal_adj > 0:
-            base_mult = 1.0 + total_negative_heal_adj + skill_heal_adjustment_magnitude
             hp_without_boost = round(
                 (healer_atk / opp_def_calc)
                 * healer_troop_scalar
                 * (heal_factor / 200.0)
-                * base_mult
+                * base_heal_multiplier
             )
             extra_hp = hp_healed_raw - hp_without_boost
             if extra_hp > 0:
@@ -681,6 +717,9 @@ class Army:
         if not canonical_effect_name:
             print(f"Warning: Effect from {source_skill_id} is missing a 'name'. Skipping effect.")
             return None
+
+        skill_def = SKILL_REGISTRY_GLOBAL.get(source_skill_id)
+        skill_label_context = _resolve_skill_label_context(skill_def)
 
         for active_immunity_effect in target_army.active_effects:
             if active_immunity_effect.effect_type == EffectType.IMMUNITY and \
@@ -798,11 +837,29 @@ class Army:
             ]
             total_positive_shield = sum(eff.magnitude for eff in positive_shield_effects)
             total_negative_shield = sum_shield_strength_mods_recipient - total_positive_shield
-            shield_strength_multiplier = 1.0 + sum_shield_strength_mods_recipient
+            crit_bonus = 0.0
+            if skill_label_context and owner_army.current_troop_count > 0:
+                crit_stat = _SKILL_CRIT_RATE_LOOKUP.get(skill_label_context)
+                if crit_stat is not None:
+                    target_unit_type = target_army.unit.unit_type if target_army else None
+                    crit_rate = owner_army.get_sum_stat_magnitudes(
+                        crit_stat,
+                        attack_type_filter="SKILL",
+                        target_unit_type=target_unit_type,
+                        skill_label=skill_label_context,
+                    )
+                    crit_rate = max(0.0, min(1.0, crit_rate))
+                    if crit_rate > 0 and random.random() < crit_rate:
+                        crit_bonus = 0.5
+
+            base_shield_strength_multiplier = 1.0 + total_negative_shield
+            if crit_bonus > 0:
+                base_shield_strength_multiplier += crit_bonus
+            shield_strength_multiplier = base_shield_strength_multiplier + total_positive_shield
             magnitude = round(base_shield_magnitude * shield_strength_multiplier)
             if total_positive_shield > 0 and base_shield_magnitude > 0:
                 magnitude_without_boost = round(
-                    base_shield_magnitude * (1.0 + total_negative_shield)
+                    base_shield_magnitude * base_shield_strength_multiplier
                 )
                 extra_hp = magnitude - magnitude_without_boost
                 if extra_hp > 0:

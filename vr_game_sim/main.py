@@ -709,15 +709,21 @@ def run_additional_simulations(
                 fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
                 fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
                 ax.set_facecolor(HISTOGRAM_BG_COLOR)
+                unrevivable_outcomes = [
+                    (unrevivable_wins_army1, army1_name, "green"),
+                    (unrevivable_wins_army2, army2_name, "red"),
+                    (unrevivable_ties, "Tie", "gray"),
+                ]
+                filtered_outcomes = [
+                    outcome for outcome in unrevivable_outcomes if outcome[0] > 0
+                ]
+                sizes, labels, colors = zip(*filtered_outcomes)
+
                 wedges, texts, autotexts = ax.pie(
-                    [
-                        unrevivable_wins_army1,
-                        unrevivable_wins_army2,
-                        unrevivable_ties,
-                    ],
-                    labels=[army1_name, army2_name, "Tie"],
+                    sizes,
+                    labels=labels,
                     autopct=_format_pct,
-                    colors=["green", "red", "gray"],
+                    colors=colors,
                     startangle=90,
                     textprops={
                         "fontsize": HISTOGRAM_FONT_SIZE,

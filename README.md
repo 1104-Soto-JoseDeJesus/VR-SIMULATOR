@@ -85,6 +85,23 @@ now default to using all available CPU cores for these extra runs. If you call
 `run_additional_simulations` directly, pass the `num_workers` argument to
 control how many worker processes are spawned.
 
+### Army recommendations
+
+Use `--recommend-army1` with the CLI to automatically fill any empty hero or
+plugin slots on Army 1 before the usual simulations run. Optional
+`--block-hero`/`--block-plugin` flags (repeatable, comma-separated) exclude
+specific heroes or plugin skill IDs, while `--recommend-runs` and
+`--recommend-workers` override the number of Additional Runs and worker
+processes used during the search. The helper evaluates each candidate with
+`run_additional_simulations`, printing the projected win rate and the chosen
+loadout when complete. Army 1 must have at least one empty hero or plugin slot
+for the optimiser to run.
+
+The GUI includes a **Recommend Army 1 Build** button next to **Run Simulation**.
+It honours the Additional Runs and Worker Processes spinners, asks for optional
+block lists, updates the Army 1 controls with the winning configuration and
+displays the predicted win rate when the background worker finishes.
+
 ## Running tests
 
 From the repository root run:

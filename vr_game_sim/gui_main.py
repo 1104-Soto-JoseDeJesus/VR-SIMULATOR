@@ -371,17 +371,29 @@ class RecommendationDialog(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout(self)
 
         info = QtWidgets.QLabel(
-            "Leave fields blank to consider every preset hero and plugin skill."
+            "Select heroes and plugin skills to exclude from recommendations. "
+            "Leave all unchecked to consider every option."
         )
         info.setWordWrap(True)
         layout.addWidget(info)
 
-        form = QtWidgets.QFormLayout()
-        self.hero_edit = QtWidgets.QLineEdit(", ".join(blocked_heroes or []))
-        self.plugin_edit = QtWidgets.QLineEdit(", ".join(blocked_plugins or []))
-        form.addRow("Block heroes:", self.hero_edit)
-        form.addRow("Block plugins:", self.plugin_edit)
-        layout.addLayout(form)
+        hero_group = QtWidgets.QGroupBox("Block heroes")
+        hero_group_layout = QtWidgets.QVBoxLayout(hero_group)
+        hero_scroll, self._hero_checkboxes = self._build_checklist(
+            self._hero_items(blocked_heroes),
+            blocked_heroes or [],
+        )
+        hero_group_layout.addWidget(hero_scroll)
+        layout.addWidget(hero_group)
+
+        plugin_group = QtWidgets.QGroupBox("Block plugin skills")
+        plugin_group_layout = QtWidgets.QVBoxLayout(plugin_group)
+        plugin_scroll, self._plugin_checkboxes = self._build_checklist(
+            self._plugin_items(blocked_plugins),
+            blocked_plugins or [],
+        )
+        plugin_group_layout.addWidget(plugin_scroll)
+        layout.addWidget(plugin_group)
 
         buttons = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Ok
@@ -393,12 +405,102 @@ class RecommendationDialog(QtWidgets.QDialog):
         layout.addWidget(buttons)
 
     def hero_blocks(self) -> list[str]:
-        text = self.hero_edit.text()
-        return [part.strip() for part in text.split(",") if part.strip()]
+        return [value for value, checkbox in self._hero_checkboxes if checkbox.isChecked()]
 
     def plugin_blocks(self) -> list[str]:
-        text = self.plugin_edit.text()
-        return [part.strip() for part in text.split(",") if part.strip()]
+        return [value for value, checkbox in self._plugin_checkboxes if checkbox.isChecked()]
+
+    def _build_checklist(
+        self,
+        items: list[tuple[str, str]],
+        preselected: list[str],
+    ) -> tuple[QtWidgets.QScrollArea, list[tuple[str, QtWidgets.QCheckBox]]]:
+        """Return a scrollable checklist for ``items``.
+
+        Parameters
+        ----------
+        items:
+            Sequence of ``(value, label)`` pairs.
+        preselected:
+            Values that should be checked initially.
+        """
+
+        selected = {value.lower() for value in preselected if value}
+
+        container = QtWidgets.QWidget()
+        grid = QtWidgets.QGridLayout(container)
+        grid.setContentsMargins(4, 4, 4, 4)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(6)
+
+        checkboxes: list[tuple[str, QtWidgets.QCheckBox]] = []
+        columns = 2
+        for index, (value, label) in enumerate(items):
+            checkbox = QtWidgets.QCheckBox(label)
+            checkbox.setChecked(value.lower() in selected)
+            row = index // columns
+            column = index % columns
+            grid.addWidget(checkbox, row, column)
+            checkboxes.append((value, checkbox))
+
+        # Ensure the content hugs the top when the list is short.
+        last_row = (len(items) + columns - 1) // columns
+        grid.setRowStretch(last_row, 1)
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(container)
+        scroll.setMinimumHeight(200)
+        return scroll, checkboxes
+
+    def _hero_items(self, blocked_heroes: list[str] | None) -> list[tuple[str, str]]:
+        """Return hero checklist entries including any pre-blocked values."""
+
+        items: dict[str, tuple[str, str]] = {}
+        for hero_id in sorted(HERO_PRESETS):
+            label = self._format_name(hero_id)
+            items[hero_id.lower()] = (hero_id, label)
+
+        for value in blocked_heroes or []:
+            key = value.strip()
+            if not key:
+                continue
+            canonical = key.lower()
+            if canonical not in items:
+                items[canonical] = (key, self._format_name(key))
+
+        return [items[key] for key in sorted(items)]
+
+    def _plugin_items(self, blocked_plugins: list[str] | None) -> list[tuple[str, str]]:
+        """Return plugin checklist entries including any pre-blocked values."""
+
+        items: dict[str, tuple[str, str]] = {}
+        for skill_id, definition in sorted(
+            SKILL_REGISTRY_GLOBAL.items(), key=lambda item: item[1].get("name", "")
+        ):
+            if definition.get("type") != SkillType.PLUGIN_SKILL:
+                continue
+            label = definition.get("name") or self._format_name(skill_id)
+            items[skill_id.lower()] = (skill_id, label)
+
+        for value in blocked_plugins or []:
+            key = value.strip()
+            if not key:
+                continue
+            canonical = key.lower()
+            if canonical not in items:
+                items[canonical] = (key, self._format_name(key))
+
+        return [items[key] for key in sorted(items)]
+
+    @staticmethod
+    def _format_name(value: str) -> str:
+        """Return a human friendly label for ``value``."""
+
+        text = value.replace("_", " ").strip()
+        if not text:
+            return value
+        return " ".join(part.capitalize() for part in text.split())
 
 
 class StarredImageLabel(QtWidgets.QLabel):

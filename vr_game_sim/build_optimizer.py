@@ -165,65 +165,108 @@ def recommend_army1_build(
             raise ValueError("No admissible heroes remain for empty slots")
         slot_candidates.append(options)
 
-    unique_candidates: list[tuple[dict[str, Any], ...]] = []
-    seen_keys: set[tuple[tuple[str, tuple[str, ...]], ...]] = set()
-
-    for hero_choice in product(*slot_candidates):
-        hero_assignment = [copy.deepcopy(hero) for hero in hero_choice]
-
+    def _prepare_plugin_option_sets(
+        hero_assignment: list[dict[str, Any]],
+    ) -> list[list[list[str]]] | None:
         plugin_option_sets: list[list[list[str]]] = []
         for hero_cfg in hero_assignment:
-            plugins = [pid for pid in hero_cfg.get("plugin_skill_ids", []) if pid]
-            plugins = plugins[:2]
+            if cancel_event and cancel_event.is_set():
+                raise RuntimeError("cancelled")
+
+            plugins = [pid for pid in hero_cfg.get("plugin_skill_ids", []) if pid][:2]
+            if blocked_plugin_set and any(pid.lower() in blocked_plugin_set for pid in plugins):
+                return None
+
             needed = 2 - len(plugins)
-            if needed < 0:
-                needed = 0
-            if needed == 0:
-                plugin_option_sets.append([plugins])
+            if needed <= 0:
+                plugin_option_sets.append([list(plugins)])
                 continue
+
             if not plugin_candidates:
                 raise ValueError("No plugin skills available to fill empty slots")
+
             options: list[list[str]] = []
             for combo in combinations_with_replacement(plugin_candidates, needed):
-                option = plugins + list(combo)
+                option = list(plugins) + list(combo)
+                option = option[:2]
+                if blocked_plugin_set and any(
+                    pid.lower() in blocked_plugin_set for pid in option
+                ):
+                    continue
                 options.append(option)
+
+            if not options:
+                return None
+
             plugin_option_sets.append(options)
 
-        for plugin_choice in product(*plugin_option_sets):
-            populated: list[dict[str, Any]] = []
-            invalid = False
-            for hero_cfg, plugin_ids in zip(hero_assignment, plugin_choice):
-                if blocked_plugin_set and any(
-                    pid.lower() in blocked_plugin_set for pid in plugin_ids
-                ):
-                    invalid = True
-                    break
-                hero_copy = copy.deepcopy(hero_cfg)
-                hero_copy["plugin_skill_ids"] = list(plugin_ids)
-                populated.append(hero_copy)
-            if invalid:
+        return plugin_option_sets
+
+    def _estimate_candidate_total() -> int:
+        total = 0
+        for hero_choice in product(*slot_candidates):
+            if cancel_event and cancel_event.is_set():
+                raise RuntimeError("cancelled")
+
+            hero_assignment = [copy.deepcopy(hero) for hero in hero_choice]
+            plugin_option_sets = _prepare_plugin_option_sets(hero_assignment)
+            if not plugin_option_sets:
                 continue
 
-            key = tuple(
-                (
-                    hero_cfg.get("hero_name_or_preset", "").lower(),
-                    tuple(sorted(pid for pid in hero_cfg.get("plugin_skill_ids", []) if pid)),
+            combos = 1
+            for options in plugin_option_sets:
+                combos *= len(options)
+            total += combos
+
+        return total
+
+    seen_keys: set[tuple[tuple[str, tuple[str, ...]], ...]] = set()
+
+    def _iter_candidate_setups() -> Iterable[tuple[dict[str, Any], ...]]:
+        for hero_choice in product(*slot_candidates):
+            if cancel_event and cancel_event.is_set():
+                raise RuntimeError("cancelled")
+
+            hero_assignment = [copy.deepcopy(hero) for hero in hero_choice]
+            plugin_option_sets = _prepare_plugin_option_sets(hero_assignment)
+            if not plugin_option_sets:
+                continue
+
+            for plugin_choice in product(*plugin_option_sets):
+                if cancel_event and cancel_event.is_set():
+                    raise RuntimeError("cancelled")
+
+                populated: list[dict[str, Any]] = []
+                for hero_cfg, plugin_ids in zip(hero_assignment, plugin_choice):
+                    hero_copy = copy.deepcopy(hero_cfg)
+                    hero_copy["plugin_skill_ids"] = list(plugin_ids)
+                    populated.append(hero_copy)
+
+                key = tuple(
+                    (
+                        hero_cfg.get("hero_name_or_preset", "").lower(),
+                        tuple(sorted(
+                            pid for pid in hero_cfg.get("plugin_skill_ids", []) if pid
+                        )),
+                    )
+                    for hero_cfg in populated
                 )
-                for hero_cfg in populated
-            )
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
-            unique_candidates.append(tuple(populated))
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+                yield tuple(populated)
 
-    if not unique_candidates:
-        raise ValueError("No valid hero/plugin combinations found for recommendation")
+    estimated_total = _estimate_candidate_total()
+
+    candidates_iter = _iter_candidate_setups()
+    total_candidates = 0
 
     from .main import run_additional_simulations
 
     best_setup: list[dict[str, Any]] | None = None
     best_win_rate = -1.0
-    for idx, hero_tuple in enumerate(unique_candidates, start=1):
+    for idx, hero_tuple in enumerate(candidates_iter, start=1):
+        total_candidates = idx
         if cancel_event and cancel_event.is_set():
             raise RuntimeError("cancelled")
 
@@ -239,18 +282,24 @@ def recommend_army1_build(
         )
 
         if progress_callback:
-            progress_callback(idx, len(unique_candidates))
+            progress_callback(idx, max(estimated_total, idx))
 
         if win_rate > best_win_rate:
             best_win_rate = win_rate
             best_setup = candidate_setup
 
+    if total_candidates == 0:
+        raise ValueError("No valid hero/plugin combinations found for recommendation")
+
     if best_setup is None:
         raise ValueError("No winning configuration identified")
 
+    if progress_callback and total_candidates != max(estimated_total, total_candidates):
+        progress_callback(total_candidates, total_candidates)
+
     info = {
         "win_rate": best_win_rate,
-        "evaluations": len(unique_candidates),
+        "evaluations": total_candidates,
         "runs": runs,
         "num_workers": num_workers,
         "heroes": copy.deepcopy(best_setup[0].get("heroes", [])),

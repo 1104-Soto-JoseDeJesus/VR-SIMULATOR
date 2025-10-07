@@ -45,6 +45,7 @@ from vr_game_sim.skill_definitions import (
     SKILL_REGISTRY_GLOBAL,
     build_skill_registry_with_overrides,
 )
+from vr_game_sim.build_optimizer import recommend_army1_build
 
 # --- Configuration for Save/Load ---
 SETUPS_DIR = "setups"
@@ -81,6 +82,43 @@ def ensure_histogram_dir():
     """Ensures the histogram output directory exists."""
     if not os.path.exists(HISTOGRAM_DIR):
         os.makedirs(HISTOGRAM_DIR)
+
+
+def _parse_block_list(values: Optional[list[str]]) -> list[str]:
+    """Return a list of non-empty strings from ``values`` split on commas."""
+
+    entries: list[str] = []
+    if not values:
+        return entries
+    for value in values:
+        if not value:
+            continue
+        parts = [part.strip() for part in value.split(",")]
+        entries.extend([part for part in parts if part])
+    return entries
+
+
+def _print_recommendation(army_cfg: dict[str, Any], info: dict[str, Any]) -> None:
+    """Print a summary of the recommended loadout."""
+
+    win_rate = info.get("win_rate", 0.0)
+    runs = info.get("runs")
+    workers = info.get("num_workers")
+    if runs is not None and workers is not None:
+        print(
+            f"Recommended Army 1 build projects a win rate of {win_rate*100:.1f}% "
+            f"over {runs} runs ({workers} worker{'s' if workers != 1 else ''})."
+        )
+    else:
+        print(f"Recommended Army 1 build projects a win rate of {win_rate*100:.1f}%.")
+    heroes = army_cfg.get("heroes", [])
+    if not heroes:
+        print("  Army 1 has no heroes configured.")
+    for idx, hero in enumerate(heroes, start=1):
+        name = hero.get("hero_name_or_preset", "Unknown")
+        plugins = [pid for pid in hero.get("plugin_skill_ids", []) if pid]
+        plugin_text = ", ".join(plugins) if plugins else "None"
+        print(f"  Hero {idx}: {name} | Plugins: {plugin_text}")
 
 
 def _smooth_counts(counts: np.ndarray, sigma: float = 1.0) -> np.ndarray:
@@ -874,14 +912,63 @@ if __name__ == "__main__":
         "--setup",
         help="Path to JSON setup file to load and run non-interactively",
     )
+    parser.add_argument(
+        "--recommend-army1",
+        action="store_true",
+        help="Optimise Army 1 before running simulations",
+    )
+    parser.add_argument(
+        "--block-hero",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="Hero name to exclude from recommendations (repeatable)",
+    )
+    parser.add_argument(
+        "--block-plugin",
+        action="append",
+        default=[],
+        metavar="ID",
+        help="Plugin skill id to exclude from recommendations (repeatable)",
+    )
+    parser.add_argument(
+        "--recommend-runs",
+        type=int,
+        help="Override the Additional Runs used for recommendations",
+    )
+    parser.add_argument(
+        "--recommend-workers",
+        type=int,
+        help="Override the worker count used for recommendations",
+    )
     args = parser.parse_args()
 
     print("=== Battle Simulator ===")
     ensure_setups_dir()
+    blocked_heroes = _parse_block_list(args.block_hero)
+    blocked_plugins = _parse_block_list(args.block_plugin)
+    default_workers = os.cpu_count() or 1
+    recommend_runs = args.recommend_runs if args.recommend_runs is not None else 300
+    recommend_workers = (
+        args.recommend_workers if args.recommend_workers is not None else default_workers
+    )
     if args.setup:
         loaded = load_setup_from_file(args.setup)
         if not loaded:
             sys.exit(1)
+        if args.recommend_army1:
+            try:
+                loaded, recommendation = recommend_army1_build(
+                    loaded,
+                    blocked_heroes=blocked_heroes,
+                    blocked_plugins=blocked_plugins,
+                    runs=recommend_runs,
+                    num_workers=recommend_workers,
+                )
+            except ValueError as exc:
+                print(f"Recommendation error: {exc}")
+                sys.exit(1)
+            _print_recommendation(loaded[0], recommendation)
         win_rate, best_match = run_additional_simulations(
             loaded, num_workers=os.cpu_count()
         )
@@ -994,6 +1081,19 @@ if __name__ == "__main__":
 
     if armies_to_simulate and len(armies_to_simulate) == 2:
         setup_snapshot = get_setup_data_for_saving(armies_to_simulate)
+        if args.recommend_army1:
+            try:
+                setup_snapshot, recommendation = recommend_army1_build(
+                    setup_snapshot,
+                    blocked_heroes=blocked_heroes,
+                    blocked_plugins=blocked_plugins,
+                    runs=recommend_runs,
+                    num_workers=recommend_workers,
+                )
+            except ValueError as exc:
+                print(f"Recommendation error: {exc}")
+                sys.exit(1)
+            _print_recommendation(setup_snapshot[0], recommendation)
         win_rate, best_match = run_additional_simulations(
             setup_snapshot, num_workers=os.cpu_count()
         )

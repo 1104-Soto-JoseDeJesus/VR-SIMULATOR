@@ -37,6 +37,7 @@ from vr_game_sim.main import (
     save_army_to_file,
     load_army_from_file,
 )
+from vr_game_sim.build_optimizer import recommend_army1_build
 from vr_game_sim import dynamic_unrevivable_config
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
@@ -353,6 +354,51 @@ class SeedOutcomeDialog(QtWidgets.QDialog):
         """Return the selected outcome or ``None`` if cleared."""
 
         return self._target
+
+
+class RecommendationDialog(QtWidgets.QDialog):
+    """Collect block lists for the Army 1 recommendation helper."""
+
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget | None,
+        blocked_heroes: list[str] | None,
+        blocked_plugins: list[str] | None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Recommend Army 1 Build")
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        info = QtWidgets.QLabel(
+            "Leave fields blank to consider every preset hero and plugin skill."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        form = QtWidgets.QFormLayout()
+        self.hero_edit = QtWidgets.QLineEdit(", ".join(blocked_heroes or []))
+        self.plugin_edit = QtWidgets.QLineEdit(", ".join(blocked_plugins or []))
+        form.addRow("Block heroes:", self.hero_edit)
+        form.addRow("Block plugins:", self.plugin_edit)
+        layout.addLayout(form)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            parent=self,
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def hero_blocks(self) -> list[str]:
+        text = self.hero_edit.text()
+        return [part.strip() for part in text.split(",") if part.strip()]
+
+    def plugin_blocks(self) -> list[str]:
+        text = self.plugin_edit.text()
+        return [part.strip() for part in text.split(",") if part.strip()]
 
 
 class StarredImageLabel(QtWidgets.QLabel):
@@ -3196,6 +3242,59 @@ def build_skill_summaries(armies: list[Army], configs: list[dict]) -> list[dict[
     return summaries
 
 
+class RecommendationWorker(QtCore.QThread):
+    progress_update = QtCore.pyqtSignal(int, int)
+    finished_result = QtCore.pyqtSignal(list, dict)
+    cancelled = QtCore.pyqtSignal()
+    error = QtCore.pyqtSignal(str)
+
+    def __init__(
+        self,
+        setup_data: list[dict],
+        runs: int,
+        num_workers: int,
+        blocked_heroes: list[str] | None,
+        blocked_plugins: list[str] | None,
+    ) -> None:
+        super().__init__()
+        self.setup_data = copy.deepcopy(setup_data)
+        self.runs = runs
+        self.num_workers = num_workers
+        self.blocked_heroes = list(blocked_heroes or [])
+        self.blocked_plugins = list(blocked_plugins or [])
+        self._cancelled = threading.Event()
+
+    def cancel(self) -> None:
+        self._cancelled.set()
+
+    def run(self) -> None:
+        try:
+            def progress_cb(done: int, total: int) -> None:
+                self.progress_update.emit(done, total)
+                if self._cancelled.is_set():
+                    raise RuntimeError("cancelled")
+
+            setup, info = recommend_army1_build(
+                self.setup_data,
+                blocked_heroes=self.blocked_heroes,
+                blocked_plugins=self.blocked_plugins,
+                runs=self.runs,
+                num_workers=self.num_workers,
+                progress_callback=progress_cb,
+                cancel_event=self._cancelled,
+            )
+            if self._cancelled.is_set():
+                raise RuntimeError("cancelled")
+            self.finished_result.emit(setup, info)
+        except RuntimeError as exc:  # pragma: no cover - GUI feedback
+            if str(exc) == "cancelled":
+                self.cancelled.emit()
+            else:
+                self.error.emit(str(exc))
+        except Exception as exc:  # pragma: no cover - GUI feedback
+            self.error.emit(str(exc))
+
+
 class SimulationWorker(QtCore.QThread):
     progress_update = QtCore.pyqtSignal(int, int)
     finished_text = QtCore.pyqtSignal(str, object, object)
@@ -4330,6 +4429,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.seed_target: dict[str, int] | None = None
         self.seed_display: QtWidgets.QLabel | None = None
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
+        self.recommend_worker: RecommendationWorker | None = None
+        self._last_recommend_block_heroes: list[str] = []
+        self._last_recommend_block_plugins: list[str] = []
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
         self.pdf_layout = load_pdf_layout()
@@ -4374,6 +4476,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.run_btn = QtWidgets.QPushButton("Run Simulation")
         self.run_btn.clicked.connect(self.run_simulation)
         controls.addWidget(self.run_btn)
+        self.recommend_btn = QtWidgets.QPushButton("Recommend Army 1 Build")
+        self.recommend_btn.clicked.connect(self.recommend_army1)
+        controls.addWidget(self.recommend_btn)
         save_btn = QtWidgets.QPushButton("Save Setup")
         save_btn.clicked.connect(self.save_setup)
         controls.addWidget(save_btn)
@@ -5641,6 +5746,85 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status.setText(f"PDF exported to {os.path.basename(file_path)}")
 
     # --- Simulation handling --------------------------------------------
+    def recommend_army1(self) -> None:
+        worker = self.recommend_worker
+        if worker and worker.isRunning():
+            worker.cancel()
+            self.recommend_btn.setEnabled(False)
+            return
+
+        setup_data = [self.army1_frame.build_config(), self.army2_frame.build_config()]
+        dialog = RecommendationDialog(
+            self,
+            self._last_recommend_block_heroes,
+            self._last_recommend_block_plugins,
+        )
+        if dialog.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return
+
+        blocked_heroes = dialog.hero_blocks()
+        blocked_plugins = dialog.plugin_blocks()
+        self._last_recommend_block_heroes = blocked_heroes
+        self._last_recommend_block_plugins = blocked_plugins
+
+        runs = self.runs_spin.value()
+        workers = self.workers_spin.value()
+        self.status.setText("Searching for Army 1 recommendation…")
+        self.progress.setRange(0, 0)
+        self.progress.setValue(0)
+        self.recommend_btn.setText("Cancel Recommendation")
+        self.recommend_btn.setEnabled(True)
+        self.run_btn.setEnabled(False)
+
+        self.recommend_worker = RecommendationWorker(
+            setup_data,
+            runs,
+            workers,
+            blocked_heroes,
+            blocked_plugins,
+        )
+        self.recommend_worker.progress_update.connect(
+            lambda d, t: (
+                self.progress.setMaximum(max(t, 1)),
+                self.progress.setValue(d),
+            )
+        )
+        self.recommend_worker.finished_result.connect(self._recommendation_finished)
+        self.recommend_worker.cancelled.connect(self._recommendation_cancelled)
+        self.recommend_worker.error.connect(self._recommendation_error)
+        self.recommend_worker.finished.connect(self.recommend_worker.deleteLater)
+        self.recommend_worker.start()
+
+    def _recommendation_finished(self, setup: list[dict], info: dict) -> None:
+        army1_cfg = setup[0] if setup else {}
+        self.army1_frame.populate_from_config(army1_cfg or {})
+        win_rate = info.get("win_rate", 0.0) * 100
+        runs = info.get("runs")
+        workers = info.get("num_workers")
+        if runs is not None and workers is not None:
+            suffix = f" over {runs} runs ({workers} worker{'s' if workers != 1 else ''})"
+        else:
+            suffix = ""
+        self.status.setText(f"Recommendation win rate: {win_rate:.1f}%{suffix}.")
+        self._reset_recommendation_ui()
+
+    def _recommendation_cancelled(self) -> None:
+        self.status.setText("Recommendation cancelled.")
+        self._reset_recommendation_ui()
+
+    def _recommendation_error(self, message: str) -> None:  # pragma: no cover - GUI feedback
+        QtWidgets.QMessageBox.critical(self, "Recommendation Failed", message)
+        self.status.setText("Recommendation failed.")
+        self._reset_recommendation_ui()
+
+    def _reset_recommendation_ui(self) -> None:
+        self.progress.setRange(0, 1)
+        self.progress.setValue(0)
+        self.recommend_btn.setText("Recommend Army 1 Build")
+        self.recommend_btn.setEnabled(True)
+        self.run_btn.setEnabled(True)
+        self.recommend_worker = None
+
     def run_simulation(self) -> None:
         worker = getattr(self, "worker", None)
         if worker:

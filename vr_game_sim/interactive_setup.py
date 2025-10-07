@@ -1,10 +1,38 @@
 # === File: interactive_setup.py ===
+import copy
 from typing import List, Optional, Dict, Tuple, Any
 
 from .enums import SkillType
 from .unit_definition import Unit
 from .hero_definition import Hero, HERO_PRESETS  # HERO_PRESETS is imported here
 from .skill_system import SkillDefinition
+from .build_recommender import recommend_build_for_matchup
+
+
+def _hero_from_config(
+    hero_cfg: Dict[str, Any],
+    skill_registry: Dict[str, SkillDefinition],
+) -> Hero:
+    """Instantiate a :class:`Hero` from serialized configuration."""
+
+    return Hero(
+        hero_cfg.get("hero_name_or_preset", ""),
+        list(hero_cfg.get("talent_ids", [])),
+        list(hero_cfg.get("base_skill_ids", [])),
+        list(hero_cfg.get("plugin_skill_ids", [])),
+        skill_registry,
+    )
+
+
+def _hero_config_from_object(hero: Hero) -> Dict[str, Any]:
+    """Serialize a :class:`Hero` instance for recommendation context."""
+
+    return {
+        "hero_name_or_preset": hero.name,
+        "talent_ids": list(hero.talent_ids),
+        "base_skill_ids": list(hero.base_skill_ids),
+        "plugin_skill_ids": list(hero.plugin_skill_ids),
+    }
 
 
 def input_choice_numbered(prompt: str, choices_ordered: List[str], default: Optional[str] = None) -> str:
@@ -172,9 +200,68 @@ def _select_skill_interactive(
             print("Invalid input. Please enter a number or press Enter for default.")
 
 
-def setup_hero_interactive(hero_index: int, army_name_for_hero_setup: str,
-                           skill_registry: Dict[str, SkillDefinition]) -> Optional[Hero]:
+def setup_hero_interactive(
+    hero_index: int,
+    army_name_for_hero_setup: str,
+    skill_registry: Dict[str, SkillDefinition],
+    *,
+    recommendation_queue: Optional[List[Dict[str, Any]]] = None,
+    own_setup: Optional[Dict[str, Any]] = None,
+    opponent_setup: Optional[Dict[str, Any]] = None,
+    recommendation_runs: int = 60,
+) -> Optional[Hero]:
     print(f"\n  --- Hero {hero_index} Setup for {army_name_for_hero_setup} ---")
+
+    if (
+        recommendation_queue is not None
+        and own_setup is not None
+        and opponent_setup is not None
+        and not recommendation_queue
+    ):
+        locked_count = len(own_setup.get("heroes", []))
+        target_slots = max(locked_count, 2)
+        remaining_slots = max(0, target_slots - locked_count)
+        if remaining_slots:
+            use_recommendation = (
+                input(
+                    "  Request automated build recommendation for remaining hero slots? (y/N): "
+                )
+                .strip()
+                .lower()
+                == "y"
+            )
+        else:
+            use_recommendation = False
+        if use_recommendation:
+            result = recommend_build_for_matchup(
+                copy.deepcopy(own_setup),
+                copy.deepcopy(opponent_setup),
+                skill_registry,
+                runs=recommendation_runs,
+            )
+            if result and result.get("config"):
+                recommended_cfg = result["config"]
+                existing_count = len(own_setup.get("heroes", []))
+                queue_values = [
+                    copy.deepcopy(cfg)
+                    for cfg in recommended_cfg.get("heroes", [])[existing_count:]
+                ]
+                recommendation_queue.extend(queue_values)
+                bonus_stats_cfg = recommended_cfg.get("bonus_stats")
+                if bonus_stats_cfg is not None:
+                    own_setup["bonus_stats"] = copy.deepcopy(bonus_stats_cfg)
+                win_rate = result.get("win_rate", 0.0) * 100
+                runs = result.get("runs", 0)
+                print(
+                    f"    Applied recommendation targeting {win_rate:.1f}% win rate over {runs} runs."
+                )
+                if recommendation_queue:
+                    hero_cfg = recommendation_queue.pop(0)
+                    hero_obj = _hero_from_config(hero_cfg, skill_registry)
+                    return hero_obj
+                print("    Recommendation did not contain any hero configurations.")
+            else:
+                print("    Unable to produce a recommendation for this matchup.")
 
     # MODIFICATION: Present preset choices by number with option for custom entry
     preset_names_sorted = sorted([name.capitalize() for name in HERO_PRESETS.keys()])

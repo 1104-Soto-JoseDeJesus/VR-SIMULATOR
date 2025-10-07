@@ -37,6 +37,7 @@ from vr_game_sim.main import (
     save_army_to_file,
     load_army_from_file,
 )
+from vr_game_sim.build_recommender import recommend_build_for_matchup
 from vr_game_sim import dynamic_unrevivable_config
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
@@ -1748,6 +1749,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.custom_heroes: dict[int, dict] = {1: None, 2: None}
         self.hero_overrides: dict[int, dict] = {1: {}, 2: {}}
         self._hero_names: dict[int, str] = {1: "None", 2: "None"}
+        self._recommendation_filters: dict[str, set[str]] = {
+            "blocked_heroes": set(),
+            "blocked_plugin_skills": set(),
+        }
 
         layout = QtWidgets.QGridLayout(self)
         row = 0
@@ -1805,6 +1810,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.mount_skills_btn = QtWidgets.QPushButton("Mount Skills")
         self.gem_skills_btn = QtWidgets.QPushButton("Jewel Skills")
         self.bonus_stats_btn = QtWidgets.QPushButton("Bonus Stats")
+        self.recommend_filters_btn = QtWidgets.QPushButton("Recommendation Filters")
+        self.recommend_btn = QtWidgets.QPushButton("Recommend Build")
 
         # Gear and mount skills configuration is not yet available but the
         # buttons are present for future expansion.
@@ -1815,6 +1822,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self._gem_skills: dict[str, str] = {slot: "" for slot, _ in JEWEL_SLOTS}
         self.gem_skills_btn.clicked.connect(self._open_gem_skills_dialog)
         self.bonus_stats_btn.clicked.connect(self._open_bonus_stats_dialog)
+        self.recommend_filters_btn.clicked.connect(self._open_recommend_filters_dialog)
+        self.recommend_btn.clicked.connect(self._on_recommend_build)
 
         feature_btn_layout = QtWidgets.QHBoxLayout()
         feature_btn_layout.setSpacing(10)
@@ -1823,6 +1832,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.mount_skills_btn,
             self.gem_skills_btn,
             self.bonus_stats_btn,
+            self.recommend_filters_btn,
+            self.recommend_btn,
         ]:
             btn.setSizePolicy(
                 QtWidgets.QSizePolicy.Policy.Expanding,
@@ -1834,6 +1845,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         self._update_bonus_stats_button()
         self._update_gem_skills_button()
+        self._update_recommend_filters_button()
 
         # --- Troop type icon ---
         self.unit_icon = QtWidgets.QLabel()
@@ -2136,6 +2148,89 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         self._set_gem_skills(cfg.get("gem_skills"))
         self._set_bonus_stats(cfg.get("bonus_stats"))
+        blocked_heroes = {
+            str(name).lower()
+            for name in cfg.get("blocked_heroes", [])
+            if isinstance(name, str) and name
+        }
+        blocked_plugins = {
+            str(pid)
+            for pid in cfg.get("blocked_plugin_skills", [])
+            if isinstance(pid, str) and pid
+        }
+        self._recommendation_filters["blocked_heroes"] = blocked_heroes
+        self._recommendation_filters["blocked_plugin_skills"] = blocked_plugins
+        self._update_recommend_filters_button()
+
+    def _on_recommend_build(self) -> None:
+        window = self.window()
+        if window is None:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Recommendation Unavailable",
+                "Unable to locate parent window for army configuration.",
+            )
+            return
+
+        opponent_frame = None
+        if self.index == 1:
+            opponent_frame = getattr(window, "army2_frame", None)
+        else:
+            opponent_frame = getattr(window, "army1_frame", None)
+
+        if opponent_frame is None:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Recommendation Unavailable",
+                "Configure the opposing army before requesting a recommendation.",
+            )
+            return
+
+        own_config = self.build_config()
+        opponent_config = opponent_frame.build_config()
+
+        try:
+            recommendation = recommend_build_for_matchup(
+                own_config,
+                opponent_config,
+                SKILL_REGISTRY_GLOBAL,
+                runs=40,
+            )
+        except Exception as exc:  # pragma: no cover - GUI feedback
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Recommendation Failed",
+                f"An error occurred while computing the recommendation:\n{exc}",
+            )
+            return
+
+        if not recommendation or not recommendation.get("config"):
+            QtWidgets.QMessageBox.information(
+                self,
+                "No Recommendation",
+                "No suitable build recommendation could be produced.",
+            )
+            return
+
+        best_cfg = copy.deepcopy(recommendation["config"])
+        best_cfg["army_name"] = own_config.get(
+            "army_name", best_cfg.get("army_name", f"Army {self.index}")
+        )
+
+        self.populate_from_config(best_cfg)
+
+        win_rate = recommendation.get("win_rate", 0.0) * 100
+        evaluated = recommendation.get("evaluated_candidates", 0)
+        runs = recommendation.get("runs", 0)
+        QtWidgets.QMessageBox.information(
+            self,
+            "Recommendation Applied",
+            (
+                f"Applied recommended build.\n"
+                f"Estimated win rate: {win_rate:.1f}% over {runs} runs.\n"
+                f"Candidates evaluated: {evaluated}."
+            ),
+        )
 
     def build_config(self) -> dict:
         heroes_cfg = []
@@ -2185,7 +2280,128 @@ class ArmyFrame(QtWidgets.QGroupBox):
         if gem_skills_serialized:
             config["gem_skills"] = gem_skills_serialized
 
+        blocked_heroes = sorted(self._recommendation_filters["blocked_heroes"])
+        if blocked_heroes:
+            config["blocked_heroes"] = blocked_heroes
+
+        blocked_plugins = sorted(self._recommendation_filters["blocked_plugin_skills"])
+        if blocked_plugins:
+            config["blocked_plugin_skills"] = blocked_plugins
+
         return config
+
+    def _open_recommend_filters_dialog(self) -> None:
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle("Recommendation Filters")
+
+        layout = QtWidgets.QVBoxLayout(dlg)
+        info_label = QtWidgets.QLabel(
+            "Select hero presets and plugin skills to exclude from automated recommendations."
+        )
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+
+        layout.addWidget(QtWidgets.QLabel("Blocked Hero Presets:"))
+        hero_list = QtWidgets.QListWidget()
+        hero_list.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
+        hero_list.setUniformItemSizes(True)
+        hero_list.setMinimumHeight(150)
+        blocked_heroes = self._recommendation_filters["blocked_heroes"]
+        for hero_key in sorted(HERO_PRESETS.keys()):
+            item = QtWidgets.QListWidgetItem(hero_key.capitalize())
+            item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)
+            check = (
+                QtCore.Qt.CheckState.Checked
+                if hero_key in blocked_heroes
+                else QtCore.Qt.CheckState.Unchecked
+            )
+            item.setCheckState(check)
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, hero_key)
+            hero_list.addItem(item)
+        layout.addWidget(hero_list)
+
+        layout.addWidget(QtWidgets.QLabel("Blocked Plugin Skills:"))
+        plugin_list = QtWidgets.QListWidget()
+        plugin_list.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.NoSelection)
+        plugin_list.setUniformItemSizes(True)
+        plugin_list.setMinimumHeight(180)
+        blocked_plugins = self._recommendation_filters["blocked_plugin_skills"]
+        plugin_defs = [
+            (sid, skill)
+            for sid, skill in SKILL_REGISTRY_GLOBAL.items()
+            if skill.get("type") == SkillType.PLUGIN_SKILL
+        ]
+        plugin_defs.sort(key=lambda item: item[1].get("name", item[0]))
+        for plugin_id, skill in plugin_defs:
+            display_name = skill.get("name", plugin_id)
+            item = QtWidgets.QListWidgetItem(f"{display_name} ({plugin_id})")
+            item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)
+            check = (
+                QtCore.Qt.CheckState.Checked
+                if plugin_id in blocked_plugins
+                else QtCore.Qt.CheckState.Unchecked
+            )
+            item.setCheckState(check)
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, plugin_id)
+            plugin_list.addItem(item)
+        layout.addWidget(plugin_list)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            blocked_hero_values = {
+                str(hero_list.item(i).data(QtCore.Qt.ItemDataRole.UserRole))
+                for i in range(hero_list.count())
+                if hero_list.item(i).checkState() == QtCore.Qt.CheckState.Checked
+            }
+            blocked_plugin_values = {
+                str(plugin_list.item(i).data(QtCore.Qt.ItemDataRole.UserRole))
+                for i in range(plugin_list.count())
+                if plugin_list.item(i).checkState() == QtCore.Qt.CheckState.Checked
+            }
+            self._recommendation_filters["blocked_heroes"] = blocked_hero_values
+            self._recommendation_filters["blocked_plugin_skills"] = blocked_plugin_values
+            self._update_recommend_filters_button()
+
+    def _update_recommend_filters_button(self) -> None:
+        blocked_heroes = sorted(self._recommendation_filters["blocked_heroes"])
+        blocked_plugins = sorted(self._recommendation_filters["blocked_plugin_skills"])
+
+        summary_parts: list[str] = []
+        if blocked_heroes:
+            summary_parts.append(f"H:{len(blocked_heroes)}")
+        if blocked_plugins:
+            summary_parts.append(f"P:{len(blocked_plugins)}")
+
+        text = "Recommendation Filters"
+        if summary_parts:
+            text += " (" + ", ".join(summary_parts) + ")"
+        self.recommend_filters_btn.setText(text)
+
+        tooltip_lines: list[str] = []
+        if blocked_heroes:
+            hero_names = [name.capitalize() for name in blocked_heroes]
+            tooltip_lines.append("Blocked heroes: " + ", ".join(hero_names))
+        if blocked_plugins:
+            plugin_names = []
+            for pid in blocked_plugins:
+                skill = SKILL_REGISTRY_GLOBAL.get(pid)
+                if skill:
+                    plugin_names.append(skill.get("name", pid))
+                else:
+                    plugin_names.append(pid)
+            tooltip_lines.append("Blocked plugin skills: " + ", ".join(plugin_names))
+
+        if not tooltip_lines:
+            tooltip_lines.append("No heroes or plugin skills are blocked.")
+
+        self.recommend_filters_btn.setToolTip("\n".join(tooltip_lines))
 
     def _open_bonus_stats_dialog(self) -> None:
         dlg = BonusStatsDialog(self._bonus_stats, self)

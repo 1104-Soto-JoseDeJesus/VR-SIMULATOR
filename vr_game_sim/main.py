@@ -809,20 +809,118 @@ def run_interactive_setup() -> List[Army]:
             initial_hp_modifier=hp_mod,
         )
         current_heroes_list: List[Hero] = []
+        recommendation_queue: List[Dict[str, Any]] = []
         max_heroes_per_army = 2  # As per existing logic
 
+        current_setup_dict: Dict[str, Any] = {
+            "army_name": army_name,
+            "unit_type": unit_type_str,
+            "tier": tier,
+            "count": count,
+            "atk_mod": atk_mod,
+            "def_mod": def_mod,
+            "hp_mod": hp_mod,
+            "heroes": [],
+            "bonus_stats": {},
+            "blocked_heroes": [],
+            "blocked_plugin_skills": [],
+        }
+
+        blocked_heroes_input = input(
+            "  Block hero presets from recommendations? Enter names separated by commas (leave blank for none): "
+        ).strip()
+        if blocked_heroes_input:
+            blocked_values: list[str] = []
+            for raw in blocked_heroes_input.split(","):
+                name = raw.strip()
+                if not name:
+                    continue
+                hero_key = name.lower()
+                if hero_key in HERO_PRESETS:
+                    blocked_values.append(hero_key)
+                else:
+                    print(f"    Unknown hero preset '{name}' ignored.")
+            current_setup_dict["blocked_heroes"] = blocked_values
+
+        blocked_plugins_input = input(
+            "  Block plugin skill IDs from recommendations? Enter IDs separated by commas (leave blank for none): "
+        ).strip()
+        if blocked_plugins_input:
+            blocked_plugins: list[str] = []
+            for raw in blocked_plugins_input.split(","):
+                pid = raw.strip()
+                if not pid:
+                    continue
+                skill_def = SKILL_REGISTRY_GLOBAL.get(pid)
+                if skill_def and skill_def.get("type") == SkillType.PLUGIN_SKILL:
+                    blocked_plugins.append(pid)
+                else:
+                    print(f"    Unknown or non-plugin skill '{pid}' ignored.")
+            current_setup_dict["blocked_plugin_skills"] = blocked_plugins
+
+        opponent_setup_dict: Optional[Dict[str, Any]] = None
+        if i == 2 and armies_setup_interactive:
+            first_army = armies_setup_interactive[0]
+            opponent_setup_dict = {
+                "army_name": first_army.name,
+                "unit_type": first_army.unit.unit_type,
+                "tier": first_army.unit.tier,
+                "count": first_army.unit.initial_count,
+                "atk_mod": first_army.unit.atk_multiplier,
+                "def_mod": first_army.unit.def_multiplier,
+                "hp_mod": first_army.unit.hp_multiplier,
+                "unrevivable_ratio": first_army.unrevivable_ratio,
+                "use_dynamic_unrevivable_ratio": first_army.use_dynamic_unrevivable_ratio,
+                "heroes": [
+                    {
+                        "hero_name_or_preset": hero.name,
+                        "talent_ids": list(hero.talent_ids),
+                        "base_skill_ids": list(hero.base_skill_ids),
+                        "plugin_skill_ids": list(hero.plugin_skill_ids),
+                    }
+                    for hero in first_army.heroes
+                ],
+                "bonus_stats": copy.deepcopy(first_army.bonus_stats_config),
+            }
+
         for hero_num in range(1, max_heroes_per_army + 1):
-            add_hero_prompt = (
-                f"  Add Hero {hero_num} to {army_name}? (yes/no, default: yes): "
-            )
-            add_hero_choice = input(add_hero_prompt).strip().lower() or "yes"
+            if recommendation_queue:
+                add_hero_choice = "yes"
+            else:
+                add_hero_prompt = (
+                    f"  Add Hero {hero_num} to {army_name}? (yes/no, default: yes): "
+                )
+                add_hero_choice = input(add_hero_prompt).strip().lower() or "yes"
 
             if add_hero_choice == "yes":
-                hero_obj = setup_hero_interactive(
-                    hero_num, army_name, SKILL_REGISTRY_GLOBAL
-                )
+                if recommendation_queue:
+                    hero_cfg = recommendation_queue.pop(0)
+                    hero_obj = Hero(
+                        hero_cfg.get("hero_name_or_preset", ""),
+                        hero_cfg.get("talent_ids", []),
+                        hero_cfg.get("base_skill_ids", []),
+                        hero_cfg.get("plugin_skill_ids", []),
+                        SKILL_REGISTRY_GLOBAL,
+                    )
+                else:
+                    hero_obj = setup_hero_interactive(
+                        hero_num,
+                        army_name,
+                        SKILL_REGISTRY_GLOBAL,
+                        recommendation_queue=recommendation_queue,
+                        own_setup=current_setup_dict,
+                        opponent_setup=opponent_setup_dict,
+                    )
                 if hero_obj:
                     current_heroes_list.append(hero_obj)
+                    current_setup_dict["heroes"].append(
+                        {
+                            "hero_name_or_preset": hero_obj.name,
+                            "talent_ids": list(hero_obj.talent_ids),
+                            "base_skill_ids": list(hero_obj.base_skill_ids),
+                            "plugin_skill_ids": list(hero_obj.plugin_skill_ids),
+                        }
+                    )
                     skill_names_for_log = [
                         s["name"]
                         for s in hero_obj.skills
@@ -834,7 +932,12 @@ def run_interactive_setup() -> List[Army]:
             else:
                 break
 
-        army_instance = Army(army_name, current_unit_obj, current_heroes_list)
+        army_instance = Army(
+            army_name,
+            current_unit_obj,
+            current_heroes_list,
+            bonus_stats_config=copy.deepcopy(current_setup_dict.get("bonus_stats", {})),
+        )
         armies_setup_interactive.append(army_instance)
         print(
             f"--- {army_name} (T{current_unit_obj.tier} {current_unit_obj.unit_type} x{current_unit_obj.initial_count}) setup complete. ---"

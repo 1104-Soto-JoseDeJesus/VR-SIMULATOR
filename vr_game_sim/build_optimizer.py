@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterable
 import copy
 import os
 import threading
-from itertools import combinations_with_replacement, product
+from itertools import combinations, product
 from typing import Any, Optional
 
 from .enums import SkillType
@@ -131,13 +131,29 @@ def recommend_army1_build(
     for hero in heroes:
         if not hero:
             continue
-        plugins = [pid for pid in hero.get("plugin_skill_ids", []) if pid]
+        seen_plugin_ids: set[str] = set()
+        plugins: list[str] = []
+        for pid in hero.get("plugin_skill_ids", []):
+            if not pid:
+                continue
+            pid_lower = pid.lower()
+            if pid_lower in seen_plugin_ids:
+                continue
+            seen_plugin_ids.add(pid_lower)
+            plugins.append(pid)
+        plugins = plugins[:2]
         if len(plugins) < 2:
             plugin_gaps = True
         hero["plugin_skill_ids"] = plugins[:2]
 
     if not has_empty_slot and not plugin_gaps:
         raise ValueError("Army 1 already has both heroes and plugins assigned")
+
+    existing_hero_names_lower = {
+        hero.get("hero_name_or_preset", "").strip().lower()
+        for hero in heroes
+        if hero and hero.get("hero_name_or_preset")
+    }
 
     blocked_hero_set = set(_normalise_entries(blocked_heroes))
     blocked_plugin_set = set(_normalise_entries(blocked_plugins))
@@ -160,7 +176,11 @@ def recommend_army1_build(
         if hero is not None:
             slot_candidates.append([hero])
             continue
-        options = [copy.deepcopy(cfg) for cfg in hero_candidates.values()]
+        options = [
+            copy.deepcopy(cfg)
+            for name, cfg in hero_candidates.items()
+            if name not in existing_hero_names_lower
+        ]
         if not options:
             raise ValueError("No admissible heroes remain for empty slots")
         slot_candidates.append(options)
@@ -171,9 +191,35 @@ def recommend_army1_build(
     for hero_choice in product(*slot_candidates):
         hero_assignment = [copy.deepcopy(hero) for hero in hero_choice]
 
-        plugin_option_sets: list[list[list[str]]] = []
+        seen_hero_names: set[str] = set()
+        duplicate_hero = False
         for hero_cfg in hero_assignment:
-            plugins = [pid for pid in hero_cfg.get("plugin_skill_ids", []) if pid]
+            if not hero_cfg:
+                continue
+            name = hero_cfg.get("hero_name_or_preset", "")
+            if not name:
+                continue
+            name_key = name.strip().lower()
+            if name_key in seen_hero_names:
+                duplicate_hero = True
+                break
+            seen_hero_names.add(name_key)
+        if duplicate_hero:
+            continue
+
+        plugin_option_sets: list[list[list[str]]] = []
+        assignment_invalid = False
+        for hero_cfg in hero_assignment:
+            seen_plugin_ids: set[str] = set()
+            plugins: list[str] = []
+            for pid in hero_cfg.get("plugin_skill_ids", []):
+                if not pid:
+                    continue
+                pid_lower = pid.lower()
+                if pid_lower in seen_plugin_ids:
+                    continue
+                seen_plugin_ids.add(pid_lower)
+                plugins.append(pid)
             plugins = plugins[:2]
             needed = 2 - len(plugins)
             if needed < 0:
@@ -183,20 +229,39 @@ def recommend_army1_build(
                 continue
             if not plugin_candidates:
                 raise ValueError("No plugin skills available to fill empty slots")
+            available_candidates = [
+                pid
+                for pid in plugin_candidates
+                if pid.lower() not in seen_plugin_ids
+            ]
+            if len(available_candidates) < needed:
+                assignment_invalid = True
+                break
             options: list[list[str]] = []
-            for combo in combinations_with_replacement(plugin_candidates, needed):
+            for combo in combinations(available_candidates, needed):
                 option = plugins + list(combo)
                 options.append(option)
             plugin_option_sets.append(options)
+        if assignment_invalid:
+            continue
 
         for plugin_choice in product(*plugin_option_sets):
             populated: list[dict[str, Any]] = []
             invalid = False
+            used_plugin_ids: set[str] = set()
             for hero_cfg, plugin_ids in zip(hero_assignment, plugin_choice):
                 if blocked_plugin_set and any(
                     pid.lower() in blocked_plugin_set for pid in plugin_ids
                 ):
                     invalid = True
+                    break
+                for pid in plugin_ids:
+                    pid_lower = pid.lower()
+                    if pid_lower in used_plugin_ids:
+                        invalid = True
+                        break
+                    used_plugin_ids.add(pid_lower)
+                if invalid:
                     break
                 hero_copy = copy.deepcopy(hero_cfg)
                 hero_copy["plugin_skill_ids"] = list(plugin_ids)

@@ -56,11 +56,16 @@ def _build_plugin_variants(
     if not any(pid in blocked_set for pid in preset_pair if pid):
         variants.add(preset_pair)
 
+    available_plugins = []
     for plugin_id in plugin_pool:
         if plugin_id in blocked_set:
             continue
+        available_plugins.append(plugin_id)
         variants.add((plugin_id, ""))
         variants.add((plugin_id, plugin_id))
+
+    for first_id, second_id in itertools.combinations(available_plugins, 2):
+        variants.add((first_id, second_id))
 
     return sorted(variants)
 
@@ -185,7 +190,9 @@ def recommend_build_for_matchup(
     from .main import run_additional_simulations  # Local import to avoid circular dependency
 
     if open_slots:
-        combinations_iter = itertools.product(variant_options, repeat=open_slots)
+        combinations_iter = itertools.combinations_with_replacement(
+            variant_options, open_slots
+        )
     else:
         combinations_iter = [()]
 

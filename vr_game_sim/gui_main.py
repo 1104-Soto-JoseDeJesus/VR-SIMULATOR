@@ -1671,6 +1671,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
     def __init__(self, index: int, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(f"Army {index}", parent)
+        self.setProperty("themeRole", "armyPanel")
         self.index = index
 
         self.hero_options = ["None", "Custom"] + sorted(name.capitalize() for name in HERO_PRESETS.keys())
@@ -4435,6 +4436,7 @@ class MainWindow(QtWidgets.QMainWindow):
         setup_layout.addLayout(armies_row)
 
         preview_group = QtWidgets.QGroupBox("Army Preview")
+        preview_group.setProperty("themeRole", "previewPanel")
         preview_layout = QtWidgets.QHBoxLayout(preview_group)
         preview_layout.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         preview_layout.setSpacing(30)
@@ -4579,13 +4581,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.arena_fig_scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         self.arena_fig_summary = QtWidgets.QWidget()
         self.arena_fig_summary.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
-        bg_path = os.path.join(
-            os.path.dirname(__file__), "Icons", "ArenaSummaryBackground.png"
-        ).replace("\\", "/")
+        self.arena_fig_summary.setObjectName("arenaSummaryPanel")
         self.arena_fig_summary.setStyleSheet(
-            f"background-image: url({bg_path});"
-            "background-repeat: no-repeat;"
-            "background-position: center;"
+            """
+            #arenaSummaryPanel {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                            stop:0 rgba(68, 102, 154, 0.95),
+                                            stop:1 rgba(28, 44, 70, 0.95));
+                border: 1px solid rgba(170, 205, 250, 0.55);
+                border-radius: 18px;
+            }
+            """
         )
         self.arena_fig_summary_layout = QtWidgets.QGridLayout(self.arena_fig_summary)
         self.arena_fig_scroll.setWidget(self.arena_fig_summary)
@@ -5763,9 +5769,9 @@ def main() -> None:
         """
         QMainWindow {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 #dde3f1,
-                                        stop:0.45 #6c7d9c,
-                                        stop:1 #2c3444);
+                                        stop:0 #e2e9f7,
+                                        stop:0.45 #5f79a8,
+                                        stop:1 #1f2d41);
         }
 
         #mainCentralWidget,
@@ -5780,8 +5786,8 @@ def main() -> None:
         }
 
         QTabBar::tab {
-            background-color: rgba(24, 29, 38, 170);
-            color: #f4f4f4;
+            background-color: rgba(40, 56, 86, 0.75);
+            color: #f5f7ff;
             padding: 6px 14px;
             border: none;
             border-bottom: none;
@@ -5791,11 +5797,11 @@ def main() -> None:
         }
 
         QTabBar::tab:selected {
-            background-color: rgba(94, 143, 214, 230);
+            background-color: rgba(109, 154, 224, 0.9);
         }
 
         QTabBar::tab:hover {
-            background-color: rgba(73, 111, 182, 200);
+            background-color: rgba(88, 129, 196, 0.85);
         }
 
         QTabBar {
@@ -5804,42 +5810,13 @@ def main() -> None:
 
         QPushButton,
         QToolButton,
-        QLineEdit,
-        QTextEdit,
-        QPlainTextEdit,
-        QSpinBox,
-        QDoubleSpinBox,
-        QComboBox,
-        QTreeWidget,
-        QListWidget,
-        QTableWidget,
-        QScrollArea,
-        QFrame[frameShape="0"] {
-            background-color: rgba(28, 33, 42, 217);
-            color: #f4f4f4;
-            border: none;
-            border-radius: 6px;
-        }
-
-        QGroupBox {
-            background-color: transparent;
-            color: #f4f4f4;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 6px;
-            margin-top: 12px;
-        }
-
-        QGroupBox::title {
-            subcontrol-origin: margin;
-            left: 12px;
-            padding: 0 6px;
-        }
-
-        QPushButton,
-        QToolButton,
         QComboBox,
         QSpinBox,
         QDoubleSpinBox {
+            background-color: rgba(56, 82, 122, 0.88);
+            color: #f5f7ff;
+            border: 1px solid rgba(150, 190, 240, 0.45);
+            border-radius: 8px;
             padding: 6px 12px;
         }
 
@@ -5848,19 +5825,62 @@ def main() -> None:
         QComboBox:hover,
         QSpinBox:hover,
         QDoubleSpinBox:hover {
-            background-color: rgba(94, 143, 214, 220);
+            background-color: rgba(109, 154, 224, 0.9);
         }
 
         QPushButton:pressed,
         QToolButton:pressed {
-            background-color: rgba(58, 94, 154, 220);
+            background-color: rgba(71, 109, 176, 0.9);
+        }
+
+        QLineEdit,
+        QTextEdit,
+        QPlainTextEdit,
+        QTreeWidget,
+        QListWidget,
+        QTableWidget,
+        QScrollArea,
+        QFrame[frameShape="0"] {
+            background-color: rgba(34, 47, 69, 0.78);
+            color: #f5f7ff;
+            border: 1px solid rgba(150, 190, 240, 0.35);
+            border-radius: 10px;
         }
 
         QLineEdit,
         QTextEdit,
         QPlainTextEdit {
-            selection-background-color: rgba(94, 143, 214, 180);
-            selection-color: #f4f4f4;
+            selection-background-color: rgba(109, 154, 224, 0.8);
+            selection-color: #f5f7ff;
+        }
+
+        QGroupBox {
+            background-color: rgba(31, 45, 69, 0.4);
+            color: #f5f7ff;
+            border: 1px solid rgba(150, 190, 240, 0.3);
+            border-radius: 10px;
+            margin-top: 16px;
+        }
+
+        QGroupBox[themeRole="armyPanel"] {
+            background-color: rgba(46, 66, 102, 0.45);
+            border: 1px solid rgba(170, 205, 250, 0.45);
+            border-radius: 14px;
+            padding-top: 10px;
+        }
+
+        QGroupBox[themeRole="previewPanel"] {
+            background-color: rgba(30, 60, 104, 0.42);
+            border: 1px solid rgba(170, 205, 250, 0.55);
+            border-radius: 16px;
+            padding: 12px;
+        }
+
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 12px;
+            padding: 0 6px;
+            color: #eef3ff;
         }
 
         QTreeWidget::item,
@@ -5873,12 +5893,12 @@ def main() -> None:
         QTreeWidget::item:selected,
         QListWidget::item:selected,
         QTableWidget::item:selected {
-            background-color: rgba(94, 143, 214, 200);
+            background-color: rgba(109, 154, 224, 0.85);
             color: #ffffff;
         }
 
         QHeaderView::section {
-            background-color: rgba(32, 37, 45, 217);
+            background-color: rgba(40, 56, 86, 0.78);
             color: #f5f5f5;
             border: none;
             padding: 4px 8px;
@@ -5886,7 +5906,7 @@ def main() -> None:
 
         QScrollBar:vertical,
         QScrollBar:horizontal {
-            background: rgba(24, 29, 38, 160);
+            background: rgba(31, 45, 69, 0.6);
             border: none;
             border-radius: 4px;
             width: 14px;
@@ -5894,12 +5914,12 @@ def main() -> None:
         }
 
         QScrollBar::handle {
-            background: rgba(94, 143, 214, 220);
+            background: rgba(109, 154, 224, 0.85);
             border-radius: 4px;
         }
 
         QScrollBar::handle:hover {
-            background: rgba(73, 111, 182, 220);
+            background: rgba(88, 129, 196, 0.85);
         }
 
         QScrollBar::add-line,

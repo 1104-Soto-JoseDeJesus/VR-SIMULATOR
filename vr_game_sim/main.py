@@ -65,7 +65,7 @@ HISTOGRAM_TICK_FONT_SIZE = 3
 # Approximate number of tick marks on each axis
 HISTOGRAM_TICK_COUNT = 8
 # Background color for generated figures (matches Army Preview)
-HISTOGRAM_BG_COLOR = "#353535"
+HISTOGRAM_BG_COLOR = "#2c3d59"
 HISTOGRAM_TEXT_COLOR = "#ffffff"
 # Line width for gridlines inside histogram figures
 HISTOGRAM_GRIDLINE_WIDTH = 0.5

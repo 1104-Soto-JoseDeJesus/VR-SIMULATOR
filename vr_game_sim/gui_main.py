@@ -4492,8 +4492,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.bf_output_tree.setHeaderHidden(True)
         self.bf_output_tree.setFont(bf_fixed_font)
         self.bf_output_tree.setStyleSheet(
-            "QTreeWidget { background-color: #1e1e1e; color: #ffffff; "
-            "border: 1px solid #444444; }"
+            "QTreeWidget { background-color: rgba(58,41,28,0.8); color: #f8f5f0; "
+            "border: 1px solid #c9a66b; "
+            "selection-background-color: rgba(201,166,107,0.35); }"
         )
         self.bf_report_stack.addWidget(self.bf_output_tree)
 
@@ -4501,8 +4502,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.bf_output_text.setReadOnly(True)
         self.bf_output_text.setFont(bf_fixed_font)
         self.bf_output_text.setStyleSheet(
-            "QTextEdit { background-color: #1e1e1e; color: #ffffff; "
-            "border: 1px solid #444444; }"
+            "QTextEdit { background-color: rgba(58,41,28,0.8); color: #f8f5f0; "
+            "border: 1px solid #c9a66b; }"
         )
         self.bf_report_stack.addWidget(self.bf_output_text)
 
@@ -4543,8 +4544,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ar_output_tree.setHeaderHidden(True)
         self.ar_output_tree.setFont(ar_fixed_font)
         self.ar_output_tree.setStyleSheet(
-            "QTreeWidget { background-color: #1e1e1e; color: #ffffff; "
-            "border: 1px solid #444444; }"
+            "QTreeWidget { background-color: rgba(58,41,28,0.8); color: #f8f5f0; "
+            "border: 1px solid #c9a66b; "
+            "selection-background-color: rgba(201,166,107,0.35); }"
         )
         self.ar_report_stack.addWidget(self.ar_output_tree)
 
@@ -4552,8 +4554,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ar_output_text.setReadOnly(True)
         self.ar_output_text.setFont(ar_fixed_font)
         self.ar_output_text.setStyleSheet(
-            "QTextEdit { background-color: #1e1e1e; color: #ffffff; "
-            "border: 1px solid #444444; }"
+            "QTextEdit { background-color: rgba(58,41,28,0.8); color: #f8f5f0; "
+            "border: 1px solid #c9a66b; }"
         )
         self.ar_report_stack.addWidget(self.ar_output_text)
 
@@ -4610,8 +4612,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.output_tree.setHeaderHidden(True)
         self.output_tree.setFont(fixed_font)
         self.output_tree.setStyleSheet(
-            "QTreeWidget { background-color: #1e1e1e; color: #ffffff; "
-            "border: 1px solid #444444; }"
+            "QTreeWidget { background-color: rgba(58,41,28,0.8); color: #f8f5f0; "
+            "border: 1px solid #c9a66b; "
+            "selection-background-color: rgba(201,166,107,0.35); }"
         )
         self.report_stack.addWidget(self.output_tree)
 
@@ -4619,8 +4622,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.output_text.setReadOnly(True)
         self.output_text.setFont(fixed_font)
         self.output_text.setStyleSheet(
-            "QTextEdit { background-color: #1e1e1e; color: #ffffff; "
-            "border: 1px solid #444444; }"
+            "QTextEdit { background-color: rgba(58,41,28,0.8); color: #f8f5f0; "
+            "border: 1px solid #c9a66b; }"
         )
         self.report_stack.addWidget(self.output_text)
 
@@ -5315,8 +5318,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if with_background:
             painter = QtGui.QPainter(final_pix)
             gradient = QtGui.QLinearGradient(0, 0, 0, final_height)
-            gradient.setColorAt(0, QtGui.QColor("#4a4a4a"))
-            gradient.setColorAt(1, QtGui.QColor("#1e1e1e"))
+            gradient.setColorAt(0, QtGui.QColor("#d7bfa5"))
+            gradient.setColorAt(0.5, QtGui.QColor("#8b6a4a"))
+            gradient.setColorAt(1, QtGui.QColor("#4a2c0a"))
             painter.fillRect(final_pix.rect(), gradient)
         else:
             final_pix.fill(QtCore.Qt.GlobalColor.transparent)
@@ -5550,8 +5554,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         painter = QtGui.QPainter(final_pix)
         gradient = QtGui.QLinearGradient(0, 0, 0, final_height)
-        gradient.setColorAt(0, QtGui.QColor("#4a4a4a"))
-        gradient.setColorAt(1, QtGui.QColor("#1e1e1e"))
+        gradient.setColorAt(0, QtGui.QColor("#d7bfa5"))
+        gradient.setColorAt(0.5, QtGui.QColor("#8b6a4a"))
+        gradient.setColorAt(1, QtGui.QColor("#4a2c0a"))
         painter.fillRect(final_pix.rect(), gradient)
 
         x = (final_width - preview_pix.width()) // 2
@@ -5617,8 +5622,9 @@ class MainWindow(QtWidgets.QMainWindow):
             page_width = writer.width()
             page_height = writer.height()
             gradient = QtGui.QLinearGradient(0, 0, 0, page_height)
-            gradient.setColorAt(0, QtGui.QColor("#4a4a4a"))
-            gradient.setColorAt(1, QtGui.QColor("#1e1e1e"))
+            gradient.setColorAt(0, QtGui.QColor("#d7bfa5"))
+            gradient.setColorAt(0.5, QtGui.QColor("#8b6a4a"))
+            gradient.setColorAt(1, QtGui.QColor("#4a2c0a"))
             painter.fillRect(0, 0, page_width, page_height, gradient)
             for item in page.get("items", []):
                 pix = self.get_pdf_item_pixmap(item.get("type", ""))
@@ -5759,7 +5765,9 @@ def main() -> None:
         """
         QMainWindow {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 #4a4a4a, stop:1 #1e1e1e);
+                                        stop:0 #d7bfa5,
+                                        stop:0.5 #8b6a4a,
+                                        stop:1 #4a2c0a);
         }
         """
     )

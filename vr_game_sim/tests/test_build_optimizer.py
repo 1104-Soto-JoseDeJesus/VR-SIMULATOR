@@ -47,6 +47,36 @@ def test_guess_slot_consumes_existing_hero_alignment() -> None:
     assert army_cfg["heroes"][0]["plugin_skill_ids"] == original_second["plugin_skill_ids"]
 
 
+def test_plugin_guess_slots_remove_plugins_from_config() -> None:
+    army_cfg = {
+        "heroes": [
+            {
+                "hero_name_or_preset": "First",
+                "plugin_skill_ids": ["plugin_locked"],
+            },
+            {
+                "hero_name_or_preset": "Second",
+                "plugin_skill_ids": ["plugin_second"],
+            },
+        ],
+        "optimizer_preferred_assignment": [
+            {
+                "slot_index": 0,
+                "hero_name_or_preset": "First",
+                "plugin_skill_ids": ["plugin_locked", "plugin_guess"],
+            }
+        ],
+        "optimizer_guess_plugin_slots": {0: [1]},
+    }
+
+    preferred = build_optimizer._consume_preferred_assignment(army_cfg, None)
+
+    assert preferred is not None
+    assert preferred[0]["plugin_skill_ids"] == ["plugin_locked", "plugin_guess"]
+    assert len(army_cfg["heroes"]) == 2
+    assert army_cfg["heroes"][0]["plugin_skill_ids"] == ["plugin_locked"]
+
+
 def test_recommendation_preserves_existing_plugins(monkeypatch: pytest.MonkeyPatch) -> None:
     setup = [
         {
@@ -204,6 +234,108 @@ def test_block_lists_skip_candidates(monkeypatch: pytest.MonkeyPatch) -> None:
         runs=1,
         num_workers=1,
     )
+
+
+def test_plugin_guess_baseline_runs_first(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = [
+        {
+            "army_name": "Army 1",
+            "unit_type": "pikemen",
+            "tier": 5,
+            "count": 1,
+            "atk_mod": 0,
+            "def_mod": 0,
+            "hp_mod": 0,
+            "heroes": [
+                {
+                    "hero_name_or_preset": "Alpha",
+                    "talent_ids": [],
+                    "base_skill_ids": [],
+                    "plugin_skill_ids": ["plugin_locked"],
+                },
+                {
+                    "hero_name_or_preset": "Beta",
+                    "talent_ids": [],
+                    "base_skill_ids": [],
+                    "plugin_skill_ids": [
+                        "plugin_partner_a",
+                        "plugin_partner_b",
+                    ],
+                },
+            ],
+            "optimizer_preferred_assignment": [
+                {
+                    "slot_index": 0,
+                    "hero_name_or_preset": "Alpha",
+                    "talent_ids": [],
+                    "base_skill_ids": [],
+                    "plugin_skill_ids": ["plugin_locked", "plugin_baseline"],
+                }
+            ],
+            "optimizer_guess_plugin_slots": {0: [1]},
+        },
+        {"army_name": "Army 2", "heroes": []},
+    ]
+
+    monkeypatch.setattr(
+        build_optimizer,
+        "HERO_PRESETS",
+        {
+            "alpha": {"talents": [], "base_skills": [], "plugin_skills": ["plugin_locked"]},
+            "beta": {
+                "talents": [],
+                "base_skills": [],
+                "plugin_skills": ["plugin_partner_a", "plugin_partner_b"],
+            },
+        },
+        raising=False,
+    )
+    monkeypatch.setattr(
+        build_optimizer,
+        "SKILL_REGISTRY_GLOBAL",
+        {
+            "plugin_locked": _plugin_def("plugin_locked"),
+            "plugin_baseline": _plugin_def("plugin_baseline"),
+            "plugin_candidate": _plugin_def("plugin_candidate"),
+            "plugin_partner_a": _plugin_def("plugin_partner_a"),
+            "plugin_partner_b": _plugin_def("plugin_partner_b"),
+        },
+        raising=False,
+    )
+
+    evaluated: list[list[str]] = []
+
+    def fake_run_basic(
+        sim_setup: list[dict[str, Any]],
+        runs: int,
+        *,
+        num_workers: int = 1,
+        progress_callback: Any | None = None,
+        should_stop: Any | None = None,
+    ):
+        hero_plugins = list(sim_setup[0]["heroes"][0]["plugin_skill_ids"])
+        evaluated.append(hero_plugins)
+        for completed in range(1, runs + 1):
+            if progress_callback:
+                progress_callback(completed, runs)
+            result = BasicSimulationResult(0, 0)
+            yield completed, result
+            if should_stop and should_stop(completed, runs, result):
+                break
+
+    monkeypatch.setattr(
+        "vr_game_sim.main.run_simulations_basic_with_cutoff",
+        fake_run_basic,
+        raising=False,
+    )
+
+    build_optimizer.recommend_army1_build(setup, runs=1, num_workers=1)
+
+    assert evaluated, "expected candidates to be evaluated"
+    assert evaluated[0] == ["plugin_locked", "plugin_baseline"]
+    assert any(
+        plugins != ["plugin_locked", "plugin_baseline"] for plugins in evaluated
+    ), "expected optimiser to iterate alternative plugins"
 
 
 def test_plugin_permutations_evaluated_once(monkeypatch: pytest.MonkeyPatch) -> None:

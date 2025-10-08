@@ -113,6 +113,26 @@ def _consume_preferred_assignment(
             except (TypeError, ValueError):
                 continue
 
+    plugin_guess_slots: dict[int, list[int]] = {}
+    config_plugin_guesses = army_cfg.pop("optimizer_guess_plugin_slots", None)
+    if isinstance(config_plugin_guesses, dict):
+        for slot_key, plugin_entries in config_plugin_guesses.items():
+            try:
+                slot_idx = int(slot_key)
+            except (TypeError, ValueError):
+                continue
+            indices: list[int] = []
+            for entry in plugin_entries or []:
+                try:
+                    plugin_idx = int(entry)
+                except (TypeError, ValueError):
+                    continue
+                if plugin_idx < 0:
+                    continue
+                indices.append(plugin_idx)
+            if indices:
+                plugin_guess_slots[slot_idx] = sorted(set(indices))
+
     guess_by_slot: dict[int, dict[str, Any]] = {}
     for entry in raw_preferred:
         slot_idx = entry.get("slot_index")
@@ -137,6 +157,14 @@ def _consume_preferred_assignment(
             heroes.append(None)
             continue
         hero_cfg = remaining_heroes.pop(0) if remaining_heroes else None
+        hero_cfg = _normalise_hero_entry(hero_cfg)
+        if hero_cfg and idx in plugin_guess_slots:
+            trimmed_plugins = [
+                pid
+                for plugin_idx, pid in enumerate(hero_cfg.get("plugin_skill_ids", []))
+                if plugin_idx not in plugin_guess_slots[idx]
+            ]
+            hero_cfg["plugin_skill_ids"] = trimmed_plugins
         heroes.append(hero_cfg)
 
     preferred: list[dict[str, Any]] = []

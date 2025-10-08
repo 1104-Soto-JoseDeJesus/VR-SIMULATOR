@@ -5814,8 +5814,112 @@ def main() -> None:
         QTabBar {
             qproperty-drawBase: 0;
         }
+
+        QPushButton,
+        QToolButton,
+        QLineEdit,
+        QTextEdit,
+        QPlainTextEdit,
+        QSpinBox,
+        QDoubleSpinBox,
+        QComboBox,
+        QTreeWidget,
+        QListWidget,
+        QTableWidget,
+        QScrollArea,
+        QGroupBox,
+        QFrame[frameShape="0"] {
+            background-color: rgba(74, 44, 10, 200);
+            color: #f5ede4;
+            border: 1px solid rgba(255, 240, 220, 120);
+            border-radius: 6px;
+        }
+
+        QPushButton,
+        QToolButton,
+        QComboBox,
+        QSpinBox,
+        QDoubleSpinBox {
+            padding: 6px 12px;
+        }
+
+        QPushButton:hover,
+        QToolButton:hover,
+        QComboBox:hover,
+        QSpinBox:hover,
+        QDoubleSpinBox:hover {
+            background-color: rgba(104, 64, 24, 220);
+            border-color: rgba(255, 240, 220, 180);
+        }
+
+        QPushButton:pressed,
+        QToolButton:pressed {
+            background-color: rgba(54, 34, 8, 220);
+        }
+
+        QLineEdit,
+        QTextEdit,
+        QPlainTextEdit {
+            selection-background-color: rgba(255, 214, 170, 160);
+            selection-color: #40220a;
+        }
+
+        QTreeWidget::item,
+        QListWidget::item,
+        QTableWidget::item {
+            background-color: transparent;
+            color: #f7efe7;
+        }
+
+        QTreeWidget::item:selected,
+        QListWidget::item:selected,
+        QTableWidget::item:selected {
+            background-color: rgba(255, 214, 170, 180);
+            color: #40220a;
+        }
+
+        QHeaderView::section {
+            background-color: rgba(74, 44, 10, 220);
+            color: #f7efe7;
+            border: 1px solid rgba(255, 240, 220, 100);
+            padding: 4px 8px;
+        }
+
+        QScrollBar:vertical,
+        QScrollBar:horizontal {
+            background: rgba(74, 44, 10, 160);
+            border: 1px solid rgba(255, 240, 220, 80);
+            border-radius: 4px;
+            width: 14px;
+            margin: 0px;
+        }
+
+        QScrollBar::handle {
+            background: rgba(150, 110, 70, 200);
+            border-radius: 4px;
+        }
+
+        QScrollBar::handle:hover {
+            background: rgba(180, 140, 90, 220);
+        }
+
+        QScrollBar::add-line,
+        QScrollBar::sub-line {
+            background: none;
+        }
         """
     )
+    palette = app.palette()
+    palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(215, 191, 165))
+    palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(74, 44, 10, 220))
+    palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor(104, 64, 24, 220))
+    palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor(104, 64, 24, 220))
+    palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtGui.QColor(245, 237, 228))
+    palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor(245, 237, 228))
+    palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtGui.QColor(245, 237, 228))
+    palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor(255, 214, 170, 200))
+    palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor(64, 34, 10))
+    app.setPalette(palette)
     window = MainWindow()
     window.resize(800, 600)
     window.show()

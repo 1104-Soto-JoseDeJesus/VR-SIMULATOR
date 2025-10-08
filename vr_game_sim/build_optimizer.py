@@ -90,8 +90,8 @@ def _normalise_hero_entry(hero_cfg: dict[str, Any] | None) -> dict[str, Any] | N
 def _consume_preferred_assignment(
     army_cfg: dict[str, Any],
     preferred_assignment: Iterable[dict[str, Any]] | None,
-) -> list[dict[str, Any]] | None:
-    """Return an ordered preferred candidate list if supplied via config/param."""
+) -> tuple[list[dict[str, Any]] | None, dict[int, list[str]]]:
+    """Return an ordered preferred candidate list and guess plugin mapping."""
 
     raw_preferred: list[dict[str, Any]] = []
     if preferred_assignment:
@@ -102,7 +102,7 @@ def _consume_preferred_assignment(
         raw_preferred.extend(copy.deepcopy(config_preferred))
 
     if not raw_preferred:
-        return None
+        return None, {}
 
     guess_slots: set[int] = set()
     config_guess_slots = army_cfg.pop("optimizer_guess_slots", None)
@@ -168,17 +168,20 @@ def _consume_preferred_assignment(
         heroes.append(hero_cfg)
 
     preferred: list[dict[str, Any]] = []
+    guess_plugins: dict[int, list[str]] = {}
     for idx in range(2):
         base_cfg = heroes[idx]
         guess_cfg = guess_by_slot.get(idx)
         if guess_cfg:
             hero_cfg = _normalise_hero_entry(guess_cfg)
+            if hero_cfg is not None and idx in guess_slots:
+                guess_plugins[idx] = list(hero_cfg.get("plugin_skill_ids", []))
         elif base_cfg is not None and idx not in guess_slots:
             hero_cfg = _normalise_hero_entry(base_cfg)
         else:
             hero_cfg = None
         if hero_cfg is None:
-            return None
+            return None, guess_plugins
         preferred.append(hero_cfg)
 
     # Update ``heroes`` list to exclude guess slots so downstream logic sees them
@@ -194,7 +197,7 @@ def _consume_preferred_assignment(
             remaining.append(normalised)
     army_cfg["heroes"] = remaining
 
-    return preferred
+    return preferred, guess_plugins
 
 
 def _candidate_key(heroes: Iterable[dict[str, Any]]) -> tuple[tuple[str, tuple[str, ...]], ...]:
@@ -263,7 +266,9 @@ def recommend_army1_build(
         raise ValueError("Setup must contain at least one army")
 
     army1_original = setup_data[0]
-    preferred_candidate = _consume_preferred_assignment(army1_original, preferred_assignment)
+    preferred_candidate, guess_plugin_map = _consume_preferred_assignment(
+        army1_original, preferred_assignment
+    )
 
     base_setup = copy.deepcopy(setup_data)
     army1 = base_setup[0]
@@ -318,7 +323,7 @@ def recommend_army1_build(
     plugin_candidates = _collect_plugin_candidates(blocked_plugin_set)
 
     slot_candidates: list[list[dict[str, Any]]] = []
-    for hero in heroes:
+    for slot_idx, hero in enumerate(heroes):
         if hero is not None:
             slot_candidates.append([hero])
             continue
@@ -329,6 +334,11 @@ def recommend_army1_build(
         ]
         if not options:
             raise ValueError("No admissible heroes remain for empty slots")
+        locked_plugins = guess_plugin_map.get(slot_idx)
+        if locked_plugins is not None:
+            locked_copy = list(locked_plugins)
+            for option in options:
+                option["plugin_skill_ids"] = list(locked_copy)
         slot_candidates.append(options)
 
     unique_candidates: list[tuple[dict[str, Any], ...]] = []
@@ -355,7 +365,13 @@ def recommend_army1_build(
 
         plugin_option_sets: list[list[list[str]]] = []
         assignment_invalid = False
-        for hero_cfg in hero_assignment:
+        for slot_idx, hero_cfg in enumerate(hero_assignment):
+            locked_plugins = guess_plugin_map.get(slot_idx)
+            if locked_plugins is not None:
+                plugins = list(locked_plugins)
+                hero_cfg["plugin_skill_ids"] = list(locked_plugins)
+                plugin_option_sets.append([plugins])
+                continue
             seen_plugin_ids: set[str] = set()
             plugins: list[str] = []
             for pid in hero_cfg.get("plugin_skill_ids", []):

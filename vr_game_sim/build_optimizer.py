@@ -284,7 +284,7 @@ def recommend_army1_build(
     if not unique_candidates:
         raise ValueError("No valid hero/plugin combinations found for recommendation")
 
-    from .main import run_additional_simulations
+    from .main import run_simulations_basic_with_cutoff
 
     best_setup: list[dict[str, Any]] | None = None
     best_win_rate = -1.0
@@ -295,16 +295,35 @@ def recommend_army1_build(
         candidate_setup = copy.deepcopy(base_setup)
         candidate_setup[0]["heroes"] = [copy.deepcopy(hero_cfg) for hero_cfg in hero_tuple]
 
-        win_rate, _ = run_additional_simulations(
+        completed_runs = 0
+        wins_army1 = 0
+
+        def _should_stop(
+            completed: int, total: int, result
+        ) -> bool:
+            if total <= 0:
+                return False
+            remaining = total - completed
+            wins_so_far = result.wins_army1
+            best_case = (wins_so_far + remaining) / total
+            return best_case <= best_win_rate
+
+        for completed_runs, aggregate_result in run_simulations_basic_with_cutoff(
             candidate_setup,
-            runs=runs,
-            verbose=False,
-            generate_histograms=False,
+            runs,
             num_workers=num_workers,
-        )
+            progress_callback=None,
+            should_stop=_should_stop,
+        ):
+            wins_army1 = aggregate_result.wins_army1
 
         if progress_callback:
             progress_callback(idx, len(unique_candidates))
+
+        win_rate = wins_army1 / runs if runs else 0.0
+
+        if completed_runs < runs:
+            continue
 
         if win_rate > best_win_rate:
             best_win_rate = win_rate

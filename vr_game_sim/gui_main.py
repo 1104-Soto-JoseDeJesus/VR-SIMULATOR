@@ -4357,6 +4357,15 @@ class MainWindow(QtWidgets.QMainWindow):
     def _init_tabs(self) -> QtWidgets.QVBoxLayout:
         """Create the central widget and all tabs."""
         central = QtWidgets.QWidget()
+        central.setObjectName("mainCentralWidget")
+        central.setAttribute(QtCore.Qt.WidgetAttribute.WA_StyledBackground, True)
+        central.setStyleSheet(
+            """
+            #mainCentralWidget {
+                background: transparent;
+            }
+            """
+        )
         self.setCentralWidget(central)
         main_layout = QtWidgets.QVBoxLayout(central)
 
@@ -5768,6 +5777,42 @@ def main() -> None:
                                         stop:0 #d7bfa5,
                                         stop:0.5 #8b6a4a,
                                         stop:1 #4a2c0a);
+        }
+
+        #mainCentralWidget,
+        QTabWidget::pane,
+        QTabWidget QWidget {
+            background: transparent;
+        }
+
+        QTabWidget::pane {
+            border: 1px solid rgba(255, 255, 255, 80);
+            border-radius: 8px;
+            margin: 8px;
+        }
+
+        QTabBar::tab {
+            background-color: rgba(0, 0, 0, 40);
+            color: #f5ede4;
+            padding: 6px 14px;
+            border: 1px solid rgba(255, 255, 255, 70);
+            border-bottom: none;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            margin-right: 4px;
+        }
+
+        QTabBar::tab:selected {
+            background-color: rgba(0, 0, 0, 110);
+            border-color: rgba(255, 255, 255, 160);
+        }
+
+        QTabBar::tab:hover {
+            background-color: rgba(0, 0, 0, 80);
+        }
+
+        QTabBar {
+            qproperty-drawBase: 0;
         }
         """
     )

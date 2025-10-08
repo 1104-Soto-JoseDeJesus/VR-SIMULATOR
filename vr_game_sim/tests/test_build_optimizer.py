@@ -64,16 +64,22 @@ def test_recommendation_preserves_existing_plugins(monkeypatch: pytest.MonkeyPat
         *,
         num_workers: int = 1,
         progress_callback: Any | None = None,
-    ) -> BasicSimulationResult:
+        should_stop: Any | None = None,
+    ):
         hero = sim_setup[0]["heroes"][0]
         assert hero["plugin_skill_ids"][0] == "plugin_existing"
         calls.append(copy.deepcopy(hero["plugin_skill_ids"]))
-        if progress_callback:
-            progress_callback(runs, runs)
-        return BasicSimulationResult(0, 0)
+        for completed in range(1, runs + 1):
+            if progress_callback:
+                progress_callback(completed, runs)
+            result = BasicSimulationResult(0, 0)
+            stop = should_stop(completed, runs, result) if should_stop else False
+            yield completed, result
+            if stop:
+                break
 
     monkeypatch.setattr(
-        "vr_game_sim.main.run_simulations_basic",
+        "vr_game_sim.main.run_simulations_basic_with_cutoff",
         fake_run_basic,
         raising=False,
     )
@@ -92,7 +98,14 @@ def test_block_lists_skip_candidates(monkeypatch: pytest.MonkeyPatch) -> None:
             "atk_mod": 0,
             "def_mod": 0,
             "hp_mod": 0,
-            "heroes": [],
+            "heroes": [
+                {
+                    "hero_name_or_preset": "Existing",
+                    "talent_ids": [],
+                    "base_skill_ids": [],
+                    "plugin_skill_ids": ["plugin_existing_a", "plugin_existing_b"],
+                }
+            ],
         },
         {"army_name": "Army 2", "heroes": []},
     ]
@@ -127,18 +140,24 @@ def test_block_lists_skip_candidates(monkeypatch: pytest.MonkeyPatch) -> None:
         *,
         num_workers: int = 1,
         progress_callback: Any | None = None,
-    ) -> BasicSimulationResult:
+        should_stop: Any | None = None,
+    ):
         heroes = sim_setup[0]["heroes"]
         assert all(hero["hero_name_or_preset"].lower() != "alpha" for hero in heroes)
         assert all(
             "plugin_blocked" not in hero.get("plugin_skill_ids", []) for hero in heroes
         )
-        if progress_callback:
-            progress_callback(runs, runs)
-        return BasicSimulationResult(runs, 0)
+        for completed in range(1, runs + 1):
+            if progress_callback:
+                progress_callback(completed, runs)
+            result = BasicSimulationResult(runs, 0)
+            stop = should_stop(completed, runs, result) if should_stop else False
+            yield completed, result
+            if stop:
+                break
 
     monkeypatch.setattr(
-        "vr_game_sim.main.run_simulations_basic",
+        "vr_game_sim.main.run_simulations_basic_with_cutoff",
         fake_run_basic,
         raising=False,
     )
@@ -208,15 +227,21 @@ def test_plugin_permutations_evaluated_once(monkeypatch: pytest.MonkeyPatch) -> 
         *,
         num_workers: int = 1,
         progress_callback: Any | None = None,
-    ) -> BasicSimulationResult:
+        should_stop: Any | None = None,
+    ):
         nonlocal evaluations
         evaluations += 1
-        if progress_callback:
-            progress_callback(runs, runs)
-        return BasicSimulationResult(evaluations, 0)
+        for completed in range(1, runs + 1):
+            if progress_callback:
+                progress_callback(completed, runs)
+            result = BasicSimulationResult(evaluations, 0)
+            stop = should_stop(completed, runs, result) if should_stop else False
+            yield completed, result
+            if stop:
+                break
 
     monkeypatch.setattr(
-        "vr_game_sim.main.run_simulations_basic",
+        "vr_game_sim.main.run_simulations_basic_with_cutoff",
         fake_run_basic,
         raising=False,
     )
@@ -333,19 +358,141 @@ def test_recommendation_uses_basic_helper(monkeypatch: pytest.MonkeyPatch) -> No
         *,
         num_workers: int = 1,
         progress_callback: Any | None = None,
-    ) -> BasicSimulationResult:
+        should_stop: Any | None = None,
+    ):
         nonlocal called
         called += 1
         assert sim_setup[0]["heroes"], "expected hero configuration"
-        if progress_callback:
-            progress_callback(runs, runs)
-        return BasicSimulationResult(runs, 0)
+        for completed in range(1, runs + 1):
+            if progress_callback:
+                progress_callback(completed, runs)
+            result = BasicSimulationResult(runs, 0)
+            stop = should_stop(completed, runs, result) if should_stop else False
+            yield completed, result
+            if stop:
+                break
 
     def fail_if_called(*_: Any, **__: Any) -> None:
-        raise AssertionError("fast helper should handle simulations")
+        raise AssertionError("slow helper should not run")
 
-    monkeypatch.setattr("vr_game_sim.main.run_simulations_basic", fake_basic, raising=False)
-    monkeypatch.setattr("vr_game_sim.main._run_single_battle", fail_if_called, raising=False)
+    monkeypatch.setattr("vr_game_sim.main.run_simulations_basic_with_cutoff", fake_basic, raising=False)
+    monkeypatch.setattr("vr_game_sim.main.run_additional_simulations", fail_if_called, raising=False)
 
     build_optimizer.recommend_army1_build(setup, runs=2, num_workers=1)
     assert called > 0
+
+
+def test_candidate_with_low_best_case_stops_early(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    setup = [
+        {
+            "army_name": "Army 1",
+            "unit_type": "pikemen",
+            "tier": 5,
+            "count": 1,
+            "atk_mod": 0,
+            "def_mod": 0,
+            "hp_mod": 0,
+            "heroes": [
+                {
+                    "hero_name_or_preset": "Existing",
+                    "talent_ids": [],
+                    "base_skill_ids": [],
+                    "plugin_skill_ids": ["plugin_existing_a", "plugin_existing_b"],
+                }
+            ],
+        },
+        {"army_name": "Army 2", "heroes": []},
+    ]
+
+    monkeypatch.setattr(
+        build_optimizer,
+        "HERO_PRESETS",
+        {
+            "existing": {
+                "talents": [],
+                "base_skills": [],
+                "plugin_skills": ["plugin_existing_a", "plugin_existing_b"],
+            },
+            "alpha": {
+                "talents": [],
+                "base_skills": [],
+                "plugin_skills": ["plugin_a1", "plugin_a2"],
+            },
+            "beta": {
+                "talents": [],
+                "base_skills": [],
+                "plugin_skills": ["plugin_b1", "plugin_b2"],
+            },
+        },
+        raising=False,
+    )
+    monkeypatch.setattr(
+        build_optimizer,
+        "SKILL_REGISTRY_GLOBAL",
+        {
+            "plugin_existing_a": _plugin_def("plugin_existing_a"),
+            "plugin_existing_b": _plugin_def("plugin_existing_b"),
+            "plugin_a1": _plugin_def("plugin_a1"),
+            "plugin_a2": _plugin_def("plugin_a2"),
+            "plugin_b1": _plugin_def("plugin_b1"),
+            "plugin_b2": _plugin_def("plugin_b2"),
+        },
+        raising=False,
+    )
+
+    outcomes = {
+        "Alpha": [1, 1, 0, 1],  # 3 wins from 4 simulations -> 0.75 win rate
+        "Beta": [2, 2, 2, 2],  # Always loses so best case never exceeds incumbent
+    }
+    history: dict[str, list[int]] = {}
+
+    def fake_helper(
+        sim_setup: list[dict[str, Any]],
+        runs: int,
+        *,
+        num_workers: int = 1,
+        progress_callback: Any | None = None,
+        should_stop: Any | None = None,
+    ):
+        hero_name = sim_setup[0]["heroes"][1]["hero_name_or_preset"]
+        outcome_sequence = outcomes[hero_name]
+        assert runs == len(outcome_sequence)
+        wins = 0
+        draws = 0
+        hero_history = history.setdefault(hero_name, [])
+        for completed, winner in enumerate(outcome_sequence, start=1):
+            if winner == 1:
+                wins += 1
+            elif winner == 0:
+                draws += 1
+            result = BasicSimulationResult(wins, draws)
+            hero_history.append(completed)
+            if progress_callback:
+                progress_callback(completed, runs)
+            stop = should_stop(completed, runs, result) if should_stop else False
+            yield completed, result
+            if stop:
+                break
+
+    monkeypatch.setattr(
+        "vr_game_sim.main.run_simulations_basic_with_cutoff",
+        fake_helper,
+        raising=False,
+    )
+
+    candidate_progress: list[tuple[int, int]] = []
+
+    best_setup, info = build_optimizer.recommend_army1_build(
+        setup,
+        runs=4,
+        num_workers=1,
+        progress_callback=lambda completed, total: candidate_progress.append((completed, total)),
+    )
+
+    assert best_setup[0]["heroes"][1]["hero_name_or_preset"] == "Alpha"
+    assert info["win_rate"] == pytest.approx(0.75)
+    assert history["Alpha"] == [1, 2, 3, 4]
+    assert history["Beta"] == [1]
+    assert candidate_progress == [(1, 2), (2, 2)]

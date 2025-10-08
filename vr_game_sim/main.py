@@ -5,11 +5,11 @@ import copy
 import os
 import argparse
 import sys
-from typing import List, Optional, Dict, Any, Callable, NamedTuple
+from typing import List, Optional, Dict, Any, Callable, NamedTuple, Generator
 import contextlib
 import io
 import math
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing
 import matplotlib
 from matplotlib.ticker import MaxNLocator
@@ -389,6 +389,101 @@ def run_simulations_basic(
                 progress_callback(completed, runs)
 
     return BasicSimulationResult(wins_army1, draws)
+
+
+def run_simulations_basic_with_cutoff(
+    setup_data: List[Dict[str, Any]],
+    runs: int,
+    *,
+    num_workers: int = 1,
+    progress_callback: Optional[Callable[[int, int], None]] = None,
+    should_stop: Optional[
+        Callable[[int, int, BasicSimulationResult], bool]
+    ] = None,
+) -> Generator[tuple[int, BasicSimulationResult], None, None]:
+    """Yield incremental results for ``runs`` simulations with optional cut-off.
+
+    Parameters
+    ----------
+    setup_data:
+        Serialized army configuration.
+    runs:
+        Number of simulations to execute.
+    num_workers:
+        Process count used when distributing simulations across workers.
+    progress_callback:
+        Optional callable notified as ``(completed, total)`` after each run.
+    should_stop:
+        Optional predicate invoked with ``(completed, total, result)`` after
+        each update. When it returns ``True`` the helper stops scheduling
+        additional work and cancels any pending futures.
+
+    Yields
+    ------
+    tuple[int, BasicSimulationResult]
+        ``(completed_runs, aggregate_result)`` pairs reflecting progress.
+    """
+
+    if runs <= 0:
+        if progress_callback:
+            progress_callback(0, runs)
+        return
+
+    dynamic_settings_payload = dict(dynamic_unrevivable_config.get_settings())
+    seeds = [random.randrange(1 << 30) for _ in range(runs)]
+
+    wins_army1 = 0
+    draws = 0
+
+    def _notify(completed: int) -> tuple[BasicSimulationResult, bool]:
+        nonlocal wins_army1, draws
+        result = BasicSimulationResult(wins_army1, draws)
+        if progress_callback:
+            progress_callback(completed, runs)
+        stop = should_stop(completed, runs, result) if should_stop else False
+        return result, stop
+
+    if num_workers > 1:
+        executor = ProcessPoolExecutor(
+            max_workers=num_workers, mp_context=multiprocessing.get_context("spawn")
+        )
+        futures = [
+            executor.submit(
+                _run_single_battle,
+                setup_data,
+                seed,
+                dynamic_settings_payload,
+            )
+            for seed in seeds
+        ]
+        stop_requested = False
+        try:
+            for completed, future in enumerate(as_completed(futures), start=1):
+                own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev = future.result()
+                if winner == 1:
+                    wins_army1 += 1
+                elif winner == 0:
+                    draws += 1
+                aggregate, should_cancel = _notify(completed)
+                yield completed, aggregate
+                if should_cancel:
+                    stop_requested = True
+                    break
+        finally:
+            executor.shutdown(cancel_futures=stop_requested)
+    else:
+        for completed, seed_val in enumerate(seeds, start=1):
+            _, _, _, _, winner, _, _ = _run_single_battle(
+                setup_data, seed=seed_val, dynamic_settings=dynamic_settings_payload
+            )
+            if winner == 1:
+                wins_army1 += 1
+            elif winner == 0:
+                draws += 1
+            aggregate, should_cancel = _notify(completed)
+            yield completed, aggregate
+            if should_cancel:
+                break
 
 
 def run_additional_simulations(

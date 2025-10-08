@@ -4497,23 +4497,26 @@ class MainWindow(QtWidgets.QMainWindow):
             QtGui.QFontDatabase.SystemFont.FixedFont
         )
 
+        report_tree_style = (
+            "QTreeWidget { background-color: rgba(32,37,45,0.88); color: #e8edf8; "
+            "border: 1px solid rgba(120, 160, 210, 0.35); "
+            "selection-background-color: rgba(94, 143, 214, 0.45); }"
+        )
+        report_text_style = (
+            "QTextEdit { background-color: rgba(32,37,45,0.88); color: #e8edf8; "
+            "border: 1px solid rgba(120, 160, 210, 0.35); }"
+        )
+
         self.bf_output_tree = QtWidgets.QTreeWidget()
         self.bf_output_tree.setHeaderHidden(True)
         self.bf_output_tree.setFont(bf_fixed_font)
-        self.bf_output_tree.setStyleSheet(
-            "QTreeWidget { background-color: rgba(58,41,28,0.8); color: #f8f5f0; "
-            "border: 1px solid #c9a66b; "
-            "selection-background-color: rgba(201,166,107,0.35); }"
-        )
+        self.bf_output_tree.setStyleSheet(report_tree_style)
         self.bf_report_stack.addWidget(self.bf_output_tree)
 
         self.bf_output_text = QtWidgets.QTextEdit()
         self.bf_output_text.setReadOnly(True)
         self.bf_output_text.setFont(bf_fixed_font)
-        self.bf_output_text.setStyleSheet(
-            "QTextEdit { background-color: rgba(58,41,28,0.8); color: #f8f5f0; "
-            "border: 1px solid #c9a66b; }"
-        )
+        self.bf_output_text.setStyleSheet(report_text_style)
         self.bf_report_stack.addWidget(self.bf_output_text)
 
         bf_layout.addWidget(self.bf_report_stack)
@@ -4552,20 +4555,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ar_output_tree = QtWidgets.QTreeWidget()
         self.ar_output_tree.setHeaderHidden(True)
         self.ar_output_tree.setFont(ar_fixed_font)
-        self.ar_output_tree.setStyleSheet(
-            "QTreeWidget { background-color: rgba(58,41,28,0.8); color: #f8f5f0; "
-            "border: 1px solid #c9a66b; "
-            "selection-background-color: rgba(201,166,107,0.35); }"
-        )
+        self.ar_output_tree.setStyleSheet(report_tree_style)
         self.ar_report_stack.addWidget(self.ar_output_tree)
 
         self.ar_output_text = QtWidgets.QTextEdit()
         self.ar_output_text.setReadOnly(True)
         self.ar_output_text.setFont(ar_fixed_font)
-        self.ar_output_text.setStyleSheet(
-            "QTextEdit { background-color: rgba(58,41,28,0.8); color: #f8f5f0; "
-            "border: 1px solid #c9a66b; }"
-        )
+        self.ar_output_text.setStyleSheet(report_text_style)
         self.ar_report_stack.addWidget(self.ar_output_text)
 
         ar_layout.addWidget(self.ar_report_stack)
@@ -4620,20 +4616,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.output_tree = QtWidgets.QTreeWidget()
         self.output_tree.setHeaderHidden(True)
         self.output_tree.setFont(fixed_font)
-        self.output_tree.setStyleSheet(
-            "QTreeWidget { background-color: rgba(58,41,28,0.8); color: #f8f5f0; "
-            "border: 1px solid #c9a66b; "
-            "selection-background-color: rgba(201,166,107,0.35); }"
-        )
+        self.output_tree.setStyleSheet(report_tree_style)
         self.report_stack.addWidget(self.output_tree)
 
         self.output_text = QtWidgets.QTextEdit()
         self.output_text.setReadOnly(True)
         self.output_text.setFont(fixed_font)
-        self.output_text.setStyleSheet(
-            "QTextEdit { background-color: rgba(58,41,28,0.8); color: #f8f5f0; "
-            "border: 1px solid #c9a66b; }"
-        )
+        self.output_text.setStyleSheet(report_text_style)
         self.report_stack.addWidget(self.output_text)
 
         report_layout.addWidget(self.report_stack)
@@ -5774,9 +5763,9 @@ def main() -> None:
         """
         QMainWindow {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 #d8d8d8,
-                                        stop:0.5 #888888,
-                                        stop:1 #8b0a1a);
+                                        stop:0 #dde3f1,
+                                        stop:0.45 #6c7d9c,
+                                        stop:1 #2c3444);
         }
 
         #mainCentralWidget,
@@ -5791,7 +5780,7 @@ def main() -> None:
         }
 
         QTabBar::tab {
-            background-color: rgba(32, 32, 36, 150);
+            background-color: rgba(24, 29, 38, 170);
             color: #f4f4f4;
             padding: 6px 14px;
             border: none;
@@ -5802,11 +5791,11 @@ def main() -> None:
         }
 
         QTabBar::tab:selected {
-            background-color: rgba(139, 0, 26, 220);
+            background-color: rgba(94, 143, 214, 230);
         }
 
         QTabBar::tab:hover {
-            background-color: rgba(70, 70, 76, 200);
+            background-color: rgba(73, 111, 182, 200);
         }
 
         QTabBar {
@@ -5825,12 +5814,25 @@ def main() -> None:
         QListWidget,
         QTableWidget,
         QScrollArea,
-        QGroupBox,
         QFrame[frameShape="0"] {
-            background-color: rgba(35, 35, 40, 210);
+            background-color: rgba(28, 33, 42, 217);
             color: #f4f4f4;
             border: none;
             border-radius: 6px;
+        }
+
+        QGroupBox {
+            background-color: transparent;
+            color: #f4f4f4;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            margin-top: 12px;
+        }
+
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 12px;
+            padding: 0 6px;
         }
 
         QPushButton,
@@ -5846,18 +5848,18 @@ def main() -> None:
         QComboBox:hover,
         QSpinBox:hover,
         QDoubleSpinBox:hover {
-            background-color: rgba(139, 0, 26, 220);
+            background-color: rgba(94, 143, 214, 220);
         }
 
         QPushButton:pressed,
         QToolButton:pressed {
-            background-color: rgba(90, 0, 18, 220);
+            background-color: rgba(58, 94, 154, 220);
         }
 
         QLineEdit,
         QTextEdit,
         QPlainTextEdit {
-            selection-background-color: rgba(139, 0, 26, 160);
+            selection-background-color: rgba(94, 143, 214, 180);
             selection-color: #f4f4f4;
         }
 
@@ -5871,12 +5873,12 @@ def main() -> None:
         QTreeWidget::item:selected,
         QListWidget::item:selected,
         QTableWidget::item:selected {
-            background-color: rgba(139, 0, 26, 180);
+            background-color: rgba(94, 143, 214, 200);
             color: #ffffff;
         }
 
         QHeaderView::section {
-            background-color: rgba(35, 35, 40, 220);
+            background-color: rgba(32, 37, 45, 217);
             color: #f5f5f5;
             border: none;
             padding: 4px 8px;
@@ -5884,7 +5886,7 @@ def main() -> None:
 
         QScrollBar:vertical,
         QScrollBar:horizontal {
-            background: rgba(30, 30, 34, 160);
+            background: rgba(24, 29, 38, 160);
             border: none;
             border-radius: 4px;
             width: 14px;
@@ -5892,12 +5894,12 @@ def main() -> None:
         }
 
         QScrollBar::handle {
-            background: rgba(139, 0, 26, 200);
+            background: rgba(94, 143, 214, 220);
             border-radius: 4px;
         }
 
         QScrollBar::handle:hover {
-            background: rgba(180, 30, 50, 220);
+            background: rgba(73, 111, 182, 220);
         }
 
         QScrollBar::add-line,
@@ -5907,14 +5909,14 @@ def main() -> None:
         """
     )
     palette = app.palette()
-    palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(216, 216, 216))
-    palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(35, 35, 40, 220))
-    palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor(60, 60, 66, 220))
-    palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor(139, 0, 26, 220))
-    palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtGui.QColor(244, 244, 244))
-    palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor(244, 244, 244))
-    palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtGui.QColor(244, 244, 244))
-    palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor(139, 0, 26, 200))
+    palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(210, 216, 226))
+    palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(28, 33, 42, 217))
+    palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor(45, 52, 63, 217))
+    palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor(70, 104, 170))
+    palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtGui.QColor(236, 241, 255))
+    palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor(236, 241, 255))
+    palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtGui.QColor(236, 241, 255))
+    palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor(94, 143, 214))
     palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor(255, 255, 255))
     app.setPalette(palette)
     window = MainWindow()

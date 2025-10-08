@@ -1131,12 +1131,16 @@ if __name__ == "__main__":
             sys.exit(1)
         if args.recommend_army1:
             try:
+                preferred_assignment = copy.deepcopy(
+                    loaded[0].get("optimizer_preferred_assignment") if loaded else None
+                )
                 loaded, recommendation = recommend_army1_build(
                     loaded,
                     blocked_heroes=blocked_heroes,
                     blocked_plugins=blocked_plugins,
                     runs=recommend_runs,
                     num_workers=recommend_workers,
+                    preferred_assignment=preferred_assignment,
                 )
             except ValueError as exc:
                 print(f"Recommendation error: {exc}")
@@ -1256,12 +1260,18 @@ if __name__ == "__main__":
         setup_snapshot = get_setup_data_for_saving(armies_to_simulate)
         if args.recommend_army1:
             try:
+                preferred_assignment = copy.deepcopy(
+                    setup_snapshot[0].get("optimizer_preferred_assignment")
+                    if setup_snapshot
+                    else None
+                )
                 setup_snapshot, recommendation = recommend_army1_build(
                     setup_snapshot,
                     blocked_heroes=blocked_heroes,
                     blocked_plugins=blocked_plugins,
                     runs=recommend_runs,
                     num_workers=recommend_workers,
+                    preferred_assignment=preferred_assignment,
                 )
             except ValueError as exc:
                 print(f"Recommendation error: {exc}")

@@ -1889,6 +1889,16 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.edit_btn1.clicked.connect(lambda: self.edit_hero(1))
         self.edit_btn2.clicked.connect(lambda: self.edit_hero(2))
 
+        self.hero1_guess_check = QtWidgets.QCheckBox("Guess")
+        self.hero2_guess_check = QtWidgets.QCheckBox("Guess")
+        for chk in (self.hero1_guess_check, self.hero2_guess_check):
+            chk.setToolTip(
+                "Evaluate this hero/plugins first but allow the optimiser to"
+                " search alternatives."
+            )
+            chk.setVisible(self.index == 1)
+            chk.setChecked(False)
+
         # Store fully customised hero definitions per slot.  Skill parameter
         # overrides for preset heroes are tracked separately in
         # ``hero_overrides`` so presets can be tweaked without becoming
@@ -1937,7 +1947,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.hero1_info.setWordWrap(True)
         layout.addWidget(self.hero1_combo, row, 1)
         layout.addWidget(self.edit_btn1, row, 2)
-        layout.addWidget(self.hero1_info, row, 3)
+        layout.addWidget(self.hero1_guess_check, row, 3)
+        layout.addWidget(self.hero1_info, row, 4)
         row += 1
 
         layout.addWidget(QtWidgets.QLabel("Hero 2:"), row, 0)
@@ -1945,7 +1956,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.hero2_info.setWordWrap(True)
         layout.addWidget(self.hero2_combo, row, 1)
         layout.addWidget(self.edit_btn2, row, 2)
-        layout.addWidget(self.hero2_info, row, 3)
+        layout.addWidget(self.hero2_guess_check, row, 3)
+        layout.addWidget(self.hero2_info, row, 4)
         row += 1
 
         # --- Feature buttons ---
@@ -2245,6 +2257,19 @@ class ArmyFrame(QtWidgets.QGroupBox):
         )
 
         hero_combos = [self.hero1_combo, self.hero2_combo]
+        if self.index == 1:
+            guess_slots_cfg = cfg.get("optimizer_guess_slots") or []
+            guess_slots: set[int] = set()
+            for slot in guess_slots_cfg:
+                try:
+                    guess_slots.add(int(slot))
+                except (TypeError, ValueError):
+                    continue
+            self.hero1_guess_check.setChecked(0 in guess_slots)
+            self.hero2_guess_check.setChecked(1 in guess_slots)
+        else:
+            self.hero1_guess_check.setChecked(False)
+            self.hero2_guess_check.setChecked(False)
         for idx, combo in enumerate(hero_combos, start=1):
             combo.setCurrentText("None")
             self.custom_heroes[idx] = None
@@ -2285,30 +2310,67 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self._set_gem_skills(cfg.get("gem_skills"))
         self._set_bonus_stats(cfg.get("bonus_stats"))
 
-    def build_config(self) -> dict:
-        heroes_cfg = []
-        for idx, combo in enumerate([self.hero1_combo, self.hero2_combo], start=1):
-            hero_name = combo.currentText()
-            if hero_name and hero_name not in {"None", "Custom"}:
-                overrides = self.hero_overrides.get(idx) or {}
-                custom_cfg = self.custom_heroes.get(idx)
-                if custom_cfg and custom_cfg.get("hero_name_or_preset") == hero_name:
-                    cfg = custom_cfg.copy()
+    def _build_hero_config_for_slot(self, slot: int) -> dict | None:
+        combo = self.hero1_combo if slot == 1 else self.hero2_combo
+        hero_name = combo.currentText()
+        if not hero_name or hero_name in {"None", "Custom"}:
+            return None
+        overrides = copy.deepcopy(self.hero_overrides.get(slot) or {})
+        custom_cfg = self.custom_heroes.get(slot)
+        if custom_cfg and custom_cfg.get("hero_name_or_preset") == hero_name:
+            cfg = copy.deepcopy(custom_cfg)
+        else:
+            preset = HERO_PRESETS.get(hero_name.lower())
+            if not preset:
+                return None
+            cfg = {
+                "hero_name_or_preset": hero_name,
+                "talent_ids": list(preset.get("talents", [])),
+                "base_skill_ids": list(preset.get("base_skills", [])),
+                "plugin_skill_ids": list(preset.get("plugin_skills", [])),
+            }
+        if overrides:
+            cfg["skill_overrides"] = overrides
+
+        seen: set[str] = set()
+        plugins: list[str] = []
+        for pid in cfg.get("plugin_skill_ids", []):
+            if not pid:
+                continue
+            pid_lower = str(pid).lower()
+            if pid_lower in seen:
+                continue
+            seen.add(pid_lower)
+            plugins.append(pid)
+        cfg["plugin_skill_ids"] = plugins[:2]
+        return cfg
+
+    def build_config(self, *, for_optimizer: bool = False) -> dict:
+        heroes_cfg: list[dict[str, Any]] = []
+        preferred_payload: list[dict[str, Any]] = []
+        guess_slots: list[int] = []
+
+        guess_checks = [self.hero1_guess_check, self.hero2_guess_check]
+        for idx in range(1, 3):
+            cfg = self._build_hero_config_for_slot(idx)
+            is_guess = (
+                self.index == 1
+                and for_optimizer
+                and bool(guess_checks[idx - 1].isChecked())
+                and cfg is not None
+            )
+            if cfg:
+                cfg_copy = copy.deepcopy(cfg)
+                if is_guess:
+                    guess_entry = copy.deepcopy(cfg)
+                    guess_entry["slot_index"] = idx - 1
+                    preferred_payload.append(guess_entry)
+                    if len(cfg_copy.get("plugin_skill_ids", [])) >= 2:
+                        guess_slots.append(idx - 1)
+                    else:
+                        heroes_cfg.append(cfg_copy)
                 else:
-                    preset = HERO_PRESETS.get(hero_name.lower())
-                    if not preset:
-                        continue
-                    cfg = {
-                        "hero_name_or_preset": hero_name,
-                        "talent_ids": preset.get("talents", []),
-                        "base_skill_ids": preset.get("base_skills", []),
-                        "plugin_skill_ids": preset.get("plugin_skills", []),
-                    }
-                if overrides:
-                    # Overrides tweak preset talents/skills without requiring a
-                    # separate custom hero entry.
-                    cfg["skill_overrides"] = overrides
-                heroes_cfg.append(cfg)
+                    heroes_cfg.append(cfg_copy)
 
         config = {
             "army_name": self.name_edit.text() or f"Army {self.index}",
@@ -2332,6 +2394,12 @@ class ArmyFrame(QtWidgets.QGroupBox):
         }
         if gem_skills_serialized:
             config["gem_skills"] = gem_skills_serialized
+
+        if for_optimizer and self.index == 1:
+            if preferred_payload:
+                config["optimizer_preferred_assignment"] = preferred_payload
+            if guess_slots:
+                config["optimizer_guess_slots"] = guess_slots
 
         return config
 
@@ -3376,6 +3444,9 @@ class RecommendationWorker(QtCore.QThread):
                 if self._cancelled.is_set():
                     raise RuntimeError("cancelled")
 
+            preferred_assignment = copy.deepcopy(
+                self.setup_data[0].get("optimizer_preferred_assignment")
+            )
             setup, info = recommend_army1_build(
                 self.setup_data,
                 blocked_heroes=self.blocked_heroes,
@@ -3384,6 +3455,7 @@ class RecommendationWorker(QtCore.QThread):
                 num_workers=self.num_workers,
                 progress_callback=progress_cb,
                 cancel_event=self._cancelled,
+                preferred_assignment=preferred_assignment,
             )
             if self._cancelled.is_set():
                 raise RuntimeError("cancelled")
@@ -5855,7 +5927,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.recommend_btn.setEnabled(False)
             return
 
-        setup_data = [self.army1_frame.build_config(), self.army2_frame.build_config()]
+        setup_data = [
+            self.army1_frame.build_config(for_optimizer=True),
+            self.army2_frame.build_config(),
+        ]
         dialog = RecommendationDialog(
             self,
             self._last_recommend_block_heroes,

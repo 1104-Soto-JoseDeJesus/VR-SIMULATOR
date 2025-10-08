@@ -67,6 +67,116 @@ def _collect_plugin_candidates(blocked_plugins: set[str]) -> list[str]:
     return candidates
 
 
+def _normalise_hero_entry(hero_cfg: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Return a shallow copy of ``hero_cfg`` with plugins deduplicated/trimmed."""
+
+    if not hero_cfg:
+        return None
+    hero_copy = copy.deepcopy(hero_cfg)
+    seen_plugin_ids: set[str] = set()
+    plugins: list[str] = []
+    for pid in hero_copy.get("plugin_skill_ids", []):
+        if not pid:
+            continue
+        pid_lower = pid.lower()
+        if pid_lower in seen_plugin_ids:
+            continue
+        seen_plugin_ids.add(pid_lower)
+        plugins.append(pid)
+    hero_copy["plugin_skill_ids"] = plugins[:2]
+    return hero_copy
+
+
+def _consume_preferred_assignment(
+    army_cfg: dict[str, Any],
+    preferred_assignment: Iterable[dict[str, Any]] | None,
+) -> list[dict[str, Any]] | None:
+    """Return an ordered preferred candidate list if supplied via config/param."""
+
+    raw_preferred: list[dict[str, Any]] = []
+    if preferred_assignment:
+        raw_preferred.extend(copy.deepcopy(preferred_assignment))
+
+    config_preferred = army_cfg.pop("optimizer_preferred_assignment", None)
+    if config_preferred:
+        raw_preferred.extend(copy.deepcopy(config_preferred))
+
+    if not raw_preferred:
+        return None
+
+    guess_slots: set[int] = set()
+    config_guess_slots = army_cfg.pop("optimizer_guess_slots", None)
+    if config_guess_slots:
+        for slot in config_guess_slots:
+            try:
+                guess_slots.add(int(slot))
+            except (TypeError, ValueError):
+                continue
+
+    guess_by_slot: dict[int, dict[str, Any]] = {}
+    for entry in raw_preferred:
+        slot_idx = entry.get("slot_index")
+        if slot_idx is None:
+            continue
+        try:
+            slot_int = int(slot_idx)
+        except (TypeError, ValueError):
+            continue
+        hero_cfg = {k: v for k, v in entry.items() if k != "slot_index"}
+        guess_by_slot[slot_int] = hero_cfg
+
+    raw_heroes = [copy.deepcopy(hero) for hero in army_cfg.get("heroes", [])[:2]]
+    hero_iter = iter(raw_heroes)
+    heroes: list[dict[str, Any] | None] = []
+    for idx in range(2):
+        if idx in guess_slots:
+            heroes.append(None)
+            continue
+        heroes.append(next(hero_iter, None))
+
+    preferred: list[dict[str, Any]] = []
+    for idx in range(2):
+        base_cfg = heroes[idx]
+        guess_cfg = guess_by_slot.get(idx)
+        if guess_cfg:
+            hero_cfg = _normalise_hero_entry(guess_cfg)
+        elif base_cfg is not None and idx not in guess_slots:
+            hero_cfg = _normalise_hero_entry(base_cfg)
+        else:
+            hero_cfg = None
+        if hero_cfg is None:
+            return None
+        preferred.append(hero_cfg)
+
+    # Update ``heroes`` list to exclude guess slots so downstream logic sees them
+    # as empty and generates candidates accordingly.
+    remaining: list[dict[str, Any]] = []
+    for idx, hero_cfg in enumerate(heroes):
+        if not hero_cfg:
+            continue
+        if idx in guess_slots and idx in guess_by_slot:
+            continue
+        normalised = _normalise_hero_entry(hero_cfg)
+        if normalised:
+            remaining.append(normalised)
+    army_cfg["heroes"] = remaining
+
+    return preferred
+
+
+def _candidate_key(heroes: Iterable[dict[str, Any]]) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """Return a normalised deduplication key for ``heroes``."""
+
+    key_entries: list[tuple[str, tuple[str, ...]]] = []
+    for hero_cfg in heroes:
+        name = hero_cfg.get("hero_name_or_preset", "").lower()
+        plugins = tuple(
+            sorted(pid for pid in hero_cfg.get("plugin_skill_ids", []) if pid)
+        )
+        key_entries.append((name, plugins))
+    return tuple(key_entries)
+
+
 def recommend_army1_build(
     setup_data: list[dict[str, Any]],
     *,
@@ -76,6 +186,7 @@ def recommend_army1_build(
     num_workers: int | None = None,
     progress_callback: Callable[[int, int], None] | None = None,
     cancel_event: Optional[threading.Event] = None,
+    preferred_assignment: Iterable[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Recommend a hero/plugin configuration for Army 1.
 
@@ -119,6 +230,8 @@ def recommend_army1_build(
         raise ValueError("Setup must contain at least one army")
 
     army1_original = setup_data[0]
+    preferred_candidate = _consume_preferred_assignment(army1_original, preferred_assignment)
+
     base_setup = copy.deepcopy(setup_data)
     army1 = base_setup[0]
 
@@ -280,6 +393,24 @@ def recommend_army1_build(
                 continue
             seen_keys.add(key)
             unique_candidates.append(tuple(populated))
+
+    if preferred_candidate:
+        preferred_key = _candidate_key(preferred_candidate)
+        if preferred_key not in seen_keys:
+            seen_keys.add(preferred_key)
+            unique_candidates.insert(
+                0, tuple(copy.deepcopy(hero) for hero in preferred_candidate)
+            )
+        else:
+            for idx, candidate in enumerate(unique_candidates):
+                if _candidate_key(candidate) == preferred_key:
+                    if idx != 0:
+                        unique_candidates.insert(0, unique_candidates.pop(idx))
+                    break
+            else:
+                unique_candidates.insert(
+                    0, tuple(copy.deepcopy(hero) for hero in preferred_candidate)
+                )
 
     if not unique_candidates:
         raise ValueError("No valid hero/plugin combinations found for recommendation")

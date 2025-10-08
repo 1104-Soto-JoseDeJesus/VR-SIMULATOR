@@ -496,3 +496,118 @@ def test_candidate_with_low_best_case_stops_early(
     assert history["Alpha"] == [1, 2, 3, 4]
     assert history["Beta"] == [1]
     assert candidate_progress == [(1, 2), (2, 2)]
+
+
+def test_preferred_candidate_runs_first(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = [
+        {
+            "army_name": "Army 1",
+            "unit_type": "pikemen",
+            "tier": 5,
+            "count": 1,
+            "atk_mod": 0,
+            "def_mod": 0,
+            "hp_mod": 0,
+            "heroes": [
+                {
+                    "hero_name_or_preset": "Gamma",
+                    "talent_ids": [],
+                    "base_skill_ids": [],
+                    "plugin_skill_ids": ["plugin_lock_a", "plugin_lock_b"],
+                }
+            ],
+            "optimizer_guess_slots": [0],
+            "optimizer_preferred_assignment": [
+                {
+                    "slot_index": 0,
+                    "hero_name_or_preset": "Alpha",
+                    "talent_ids": [],
+                    "base_skill_ids": [],
+                    "plugin_skill_ids": ["plugin_guess_a", "plugin_guess_b"],
+                }
+            ],
+        },
+        {"army_name": "Army 2", "heroes": []},
+    ]
+
+    monkeypatch.setattr(
+        build_optimizer,
+        "HERO_PRESETS",
+        {
+            "alpha": {
+                "talents": [],
+                "base_skills": [],
+                "plugin_skills": ["plugin_guess_a", "plugin_guess_b"],
+            },
+            "beta": {
+                "talents": [],
+                "base_skills": [],
+                "plugin_skills": ["plugin_alt_a", "plugin_alt_b"],
+            },
+            "gamma": {
+                "talents": [],
+                "base_skills": [],
+                "plugin_skills": ["plugin_lock_a", "plugin_lock_b"],
+            },
+        },
+        raising=False,
+    )
+    monkeypatch.setattr(
+        build_optimizer,
+        "SKILL_REGISTRY_GLOBAL",
+        {
+            "plugin_guess_a": _plugin_def("plugin_guess_a"),
+            "plugin_guess_b": _plugin_def("plugin_guess_b"),
+            "plugin_alt_a": _plugin_def("plugin_alt_a"),
+            "plugin_alt_b": _plugin_def("plugin_alt_b"),
+            "plugin_lock_a": _plugin_def("plugin_lock_a"),
+            "plugin_lock_b": _plugin_def("plugin_lock_b"),
+        },
+        raising=False,
+    )
+
+    calls: list[tuple[str, ...]] = []
+    stop_flags: list[tuple[tuple[str, ...], int, bool]] = []
+
+    def fake_run_basic(
+        sim_setup: list[dict[str, Any]],
+        runs: int,
+        *,
+        num_workers: int = 1,
+        progress_callback: Any | None = None,
+        should_stop: Any | None = None,
+    ):
+        hero_names = tuple(
+            hero.get("hero_name_or_preset", "") for hero in sim_setup[0].get("heroes", [])
+        )
+        calls.append(hero_names)
+        for completed in range(1, runs + 1):
+            if progress_callback:
+                progress_callback(completed, runs)
+            wins = completed if hero_names and hero_names[0] == "Alpha" else 0
+            result = BasicSimulationResult(wins, 0)
+            stop = should_stop(completed, runs, result) if should_stop else False
+            stop_flags.append((hero_names, completed, stop))
+            yield completed, result
+            if stop:
+                break
+
+    monkeypatch.setattr(
+        "vr_game_sim.main.run_simulations_basic_with_cutoff",
+        fake_run_basic,
+        raising=False,
+    )
+
+    best_setup, info = build_optimizer.recommend_army1_build(
+        setup,
+        runs=3,
+        num_workers=1,
+    )
+
+    assert calls, "expected simulations to run"
+    assert calls[0] == ("Alpha", "Gamma")
+    assert any("Beta" in names for names in calls)
+    assert any(
+        "Beta" in names and stop for names, _, stop in stop_flags
+    ), "expected beta candidate to stop early"
+    assert best_setup[0]["heroes"][0]["hero_name_or_preset"] == "Alpha"

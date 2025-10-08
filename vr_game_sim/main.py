@@ -5,7 +5,7 @@ import copy
 import os
 import argparse
 import sys
-from typing import List, Optional, Dict, Any, Callable
+from typing import List, Optional, Dict, Any, Callable, NamedTuple
 import contextlib
 import io
 import math
@@ -270,6 +270,13 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
     return armies
 
 
+class BasicSimulationResult(NamedTuple):
+    """Aggregated outcome statistics for a batch of simulations."""
+
+    wins_army1: int
+    draws: int
+
+
 def _run_single_battle(
     setup_data: List[Dict[str, Any]],
     seed: int | None = None,
@@ -327,6 +334,63 @@ def _run_single_battle(
     return result
 
 
+def run_simulations_basic(
+    setup_data: List[Dict[str, Any]],
+    runs: int,
+    *,
+    num_workers: int = 1,
+    progress_callback: Optional[Callable[[int, int], None]] = None,
+) -> BasicSimulationResult:
+    """Run ``runs`` simulations and return aggregate win statistics.
+
+    This helper keeps the simulation loop minimal so that callers who only
+    require a win rate can avoid the heavier bookkeeping performed by
+    :func:`run_additional_simulations`.
+    """
+
+    if runs <= 0:
+        if progress_callback:
+            progress_callback(0, runs)
+        return BasicSimulationResult(0, 0)
+
+    dynamic_settings_payload = dict(dynamic_unrevivable_config.get_settings())
+    seeds = [random.randrange(1 << 30) for _ in range(runs)]
+    worker_inputs = [setup_data] * runs
+
+    wins_army1 = 0
+    draws = 0
+
+    if num_workers > 1:
+        with ProcessPoolExecutor(
+            max_workers=num_workers, mp_context=multiprocessing.get_context("spawn")
+        ) as ex:
+            settings_iter = repeat(dynamic_settings_payload, runs)
+            results_iter = ex.map(
+                _run_single_battle, worker_inputs, seeds, settings_iter
+            )
+            for completed, result in enumerate(results_iter, start=1):
+                winner = result[4]
+                if winner == 1:
+                    wins_army1 += 1
+                elif winner == 0:
+                    draws += 1
+                if progress_callback:
+                    progress_callback(completed, runs)
+    else:
+        for completed, seed_val in enumerate(seeds, start=1):
+            _, _, _, _, winner, _, _ = _run_single_battle(
+                setup_data, seed=seed_val, dynamic_settings=dynamic_settings_payload
+            )
+            if winner == 1:
+                wins_army1 += 1
+            elif winner == 0:
+                draws += 1
+            if progress_callback:
+                progress_callback(completed, runs)
+
+    return BasicSimulationResult(wins_army1, draws)
+
+
 def run_additional_simulations(
     setup_data: List[Dict[str, Any]],
     runs: int = 300,
@@ -346,6 +410,20 @@ def run_additional_simulations(
     be used to report completion status as ``(completed, total)``. The function
     returns a tuple of the win rate for Army 1 (between 0 and 1) and metadata
     describing the battle chosen for replay."""
+    fast_path = (
+        not generate_histograms and not verbose and target_outcome is None
+    )
+
+    if fast_path:
+        result = run_simulations_basic(
+            setup_data,
+            runs,
+            num_workers=num_workers,
+            progress_callback=progress_callback,
+        )
+        win_rate = result.wins_army1 / runs if runs else 0.0
+        return win_rate, None
+
     # Ensure any previous figures are closed before starting the additional runs
     plt.close("all")
 

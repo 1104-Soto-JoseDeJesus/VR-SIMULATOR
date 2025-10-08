@@ -5774,9 +5774,9 @@ def main() -> None:
         """
         QMainWindow {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 #d7bfa5,
-                                        stop:0.5 #8b6a4a,
-                                        stop:1 #4a2c0a);
+                                        stop:0 #d8d8d8,
+                                        stop:0.5 #888888,
+                                        stop:1 #8b0a1a);
         }
 
         #mainCentralWidget,
@@ -5786,16 +5786,15 @@ def main() -> None:
         }
 
         QTabWidget::pane {
-            border: 1px solid rgba(255, 255, 255, 80);
-            border-radius: 8px;
+            border: none;
             margin: 8px;
         }
 
         QTabBar::tab {
-            background-color: rgba(0, 0, 0, 40);
-            color: #f5ede4;
+            background-color: rgba(32, 32, 36, 150);
+            color: #f4f4f4;
             padding: 6px 14px;
-            border: 1px solid rgba(255, 255, 255, 70);
+            border: none;
             border-bottom: none;
             border-top-left-radius: 6px;
             border-top-right-radius: 6px;
@@ -5803,12 +5802,11 @@ def main() -> None:
         }
 
         QTabBar::tab:selected {
-            background-color: rgba(0, 0, 0, 110);
-            border-color: rgba(255, 255, 255, 160);
+            background-color: rgba(139, 0, 26, 220);
         }
 
         QTabBar::tab:hover {
-            background-color: rgba(0, 0, 0, 80);
+            background-color: rgba(70, 70, 76, 200);
         }
 
         QTabBar {
@@ -5829,9 +5827,9 @@ def main() -> None:
         QScrollArea,
         QGroupBox,
         QFrame[frameShape="0"] {
-            background-color: rgba(74, 44, 10, 200);
-            color: #f5ede4;
-            border: 1px solid rgba(255, 240, 220, 120);
+            background-color: rgba(35, 35, 40, 210);
+            color: #f4f4f4;
+            border: none;
             border-radius: 6px;
         }
 
@@ -5848,59 +5846,58 @@ def main() -> None:
         QComboBox:hover,
         QSpinBox:hover,
         QDoubleSpinBox:hover {
-            background-color: rgba(104, 64, 24, 220);
-            border-color: rgba(255, 240, 220, 180);
+            background-color: rgba(139, 0, 26, 220);
         }
 
         QPushButton:pressed,
         QToolButton:pressed {
-            background-color: rgba(54, 34, 8, 220);
+            background-color: rgba(90, 0, 18, 220);
         }
 
         QLineEdit,
         QTextEdit,
         QPlainTextEdit {
-            selection-background-color: rgba(255, 214, 170, 160);
-            selection-color: #40220a;
+            selection-background-color: rgba(139, 0, 26, 160);
+            selection-color: #f4f4f4;
         }
 
         QTreeWidget::item,
         QListWidget::item,
         QTableWidget::item {
             background-color: transparent;
-            color: #f7efe7;
+            color: #f5f5f5;
         }
 
         QTreeWidget::item:selected,
         QListWidget::item:selected,
         QTableWidget::item:selected {
-            background-color: rgba(255, 214, 170, 180);
-            color: #40220a;
+            background-color: rgba(139, 0, 26, 180);
+            color: #ffffff;
         }
 
         QHeaderView::section {
-            background-color: rgba(74, 44, 10, 220);
-            color: #f7efe7;
-            border: 1px solid rgba(255, 240, 220, 100);
+            background-color: rgba(35, 35, 40, 220);
+            color: #f5f5f5;
+            border: none;
             padding: 4px 8px;
         }
 
         QScrollBar:vertical,
         QScrollBar:horizontal {
-            background: rgba(74, 44, 10, 160);
-            border: 1px solid rgba(255, 240, 220, 80);
+            background: rgba(30, 30, 34, 160);
+            border: none;
             border-radius: 4px;
             width: 14px;
             margin: 0px;
         }
 
         QScrollBar::handle {
-            background: rgba(150, 110, 70, 200);
+            background: rgba(139, 0, 26, 200);
             border-radius: 4px;
         }
 
         QScrollBar::handle:hover {
-            background: rgba(180, 140, 90, 220);
+            background: rgba(180, 30, 50, 220);
         }
 
         QScrollBar::add-line,
@@ -5910,15 +5907,15 @@ def main() -> None:
         """
     )
     palette = app.palette()
-    palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(215, 191, 165))
-    palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(74, 44, 10, 220))
-    palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor(104, 64, 24, 220))
-    palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor(104, 64, 24, 220))
-    palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtGui.QColor(245, 237, 228))
-    palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor(245, 237, 228))
-    palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtGui.QColor(245, 237, 228))
-    palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor(255, 214, 170, 200))
-    palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor(64, 34, 10))
+    palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(216, 216, 216))
+    palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(35, 35, 40, 220))
+    palette.setColor(QtGui.QPalette.ColorRole.AlternateBase, QtGui.QColor(60, 60, 66, 220))
+    palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor(139, 0, 26, 220))
+    palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtGui.QColor(244, 244, 244))
+    palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor(244, 244, 244))
+    palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtGui.QColor(244, 244, 244))
+    palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor(139, 0, 26, 200))
+    palette.setColor(QtGui.QPalette.ColorRole.HighlightedText, QtGui.QColor(255, 255, 255))
     app.setPalette(palette)
     window = MainWindow()
     window.resize(800, 600)

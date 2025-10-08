@@ -439,12 +439,12 @@ class SkillStatsRow(QtWidgets.QWidget):
         layout.addWidget(cast_lbl, 0, 2)
 
         colors = {
-            "kills": ("#8B0000", "#FF9999"),
-            "healed": ("#006400", "#90EE90"),
-            "shielded": ("#00008B", "#ADD8E6"),
-            "damage_reduced": ("#FF8C00", "#FFD580"),
-            "rage_reduced": ("#FF1493", "#FFB6C1"),
-            "rage": ("#4B0082", "#D8BFD8"),
+            "kills": ("#d08336", "#e9ad72"),
+            "healed": ("#8faa6c", "#c3d9a1"),
+            "shielded": ("#9c8d63", "#cdbd8b"),
+            "damage_reduced": ("#7a5a32", "#b18a58"),
+            "rage_reduced": ("#c6984a", "#e0be74"),
+            "rage": ("#a44f2a", "#d37b51"),
         }
 
         def setup_bar(bar, total, direct, boost, deep, light, cls):

@@ -1899,6 +1899,27 @@ class ArmyFrame(QtWidgets.QGroupBox):
             chk.setVisible(self.index == 1)
             chk.setChecked(False)
 
+        self.hero_plugin_guess_checks: dict[int, list[QtWidgets.QCheckBox]] = {
+            1: [],
+            2: [],
+        }
+        if self.index == 1:
+            plugin_tooltip = (
+                "Run the current plugin as a baseline but allow the optimiser "
+                "to iterate this slot."
+            )
+            for hero_idx in (1, 2):
+                plugin_checks: list[QtWidgets.QCheckBox] = []
+                for plugin_slot in range(2):
+                    chk = QtWidgets.QCheckBox(f"Slot {plugin_slot + 1}")
+                    chk.setToolTip(plugin_tooltip)
+                    chk.setChecked(False)
+                    plugin_checks.append(chk)
+                self.hero_plugin_guess_checks[hero_idx] = plugin_checks
+        else:
+            self.hero_plugin_guess_checks[1] = []
+            self.hero_plugin_guess_checks[2] = []
+
         # Store fully customised hero definitions per slot.  Skill parameter
         # overrides for preset heroes are tracked separately in
         # ``hero_overrides`` so presets can be tweaked without becoming
@@ -1951,6 +1972,17 @@ class ArmyFrame(QtWidgets.QGroupBox):
         layout.addWidget(self.hero1_info, row, 4)
         row += 1
 
+        if self.index == 1:
+            plugin_layout = QtWidgets.QHBoxLayout()
+            plugin_layout.setContentsMargins(0, 0, 0, 0)
+            plugin_layout.setSpacing(10)
+            plugin_layout.addWidget(QtWidgets.QLabel("Plugin guesses:"))
+            for chk in self.hero_plugin_guess_checks[1]:
+                plugin_layout.addWidget(chk)
+            plugin_layout.addStretch(1)
+            layout.addLayout(plugin_layout, row, 1, 1, 4)
+            row += 1
+
         layout.addWidget(QtWidgets.QLabel("Hero 2:"), row, 0)
         self.hero2_info = QtWidgets.QLabel()
         self.hero2_info.setWordWrap(True)
@@ -1959,6 +1991,17 @@ class ArmyFrame(QtWidgets.QGroupBox):
         layout.addWidget(self.hero2_guess_check, row, 3)
         layout.addWidget(self.hero2_info, row, 4)
         row += 1
+
+        if self.index == 1:
+            plugin_layout = QtWidgets.QHBoxLayout()
+            plugin_layout.setContentsMargins(0, 0, 0, 0)
+            plugin_layout.setSpacing(10)
+            plugin_layout.addWidget(QtWidgets.QLabel("Plugin guesses:"))
+            for chk in self.hero_plugin_guess_checks[2]:
+                plugin_layout.addWidget(chk)
+            plugin_layout.addStretch(1)
+            layout.addLayout(plugin_layout, row, 1, 1, 4)
+            row += 1
 
         # --- Feature buttons ---
         self.gear_btn = QtWidgets.QPushButton("Gear")
@@ -2197,6 +2240,15 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self._update_name_if_auto()
 
+        plugin_guess_checks = self.hero_plugin_guess_checks.get(slot, [])
+        has_hero = name not in {"None", "Custom"} and bool(name)
+        for chk in plugin_guess_checks:
+            chk.setEnabled(has_hero)
+            if not has_hero and chk.isChecked():
+                block = chk.blockSignals(True)
+                chk.setChecked(False)
+                chk.blockSignals(block)
+
     def _update_name_if_auto(self) -> None:
         if self._user_named:
             return
@@ -2267,9 +2319,35 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     continue
             self.hero1_guess_check.setChecked(0 in guess_slots)
             self.hero2_guess_check.setChecked(1 in guess_slots)
+            plugin_guess_cfg = cfg.get("optimizer_guess_plugin_slots") or {}
+            parsed_plugin_guesses: dict[int, set[int]] = {}
+            if isinstance(plugin_guess_cfg, dict):
+                for slot_key, plugin_entries in plugin_guess_cfg.items():
+                    try:
+                        slot_idx = int(slot_key)
+                    except (TypeError, ValueError):
+                        continue
+                    indices: set[int] = set()
+                    for entry in plugin_entries or []:
+                        try:
+                            plugin_idx = int(entry)
+                        except (TypeError, ValueError):
+                            continue
+                        if plugin_idx < 0:
+                            continue
+                        indices.add(plugin_idx)
+                    if indices:
+                        parsed_plugin_guesses[slot_idx] = indices
+            for hero_idx, checks in self.hero_plugin_guess_checks.items():
+                indices = parsed_plugin_guesses.get(hero_idx - 1, set())
+                for plugin_idx, chk in enumerate(checks):
+                    chk.setChecked(plugin_idx in indices)
         else:
             self.hero1_guess_check.setChecked(False)
             self.hero2_guess_check.setChecked(False)
+            for checks in self.hero_plugin_guess_checks.values():
+                for chk in checks:
+                    chk.setChecked(False)
         for idx, combo in enumerate(hero_combos, start=1):
             combo.setCurrentText("None")
             self.custom_heroes[idx] = None
@@ -2349,28 +2427,55 @@ class ArmyFrame(QtWidgets.QGroupBox):
         heroes_cfg: list[dict[str, Any]] = []
         preferred_payload: list[dict[str, Any]] = []
         guess_slots: list[int] = []
+        guess_plugin_slots: dict[int, list[int]] = {}
 
         guess_checks = [self.hero1_guess_check, self.hero2_guess_check]
+        plugin_guess_checks = [
+            self.hero_plugin_guess_checks.get(1, []),
+            self.hero_plugin_guess_checks.get(2, []),
+        ]
         for idx in range(1, 3):
             cfg = self._build_hero_config_for_slot(idx)
-            is_guess = (
-                self.index == 1
-                and for_optimizer
-                and bool(guess_checks[idx - 1].isChecked())
-                and cfg is not None
-            )
             if cfg:
                 cfg_copy = copy.deepcopy(cfg)
-                if is_guess:
-                    guess_entry = copy.deepcopy(cfg)
-                    guess_entry["slot_index"] = idx - 1
-                    preferred_payload.append(guess_entry)
-                    if len(cfg_copy.get("plugin_skill_ids", [])) >= 2:
-                        guess_slots.append(idx - 1)
-                    else:
-                        heroes_cfg.append(cfg_copy)
-                else:
+                if not (for_optimizer and self.index == 1):
                     heroes_cfg.append(cfg_copy)
+                    continue
+
+                slot_index = idx - 1
+                is_guess = bool(guess_checks[idx - 1].isChecked())
+                plugin_checks = plugin_guess_checks[idx - 1]
+                plugins = list(cfg.get("plugin_skill_ids", []))
+                plugin_guesses: list[int] = []
+                for plugin_idx, chk in enumerate(plugin_checks):
+                    if not chk.isChecked():
+                        continue
+                    if plugin_idx >= len(plugins):
+                        continue
+                    plugin_id = plugins[plugin_idx]
+                    if not plugin_id:
+                        continue
+                    plugin_guesses.append(plugin_idx)
+                plugin_guesses = sorted(set(plugin_guesses))
+
+                if is_guess or plugin_guesses:
+                    guess_entry = copy.deepcopy(cfg)
+                    guess_entry["slot_index"] = slot_index
+                    preferred_payload.append(guess_entry)
+
+                if plugin_guesses:
+                    guess_plugin_slots[slot_index] = plugin_guesses
+                    cfg_copy["plugin_skill_ids"] = [
+                        pid
+                        for plugin_idx, pid in enumerate(cfg_copy.get("plugin_skill_ids", []))
+                        if plugin_idx not in plugin_guesses
+                    ]
+
+                if is_guess:
+                    guess_slots.append(slot_index)
+                    continue
+
+                heroes_cfg.append(cfg_copy)
 
         config = {
             "army_name": self.name_edit.text() or f"Army {self.index}",
@@ -2400,6 +2505,11 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 config["optimizer_preferred_assignment"] = preferred_payload
             if guess_slots:
                 config["optimizer_guess_slots"] = guess_slots
+            if guess_plugin_slots:
+                config["optimizer_guess_plugin_slots"] = {
+                    slot: sorted(set(indices))
+                    for slot, indices in guess_plugin_slots.items()
+                }
 
         return config
 

@@ -1,66 +1,67 @@
 /* Global styles for arena statistics widgets */
 
 QProgressBar {
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background-color: transparent;
-  color: white;
+  border: 1px solid rgba(89, 62, 40, 0.7);
+  background-color: rgba(58, 41, 28, 0.35);
+  color: #f8f5f0;
   text-align: center;
 }
 
 QProgressBar[team="red"]::chunk {
-  background-color: #e53935;
+  background-color: #b86f3c;
 }
 
 QProgressBar[team="blue"]::chunk {
-  background-color: #1e88e5;
+  background-color: #7a8f3a;
 }
 
 QProgressBar[class="healed"]::chunk {
-  background-color: #006400;
+  background-color: #8faa6c;
 }
 
 QProgressBar[class="kills"]::chunk {
-  background-color: #8B0000;
+  background-color: #d08336;
 }
 
 QProgressBar[class="remaining"]::chunk {
-  background-color: #fdd835;
+  background-color: #d9b873;
 }
 
 QProgressBar[class="shielded"]::chunk {
-  background-color: #00008B;
+  background-color: #9c8d63;
 }
 
 QProgressBar[class="rage"]::chunk {
-  background-color: #4B0082;
+  background-color: #a44f2a;
 }
 
 QProgressBar[class="damage_reduced"]::chunk {
-  background-color: #FF8C00;
+  background-color: #7a5a32;
 }
 
 QProgressBar[class="rage_reduced"]::chunk {
-  background-color: #FF1493;
+  background-color: #c6984a;
 }
 
 HeroStatsWidget {
   background-color: transparent;
   border: none;
-  color: white;
+  color: #f8f5f0;
   font-weight: bold;
 }
 
 QLabel.healed {
-  color: #006400;
+  color: #8faa6c;
   font-weight: bold;
 }
 
 QLabel.kills {
-  color: #8B0000;
+  color: #d08336;
   font-weight: bold;
 }
 
 QLabel {
   background-color: transparent;
+  color: #f8f5f0;
 }
 

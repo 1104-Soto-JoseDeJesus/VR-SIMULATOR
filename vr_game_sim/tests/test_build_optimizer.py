@@ -12,6 +12,41 @@ def _plugin_def(skill_id: str) -> dict[str, Any]:
     return {"id": skill_id, "type": SkillType.PLUGIN_SKILL}
 
 
+def test_guess_slot_consumes_existing_hero_alignment() -> None:
+    original_second = {
+        "hero_name_or_preset": "Second",
+        "plugin_skill_ids": ["plugin_second"],
+    }
+    army_cfg = {
+        "heroes": [
+            {
+                "hero_name_or_preset": "First",
+                "plugin_skill_ids": ["plugin_first"],
+            },
+            copy.deepcopy(original_second),
+        ],
+        "optimizer_guess_slots": [0],
+    }
+    preferred = build_optimizer._consume_preferred_assignment(
+        army_cfg,
+        preferred_assignment=[
+            {
+                "slot_index": 0,
+                "hero_name_or_preset": "Guess",
+                "plugin_skill_ids": ["plugin_guess"],
+            }
+        ],
+    )
+
+    assert preferred is not None
+    assert preferred[1]["hero_name_or_preset"] == original_second["hero_name_or_preset"]
+    assert preferred[1]["plugin_skill_ids"] == original_second["plugin_skill_ids"]
+
+    assert len(army_cfg["heroes"]) == 1
+    assert army_cfg["heroes"][0]["hero_name_or_preset"] == original_second["hero_name_or_preset"]
+    assert army_cfg["heroes"][0]["plugin_skill_ids"] == original_second["plugin_skill_ids"]
+
+
 def test_recommendation_preserves_existing_plugins(monkeypatch: pytest.MonkeyPatch) -> None:
     setup = [
         {

@@ -125,14 +125,19 @@ def _consume_preferred_assignment(
         hero_cfg = {k: v for k, v in entry.items() if k != "slot_index"}
         guess_by_slot[slot_int] = hero_cfg
 
-    raw_heroes = [copy.deepcopy(hero) for hero in army_cfg.get("heroes", [])[:2]]
-    hero_iter = iter(raw_heroes)
+    remaining_heroes = [copy.deepcopy(hero) for hero in army_cfg.get("heroes", [])[:2]]
     heroes: list[dict[str, Any] | None] = []
     for idx in range(2):
         if idx in guess_slots:
+            remaining_non_guess = sum(
+                1 for future_idx in range(idx + 1, 2) if future_idx not in guess_slots
+            )
+            if len(remaining_heroes) > remaining_non_guess:
+                remaining_heroes.pop(0)
             heroes.append(None)
             continue
-        heroes.append(next(hero_iter, None))
+        hero_cfg = remaining_heroes.pop(0) if remaining_heroes else None
+        heroes.append(hero_cfg)
 
     preferred: list[dict[str, Any]] = []
     for idx in range(2):

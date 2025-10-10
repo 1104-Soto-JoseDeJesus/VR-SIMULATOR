@@ -38,7 +38,9 @@ from .constants import (
     EFFECT_NAME_WAR_BLESSING_SHIELD,
     EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF,
     EFFECT_NAME_JUDGEMENT_MARKER,
-    EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
+    EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
+    EFFECT_NAME_HOLY_ENLIGHTENMENT_DMG_TAKEN_DEBUFF,
+    EFFECT_NAME_BLESSED_BY_FATE_ENEMY_DMG_TAKEN_DEBUFF,
 )
 
 GameSimulatorRef = "GameSimulator"  # Forward reference
@@ -406,6 +408,24 @@ class Army:
                 skill_label=skill_label,
             )
         )
+
+    def _get_holy_blessed_damage_taken_bonus(
+        self, effects: Iterable[EffectInstance]
+    ) -> float:
+        relevant_names = {
+            EFFECT_NAME_HOLY_ENLIGHTENMENT_DMG_TAKEN_DEBUFF,
+            EFFECT_NAME_BLESSED_BY_FATE_ENEMY_DMG_TAKEN_DEBUFF,
+        }
+        bonus = 0.0
+        for effect in effects:
+            if (
+                effect.effect_type == EffectType.STAT_MOD
+                and effect.name in relevant_names
+                and effect.config.get("stat_to_mod") == StatType.DAMAGE_TAKEN_MULTIPLIER
+                and effect.magnitude > 0
+            ):
+                bonus += effect.magnitude
+        return bonus
 
     def get_current_shield_hp(self) -> float:
         return sum(effect.magnitude for effect in self.active_effects if
@@ -997,28 +1017,29 @@ class Army:
                         current_specific_dot_reduction = self.get_sum_stat_magnitudes(StatType.LACERATE_DAMAGE_REDUCTION)
 
                     base_dot_damage_for_log = ((snap_atk / snap_def) * snap_scalar * (status_factor / 200.0))
-                    # IMPORTANT: DoTs are NOT affected by general DAMAGE_TAKEN_MULTIPLIER. Only specific DoT boosts/reductions.
-                    final_dot_multiplier_for_log = max(0.05,
-                                                       1.0 + current_specific_dot_boost + current_specific_dot_reduction)  # Reduction is negative
+                    snapshot_bonus = effect.config.get("holy_blessed_damage_taken_snapshot", 0.0)
+                    base_multiplier = 1.0 + current_specific_dot_boost + current_specific_dot_reduction
+                    final_dot_multiplier_for_log = max(0.05, base_multiplier + snapshot_bonus)
                     potential_dot_damage_tick = base_dot_damage_for_log * final_dot_multiplier_for_log
                     dot_damage_after_target_debuffs = potential_dot_damage_tick  # For DoTs, this is the final pre-shield damage
                     current_shield_hp_dot = self.get_current_shield_hp()
 
                 elif dot_type == DoTType.GENERIC and effect.config.get("dot_damage_per_round", 0) > 0:
-                    potential_dot_damage_tick = effect.config["dot_damage_per_round"]
-                    # Generic DoTs also should not be affected by general DAMAGE_TAKEN_MULTIPLIER
+                    base_dot_damage_for_log = effect.config["dot_damage_per_round"]
+                    snapshot_bonus = effect.config.get("holy_blessed_damage_taken_snapshot", 0.0)
+                    final_dot_multiplier_for_log = max(0.05, 1.0 + snapshot_bonus)
+                    potential_dot_damage_tick = base_dot_damage_for_log * final_dot_multiplier_for_log
                     dot_damage_after_target_debuffs = potential_dot_damage_tick
-                    base_dot_damage_for_log = potential_dot_damage_tick
-                    final_dot_multiplier_for_log = 1.0
 
                 if dot_damage_after_target_debuffs > 0:  # Use damage after target's specific DoT reductions
                     damage_result_dict = self.apply_shields_and_get_hp_damage(dot_damage_after_target_debuffs)
                     hp_damage_to_troops_dot = damage_result_dict['hp_damage_to_troops']
                     absorbed_by_shield_dot = damage_result_dict['absorbed_by_shield']
                     if total_positive_dot > 0:
-                        dmg_without_boost = base_dot_damage_for_log * max(
-                            0.05, 1.0 + current_specific_dot_reduction
+                        multiplier_without_positive = max(
+                            0.05, 1.0 + current_specific_dot_reduction + effect.config.get("holy_blessed_damage_taken_snapshot", 0.0)
                         )
+                        dmg_without_boost = base_dot_damage_for_log * multiplier_without_positive
                         hp_without_boost = max(0.0, dmg_without_boost - current_shield_hp_dot)
                         extra_hp = hp_damage_to_troops_dot - hp_without_boost
                         if extra_hp > 0 and caster_army:
@@ -1316,6 +1337,13 @@ class Army:
 
             new_effect.applied_this_round = True
             effects_to_add_to_active.append(new_effect)
+
+        if effects_to_add_to_active:
+            future_effects = list(self.active_effects) + effects_to_add_to_active
+            snapshot_bonus = self._get_holy_blessed_damage_taken_bonus(future_effects)
+            for effect in effects_to_add_to_active:
+                if effect.effect_type == EffectType.DAMAGE_OVER_TIME:
+                    effect.config["holy_blessed_damage_taken_snapshot"] = snapshot_bonus
 
         self.active_effects.extend(effects_to_add_to_active)
         self.upcoming_effects.clear()

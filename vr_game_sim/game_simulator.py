@@ -127,13 +127,13 @@ class GameSimulator:
             "potential_kills": potential_kills,
         }
         self.round_combat_actions_log.append(log_entry)
+        sid = skill_id or ("counter_attack" if is_counter else "basic_attack")
+        attacker.increment_skill_trigger_count(sid)
         if final_hp_damage > 0:
             defender.damage_contributors_this_round[attacker.name] = (
                 defender.damage_contributors_this_round.get(attacker.name, 0.0)
                 + final_hp_damage
             )
-            sid = skill_id or ("counter_attack" if is_counter else "basic_attack")
-            attacker.increment_skill_trigger_count(sid)
             skill_map = defender.damage_contributors_by_skill_this_round.setdefault(
                 attacker.name, {}
             )

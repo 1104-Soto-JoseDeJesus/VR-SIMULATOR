@@ -30,7 +30,7 @@ from matplotlib import pyplot as plt
 
 from vr_game_sim.hero_definition import HERO_PRESETS
 from vr_game_sim.unit_definition import Unit
-from vr_game_sim.army_composition import Army
+from vr_game_sim.army_composition import Army, normalize_gem_skill_id
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.report_builder import ReportBuilder
 from vr_game_sim.battlefield_report_builder import BattlefieldReportBuilder
@@ -2390,12 +2390,14 @@ class ArmyFrame(QtWidgets.QGroupBox):
         if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             self._set_gem_skills(dlg.result())
 
-    def _set_gem_skills(self, gem_skills: dict[str, str] | None) -> None:
+    def _set_gem_skills(self, gem_skills: dict[str, Any] | None) -> None:
         normalized = {slot: "" for slot, _ in JEWEL_SLOTS}
         if gem_skills:
             for slot, sid in gem_skills.items():
-                if slot in normalized and isinstance(sid, str):
-                    normalized[slot] = sid
+                if slot not in normalized:
+                    continue
+                normalized_id = normalize_gem_skill_id(sid)
+                normalized[slot] = normalized_id if normalized_id else ""
         self._gem_skills = normalized
         self._update_gem_skills_button()
 
@@ -6133,7 +6135,8 @@ class MainWindow(QtWidgets.QMainWindow):
             hero_skill_lists = summary_entry.get("skills") or []
             jewel_cards: list[str] = []
             for slot_key, slot_label in JEWEL_SLOTS:
-                skill_id = gem_skills.get(slot_key, "")
+                raw_skill = gem_skills.get(slot_key, "")
+                skill_id = normalize_gem_skill_id(raw_skill)
                 entry = None
                 hero_index = JEWEL_SLOT_HERO_INDEX.get(slot_key, 0)
                 if hero_index >= 0 and hero_index < len(hero_skill_lists):

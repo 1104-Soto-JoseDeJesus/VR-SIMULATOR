@@ -50,6 +50,38 @@ COUNTER_ATTACK_ID = "counter_attack"
 COMBAT_SKILL_IDS = {BASIC_ATTACK_ID, COUNTER_ATTACK_ID}
 
 
+def normalize_gem_skill_id(value: Any) -> str:
+    """Return a normalized jewel skill identifier extracted from ``value``."""
+
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, (list, tuple, set)):
+        for item in value:
+            normalized = normalize_gem_skill_id(item)
+            if normalized:
+                return normalized
+        return ""
+    if isinstance(value, dict):
+        for key in ("id", "skill_id", "skill", "name"):
+            if key in value:
+                normalized = normalize_gem_skill_id(value.get(key))
+                if normalized:
+                    return normalized
+        for item in value.values():
+            normalized = normalize_gem_skill_id(item)
+            if normalized:
+                return normalized
+        return ""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return str(value).strip()
+    if isinstance(value, bool):
+        return ""
+    text = str(value).strip()
+    return text if text else ""
+
+
 @dataclass(slots=True)
 class Army:
     name: str
@@ -259,7 +291,7 @@ class Army:
                 continue
             self.gem_skills.append(copy.deepcopy(skill_def))
 
-    def set_gem_skills(self, gem_skills: Dict[str, str] | None) -> None:
+    def set_gem_skills(self, gem_skills: Dict[str, Any] | None) -> None:
         """Assign jewel skills to this army using ``gem_skills`` mapping."""
 
         normalized: Dict[str, str] = {}
@@ -267,8 +299,9 @@ class Army:
             for slot, skill_id in gem_skills.items():
                 if not isinstance(slot, str):
                     continue
-                if isinstance(skill_id, str) and skill_id:
-                    normalized[slot] = skill_id
+                normalized_id = normalize_gem_skill_id(skill_id)
+                if normalized_id:
+                    normalized[slot] = normalized_id
         self.gem_skill_ids = normalized
         self._reload_gem_skills()
 

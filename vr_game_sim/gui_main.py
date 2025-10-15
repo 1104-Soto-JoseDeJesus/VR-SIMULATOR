@@ -5856,23 +5856,6 @@ class MainWindow(QtWidgets.QMainWindow):
             if not jewel_cards:
                 jewel_cards.append("<p class=\"empty-state\">No jewels assigned.</p>")
 
-            gear_placeholders = "".join(
-                (
-                    f"<img src=\"{gear_placeholder}\" alt=\"Gear placeholder\">"
-                    if gear_placeholder
-                    else "<div class=\"placeholder-empty\"></div>"
-                )
-                for _ in range(8)
-            )
-            mount_placeholders = "".join(
-                (
-                    f"<img src=\"{mount_placeholder}\" alt=\"Mount skill placeholder\">"
-                    if mount_placeholder
-                    else "<div class=\"placeholder-empty\"></div>"
-                )
-                for _ in range(4)
-            )
-
             hero_names = summary_entry.get("hero_names") or []
             heroes_cfg = cfg.get("heroes", []) or []
             portraits = [
@@ -5973,6 +5956,34 @@ class MainWindow(QtWidgets.QMainWindow):
                     )
                     + "</div>"
                 )
+                gear_slots = "".join(
+                    (
+                        f"<img src=\"{gear_placeholder}\" alt=\"Gear placeholder\">"
+                        if gear_placeholder
+                        else "<div class=\"placeholder-empty\"></div>"
+                    )
+                    for _ in range(4)
+                )
+                hero_sections.append(
+                    "<div class=\"hero-section\"><h5>Gear (Coming Soon)</h5>"
+                    + "<div class=\"placeholder-grid\">"
+                    + gear_slots
+                    + "</div></div>"
+                )
+                mount_slots = "".join(
+                    (
+                        f"<img src=\"{mount_placeholder}\" alt=\"Mount skill placeholder\">"
+                        if mount_placeholder
+                        else "<div class=\"placeholder-empty\"></div>"
+                    )
+                    for _ in range(2)
+                )
+                hero_sections.append(
+                    "<div class=\"hero-section\"><h5>Mount Skills (Coming Soon)</h5>"
+                    + "<div class=\"placeholder-grid\">"
+                    + mount_slots
+                    + "</div></div>"
+                )
 
                 hero_cards.append(
                     "<div class=\"hero-card\">"
@@ -6019,13 +6030,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 + "<div class=\"section\"><h3>Jewels</h3><div class=\"jewel-grid\">"
                 + "".join(jewel_cards)
                 + "</div></div>"
-                + "<div class=\"section two-column\">"
-                + "<div><h3>Gear (Coming Soon)</h3><div class=\"placeholder-grid\">"
-                + gear_placeholders
-                + "</div></div>"
-                + "<div><h3>Mount Skills (Coming Soon)</h3><div class=\"placeholder-grid\">"
-                + mount_placeholders
-                + "</div></div></div>"
                 + "</section>"
             )
 

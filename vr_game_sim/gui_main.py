@@ -9,6 +9,7 @@ from typing import Any, Callable
 import threading
 import math
 import json
+import html
 from functools import partial
 import time
 import re
@@ -39,6 +40,7 @@ from vr_game_sim.main import (
 )
 from vr_game_sim import dynamic_unrevivable_config
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
+from vr_game_sim.metadata_loader import get_skill_description
 from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
 from vr_game_sim.arena_engine import ArenaEngine
 from vr_game_sim.navmesh import NavMesh
@@ -148,6 +150,83 @@ def serialize_bonus_stats(stats: dict[str, Any]) -> dict[str, Any]:
             if abs(val) > 1e-9:
                 serialized[key] = round(val, 6)
     return serialized
+
+
+def iter_bonus_stat_entries(stats: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return structured, non-zero bonus stat entries with formatting hints."""
+
+    entries: list[dict[str, Any]] = []
+
+    def add(label: str, value: float, invert: bool = False) -> None:
+        if abs(value) <= 1e-9:
+            return
+        entries.append({"label": label, "value": float(value), "invert": invert})
+
+    dr = stats.get("damage_reduction", {}) if isinstance(stats, dict) else {}
+    add("Damage Reduction", float(dr.get("all", 0.0)), True)
+    for troop in BONUS_TROOP_TYPES:
+        add(
+            f"Damage Reduction vs {troop.title()}",
+            float(dr.get(f"vs_{troop}", 0.0)),
+            True,
+        )
+    add(
+        "Damage Reduction vs Reactive Skills",
+        float(dr.get("reactive", 0.0)),
+        True,
+    )
+    add(
+        "Damage Reduction vs Cooperation Skills",
+        float(dr.get("cooperation", 0.0)),
+        True,
+    )
+    add(
+        "Damage Reduction vs Command Skills",
+        float(dr.get("command", 0.0)),
+        True,
+    )
+
+    db = stats.get("damage_boost", {}) if isinstance(stats, dict) else {}
+    add("Damage Boost", float(db.get("all", 0.0)))
+    for troop in BONUS_TROOP_TYPES:
+        add(
+            f"Damage Boost vs {troop.title()}",
+            float(db.get(f"vs_{troop}", 0.0)),
+        )
+    add(
+        "Reactive Skill Critical Rate",
+        float(db.get("reactive_crit_rate", 0.0)),
+    )
+    add(
+        "Cooperation Skill Critical Rate",
+        float(db.get("cooperation_crit_rate", 0.0)),
+    )
+    add(
+        "Command Skill Critical Rate",
+        float(db.get("command_crit_rate", 0.0)),
+    )
+
+    add("Shield Gain Boost", float(stats.get("shield_gain", 0.0)))
+    add("Burn Boost", float(stats.get("burn_boost", 0.0)))
+    add("Poison Boost", float(stats.get("poison_boost", 0.0)))
+    add("Lacerate Boost", float(stats.get("lacerate_boost", 0.0)))
+    add("Basic Attack Boost", float(stats.get("basic_boost", 0.0)))
+    add("Counterattack Boost", float(stats.get("counter_boost", 0.0)))
+    add(
+        "Reactive Skill Damage Boost",
+        float(stats.get("reactive_skill_boost", 0.0)),
+    )
+    add("Rage Skill Damage Boost", float(stats.get("rage_skill_boost", 0.0)))
+    add(
+        "Cooperation Skill Damage Boost",
+        float(stats.get("cooperation_skill_boost", 0.0)),
+    )
+    add(
+        "Command Skill Damage Boost",
+        float(stats.get("command_skill_boost", 0.0)),
+    )
+
+    return entries
 
 
 def get_pdf_layout_path() -> str:
@@ -2206,65 +2285,16 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.bonus_stats_btn.setToolTip("No manual bonus stats configured.")
 
     def _bonus_stats_summary(self) -> tuple[int, str]:
-        entries: list[str] = []
-        count = 0
+        entries = []
 
         def fmt_percent(value: float, invert: bool = False) -> str:
             percent = -value * 100 if invert else value * 100
             return f"{percent:+.1f}%"
 
-        def add_entry(label: str, value: float, invert: bool = False) -> None:
-            nonlocal count
-            if abs(value) <= 1e-9:
-                return
-            count += 1
-            entries.append(f"{label}: {fmt_percent(value, invert)}")
+        for item in iter_bonus_stat_entries(self._bonus_stats):
+            entries.append(f"{item['label']}: {fmt_percent(item['value'], item['invert'])}")
 
-        dr = self._bonus_stats.get("damage_reduction", {})
-        add_entry("Damage Reduction", float(dr.get("all", 0.0)), True)
-        for troop in BONUS_TROOP_TYPES:
-            add_entry(
-                f"Damage Reduction vs {troop.title()}",
-                float(dr.get(f"vs_{troop}", 0.0)),
-                True,
-            )
-        add_entry("Damage Reduction vs Reactive Skills", float(dr.get("reactive", 0.0)), True)
-        add_entry("Damage Reduction vs Cooperation Skills", float(dr.get("cooperation", 0.0)), True)
-        add_entry("Damage Reduction vs Command Skills", float(dr.get("command", 0.0)), True)
-
-        db = self._bonus_stats.get("damage_boost", {})
-        add_entry("Damage Boost", float(db.get("all", 0.0)))
-        for troop in BONUS_TROOP_TYPES:
-            add_entry(
-                f"Damage Boost vs {troop.title()}",
-                float(db.get(f"vs_{troop}", 0.0)),
-            )
-        add_entry(
-            "Reactive Skill Critical Rate",
-            float(db.get("reactive_crit_rate", 0.0)),
-        )
-        add_entry(
-            "Cooperation Skill Critical Rate",
-            float(db.get("cooperation_crit_rate", 0.0)),
-        )
-        add_entry(
-            "Command Skill Critical Rate",
-            float(db.get("command_crit_rate", 0.0)),
-        )
-
-        add_entry("Shield Gain Boost", float(self._bonus_stats.get("shield_gain", 0.0)))
-        add_entry("Burn Boost", float(self._bonus_stats.get("burn_boost", 0.0)))
-        add_entry("Poison Boost", float(self._bonus_stats.get("poison_boost", 0.0)))
-        add_entry("Lacerate Boost", float(self._bonus_stats.get("lacerate_boost", 0.0)))
-        add_entry("Basic Attack Boost", float(self._bonus_stats.get("basic_boost", 0.0)))
-        add_entry("Counterattack Boost", float(self._bonus_stats.get("counter_boost", 0.0)))
-        add_entry("Reactive Skill Damage Boost", float(self._bonus_stats.get("reactive_skill_boost", 0.0)))
-        add_entry("Rage Skill Damage Boost", float(self._bonus_stats.get("rage_skill_boost", 0.0)))
-        add_entry("Cooperation Skill Damage Boost", float(self._bonus_stats.get("cooperation_skill_boost", 0.0)))
-        add_entry("Command Skill Damage Boost", float(self._bonus_stats.get("command_skill_boost", 0.0)))
-
-        summary = "\n".join(entries)
-        return count, summary
+        return len(entries), "\n".join(entries)
 
     def _open_gem_skills_dialog(self) -> None:
         dlg = JewelSkillsDialog(self._gem_skills, self)
@@ -3216,6 +3246,8 @@ class SimulationWorker(QtCore.QThread):
         self.seed_target = seed_target
         self._cancelled = threading.Event()
         self.dynamic_settings = dict(dynamic_settings) if dynamic_settings else None
+        self.win_rate: float | None = None
+        self.best_match: dict[str, Any] | None = None
 
     def cancel(self) -> None:
         """Request the simulation to stop."""
@@ -3239,6 +3271,8 @@ class SimulationWorker(QtCore.QThread):
                 num_workers=self.num_workers,
                 target_outcome=self.seed_target,
             )
+            self.win_rate = float(win_rate)
+            self.best_match = dict(best_match) if isinstance(best_match, dict) else None
             if self._cancelled.is_set():
                 raise RuntimeError("cancelled")
 
@@ -4333,6 +4367,8 @@ class MainWindow(QtWidgets.QMainWindow):
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
         self.pdf_layout = load_pdf_layout()
+        self._last_setup_data: list[dict] | None = None
+        self._last_simulation_payload: dict[str, Any] | None = None
 
     def open_star_overlay_tuner(self) -> None:
         """Open the star overlay debug dialog."""
@@ -4643,12 +4679,16 @@ class MainWindow(QtWidgets.QMainWindow):
         export_summary_action = QtGui.QAction("Export Summary Image", self)
         export_summary_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+E"))
         export_summary_action.triggered.connect(self.export_summary_image)
+        export_html_action = QtGui.QAction("Export Summary HTML", self)
+        export_html_action.setShortcut(QtGui.QKeySequence("Ctrl+Alt+E"))
+        export_html_action.triggered.connect(self.export_summary_html)
         export_pdf_action = QtGui.QAction("Export PDF", self)
         export_pdf_action.triggered.connect(self.export_pdf)
         for act in (
             export_report_action,
             export_fig_action,
             export_summary_action,
+            export_html_action,
             export_pdf_action,
         ):
             self.addAction(act)
@@ -4838,6 +4878,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hist_container = QtWidgets.QWidget()
         self.hist_scroll.setWidget(self.hist_container)
         self._set_skill_breakdown_message(self._skill_breakdown_default_message)
+
+    def _collect_histogram_images(self) -> list[str]:
+        base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+        if not os.path.isdir(base_hist_dir):
+            return []
+        paths = []
+        for fname in sorted(os.listdir(base_hist_dir)):
+            if fname.lower().endswith(".png"):
+                full = os.path.join(base_hist_dir, fname)
+                if os.path.isfile(full):
+                    paths.append(full)
+        return paths
 
     def _clear_skill_breakdown_layout(self) -> None:
         """Remove all widgets from the skill breakdown layout."""
@@ -5601,6 +5653,859 @@ class MainWindow(QtWidgets.QMainWindow):
         if save_path:
             final_pix.save(save_path, "PNG")
 
+    def export_summary_html(self) -> None:
+        """Export the latest battle summary as an interactive HTML bundle."""
+
+        payload = self._last_simulation_payload
+        if not payload:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "No Summary Data",
+                "Run a simulation to generate data for the HTML export.",
+            )
+            return
+
+        dest_root = QtWidgets.QFileDialog.getExistingDirectory(
+            self,
+            "Export Summary HTML",
+            self.last_setup_dir,
+        )
+        if not dest_root:
+            return
+
+        timestamp = payload.get("generated_at") or time.time()
+        folder_name = time.strftime("battle_summary_%Y%m%d_%H%M%S", time.localtime(timestamp))
+        base_output = os.path.join(dest_root, folder_name)
+        output_dir = base_output
+        suffix = 1
+        while os.path.exists(output_dir):
+            output_dir = f"{base_output}_{suffix}"
+            suffix += 1
+
+        assets_dir = os.path.join(output_dir, "assets")
+        hist_dir = os.path.join(assets_dir, "histograms")
+
+        try:
+            os.makedirs(hist_dir, exist_ok=True)
+        except OSError as exc:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Error",
+                f"Unable to create export directory: {exc}",
+            )
+            return
+
+        copied_assets: dict[tuple[str, str], str] = {}
+
+        def ensure_asset(src: str | None, dest_rel: str | None = None) -> str | None:
+            if not src or not os.path.exists(src):
+                return None
+            rel = dest_rel or os.path.basename(src)
+            key = (src, rel)
+            cached = copied_assets.get(key)
+            if cached:
+                return cached
+            dest_path = os.path.join(assets_dir, rel)
+            dest_parent = os.path.dirname(dest_path)
+            if dest_parent and not os.path.exists(dest_parent):
+                os.makedirs(dest_parent, exist_ok=True)
+            try:
+                shutil.copy2(src, dest_path)
+            except OSError as exc:
+                QtWidgets.QMessageBox.critical(
+                    self,
+                    "Error",
+                    f"Failed to copy asset {os.path.basename(src)}: {exc}",
+                )
+                return None
+            rel_path = os.path.join("assets", rel).replace("\\", "/")
+            copied_assets[key] = rel_path
+            return rel_path
+
+        base_dir = os.path.dirname(__file__)
+        stat_icons = {
+            "attack": ensure_asset(os.path.join(base_dir, "Stat Icons", "attack.png")),
+            "defense": ensure_asset(os.path.join(base_dir, "Stat Icons", "defense.png")),
+            "health": ensure_asset(os.path.join(base_dir, "Stat Icons", "health.png")),
+        }
+        bonus_icon = ensure_asset(
+            os.path.join(base_dir, "Stat Icons", "Additional_stats_Icon.png"),
+            "icons/bonus_stats.png",
+        )
+        gear_placeholder = ensure_asset(
+            os.path.join(base_dir, "Gear Icons", "none.png"),
+            "gear/placeholder.png",
+        )
+        mount_placeholder = ensure_asset(
+            os.path.join(base_dir, "MountSkillsIcons", "none.png"),
+            "mounts/placeholder.png",
+        )
+
+        jewel_icon_map: dict[str, str] = {}
+        for slot_key, slot_label in JEWEL_SLOTS:
+            icon_path = os.path.join(base_dir, "Icons", f"{slot_label}.png")
+            jewel_icon_map[slot_key] = ensure_asset(
+                icon_path,
+                f"jewels/{slot_label.replace(' ', '_').replace("'", '')}.png",
+            )
+
+        histograms = []
+        for path in payload.get("histograms", []) or []:
+            rel = ensure_asset(path, f"histograms/{os.path.basename(path)}")
+            if rel:
+                histograms.append(rel)
+
+        setup = payload.get("setup") or []
+        summary_data = payload.get("summary") or []
+        army_names = payload.get("army_names") or [
+            cfg.get("army_name", f"Army {i + 1}") for i, cfg in enumerate(setup)
+        ]
+        win_rate = float(payload.get("win_rate", 0.0) or 0.0)
+        runs = max(int(payload.get("runs", 0)), 0)
+        army_one_pct = max(0.0, min(100.0, win_rate * 100.0 if runs else 0.0))
+        army_two_pct = max(0.0, 100.0 - army_one_pct)
+        army_one_wins = int(round((army_one_pct / 100.0) * runs)) if runs else 0
+        army_two_wins = runs - army_one_wins
+
+        def fmt_percent(value: float, invert: bool = False) -> str:
+            percent = -value * 100 if invert else value * 100
+            return f"{percent:+.1f}%"
+
+        armies_html: list[str] = []
+        for idx, summary_entry in enumerate(summary_data):
+            cfg = setup[idx] if idx < len(setup) else {}
+            army_name = cfg.get("army_name") or (
+                army_names[idx] if idx < len(army_names) else f"Army {idx + 1}"
+            )
+            unit_type = cfg.get("unit_type", "pikemen")
+            unit_icon = ensure_asset(
+                os.path.join(base_dir, "Icons", f"{unit_type.lower()}.png"),
+                f"units/{unit_type.lower()}.png",
+            )
+            tier = cfg.get("tier", 0)
+            troop_count = cfg.get("count", 0)
+            atk_mod = float(cfg.get("atk_mod", 0.0))
+            def_mod = float(cfg.get("def_mod", 0.0))
+            hp_mod = float(cfg.get("hp_mod", 0.0))
+            bonus_stats = merge_bonus_stats(default_bonus_stats(), cfg.get("bonus_stats"))
+            bonus_entries = [
+                {
+                    "label": entry["label"],
+                    "value": fmt_percent(entry["value"], entry["invert"]),
+                }
+                for entry in iter_bonus_stat_entries(bonus_stats)
+            ]
+            bonus_data_attr = html.escape(json.dumps(bonus_entries, ensure_ascii=False))
+            bonus_button_label = "Bonus Stats"
+            if bonus_entries:
+                bonus_button_label = f"Bonus Stats ({len(bonus_entries)})"
+
+            stats_html = []
+            for key, label in (("attack", "Attack"), ("defense", "Defense"), ("health", "Health")):
+                icon = stat_icons.get(key) or ""
+                value = {"attack": atk_mod, "defense": def_mod, "health": hp_mod}[key]
+                stats_html.append(
+                    "<div class=\"stat-chip\">"
+                    + (f"<img src=\"{icon}\" alt=\"{label} icon\">" if icon else "")
+                    + f"<span>{label}</span><strong>{fmt_percent(value)}</strong></div>"
+                )
+
+            gem_skills = cfg.get("gem_skills", {}) or {}
+            jewel_cards: list[str] = []
+            for slot_key, slot_label in JEWEL_SLOTS:
+                skill_id = gem_skills.get(slot_key, "")
+                skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id) if skill_id else None
+                skill_name = skill_def.get("name") if isinstance(skill_def, dict) else None
+                if not skill_name and skill_id:
+                    skill_name = skill_id
+                desc = get_skill_description(skill_id, skill_name) if skill_id else None
+                tooltip = html.escape(desc) if desc else "Skill details coming soon."
+                display_name = html.escape(skill_name) if skill_name else "None"
+                slot_display = html.escape(slot_label)
+                jewel_icon = jewel_icon_map.get(slot_key) or ""
+                jewel_cards.append(
+                    "<div class=\"jewel-card\">"
+                    + (f"<img src=\"{jewel_icon}\" alt=\"{slot_display} icon\">" if jewel_icon else "")
+                    + "<div class=\"jewel-text\">"
+                    + f"<span class=\"jewel-slot\">{slot_display}</span>"
+                    + f"<span class=\"jewel-skill tooltip\">{display_name}<span class=\"tooltip-content\">{tooltip}</span></span>"
+                    + "</div></div>"
+                )
+
+            if not jewel_cards:
+                jewel_cards.append("<p class=\"empty-state\">No jewels assigned.</p>")
+
+            gear_placeholders = "".join(
+                (
+                    f"<img src=\"{gear_placeholder}\" alt=\"Gear placeholder\">"
+                    if gear_placeholder
+                    else "<div class=\"placeholder-empty\"></div>"
+                )
+                for _ in range(8)
+            )
+            mount_placeholders = "".join(
+                (
+                    f"<img src=\"{mount_placeholder}\" alt=\"Mount skill placeholder\">"
+                    if mount_placeholder
+                    else "<div class=\"placeholder-empty\"></div>"
+                )
+                for _ in range(4)
+            )
+
+            hero_names = summary_entry.get("hero_names") or []
+            hero_skills = summary_entry.get("skills") or []
+            portraits = [
+                ensure_asset(summary_entry.get("portrait1"), f"portraits/{idx}_1.png"),
+                ensure_asset(summary_entry.get("portrait2"), f"portraits/{idx}_2.png"),
+            ]
+            hero_cards: list[str] = []
+            for hero_idx, hero_name in enumerate(hero_names):
+                name_display = html.escape(hero_name) if hero_name else f"Hero {hero_idx + 1}"
+                portrait = portraits[hero_idx] if hero_idx < len(portraits) else None
+                portrait_html = (
+                    f"<img src=\"{portrait}\" alt=\"{name_display} portrait\" class=\"hero-portrait\">"
+                    if portrait
+                    else ""
+                )
+                skill_entries = hero_skills[hero_idx] if hero_idx < len(hero_skills) else []
+                skill_html_parts: list[str] = []
+                for skill in skill_entries or []:
+                    skill_name = html.escape(skill.get("name", "Unknown Skill"))
+                    casts = skill.get("casts")
+                    metrics: list[str] = []
+                    if isinstance(casts, (int, float)) and casts:
+                        metrics.append(f"<span><label>Casts</label><strong>{int(casts)}</strong></span>")
+                    kills = skill.get("kills", 0)
+                    if kills:
+                        metrics.append(f"<span><label>Kills</label><strong>{kills}</strong></span>")
+                    healed = skill.get("heals", 0)
+                    if healed:
+                        metrics.append(f"<span><label>Healed</label><strong>{healed}</strong></span>")
+                    shielded = skill.get("shielded", 0)
+                    if shielded:
+                        metrics.append(f"<span><label>Shielded</label><strong>{shielded}</strong></span>")
+                    rage = skill.get("rage", 0)
+                    if rage:
+                        metrics.append(f"<span><label>Rage</label><strong>{rage}</strong></span>")
+                    rage_red = skill.get("rage_reduced", 0)
+                    if rage_red:
+                        metrics.append(f"<span><label>Rage Reduced</label><strong>{rage_red}</strong></span>")
+                    dmg_red = skill.get("damage_reduced", 0)
+                    if dmg_red:
+                        metrics.append(f"<span><label>Damage Blocked</label><strong>{dmg_red}</strong></span>")
+                    desc = get_skill_description(skill.get("id"), skill.get("name"))
+                    tooltip = html.escape(desc) if desc else "Description unavailable."
+                    metrics_html = (
+                        "".join(metrics)
+                        if metrics
+                        else "<span class=\"metric-note\">No combat events recorded.</span>"
+                    )
+                    skill_html_parts.append(
+                        "<div class=\"skill-entry tooltip\">"
+                        f"<div class=\"skill-name\">{skill_name}</div>"
+                        f"<div class=\"skill-metrics\">{metrics_html}</div>"
+                        f"<div class=\"tooltip-content\"><strong>{skill_name}</strong><p>{tooltip}</p></div>"
+                        "</div>"
+                    )
+                if not skill_html_parts:
+                    skill_html_parts.append("<p class=\"empty-state\">No skills recorded.</p>")
+                hero_cards.append(
+                    "<div class=\"hero-card\">"
+                    + "<div class=\"hero-header\">"
+                    + portrait_html
+                    + f"<div><h4>{name_display}</h4></div>"
+                    + "</div>"
+                    + "<div class=\"skill-list\">"
+                    + "".join(skill_html_parts)
+                    + "</div></div>"
+                )
+
+            if not hero_cards:
+                hero_cards.append("<p class=\"empty-state\">No heroes configured.</p>")
+
+            armies_html.append(
+                "<section class=\"army-card\">"
+                + "<header class=\"army-header\">"
+                + "<div class=\"army-title\">"
+                + (
+                    f"<img src=\"{unit_icon}\" alt=\"{html.escape(unit_type)} icon\" class=\"unit-icon\">"
+                    if unit_icon
+                    else ""
+                )
+                + "<div>"
+                + f"<h2>{html.escape(army_name)}</h2>"
+                + f"<p>{html.escape(unit_type.title())} • Tier {tier} • {troop_count:,} troops</p>"
+                + "</div></div>"
+                + (
+                    "<button class=\"bonus-button\" data-bonus='"
+                    + bonus_data_attr
+                    + "'>"
+                    + (f"<img src=\"{bonus_icon}\" alt=\"Bonus stats\">" if bonus_icon else "")
+                    + f"<span>{html.escape(bonus_button_label)}</span></button>"
+                    if bonus_icon
+                    else ""
+                )
+                + "</header>"
+                + "<div class=\"stat-row\">" + "".join(stats_html) + "</div>"
+                + "<div class=\"section\"><h3>Jewels</h3><div class=\"jewel-grid\">"
+                + "".join(jewel_cards)
+                + "</div></div>"
+                + "<div class=\"section two-column\">"
+                + "<div><h3>Gear (Coming Soon)</h3><div class=\"placeholder-grid\">"
+                + gear_placeholders
+                + "</div></div>"
+                + "<div><h3>Mount Skills (Coming Soon)</h3><div class=\"placeholder-grid\">"
+                + mount_placeholders
+                + "</div></div></div>"
+                + "<div class=\"section\"><h3>Heroes & Skills</h3><div class=\"hero-grid\">"
+                + "".join(hero_cards)
+                + "</div></div>"
+                + "</section>"
+            )
+
+        armies_markup = "".join(armies_html)
+
+        hist_markup = "".join(
+            f"<figure><img src=\"{path}\" alt=\"Histogram\"><figcaption>{html.escape(os.path.basename(path))}</figcaption></figure>"
+            for path in histograms
+        )
+        if hist_markup:
+            hist_section = (
+                "<section class=\"card\"><h2>Additional Figures</h2><div class=\"hist-grid\">"
+                + hist_markup
+                + "</div></section>"
+            )
+        else:
+            hist_section = ""
+
+        donut_style = f"--stop:{army_one_pct:.2f}%;"
+        victory_markup = (
+            "<section class=\"card victory-card\">"
+            + "<h2>Victory Distribution</h2>"
+            + f"<div class=\"donut\" style=\"{donut_style}\">"
+            + "<div class=\"donut-inner\">"
+            + f"<div class=\"donut-value\">{army_one_pct:.0f}% / {army_two_pct:.0f}%</div>"
+            + f"<div class=\"donut-sub\">{html.escape(army_names[0] if army_names else 'Army 1')} / {html.escape(army_names[1] if len(army_names) > 1 else 'Army 2')}</div>"
+            + f"<div class=\"donut-sub\">Across {runs} simulations</div>"
+            + "</div></div>"
+            + "<div class=\"legend\">"
+            + f"<div class=\"legend-item\"><span class=\"swatch swatch-a\"></span><span>{html.escape(army_names[0] if army_names else 'Army 1')} ({army_one_pct:.1f}% • {army_one_wins} wins)</span></div>"
+            + f"<div class=\"legend-item\"><span class=\"swatch swatch-b\"></span><span>{html.escape(army_names[1] if len(army_names) > 1 else 'Army 2')} ({army_two_pct:.1f}% • {army_two_wins} wins)</span></div>"
+            + "</div></section>"
+        )
+
+        payload_out = {
+            "generated_at": timestamp,
+            "win_rate": win_rate,
+            "runs": runs,
+            "armies": setup,
+            "army_names": army_names,
+            "summary": summary_data,
+        }
+
+        html_output = f"""<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+    <meta charset=\"utf-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    <title>Battle Summary - {html.escape(army_names[0] if army_names else 'Army 1')} vs {html.escape(army_names[1] if len(army_names) > 1 else 'Army 2')}</title>
+    <style>
+        :root {{
+            --bg: #080b16;
+            --panel: #12192c;
+            --panel-alt: #101726;
+            --text: #f5f7ff;
+            --muted: #9aa4c2;
+            --accent-a: #2ecc71;
+            --accent-b: #e74c3c;
+            --border: rgba(255, 255, 255, 0.08);
+            --card-radius: 18px;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+        }}
+        * {{ box-sizing: border-box; }}
+        body {{
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            padding: 40px 24px 80px;
+        }}
+        h1 {{
+            font-size: 2.4rem;
+            margin-bottom: 8px;
+        }}
+        h2 {{
+            margin: 0;
+            font-size: 1.6rem;
+        }}
+        h3 {{
+            margin: 0 0 12px 0;
+            font-size: 1.2rem;
+        }}
+        p {{
+            margin: 0;
+            color: var(--muted);
+        }}
+        main {{
+            max-width: 1440px;
+            margin: 0 auto;
+            display: grid;
+            gap: 24px;
+        }}
+        .header {{
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }}
+        .card {{
+            background: var(--panel);
+            border-radius: var(--card-radius);
+            padding: 24px;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border);
+        }}
+        .victory-card {{
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 24px;
+            align-items: center;
+        }}
+        .donut {{
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: conic-gradient(var(--accent-a) var(--stop), var(--accent-b) var(--stop));
+            position: relative;
+        }}
+        .donut::after {{
+            content: '';
+            position: absolute;
+            inset: 28px;
+            background: var(--panel);
+            border-radius: 50%;
+        }}
+        .donut-inner {{
+            position: absolute;
+            inset: 28px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 6px;
+            pointer-events: none;
+        }}
+        .donut-value {{
+            font-size: 1.8rem;
+            font-weight: 700;
+        }}
+        .donut-sub {{
+            font-size: 0.95rem;
+            color: var(--muted);
+        }}
+        .legend {{
+            display: grid;
+            gap: 8px;
+        }}
+        .legend-item {{
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            color: var(--muted);
+        }}
+        .swatch {{
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+        }}
+        .swatch-a {{ background: var(--accent-a); }}
+        .swatch-b {{ background: var(--accent-b); }}
+        .army-card {{
+            background: var(--panel);
+            border-radius: var(--card-radius);
+            padding: 24px;
+            border: 1px solid var(--border);
+            display: grid;
+            gap: 24px;
+        }}
+        .army-header {{
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }}
+        .army-title {{
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }}
+        .unit-icon {{
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            background: var(--panel-alt);
+            border-radius: 16px;
+            padding: 12px;
+            border: 1px solid var(--border);
+        }}
+        .bonus-button {{
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 18px;
+            background: var(--panel-alt);
+            color: var(--text);
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }}
+        .bonus-button:hover {{
+            background: #1a2236;
+            transform: translateY(-1px);
+        }}
+        .bonus-button img {{
+            width: 28px;
+            height: 28px;
+        }}
+        .stat-row {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }}
+        .stat-chip {{
+            background: var(--panel-alt);
+            padding: 12px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }}
+        .stat-chip img {{
+            width: 22px;
+            height: 22px;
+        }}
+        .stat-chip span {{
+            color: var(--muted);
+            font-size: 0.9rem;
+        }}
+        .section {{
+            display: grid;
+            gap: 16px;
+        }}
+        .two-column {{
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        }}
+        .jewel-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }}
+        .jewel-card {{
+            background: var(--panel-alt);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 12px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }}
+        .jewel-card img {{
+            width: 44px;
+            height: 44px;
+            object-fit: contain;
+        }}
+        .jewel-text {{
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }}
+        .jewel-slot {{
+            color: var(--muted);
+            font-size: 0.85rem;
+        }}
+        .placeholder-grid {{
+            display: grid;
+            grid-template-columns: repeat(4, minmax(40px, 1fr));
+            gap: 12px;
+        }}
+        .placeholder-grid img {{
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            background: var(--panel-alt);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            padding: 8px;
+        }}
+        .placeholder-grid .placeholder-empty {{
+            width: 60px;
+            height: 60px;
+            background: var(--panel-alt);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }}
+        .hero-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 18px;
+        }}
+        .hero-card {{
+            background: var(--panel-alt);
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            padding: 16px;
+            display: grid;
+            gap: 12px;
+        }}
+        .hero-header {{
+            display: flex;
+            gap: 14px;
+            align-items: center;
+        }}
+        .hero-portrait {{
+            width: 68px;
+            height: 68px;
+            object-fit: cover;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+        }}
+        .skill-list {{
+            display: grid;
+            gap: 12px;
+        }}
+        .skill-entry {{
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            position: relative;
+        }}
+        .skill-name {{
+            font-weight: 600;
+            margin-bottom: 8px;
+        }}
+        .skill-metrics {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }}
+        .skill-metrics span {{
+            display: inline-flex;
+            gap: 6px;
+            align-items: baseline;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 999px;
+        }}
+        .skill-metrics label {{
+            color: var(--muted);
+            font-weight: 500;
+        }}
+        .metric-note {{
+            color: var(--muted);
+            font-style: italic;
+        }}
+        .tooltip {{
+            position: relative;
+        }}
+        .tooltip-content {{
+            position: absolute;
+            inset-inline-start: 0;
+            bottom: calc(100% + 10px);
+            min-width: 240px;
+            max-width: 320px;
+            background: rgba(8, 11, 22, 0.95);
+            border-radius: 12px;
+            padding: 14px;
+            border: 1px solid var(--border);
+            box-shadow: 0 18px 30px rgba(0, 0, 0, 0.45);
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+            z-index: 10;
+        }}
+        .tooltip-content p {{
+            margin-top: 6px;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }}
+        .tooltip:hover .tooltip-content {{
+            opacity: 1;
+            transform: translateY(0);
+        }}
+        .empty-state {{
+            color: var(--muted);
+            font-style: italic;
+        }}
+        .hist-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+        }}
+        figure {{
+            margin: 0;
+            background: var(--panel-alt);
+            border-radius: 16px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            display: grid;
+            gap: 8px;
+        }}
+        figure img {{
+            width: 100%;
+            border-radius: 12px;
+        }}
+        figcaption {{
+            font-size: 0.85rem;
+            color: var(--muted);
+        }}
+        .modal {{
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }}
+        .modal.active {{
+            display: flex;
+        }}
+        .modal-backdrop {{
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+        }}
+        .modal-content {{
+            position: relative;
+            background: var(--panel);
+            padding: 28px;
+            border-radius: 18px;
+            border: 1px solid var(--border);
+            width: min(480px, 90vw);
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 24px 40px rgba(0, 0, 0, 0.45);
+        }}
+        .modal-close {{
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            font-size: 1.4rem;
+            cursor: pointer;
+        }}
+        .bonus-list {{
+            list-style: none;
+            margin: 24px 0 0 0;
+            padding: 0;
+            display: grid;
+            gap: 10px;
+        }}
+        .bonus-list li {{
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 10px 14px;
+            background: var(--panel-alt);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }}
+        @media (max-width: 820px) {{
+            .victory-card {{
+                grid-template-columns: 1fr;
+                justify-items: center;
+            }}
+            .army-header {{
+                flex-direction: column;
+                align-items: flex-start;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <main>
+        <header class=\"header\">
+            <h1>Battle Summary</h1>
+            <p>Generated {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))}</p>
+        </header>
+        {victory_markup}
+        {armies_markup}
+        {hist_section}
+    </main>
+    <div class=\"modal\" id=\"bonus-modal\">
+        <div class=\"modal-backdrop\"></div>
+        <div class=\"modal-content\">
+            <button class=\"modal-close\" aria-label=\"Close\">&times;</button>
+            <h2>Bonus Stats</h2>
+            <ul class=\"bonus-list\" id=\"bonus-list\"></ul>
+        </div>
+    </div>
+    <script>
+        const summaryData = {json.dumps(payload_out)};
+        const modal = document.getElementById('bonus-modal');
+        const modalList = document.getElementById('bonus-list');
+        const closeModal = () => modal.classList.remove('active');
+        modal.querySelector('.modal-backdrop').addEventListener('click', closeModal);
+        modal.querySelector('.modal-close').addEventListener('click', closeModal);
+        document.addEventListener('keydown', (evt) => {{ if (evt.key === 'Escape') closeModal(); }});
+        document.querySelectorAll('.bonus-button').forEach((btn) => {{
+            btn.addEventListener('click', () => {{
+                const raw = btn.getAttribute('data-bonus') || '[]';
+                let entries = [];
+                try {{ entries = JSON.parse(raw); }} catch (err) {{ entries = []; }}
+                modalList.innerHTML = '';
+                if (!entries.length) {{
+                    const li = document.createElement('li');
+                    li.textContent = 'No bonus stats configured.';
+                    modalList.appendChild(li);
+                }} else {{
+                    entries.forEach((entry) => {{
+                        const li = document.createElement('li');
+                        const label = document.createElement('span');
+                        label.textContent = entry.label || 'Bonus';
+                        const value = document.createElement('strong');
+                        value.textContent = entry.value || '0%';
+                        li.appendChild(label);
+                        li.appendChild(value);
+                        modalList.appendChild(li);
+                    }});
+                }}
+                modal.classList.add('active');
+            }});
+        }});
+    </script>
+</body>
+</html>
+"""
+
+        json_path = os.path.join(output_dir, "summary.json")
+        html_path = os.path.join(output_dir, "index.html")
+        try:
+            with open(json_path, "w", encoding="utf-8") as fh:
+                json.dump(payload_out, fh, indent=2)
+            with open(html_path, "w", encoding="utf-8") as fh:
+                fh.write(html_output)
+        except OSError as exc:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to write export files: {exc}",
+            )
+            return
+
+        self.last_setup_dir = dest_root
+        self.status.setText(f"HTML summary exported to {os.path.basename(output_dir)}")
+
     def export_pdf(self) -> None:
         """Export a multi-page PDF using the configured layout."""
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -5654,6 +6559,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.worker = None
 
         setup_data = [self.army1_frame.build_config(), self.army2_frame.build_config()]
+        self._last_setup_data = [copy.deepcopy(cfg) for cfg in setup_data]
+        self._last_simulation_payload = None
         runs = self.runs_spin.value()
         workers = self.workers_spin.value()
         self.status.setText("Running simulation...")
@@ -5737,6 +6644,32 @@ class MainWindow(QtWidgets.QMainWindow):
             if text.strip().lower().startswith("simulation cancelled"):
                 message = "Simulation cancelled."
             self._set_skill_breakdown_message(message)
+        export_payload: dict[str, Any] | None = None
+        worker = getattr(self, "worker", None)
+        win_rate = getattr(worker, "win_rate", None) if worker else None
+        runs = getattr(worker, "runs", self.runs_spin.value())
+        best_match = getattr(worker, "best_match", None) if worker else None
+        setup_data = self._last_setup_data or [
+            self.army1_frame.build_config(),
+            self.army2_frame.build_config(),
+        ]
+        if summary and win_rate is not None:
+            export_payload = {
+                "report_text": text,
+                "rounds": rounds,
+                "summary": copy.deepcopy(summary),
+                "win_rate": float(win_rate),
+                "runs": int(runs),
+                "best_match": copy.deepcopy(best_match) if isinstance(best_match, dict) else None,
+                "setup": [copy.deepcopy(cfg) for cfg in setup_data],
+                "histograms": self._collect_histogram_images(),
+                "generated_at": time.time(),
+                "army_names": [
+                    self.army1_frame.name_edit.text() or "Army 1",
+                    self.army2_frame.name_edit.text() or "Army 2",
+                ],
+            }
+        self._last_simulation_payload = export_payload
         self.progress.setValue(0)
         self.status.setText("Ready")
         self.run_btn.setEnabled(True)

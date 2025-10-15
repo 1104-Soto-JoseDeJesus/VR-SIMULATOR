@@ -16,6 +16,7 @@ import re
 import concurrent.futures
 import base64
 import mimetypes
+import difflib
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
@@ -5719,6 +5720,36 @@ class MainWindow(QtWidgets.QMainWindow):
             return data_uri
 
         base_dir = os.path.dirname(__file__)
+
+        def normalize_key(value: str) -> str:
+            return re.sub(r"[^a-z0-9]", "", (value or "").lower())
+
+        def build_lookup(directory: str) -> dict[str, str]:
+            lookup: dict[str, str] = {}
+            if not os.path.isdir(directory):
+                return lookup
+            for fname in os.listdir(directory):
+                if not fname.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                    continue
+                key = normalize_key(os.path.splitext(fname)[0])
+                if key:
+                    lookup[key] = os.path.join(directory, fname)
+            return lookup
+
+        def resolve_from_lookup(label: str, lookup: dict[str, str]) -> str | None:
+            if not label:
+                return None
+            key = normalize_key(label)
+            path = lookup.get(key)
+            if not path and key:
+                matches = difflib.get_close_matches(key, list(lookup.keys()), n=1, cutoff=0.75)
+                if matches:
+                    path = lookup.get(matches[0])
+            return path
+
+        icon_lookup = build_lookup(os.path.join(base_dir, "Icons"))
+        plugin_icon_lookup = build_lookup(os.path.join(base_dir, "Plugin Skill Images"))
+
         stat_icons = {
             "attack": ensure_asset(os.path.join(base_dir, "Stat Icons", "attack.png")),
             "defense": ensure_asset(os.path.join(base_dir, "Stat Icons", "defense.png")),
@@ -5739,18 +5770,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         jewel_icon_map: dict[str, str] = {}
         for slot_key, slot_label in JEWEL_SLOTS:
-            icon_path = os.path.join(base_dir, "Icons", f"{slot_label}.png")
-            jewel_icon_map[slot_key] = ensure_asset(
-                icon_path,
-                f"jewels/{slot_label.replace(' ', '_').replace("'", '')}.png",
-            )
-
-        histograms: list[tuple[str, str]] = []
-        for path in payload.get("histograms", []) or []:
-            label = os.path.basename(path) if path else "Histogram"
-            rel = ensure_asset(path, f"histograms/{label}")
-            if rel:
-                histograms.append((rel, label))
+            icon_path = resolve_from_lookup(slot_label, icon_lookup)
+            jewel_icon_map[slot_key] = ensure_asset(icon_path) if icon_path else None
 
         setup = payload.get("setup") or []
         summary_data = payload.get("summary") or []
@@ -5768,6 +5789,23 @@ class MainWindow(QtWidgets.QMainWindow):
             percent = -value * 100 if invert else value * 100
             return f"{percent:+.1f}%"
 
+        def build_skill_display(skill_id: str) -> tuple[str, str, dict[str, Any] | None]:
+            if not skill_id:
+                return "Unknown Skill", "Description unavailable.", None
+            skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id)
+            name = (
+                skill_def.get("name")
+                if isinstance(skill_def, dict)
+                else skill_id.replace("_", " ").title()
+            )
+            description = get_skill_description(skill_id, name) if skill_id else None
+            tooltip = (
+                html.escape(description).replace("\n", "<br>")
+                if description
+                else "Description unavailable."
+            )
+            return name, tooltip, skill_def if isinstance(skill_def, dict) else None
+
         armies_html: list[str] = []
         for idx, summary_entry in enumerate(summary_data):
             cfg = setup[idx] if idx < len(setup) else {}
@@ -5775,10 +5813,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 army_names[idx] if idx < len(army_names) else f"Army {idx + 1}"
             )
             unit_type = cfg.get("unit_type", "pikemen")
-            unit_icon = ensure_asset(
-                os.path.join(base_dir, "Icons", f"{unit_type.lower()}.png"),
-                f"units/{unit_type.lower()}.png",
-            )
+            unit_icon_path = resolve_from_lookup(unit_type, icon_lookup)
+            unit_icon = ensure_asset(unit_icon_path) if unit_icon_path else None
             tier = cfg.get("tier", 0)
             troop_count = cfg.get("count", 0)
             atk_mod = float(cfg.get("atk_mod", 0.0))
@@ -5816,7 +5852,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 if not skill_name and skill_id:
                     skill_name = skill_id
                 desc = get_skill_description(skill_id, skill_name) if skill_id else None
-                tooltip = html.escape(desc) if desc else "Skill details coming soon."
+                tooltip = html.escape(desc).replace("\n", "<br>") if desc else "Skill details coming soon."
                 display_name = html.escape(skill_name) if skill_name else "None"
                 slot_display = html.escape(slot_label)
                 jewel_icon = jewel_icon_map.get(slot_key) or ""
@@ -5825,7 +5861,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     + (f"<img src=\"{jewel_icon}\" alt=\"{slot_display} icon\">" if jewel_icon else "")
                     + "<div class=\"jewel-text\">"
                     + f"<span class=\"jewel-slot\">{slot_display}</span>"
-                    + f"<span class=\"jewel-skill tooltip\">{display_name}<span class=\"tooltip-content\">{tooltip}</span></span>"
+                    + f"<span class=\"jewel-skill tooltip\">{display_name}<span class=\"tooltip-content\"><strong>{display_name}</strong><p>{tooltip}</p></span></span>"
                     + "</div></div>"
                 )
 
@@ -5850,71 +5886,114 @@ class MainWindow(QtWidgets.QMainWindow):
             )
 
             hero_names = summary_entry.get("hero_names") or []
-            hero_skills = summary_entry.get("skills") or []
+            heroes_cfg = cfg.get("heroes", []) or []
             portraits = [
                 ensure_asset(summary_entry.get("portrait1"), f"portraits/{idx}_1.png"),
                 ensure_asset(summary_entry.get("portrait2"), f"portraits/{idx}_2.png"),
             ]
             hero_cards: list[str] = []
-            for hero_idx, hero_name in enumerate(hero_names):
-                name_display = html.escape(hero_name) if hero_name else f"Hero {hero_idx + 1}"
+            hero_count = max(len(hero_names), len(heroes_cfg))
+            for hero_idx in range(hero_count):
+                hero_cfg = heroes_cfg[hero_idx] if hero_idx < len(heroes_cfg) else {}
+                cfg_name = hero_cfg.get("hero_name_or_preset", "")
+                raw_name = (
+                    cfg_name
+                    or (hero_names[hero_idx] if hero_idx < len(hero_names) else "")
+                    or f"Hero {hero_idx + 1}"
+                )
+                name_display = html.escape(raw_name)
                 portrait = portraits[hero_idx] if hero_idx < len(portraits) else None
                 portrait_html = (
                     f"<img src=\"{portrait}\" alt=\"{name_display} portrait\" class=\"hero-portrait\">"
                     if portrait
                     else ""
                 )
-                skill_entries = hero_skills[hero_idx] if hero_idx < len(hero_skills) else []
-                skill_html_parts: list[str] = []
-                for skill in skill_entries or []:
-                    skill_name = html.escape(skill.get("name", "Unknown Skill"))
-                    casts = skill.get("casts")
-                    metrics: list[str] = []
-                    if isinstance(casts, (int, float)) and casts:
-                        metrics.append(f"<span><label>Casts</label><strong>{int(casts)}</strong></span>")
-                    kills = skill.get("kills", 0)
-                    if kills:
-                        metrics.append(f"<span><label>Kills</label><strong>{kills}</strong></span>")
-                    healed = skill.get("heals", 0)
-                    if healed:
-                        metrics.append(f"<span><label>Healed</label><strong>{healed}</strong></span>")
-                    shielded = skill.get("shielded", 0)
-                    if shielded:
-                        metrics.append(f"<span><label>Shielded</label><strong>{shielded}</strong></span>")
-                    rage = skill.get("rage", 0)
-                    if rage:
-                        metrics.append(f"<span><label>Rage</label><strong>{rage}</strong></span>")
-                    rage_red = skill.get("rage_reduced", 0)
-                    if rage_red:
-                        metrics.append(f"<span><label>Rage Reduced</label><strong>{rage_red}</strong></span>")
-                    dmg_red = skill.get("damage_reduced", 0)
-                    if dmg_red:
-                        metrics.append(f"<span><label>Damage Blocked</label><strong>{dmg_red}</strong></span>")
-                    desc = get_skill_description(skill.get("id"), skill.get("name"))
-                    tooltip = html.escape(desc) if desc else "Description unavailable."
-                    metrics_html = (
-                        "".join(metrics)
-                        if metrics
-                        else "<span class=\"metric-note\">No combat events recorded.</span>"
+
+                talent_ids = hero_cfg.get("talent_ids", []) or []
+                base_skill_ids = hero_cfg.get("base_skill_ids", []) or []
+                plugin_skill_ids = hero_cfg.get("plugin_skill_ids", []) or []
+
+                talent_chips: list[str] = []
+                for tid in talent_ids:
+                    t_name, tooltip, _ = build_skill_display(tid)
+                    safe_name = html.escape(t_name)
+                    talent_chips.append(
+                        "<span class=\"skill-pill tooltip\">"
+                        + safe_name
+                        + f"<span class=\"tooltip-content\"><strong>{safe_name}</strong><p>{tooltip}</p></span>"
+                        + "</span>"
                     )
-                    skill_html_parts.append(
-                        "<div class=\"skill-entry tooltip\">"
-                        f"<div class=\"skill-name\">{skill_name}</div>"
-                        f"<div class=\"skill-metrics\">{metrics_html}</div>"
-                        f"<div class=\"tooltip-content\"><strong>{skill_name}</strong><p>{tooltip}</p></div>"
-                        "</div>"
+
+                skill_chips: list[str] = []
+                for sid in base_skill_ids:
+                    s_name, tooltip, _ = build_skill_display(sid)
+                    safe_name = html.escape(s_name)
+                    skill_chips.append(
+                        "<span class=\"skill-pill tooltip\">"
+                        + safe_name
+                        + f"<span class=\"tooltip-content\"><strong>{safe_name}</strong><p>{tooltip}</p></span>"
+                        + "</span>"
                     )
-                if not skill_html_parts:
-                    skill_html_parts.append("<p class=\"empty-state\">No skills recorded.</p>")
+
+                plugin_icons: list[str] = []
+                for pid in plugin_skill_ids:
+                    p_name, tooltip, skill_def = build_skill_display(pid)
+                    safe_name = html.escape(p_name)
+                    icon_path = resolve_from_lookup(p_name, plugin_icon_lookup)
+                    if not icon_path and skill_def:
+                        icon_path = resolve_from_lookup(skill_def.get("id", ""), plugin_icon_lookup)
+                    if not icon_path:
+                        icon_path = resolve_from_lookup(pid, plugin_icon_lookup)
+                    icon_uri = ensure_asset(icon_path) if icon_path else None
+                    icon_markup = (
+                        f"<img src=\"{icon_uri}\" alt=\"{safe_name} icon\">"
+                        if icon_uri
+                        else f"<span class=\"plugin-fallback\">{safe_name}</span>"
+                    )
+                    plugin_icons.append(
+                        "<div class=\"plugin-icon tooltip\">"
+                        + icon_markup
+                        + f"<span class=\"tooltip-content\"><strong>{safe_name}</strong><p>{tooltip}</p></span>"
+                        + "</div>"
+                    )
+
+                hero_sections: list[str] = []
+                hero_sections.append(
+                    "<div class=\"hero-section\"><h5>Talents</h5>"
+                    + (
+                        "<div class=\"pill-list\">" + "".join(talent_chips) + "</div>"
+                        if talent_chips
+                        else "<p class=\"empty-state\">No talents selected.</p>"
+                    )
+                    + "</div>"
+                )
+                hero_sections.append(
+                    "<div class=\"hero-section\"><h5>Skills</h5>"
+                    + (
+                        "<div class=\"pill-list\">" + "".join(skill_chips) + "</div>"
+                        if skill_chips
+                        else "<p class=\"empty-state\">No skills configured.</p>"
+                    )
+                    + "</div>"
+                )
+                hero_sections.append(
+                    "<div class=\"hero-section\"><h5>Plugin Skills</h5>"
+                    + (
+                        "<div class=\"plugin-grid\">" + "".join(plugin_icons) + "</div>"
+                        if plugin_icons
+                        else "<p class=\"empty-state\">No plugin skills equipped.</p>"
+                    )
+                    + "</div>"
+                )
+
                 hero_cards.append(
                     "<div class=\"hero-card\">"
                     + "<div class=\"hero-header\">"
                     + portrait_html
                     + f"<div><h4>{name_display}</h4></div>"
                     + "</div>"
-                    + "<div class=\"skill-list\">"
-                    + "".join(skill_html_parts)
-                    + "</div></div>"
+                    + "".join(hero_sections)
+                    + "</div>"
                 )
 
             if not hero_cards:
@@ -5943,7 +6022,12 @@ class MainWindow(QtWidgets.QMainWindow):
                     else ""
                 )
                 + "</header>"
-                + "<div class=\"stat-row\">" + "".join(stats_html) + "</div>"
+                + "<div class=\"section\"><h3>Army Info</h3><div class=\"stat-row\">"
+                + "".join(stats_html)
+                + "</div></div>"
+                + "<div class=\"section\"><h3>Heroes</h3><div class=\"hero-grid\">"
+                + "".join(hero_cards)
+                + "</div></div>"
                 + "<div class=\"section\"><h3>Jewels</h3><div class=\"jewel-grid\">"
                 + "".join(jewel_cards)
                 + "</div></div>"
@@ -5954,9 +6038,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 + "<div><h3>Mount Skills (Coming Soon)</h3><div class=\"placeholder-grid\">"
                 + mount_placeholders
                 + "</div></div></div>"
-                + "<div class=\"section\"><h3>Heroes & Skills</h3><div class=\"hero-grid\">"
-                + "".join(hero_cards)
-                + "</div></div>"
                 + "</section>"
             )
 
@@ -5965,23 +6046,11 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             armies_markup = ""
 
-        hist_markup = "".join(
-            f"<figure><img src=\"{uri}\" alt=\"Histogram\"><figcaption>{html.escape(label)}</figcaption></figure>"
-            for uri, label in histograms
-        )
-        if hist_markup:
-            hist_section = (
-                "<section class=\"card\"><h2>Additional Figures</h2><div class=\"hist-grid\">"
-                + hist_markup
-                + "</div></section>"
-            )
-        else:
-            hist_section = ""
-
         donut_style = f"--stop:{army_one_pct:.2f}%;"
         victory_markup = (
             "<section class=\"card victory-card\">"
             + "<h2>Victory Distribution</h2>"
+            + "<div class=\"victory-content\">"
             + f"<div class=\"donut\" style=\"{donut_style}\">"
             + "<div class=\"donut-inner\">"
             + f"<div class=\"donut-value\">{army_one_pct:.0f}% / {army_two_pct:.0f}%</div>"
@@ -5991,17 +6060,8 @@ class MainWindow(QtWidgets.QMainWindow):
             + "<div class=\"legend\">"
             + f"<div class=\"legend-item\"><span class=\"swatch swatch-a\"></span><span>{html.escape(army_names[0] if army_names else 'Army 1')} ({army_one_pct:.1f}% • {army_one_wins} wins)</span></div>"
             + f"<div class=\"legend-item\"><span class=\"swatch swatch-b\"></span><span>{html.escape(army_names[1] if len(army_names) > 1 else 'Army 2')} ({army_two_pct:.1f}% • {army_two_wins} wins)</span></div>"
-            + "</div></section>"
+            + "</div></div></section>"
         )
-
-        payload_out = {
-            "generated_at": timestamp,
-            "win_rate": win_rate,
-            "runs": runs,
-            "armies": setup,
-            "army_names": army_names,
-            "summary": summary_data,
-        }
 
         html_output = f"""<!DOCTYPE html>
 <html lang=\"en\">
@@ -6065,9 +6125,16 @@ class MainWindow(QtWidgets.QMainWindow):
         }}
         .victory-card {{
             display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 24px;
-            align-items: center;
+            gap: 20px;
+            justify-items: center;
+            text-align: center;
+            margin: 0 auto;
+            max-width: 520px;
+        }}
+        .victory-content {{
+            display: grid;
+            gap: 20px;
+            justify-items: center;
         }}
         .donut {{
             width: 220px;
@@ -6104,13 +6171,16 @@ class MainWindow(QtWidgets.QMainWindow):
         }}
         .legend {{
             display: grid;
-            gap: 8px;
+            gap: 10px;
+            text-align: left;
+            width: 100%;
         }}
         .legend-item {{
             display: flex;
             gap: 10px;
             align-items: center;
             color: var(--muted);
+            justify-content: center;
         }}
         .swatch {{
             display: inline-block;
@@ -6264,59 +6334,79 @@ class MainWindow(QtWidgets.QMainWindow):
             background: var(--panel-alt);
             border-radius: 18px;
             border: 1px solid var(--border);
-            padding: 16px;
+            padding: 18px;
             display: grid;
-            gap: 12px;
+            gap: 14px;
         }}
         .hero-header {{
             display: flex;
-            gap: 14px;
-            align-items: center;
+            gap: 16px;
+            align-items: flex-start;
         }}
         .hero-portrait {{
-            width: 68px;
-            height: 68px;
+            width: 88px;
+            height: 88px;
             object-fit: cover;
-            border-radius: 18px;
+            border-radius: 20px;
             border: 1px solid var(--border);
         }}
-        .skill-list {{
+        .hero-header h4 {{
+            margin: 0;
+        }}
+        .hero-section {{
             display: grid;
-            gap: 12px;
+            gap: 8px;
         }}
-        .skill-entry {{
-            padding: 12px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--border);
-            position: relative;
-        }}
-        .skill-name {{
+        .hero-section h5 {{
+            margin: 0;
+            font-size: 0.95rem;
             font-weight: 600;
-            margin-bottom: 8px;
+            color: var(--muted);
         }}
-        .skill-metrics {{
+        .pill-list {{
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
-            color: var(--muted);
-            font-size: 0.85rem;
+            gap: 8px;
         }}
-        .skill-metrics span {{
+        .skill-pill {{
             display: inline-flex;
-            gap: 6px;
-            align-items: baseline;
-            padding: 4px 10px;
-            background: rgba(255, 255, 255, 0.03);
+            align-items: center;
+            padding: 6px 12px;
             border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text);
+            position: relative;
         }}
-        .skill-metrics label {{
-            color: var(--muted);
-            font-weight: 500;
+        .plugin-grid {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
         }}
-        .metric-note {{
+        .plugin-icon {{
+            width: 68px;
+            height: 68px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.03);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+            position: relative;
+        }}
+        .plugin-icon img {{
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+        }}
+        .plugin-fallback {{
+            font-size: 0.75rem;
             color: var(--muted);
-            font-style: italic;
+            text-align: center;
+            line-height: 1.2;
         }}
         .tooltip {{
             position: relative;
@@ -6350,28 +6440,6 @@ class MainWindow(QtWidgets.QMainWindow):
         .empty-state {{
             color: var(--muted);
             font-style: italic;
-        }}
-        .hist-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 16px;
-        }}
-        figure {{
-            margin: 0;
-            background: var(--panel-alt);
-            border-radius: 16px;
-            padding: 12px;
-            border: 1px solid var(--border);
-            display: grid;
-            gap: 8px;
-        }}
-        figure img {{
-            width: 100%;
-            border-radius: 12px;
-        }}
-        figcaption {{
-            font-size: 0.85rem;
-            color: var(--muted);
         }}
         .modal {{
             position: fixed;
@@ -6428,8 +6496,7 @@ class MainWindow(QtWidgets.QMainWindow):
         }}
         @media (max-width: 820px) {{
             .victory-card {{
-                grid-template-columns: 1fr;
-                justify-items: center;
+                max-width: 100%;
             }}
             .army-grid {{
                 grid-template-columns: 1fr;
@@ -6447,9 +6514,8 @@ class MainWindow(QtWidgets.QMainWindow):
             <h1>Battle Summary</h1>
             <p>Generated {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))}</p>
         </header>
-        {victory_markup}
         {armies_markup}
-        {hist_section}
+        {victory_markup}
     </main>
     <div class=\"modal\" id=\"bonus-modal\">
         <div class=\"modal-backdrop\"></div>
@@ -6460,7 +6526,6 @@ class MainWindow(QtWidgets.QMainWindow):
         </div>
     </div>
     <script>
-        const summaryData = {json.dumps(payload_out)};
         const modal = document.getElementById('bonus-modal');
         const modalList = document.getElementById('bonus-list');
         const closeModal = () => modal.classList.remove('active');
@@ -6497,11 +6562,8 @@ class MainWindow(QtWidgets.QMainWindow):
 </html>
 """
 
-        json_path = os.path.join(output_dir, "summary.json")
         html_path = os.path.join(output_dir, "index.html")
         try:
-            with open(json_path, "w", encoding="utf-8") as fh:
-                json.dump(payload_out, fh, indent=2)
             with open(html_path, "w", encoding="utf-8") as fh:
                 fh.write(html_output)
         except OSError as exc:

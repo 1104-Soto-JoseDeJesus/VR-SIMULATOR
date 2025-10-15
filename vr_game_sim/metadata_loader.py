@@ -74,6 +74,14 @@ _FALLBACK_DESCRIPTIONS = {
     "base_rage": "Generates rage over time, enabling rage skills during a battle.",
     "basic_attack": "Standard troop attack that deals damage to the current target.",
     "counter_attack": "Triggered counter strike in response to enemy attacks.",
+    "talent_chiefs_might": (
+        "On basic attacks there is a chance to inflict a bleed on the target, dealing"
+        " damage over time."
+    ),
+    "chief's might": (
+        "On basic attacks there is a chance to inflict a bleed on the target, dealing"
+        " damage over time."
+    ),
 }
 
 

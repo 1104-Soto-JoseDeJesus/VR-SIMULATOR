@@ -5849,7 +5849,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     + (f"<img src=\"{jewel_icon}\" alt=\"{slot_display} icon\">" if jewel_icon else "")
                     + "<div class=\"jewel-text\">"
                     + f"<span class=\"jewel-slot\">{slot_display}</span>"
-                    + f"<span class=\"jewel-skill tooltip\">{display_name}<span class=\"tooltip-content\"><strong>{display_name}</strong><p>{tooltip}</p></span></span>"
+                    + f"<span class=\"jewel-skill tooltip\" tabindex=\"0\">{display_name}<span class=\"tooltip-content\"><strong>{display_name}</strong><p>{tooltip}</p></span></span>"
                     + "</div></div>"
                 )
 
@@ -5889,7 +5889,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     t_name, tooltip, _ = build_skill_display(tid)
                     safe_name = html.escape(t_name)
                     talent_chips.append(
-                        "<span class=\"skill-pill tooltip\">"
+                        "<span class=\"skill-pill tooltip\" tabindex=\"0\">"
                         + safe_name
                         + f"<span class=\"tooltip-content\"><strong>{safe_name}</strong><p>{tooltip}</p></span>"
                         + "</span>"
@@ -5900,7 +5900,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     s_name, tooltip, _ = build_skill_display(sid)
                     safe_name = html.escape(s_name)
                     skill_chips.append(
-                        "<span class=\"skill-pill tooltip\">"
+                        "<span class=\"skill-pill tooltip\" tabindex=\"0\">"
                         + safe_name
                         + f"<span class=\"tooltip-content\"><strong>{safe_name}</strong><p>{tooltip}</p></span>"
                         + "</span>"
@@ -5922,7 +5922,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         else f"<span class=\"plugin-fallback\">{safe_name}</span>"
                     )
                     plugin_icons.append(
-                        "<div class=\"plugin-icon tooltip\">"
+                        "<div class=\"plugin-icon tooltip\" tabindex=\"0\">"
                         + icon_markup
                         + f"<span class=\"tooltip-content\"><strong>{safe_name}</strong><p>{tooltip}</p></span>"
                         + "</div>"
@@ -6412,9 +6412,16 @@ class MainWindow(QtWidgets.QMainWindow):
             font-size: 0.85rem;
             color: var(--muted);
         }}
-        .tooltip:hover .tooltip-content {{
+        .tooltip:hover .tooltip-content,
+        .tooltip:focus .tooltip-content,
+        .tooltip:focus-within .tooltip-content,
+        .tooltip.touch-active .tooltip-content {{
             opacity: 1;
             transform: translateY(0);
+            pointer-events: auto;
+        }}
+        .tooltip.touch-active {{
+            z-index: 20;
         }}
         .empty-state {{
             color: var(--muted);
@@ -6531,6 +6538,56 @@ class MainWindow(QtWidgets.QMainWindow):
         </div>
     </div>
     <script>
+        const enableTouchTooltips = () => {{
+            const tooltipNodes = Array.from(document.querySelectorAll('.tooltip'));
+            if (!tooltipNodes.length) {{
+                return;
+            }}
+            const matchesHoverNone = window.matchMedia ? window.matchMedia('(hover: none)').matches : false;
+            const isTouchCapable = matchesHoverNone
+                || (navigator.maxTouchPoints || 0) > 0
+                || 'ontouchstart' in window;
+            if (!isTouchCapable) {{
+                return;
+            }}
+            const clearActive = (except = null) => {{
+                tooltipNodes.forEach((node) => {{
+                    if (node !== except) {{
+                        node.classList.remove('touch-active');
+                    }}
+                }});
+            }};
+            tooltipNodes.forEach((node) => {{
+                if (!node.hasAttribute('tabindex')) {{
+                    node.setAttribute('tabindex', '0');
+                }}
+                node.addEventListener('click', () => {{
+                    const isActive = node.classList.contains('touch-active');
+                    clearActive(node);
+                    if (!isActive) {{
+                        node.classList.add('touch-active');
+                    }} else {{
+                        node.classList.remove('touch-active');
+                    }}
+                }});
+                node.addEventListener('keydown', (event) => {{
+                    if (event.key === 'Escape') {{
+                        node.classList.remove('touch-active');
+                        node.blur();
+                    }}
+                }});
+                node.addEventListener('blur', () => {{
+                    node.classList.remove('touch-active');
+                }});
+            }});
+            document.addEventListener('click', (event) => {{
+                if (event.target.closest('.tooltip')) {{
+                    return;
+                }}
+                clearActive();
+            }});
+        }};
+        enableTouchTooltips();
         const modal = document.getElementById('bonus-modal');
         const modalList = document.getElementById('bonus-list');
         const closeModal = () => modal.classList.remove('active');

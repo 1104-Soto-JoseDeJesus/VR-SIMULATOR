@@ -6077,16 +6077,50 @@ class MainWindow(QtWidgets.QMainWindow):
             percent = -value * 100 if invert else value * 100
             return f"{percent:+.1f}%"
 
+        def normalize_metadata_text(value: Any) -> str:
+            """Coerce summary metadata into a clean string for HTML rendering."""
+
+            if value is None:
+                return ""
+            if isinstance(value, str):
+                return value
+            if isinstance(value, (bytes, bytearray)):
+                try:
+                    return value.decode("utf-8")
+                except Exception:
+                    return value.decode("utf-8", errors="ignore")
+            if isinstance(value, (list, tuple, set)):
+                parts = [normalize_metadata_text(part).strip() for part in value]
+                parts = [part for part in parts if part]
+                return ", ".join(parts)
+            if isinstance(value, dict):
+                segments: list[str] = []
+                for key, sub_value in value.items():
+                    key_text = normalize_metadata_text(key).strip()
+                    value_text = normalize_metadata_text(sub_value).strip()
+                    if key_text and value_text:
+                        segments.append(f"{key_text}: {value_text}")
+                    elif value_text:
+                        segments.append(value_text)
+                    elif key_text:
+                        segments.append(key_text)
+                return ", ".join(segment for segment in segments if segment)
+            try:
+                return str(value)
+            except Exception:
+                return ""
+
         def build_skill_display(skill_id: str) -> tuple[str, str, dict[str, Any] | None]:
             if not skill_id:
                 return "Unknown Skill", "Description unavailable.", None
             skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id)
-            name = (
-                skill_def.get("name")
-                if isinstance(skill_def, dict)
-                else skill_id.replace("_", " ").title()
-            )
-            description = get_skill_description(skill_id, name) if skill_id else None
+            fallback_name = skill_id.replace("_", " ").title()
+            if isinstance(skill_def, dict):
+                name = normalize_metadata_text(skill_def.get("name")) or fallback_name
+            else:
+                name = fallback_name
+            description_raw = get_skill_description(skill_id, name) if skill_id else None
+            description = normalize_metadata_text(description_raw)
             tooltip = (
                 html.escape(description).replace("\n", "<br>")
                 if description
@@ -6151,26 +6185,29 @@ class MainWindow(QtWidgets.QMainWindow):
                 skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id) if skill_id else None
                 skill_name = None
                 if isinstance(entry, dict):
-                    skill_name = entry.get("name") or None
+                    skill_name = normalize_metadata_text(entry.get("name")) or None
                 if not skill_name and isinstance(skill_def, dict):
-                    skill_name = skill_def.get("name") or None
+                    skill_name = normalize_metadata_text(skill_def.get("name")) or None
                 if not skill_name and skill_id:
-                    skill_name = skill_id
-                rarity = entry.get("rarity") if isinstance(entry, dict) else None
-                desc = get_skill_description(skill_id, skill_name) if skill_id else None
+                    skill_name = normalize_metadata_text(skill_id)
+                rarity_raw = entry.get("rarity") if isinstance(entry, dict) else None
+                rarity = normalize_metadata_text(rarity_raw)
+                desc_raw = get_skill_description(skill_id, skill_name) if skill_id else None
+                desc = normalize_metadata_text(desc_raw)
                 tooltip_base = (
                     html.escape(desc).replace("\n", "<br>")
                     if desc
                     else "Skill details coming soon."
                 )
                 if rarity:
-                    tooltip = f"{tooltip_base}<br><em>Rarity: {html.escape(str(rarity))}</em>"
+                    tooltip = f"{tooltip_base}<br><em>Rarity: {html.escape(rarity)}</em>"
                 else:
                     tooltip = tooltip_base
                 display_name_raw = skill_name or "None"
                 if rarity and rarity not in display_name_raw:
                     display_name_raw = f"{display_name_raw} ({rarity})"
-                display_name = html.escape(display_name_raw) if display_name_raw else "None"
+                display_name_text = normalize_metadata_text(display_name_raw)
+                display_name = html.escape(display_name_text) if display_name_text else "None"
                 slot_display = html.escape(slot_label)
                 jewel_icon = jewel_icon_map.get(slot_key) or ""
                 jewel_cards.append(

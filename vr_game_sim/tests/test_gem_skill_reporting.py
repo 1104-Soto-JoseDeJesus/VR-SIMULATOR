@@ -284,6 +284,24 @@ def test_export_summary_handles_list_gem_skill(tmp_path, monkeypatch):
 
     summary = gui_main.build_army_skill_summary(army, cfg, "red")
 
+    for hero_skills in summary.get("skills", []):
+        if not isinstance(hero_skills, list):
+            continue
+        for entry in hero_skills:
+            if isinstance(entry, dict) and entry.get("id") == gem_skill_id:
+                entry["name"] = ["List", "Name"]
+                entry["rarity"] = ["Legendary"]
+                break
+
+    original_get_skill_description = gui_main.get_skill_description
+
+    def _fake_get_skill_description(skill_id, skill_name):
+        if skill_id == gem_skill_id:
+            return ["Line 1", "Line 2"]
+        return original_get_skill_description(skill_id, skill_name)
+
+    monkeypatch.setattr(gui_main, "get_skill_description", _fake_get_skill_description)
+
     window = gui_main.MainWindow()
     window._last_simulation_payload = {
         "setup": [cfg],

@@ -6142,6 +6142,7 @@ class MainWindow(QtWidgets.QMainWindow):
             border-radius: 50%;
             background: conic-gradient(var(--accent-a) var(--stop), var(--accent-b) var(--stop));
             position: relative;
+            overflow: hidden;
         }}
         .donut::after {{
             content: '';
@@ -6149,6 +6150,7 @@ class MainWindow(QtWidgets.QMainWindow):
             inset: 28px;
             background: var(--panel);
             border-radius: 50%;
+            z-index: 0;
         }}
         .donut-inner {{
             position: absolute;
@@ -6160,6 +6162,7 @@ class MainWindow(QtWidgets.QMainWindow):
             text-align: center;
             gap: 6px;
             pointer-events: none;
+            z-index: 1;
         }}
         .donut-value {{
             font-size: 1.8rem;
@@ -6346,9 +6349,11 @@ class MainWindow(QtWidgets.QMainWindow):
         .hero-portrait {{
             width: 88px;
             height: 88px;
-            object-fit: cover;
+            object-fit: contain;
             border-radius: 20px;
             border: 1px solid var(--border);
+            background: var(--panel);
+            padding: 4px;
         }}
         .hero-header h4 {{
             margin: 0;
@@ -6399,7 +6404,7 @@ class MainWindow(QtWidgets.QMainWindow):
         .plugin-icon img {{
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             border-radius: 12px;
         }}
         .plugin-fallback {{
@@ -6493,6 +6498,37 @@ class MainWindow(QtWidgets.QMainWindow):
             background: var(--panel-alt);
             border-radius: 12px;
             border: 1px solid var(--border);
+        }}
+        @media (max-width: 600px) {{
+            body {{
+                padding: 24px 16px 60px;
+            }}
+            main {{
+                display: flex;
+                flex-direction: column;
+                gap: 24px;
+            }}
+            .army-grid {{
+                grid-auto-flow: column;
+                grid-auto-columns: minmax(320px, 85vw);
+                overflow-x: auto;
+                padding-bottom: 12px;
+                scroll-snap-type: x mandatory;
+            }}
+            .army-card {{
+                scroll-snap-align: start;
+                min-width: 320px;
+            }}
+            .hero-grid {{
+                grid-auto-flow: column;
+                grid-auto-columns: minmax(260px, 80vw);
+                overflow-x: auto;
+                padding-bottom: 12px;
+                scroll-snap-type: x proximity;
+            }}
+            .hero-card {{
+                min-width: 260px;
+            }}
         }}
         @media (max-width: 820px) {{
             .victory-card {{

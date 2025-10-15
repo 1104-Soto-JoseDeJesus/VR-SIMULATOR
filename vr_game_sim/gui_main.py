@@ -5668,32 +5668,20 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             return
 
-        dest_root = QtWidgets.QFileDialog.getExistingDirectory(
+        timestamp = payload.get("generated_at") or time.time()
+        default_name = time.strftime("battle_summary_%Y%m%d_%H%M%S.html", time.localtime(timestamp))
+        initial_path = os.path.join(self.last_setup_dir, default_name)
+        save_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
             "Export Summary HTML",
-            self.last_setup_dir,
+            initial_path,
+            "HTML Files (*.html)",
         )
-        if not dest_root:
+        if not save_path:
             return
 
-        timestamp = payload.get("generated_at") or time.time()
-        folder_name = time.strftime("battle_summary_%Y%m%d_%H%M%S", time.localtime(timestamp))
-        base_output = os.path.join(dest_root, folder_name)
-        output_dir = base_output
-        suffix = 1
-        while os.path.exists(output_dir):
-            output_dir = f"{base_output}_{suffix}"
-            suffix += 1
-
-        try:
-            os.makedirs(output_dir, exist_ok=True)
-        except OSError as exc:
-            QtWidgets.QMessageBox.critical(
-                self,
-                "Error",
-                f"Unable to create export directory: {exc}",
-            )
-            return
+        if not save_path.lower().endswith(".html"):
+            save_path += ".html"
 
         copied_assets: dict[str, str] = {}
 
@@ -6051,12 +6039,8 @@ class MainWindow(QtWidgets.QMainWindow):
             "<section class=\"card victory-card\">"
             + "<h2>Victory Distribution</h2>"
             + "<div class=\"victory-content\">"
-            + f"<div class=\"donut\" style=\"{donut_style}\">"
-            + "<div class=\"donut-inner\">"
-            + f"<div class=\"donut-value\">{army_one_pct:.0f}% / {army_two_pct:.0f}%</div>"
-            + f"<div class=\"donut-sub\">{html.escape(army_names[0] if army_names else 'Army 1')} / {html.escape(army_names[1] if len(army_names) > 1 else 'Army 2')}</div>"
-            + f"<div class=\"donut-sub\">Across {runs} simulations</div>"
-            + "</div></div>"
+            + f"<div class=\"donut\" style=\"{donut_style}\" aria-hidden=\"true\">"
+            + "<div class=\"donut-inner\"></div></div>"
             + "<div class=\"legend\">"
             + f"<div class=\"legend-item\"><span class=\"swatch swatch-a\"></span><span>{html.escape(army_names[0] if army_names else 'Army 1')} ({army_one_pct:.1f}% • {army_one_wins} wins)</span></div>"
             + f"<div class=\"legend-item\"><span class=\"swatch swatch-b\"></span><span>{html.escape(army_names[1] if len(army_names) > 1 else 'Army 2')} ({army_two_pct:.1f}% • {army_two_wins} wins)</span></div>"
@@ -6155,22 +6139,8 @@ class MainWindow(QtWidgets.QMainWindow):
         .donut-inner {{
             position: absolute;
             inset: 28px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            gap: 6px;
             pointer-events: none;
             z-index: 1;
-        }}
-        .donut-value {{
-            font-size: 1.8rem;
-            font-weight: 700;
-        }}
-        .donut-sub {{
-            font-size: 0.95rem;
-            color: var(--muted);
         }}
         .legend {{
             display: grid;
@@ -6509,25 +6479,20 @@ class MainWindow(QtWidgets.QMainWindow):
                 gap: 24px;
             }}
             .army-grid {{
-                grid-auto-flow: column;
-                grid-auto-columns: minmax(320px, 85vw);
-                overflow-x: auto;
-                padding-bottom: 12px;
-                scroll-snap-type: x mandatory;
+                display: flex;
+                flex-direction: column;
+                gap: 18px;
             }}
             .army-card {{
-                scroll-snap-align: start;
-                min-width: 320px;
+                min-width: 0;
             }}
             .hero-grid {{
-                grid-auto-flow: column;
-                grid-auto-columns: minmax(260px, 80vw);
-                overflow-x: auto;
-                padding-bottom: 12px;
-                scroll-snap-type: x proximity;
+                display: flex;
+                flex-direction: column;
+                gap: 18px;
             }}
             .hero-card {{
-                min-width: 260px;
+                min-width: 0;
             }}
         }}
         @media (max-width: 820px) {{
@@ -6598,9 +6563,8 @@ class MainWindow(QtWidgets.QMainWindow):
 </html>
 """
 
-        html_path = os.path.join(output_dir, "index.html")
         try:
-            with open(html_path, "w", encoding="utf-8") as fh:
+            with open(save_path, "w", encoding="utf-8") as fh:
                 fh.write(html_output)
         except OSError as exc:
             QtWidgets.QMessageBox.critical(
@@ -6610,8 +6574,8 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             return
 
-        self.last_setup_dir = dest_root
-        self.status.setText(f"HTML summary exported to {os.path.basename(output_dir)}")
+        self.last_setup_dir = os.path.dirname(save_path)
+        self.status.setText(f"HTML summary exported to {os.path.basename(save_path)}")
 
     def export_pdf(self) -> None:
         """Export a multi-page PDF using the configured layout."""

@@ -17,10 +17,11 @@ import concurrent.futures
 import base64
 import mimetypes
 import difflib
+import io
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
-from PIL import Image, ImageQt
+from PIL import Image, ImageQt, ImageDraw
 import numpy as np
 import matplotlib
 
@@ -153,6 +154,24 @@ def serialize_bonus_stats(stats: dict[str, Any]) -> dict[str, Any]:
             if abs(val) > 1e-9:
                 serialized[key] = round(val, 6)
     return serialized
+
+
+def _sanitize_filename_component(name: str, fallback: str) -> str:
+    """Return a filesystem-friendly representation of ``name``."""
+
+    cleaned = re.sub(r"[^A-Za-z0-9]+", "_", (name or "").strip())
+    cleaned = cleaned.strip("_")
+    return cleaned or fallback
+
+
+def _default_export_basename(army1: str, army2: str, timestamp: float | None = None) -> str:
+    """Return the default basename for exports using army names and date."""
+
+    ts = timestamp if timestamp is not None else time.time()
+    date_part = time.strftime("%Y-%m-%d", time.localtime(ts))
+    first = _sanitize_filename_component(army1, "Army1")
+    second = _sanitize_filename_component(army2, "Army2")
+    return f"{first}_{second}_{date_part}"
 
 
 def iter_bonus_stat_entries(stats: dict[str, Any]) -> list[dict[str, Any]]:
@@ -2216,6 +2235,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
         for idx, combo in enumerate(hero_combos, start=1):
             self._hero_selected(idx, combo.currentText())
 
+        self._restore_star_counts(cfg.get("heroes"))
+
         self._set_gem_skills(cfg.get("gem_skills"))
         self._set_bonus_stats(cfg.get("bonus_stats"))
 
@@ -2242,6 +2263,37 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     # Overrides tweak preset talents/skills without requiring a
                     # separate custom hero entry.
                     cfg["skill_overrides"] = overrides
+
+                hero_label = self.hero1_img if idx == 1 else self.hero2_img
+                if getattr(hero_label, "_orig_image", None) is not None:
+                    try:
+                        star_count = int(hero_label.star_count)
+                    except Exception:
+                        star_count = int(getattr(hero_label, "max_stars", 6))
+                    max_stars = max(1, int(getattr(hero_label, "max_stars", 6)))
+                    if star_count < max_stars:
+                        cfg["star_count"] = star_count
+
+                plugin_labels = (
+                    self.hero1_plugin_imgs if idx == 1 else self.hero2_plugin_imgs
+                )
+                plugin_ids = cfg.get("plugin_skill_ids", []) or []
+                plugin_counts: list[int] = []
+                any_custom_plugin = False
+                for plugin_idx, sid in enumerate(plugin_ids):
+                    if plugin_idx >= len(plugin_labels):
+                        break
+                    lbl = plugin_labels[plugin_idx]
+                    max_stars = max(1, int(getattr(lbl, "max_stars", 6)))
+                    try:
+                        count = int(getattr(lbl, "star_count", max_stars))
+                    except Exception:
+                        count = max_stars
+                    plugin_counts.append(count)
+                    if getattr(lbl, "_orig_image", None) is not None and count < max_stars:
+                        any_custom_plugin = True
+                if any_custom_plugin and plugin_counts:
+                    cfg["plugin_star_counts"] = plugin_counts
                 heroes_cfg.append(cfg)
 
         config = {
@@ -2268,6 +2320,40 @@ class ArmyFrame(QtWidgets.QGroupBox):
             config["gem_skills"] = gem_skills_serialized
 
         return config
+
+    def _restore_star_counts(self, heroes_cfg: list[dict] | None) -> None:
+        if not heroes_cfg:
+            return
+        hero_labels = [self.hero1_img, self.hero2_img]
+        plugin_label_sets = [self.hero1_plugin_imgs, self.hero2_plugin_imgs]
+        for idx, hero_cfg in enumerate(heroes_cfg):
+            if idx >= len(hero_labels):
+                break
+            label = hero_labels[idx]
+            if getattr(label, "_orig_image", None) is not None:
+                star_value = hero_cfg.get("star_count")
+                if star_value is not None:
+                    try:
+                        label.set_star_count(int(star_value))
+                    except Exception:
+                        label.set_star_count(label.max_stars)
+            plugin_counts = hero_cfg.get("plugin_star_counts")
+            if not isinstance(plugin_counts, list):
+                continue
+            plugin_labels = plugin_label_sets[idx]
+            for plugin_idx, count in enumerate(plugin_counts):
+                if plugin_idx >= len(plugin_labels):
+                    break
+                lbl = plugin_labels[plugin_idx]
+                if getattr(lbl, "_orig_image", None) is None:
+                    continue
+                if count is None:
+                    lbl.set_star_count(lbl.max_stars)
+                else:
+                    try:
+                        lbl.set_star_count(int(count))
+                    except Exception:
+                        lbl.set_star_count(lbl.max_stars)
 
     def _open_bonus_stats_dialog(self) -> None:
         dlg = BonusStatsDialog(self._bonus_stats, self)
@@ -5647,14 +5733,24 @@ class MainWindow(QtWidgets.QMainWindow):
         painter.drawText(x, y, label)
         painter.end()
 
+        army_names_preview = [
+            self.army1_frame.name_edit.text() or "Army 1",
+            self.army2_frame.name_edit.text() or "Army 2",
+        ]
+        base_name = _default_export_basename(
+            army_names_preview[0],
+            army_names_preview[1] if len(army_names_preview) > 1 else "Army 2",
+        )
+        initial_path = os.path.join(self.last_setup_dir, f"{base_name}.png")
         save_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
             "Save Summary Image",
-            self.last_setup_dir,
+            initial_path,
             "PNG Files (*.png)"
         )
         if save_path:
             final_pix.save(save_path, "PNG")
+            self.last_setup_dir = os.path.dirname(save_path)
 
     def export_summary_html(self) -> None:
         """Export the latest battle summary as an interactive HTML bundle."""
@@ -5669,7 +5765,15 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         timestamp = payload.get("generated_at") or time.time()
-        default_name = time.strftime("battle_summary_%Y%m%d_%H%M%S.html", time.localtime(timestamp))
+        setup = payload.get("setup") or []
+        army_names = payload.get("army_names") or [
+            cfg.get("army_name", f"Army {i + 1}") for i, cfg in enumerate(setup)
+        ]
+        army_one_name = army_names[0] if army_names else "Army 1"
+        army_two_name = army_names[1] if len(army_names) > 1 else "Army 2"
+        default_name = (
+            f"{_default_export_basename(army_one_name, army_two_name, timestamp)}.html"
+        )
         initial_path = os.path.join(self.last_setup_dir, default_name)
         save_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
@@ -5683,18 +5787,132 @@ class MainWindow(QtWidgets.QMainWindow):
         if not save_path.lower().endswith(".html"):
             save_path += ".html"
 
-        copied_assets: dict[str, str] = {}
+        copied_assets: dict[tuple[str, tuple | None], str] = {}
 
-        def ensure_asset(src: str | None, dest_rel: str | None = None) -> str | None:
+        def _parse_argb_hex(value: str) -> tuple[int, int, int, int] | None:
+            val = value.strip()
+            if val.startswith("#"):
+                val = val[1:]
+            try:
+                if len(val) == 8:
+                    a = int(val[0:2], 16)
+                    r = int(val[2:4], 16)
+                    g = int(val[4:6], 16)
+                    b = int(val[6:8], 16)
+                    return (r, g, b, a)
+                if len(val) == 6:
+                    r = int(val[0:2], 16)
+                    g = int(val[2:4], 16)
+                    b = int(val[4:6], 16)
+                    return (r, g, b, 255)
+            except ValueError:
+                return None
+            return None
+
+        def _render_star_overlay(src: str, overlay: dict[str, Any]) -> bytes:
+            base = Image.open(src).convert("RGBA")
+            width, height = base.size
+            max_stars = max(1, int(overlay.get("max", 6)))
+            count = max(0, min(max_stars, int(overlay.get("count", max_stars))))
+            if count >= max_stars:
+                buf = io.BytesIO()
+                base.save(buf, format="PNG")
+                return buf.getvalue()
+            vertical_ratio = float(overlay.get("vertical_ratio", 0.8))
+            side_margin = float(overlay.get("side_margin", 0.0))
+            star_width = width * (1 - 2 * side_margin) / max_stars if max_stars else width
+            star_height = height * (1 - vertical_ratio)
+            if star_width <= 0 or star_height <= 0:
+                buf = io.BytesIO()
+                base.save(buf, format="PNG")
+                return buf.getvalue()
+            x_offset = width * side_margin
+            y_base = height - star_height
+            overlay_img = Image.new("RGBA", base.size, (0, 0, 0, 0))
+            draw = ImageDraw.Draw(overlay_img)
+            v_offsets = overlay.get("v_offsets") or []
+            h_offsets = overlay.get("h_offsets") or []
+            color_raw = overlay.get("color") or (100, 100, 100, 180)
+            if isinstance(color_raw, (list, tuple)):
+                color_vals = list(color_raw)
+            else:
+                color_vals = [100, 100, 100, 180]
+            if len(color_vals) == 3:
+                color_vals.append(255)
+            while len(color_vals) < 4:
+                color_vals.append(255)
+            color_rgba = tuple(
+                int(max(0, min(255, round(val)))) for val in color_vals[:4]
+            )
+            for idx in range(count, max_stars):
+                v_off = v_offsets[idx] * star_height if idx < len(v_offsets) else 0.0
+                h_off = h_offsets[idx] * star_width if idx < len(h_offsets) else 0.0
+                cx = x_offset + idx * star_width + h_off + star_width / 2
+                cy = y_base + v_off + star_height / 2
+                outer_r = min(star_width, star_height) / 2
+                inner_r = outer_r * 0.4
+                points = []
+                for i in range(8):
+                    angle = math.radians(-90 + i * 45)
+                    radius = outer_r if i % 2 == 0 else inner_r
+                    points.append(
+                        (
+                            cx + radius * math.cos(angle),
+                            cy + radius * math.sin(angle),
+                        )
+                    )
+                draw.polygon(points, fill=color_rgba)
+            combined = Image.alpha_composite(base, overlay_img)
+            buf = io.BytesIO()
+            combined.save(buf, format="PNG")
+            return buf.getvalue()
+
+        def ensure_asset(
+            src: str | None,
+            dest_rel: str | None = None,
+            *,
+            star_overlay: dict[str, Any] | None = None,
+        ) -> str | None:
             del dest_rel  # compatibility placeholder
             if not src or not os.path.exists(src):
                 return None
-            cached = copied_assets.get(src)
+            overlay_key: tuple | None = None
+            if star_overlay:
+                try:
+                    count_val = int(star_overlay.get("count", 0))
+                    max_val = max(1, int(star_overlay.get("max", 0)))
+                except Exception:
+                    count_val = 0
+                    max_val = 0
+                if count_val >= max_val or max_val <= 0:
+                    star_overlay = None
+                else:
+                    color_vals = star_overlay.get("color", (100, 100, 100, 180))
+                    if not isinstance(color_vals, (list, tuple)):
+                        color_vals = (100, 100, 100, 180)
+                    if len(color_vals) == 3:
+                        color_vals = (*color_vals, 255)
+                    overlay_key = (
+                        count_val,
+                        max_val,
+                        float(star_overlay.get("vertical_ratio", 0.0)),
+                        float(star_overlay.get("side_margin", 0.0)),
+                        tuple(float(x) for x in star_overlay.get("v_offsets", ())),
+                        tuple(float(x) for x in star_overlay.get("h_offsets", ())),
+                        tuple(int(max(0, min(255, round(v)))) for v in color_vals[:4]),
+                    )
+            key = (os.path.abspath(src), overlay_key)
+            cached = copied_assets.get(key)
             if cached:
                 return cached
             try:
-                with open(src, "rb") as fh:
-                    raw = fh.read()
+                if star_overlay:
+                    raw = _render_star_overlay(src, star_overlay)
+                    mime_type = "image/png"
+                else:
+                    with open(src, "rb") as fh:
+                        raw = fh.read()
+                    mime_type = mimetypes.guess_type(src)[0] or "application/octet-stream"
             except OSError as exc:
                 QtWidgets.QMessageBox.critical(
                     self,
@@ -5702,10 +5920,94 @@ class MainWindow(QtWidgets.QMainWindow):
                     f"Failed to load asset {os.path.basename(src)}: {exc}",
                 )
                 return None
-            mime_type = mimetypes.guess_type(src)[0] or "application/octet-stream"
+            except Exception:
+                try:
+                    with open(src, "rb") as fh:
+                        raw = fh.read()
+                except OSError as exc:
+                    QtWidgets.QMessageBox.critical(
+                        self,
+                        "Error",
+                        f"Failed to load asset {os.path.basename(src)}: {exc}",
+                    )
+                    return None
+                mime_type = mimetypes.guess_type(src)[0] or "application/octet-stream"
             data_uri = "data:" + mime_type + ";base64," + base64.b64encode(raw).decode("ascii")
-            copied_assets[src] = data_uri
+            copied_assets[key] = data_uri
             return data_uri
+
+        def build_star_overlay_info(
+            image_path: str | None,
+            *,
+            is_plugin: bool,
+            star_count: int | None,
+        ) -> dict[str, Any] | None:
+            if not image_path or star_count is None:
+                return None
+            try:
+                count_val = int(star_count)
+            except (TypeError, ValueError):
+                return None
+            defaults = {
+                "max": 6,
+                "vertical_ratio": (
+                    StarredImageLabel.PLUGIN_STAR_VERTICAL_RATIO
+                    if is_plugin
+                    else StarredImageLabel.HERO_STAR_VERTICAL_RATIO
+                ),
+                "side_margin": (
+                    StarredImageLabel.PLUGIN_STAR_SIDE_MARGIN_RATIO
+                    if is_plugin
+                    else StarredImageLabel.HERO_STAR_SIDE_MARGIN_RATIO
+                ),
+                "v_offsets": list(
+                    StarredImageLabel.PLUGIN_STAR_V_OFFSETS
+                    if is_plugin
+                    else StarredImageLabel.HERO_STAR_V_OFFSETS
+                ),
+                "h_offsets": list(
+                    StarredImageLabel.PLUGIN_STAR_H_OFFSETS
+                    if is_plugin
+                    else StarredImageLabel.HERO_STAR_H_OFFSETS
+                ),
+                "color": (100, 100, 100, 180),
+            }
+            meta_path = os.path.splitext(image_path)[0] + ".json"
+            if os.path.exists(meta_path):
+                try:
+                    with open(meta_path, "r", encoding="utf-8") as fh:
+                        meta = json.load(fh)
+                    defaults["max"] = int(meta.get("max_stars", defaults["max"]))
+                    defaults["vertical_ratio"] = float(
+                        meta.get("star_vertical_ratio", defaults["vertical_ratio"])
+                    )
+                    defaults["side_margin"] = float(
+                        meta.get("star_side_margin_ratio", defaults["side_margin"])
+                    )
+                    if isinstance(meta.get("v_offsets"), (list, tuple)):
+                        defaults["v_offsets"] = [float(x) for x in meta["v_offsets"]]
+                    if isinstance(meta.get("h_offsets"), (list, tuple)):
+                        defaults["h_offsets"] = [float(x) for x in meta["h_offsets"]]
+                    color_value = meta.get("star_color")
+                    if color_value:
+                        parsed = _parse_argb_hex(str(color_value))
+                        if parsed:
+                            defaults["color"] = parsed
+                except Exception:
+                    pass
+            max_stars = max(1, int(defaults["max"]))
+            count_val = max(0, min(max_stars, int(count_val)))
+            if count_val >= max_stars:
+                return None
+            return {
+                "count": count_val,
+                "max": max_stars,
+                "vertical_ratio": defaults["vertical_ratio"],
+                "side_margin": defaults["side_margin"],
+                "v_offsets": defaults["v_offsets"],
+                "h_offsets": defaults["h_offsets"],
+                "color": defaults["color"],
+            }
 
         base_dir = os.path.dirname(__file__)
 
@@ -5761,11 +6063,7 @@ class MainWindow(QtWidgets.QMainWindow):
             icon_path = resolve_from_lookup(slot_label, icon_lookup)
             jewel_icon_map[slot_key] = ensure_asset(icon_path) if icon_path else None
 
-        setup = payload.get("setup") or []
         summary_data = payload.get("summary") or []
-        army_names = payload.get("army_names") or [
-            cfg.get("army_name", f"Army {i + 1}") for i, cfg in enumerate(setup)
-        ]
         win_rate = float(payload.get("win_rate", 0.0) or 0.0)
         runs = max(int(payload.get("runs", 0)), 0)
         army_one_pct = max(0.0, min(100.0, win_rate * 100.0 if runs else 0.0))
@@ -5886,14 +6184,19 @@ class MainWindow(QtWidgets.QMainWindow):
 
             hero_names = summary_entry.get("hero_names") or []
             heroes_cfg = cfg.get("heroes", []) or []
-            portraits = [
-                ensure_asset(summary_entry.get("portrait1"), f"portraits/{idx}_1.png"),
-                ensure_asset(summary_entry.get("portrait2"), f"portraits/{idx}_2.png"),
+            portrait_paths = [
+                summary_entry.get("portrait1"),
+                summary_entry.get("portrait2"),
             ]
             hero_cards: list[str] = []
             hero_count = max(len(hero_names), len(heroes_cfg))
             for hero_idx in range(hero_count):
                 hero_cfg = heroes_cfg[hero_idx] if hero_idx < len(heroes_cfg) else {}
+                portrait_path = (
+                    portrait_paths[hero_idx]
+                    if hero_idx < len(portrait_paths)
+                    else None
+                )
                 cfg_name = hero_cfg.get("hero_name_or_preset", "")
                 raw_name = (
                     cfg_name
@@ -5901,16 +6204,31 @@ class MainWindow(QtWidgets.QMainWindow):
                     or f"Hero {hero_idx + 1}"
                 )
                 name_display = html.escape(raw_name)
-                portrait = portraits[hero_idx] if hero_idx < len(portraits) else None
+                star_value = hero_cfg.get("star_count") if isinstance(hero_cfg, dict) else None
+                portrait_overlay = build_star_overlay_info(
+                    portrait_path,
+                    is_plugin=False,
+                    star_count=star_value,
+                )
+                portrait_uri = (
+                    ensure_asset(portrait_path, star_overlay=portrait_overlay)
+                    if portrait_path
+                    else None
+                )
                 portrait_html = (
-                    f"<img src=\"{portrait}\" alt=\"{name_display} portrait\" class=\"hero-portrait\">"
-                    if portrait
+                    f"<img src=\"{portrait_uri}\" alt=\"{name_display} portrait\" class=\"hero-portrait\">"
+                    if portrait_uri
                     else ""
                 )
 
                 talent_ids = hero_cfg.get("talent_ids", []) or []
                 base_skill_ids = hero_cfg.get("base_skill_ids", []) or []
                 plugin_skill_ids = hero_cfg.get("plugin_skill_ids", []) or []
+                plugin_star_counts = (
+                    list(hero_cfg.get("plugin_star_counts", []))
+                    if isinstance(hero_cfg, dict)
+                    else []
+                )
 
                 talent_chips: list[str] = []
                 for tid in talent_ids:
@@ -5935,7 +6253,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     )
 
                 plugin_icons: list[str] = []
-                for pid in plugin_skill_ids:
+                for plugin_idx, pid in enumerate(plugin_skill_ids):
                     p_name, tooltip, skill_def = build_skill_display(pid)
                     safe_name = html.escape(p_name)
                     icon_path = resolve_from_lookup(p_name, plugin_icon_lookup)
@@ -5943,7 +6261,23 @@ class MainWindow(QtWidgets.QMainWindow):
                         icon_path = resolve_from_lookup(skill_def.get("id", ""), plugin_icon_lookup)
                     if not icon_path:
                         icon_path = resolve_from_lookup(pid, plugin_icon_lookup)
-                    icon_uri = ensure_asset(icon_path) if icon_path else None
+                    star_value = None
+                    if plugin_idx < len(plugin_star_counts):
+                        star_value = plugin_star_counts[plugin_idx]
+                    icon_overlay = (
+                        build_star_overlay_info(
+                            icon_path,
+                            is_plugin=True,
+                            star_count=star_value,
+                        )
+                        if icon_path
+                        else None
+                    )
+                    icon_uri = (
+                        ensure_asset(icon_path, star_overlay=icon_overlay)
+                        if icon_path
+                        else None
+                    )
                     icon_markup = (
                         f"<img src=\"{icon_uri}\" alt=\"{safe_name} icon\">"
                         if icon_uri
@@ -6008,7 +6342,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 )
                 hero_sections.append(
                     "<div class=\"hero-section\"><h5>Mount Skills (Coming Soon)</h5>"
-                    + "<div class=\"placeholder-grid\">"
+                    + "<div class=\"mount-grid\">"
                     + mount_slots
                     + "</div></div>"
                 )
@@ -6330,6 +6664,30 @@ class MainWindow(QtWidgets.QMainWindow):
             border-radius: 14px;
             border: 1px solid var(--border);
         }}
+        .mount-grid {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 14px;
+            margin-inline: auto;
+        }}
+        .mount-grid img,
+        .mount-grid .placeholder-empty {{
+            width: 60px;
+            height: 60px;
+            background: var(--panel-alt);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+        }}
+        .mount-grid img {{
+            padding: 8px;
+            object-fit: contain;
+        }}
+        .mount-grid .placeholder-empty {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }}
         .hero-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -6389,25 +6747,29 @@ class MainWindow(QtWidgets.QMainWindow):
         .plugin-grid {{
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 18px;
+            justify-content: center;
+            align-items: center;
+            margin-inline: auto;
         }}
         .plugin-icon {{
-            width: 68px;
-            height: 68px;
-            border-radius: 16px;
+            width: 120px;
+            height: 120px;
+            border-radius: 20px;
             border: 1px solid var(--border);
             background: rgba(255, 255, 255, 0.03);
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 6px;
+            padding: 12px;
             position: relative;
+            flex: 0 0 auto;
         }}
         .plugin-icon img {{
             width: 100%;
             height: 100%;
             object-fit: contain;
-            border-radius: 12px;
+            border-radius: 16px;
         }}
         .plugin-fallback {{
             font-size: 0.75rem;
@@ -6622,30 +6984,61 @@ class MainWindow(QtWidgets.QMainWindow):
         modal.querySelector('.modal-backdrop').addEventListener('click', closeModal);
         modal.querySelector('.modal-close').addEventListener('click', closeModal);
         document.addEventListener('keydown', (evt) => {{ if (evt.key === 'Escape') closeModal(); }});
-        document.querySelectorAll('.bonus-button').forEach((btn) => {{
-            btn.addEventListener('click', () => {{
-                const raw = btn.getAttribute('data-bonus') || '[]';
-                let entries = [];
-                try {{ entries = JSON.parse(raw); }} catch (err) {{ entries = []; }}
-                modalList.innerHTML = '';
-                if (!entries.length) {{
+        const openBonusModal = (btn) => {{
+            const raw = btn.getAttribute('data-bonus') || '[]';
+            let entries = [];
+            try {{ entries = JSON.parse(raw); }} catch (err) {{ entries = []; }}
+            modalList.innerHTML = '';
+            if (!entries.length) {{
+                const li = document.createElement('li');
+                li.textContent = 'No bonus stats configured.';
+                modalList.appendChild(li);
+            }} else {{
+                entries.forEach((entry) => {{
                     const li = document.createElement('li');
-                    li.textContent = 'No bonus stats configured.';
+                    const label = document.createElement('span');
+                    label.textContent = entry.label || 'Bonus';
+                    const value = document.createElement('strong');
+                    value.textContent = entry.value || '0%';
+                    li.appendChild(label);
+                    li.appendChild(value);
                     modalList.appendChild(li);
-                }} else {{
-                    entries.forEach((entry) => {{
-                        const li = document.createElement('li');
-                        const label = document.createElement('span');
-                        label.textContent = entry.label || 'Bonus';
-                        const value = document.createElement('strong');
-                        value.textContent = entry.value || '0%';
-                        li.appendChild(label);
-                        li.appendChild(value);
-                        modalList.appendChild(li);
-                    }});
+                }});
+            }}
+            modal.classList.add('active');
+        }};
+        const supportsTouch =
+            'ontouchstart' in window || (navigator && 'maxTouchPoints' in navigator && navigator.maxTouchPoints > 0);
+        document.querySelectorAll('.bonus-button').forEach((btn) => {{
+            if (!btn) {{
+                return;
+            }}
+            let touchHandled = false;
+            const open = () => openBonusModal(btn);
+            btn.addEventListener('click', () => {{
+                if (touchHandled) {{
+                    touchHandled = false;
+                    return;
                 }}
-                modal.classList.add('active');
+                open();
             }});
+            btn.addEventListener('keydown', (event) => {{
+                if (event.key === 'Enter' || event.key === ' ') {{
+                    event.preventDefault();
+                    open();
+                }}
+            }});
+            if (supportsTouch) {{
+                btn.addEventListener(
+                    'touchend',
+                    (event) => {{
+                        touchHandled = true;
+                        event.preventDefault();
+                        open();
+                    }},
+                    {{ passive: false }}
+                );
+            }}
         }});
     </script>
 </body>

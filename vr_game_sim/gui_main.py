@@ -3193,8 +3193,8 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
                 skill_def.get("name", skill_id),
             )
             config = skill_def.get("config", {}) or {}
-            rarity = config.get("rarity")
-            rarity_sort = _RARITY_SORT_ORDER.get(rarity, 99)
+            entry["rarity"] = config.get("rarity")
+            rarity_sort = _RARITY_SORT_ORDER.get(entry.get("rarity"), 99)
             ui_order = int(config.get("ui_order", 0))
             sort_key = (rarity_sort, ui_order, entry.get("name", skill_id))
             bucket = gem_entries_by_idx.setdefault(target_index, [])
@@ -5832,16 +5832,44 @@ class MainWindow(QtWidgets.QMainWindow):
                 )
 
             gem_skills = cfg.get("gem_skills", {}) or {}
+            hero_skill_lists = summary_entry.get("skills") or []
             jewel_cards: list[str] = []
             for slot_key, slot_label in JEWEL_SLOTS:
                 skill_id = gem_skills.get(slot_key, "")
+                entry = None
+                hero_index = JEWEL_SLOT_HERO_INDEX.get(slot_key, 0)
+                if hero_index >= 0 and hero_index < len(hero_skill_lists):
+                    entry = next(
+                        (
+                            e
+                            for e in hero_skill_lists[hero_index]
+                            if isinstance(e, dict) and e.get("id") == skill_id
+                        ),
+                        None,
+                    )
                 skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id) if skill_id else None
-                skill_name = skill_def.get("name") if isinstance(skill_def, dict) else None
+                skill_name = None
+                if isinstance(entry, dict):
+                    skill_name = entry.get("name") or None
+                if not skill_name and isinstance(skill_def, dict):
+                    skill_name = skill_def.get("name") or None
                 if not skill_name and skill_id:
                     skill_name = skill_id
+                rarity = entry.get("rarity") if isinstance(entry, dict) else None
                 desc = get_skill_description(skill_id, skill_name) if skill_id else None
-                tooltip = html.escape(desc).replace("\n", "<br>") if desc else "Skill details coming soon."
-                display_name = html.escape(skill_name) if skill_name else "None"
+                tooltip_base = (
+                    html.escape(desc).replace("\n", "<br>")
+                    if desc
+                    else "Skill details coming soon."
+                )
+                if rarity:
+                    tooltip = f"{tooltip_base}<br><em>Rarity: {html.escape(str(rarity))}</em>"
+                else:
+                    tooltip = tooltip_base
+                display_name_raw = skill_name or "None"
+                if rarity and rarity not in display_name_raw:
+                    display_name_raw = f"{display_name_raw} ({rarity})"
+                display_name = html.escape(display_name_raw) if display_name_raw else "None"
                 slot_display = html.escape(slot_label)
                 jewel_icon = jewel_icon_map.get(slot_key) or ""
                 jewel_cards.append(

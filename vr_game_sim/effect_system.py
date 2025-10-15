@@ -48,10 +48,28 @@ class EffectInstance:
         if self.effect_type == EffectType.STAT_MOD:
             stat_to_mod_val = self.config.get('stat_to_mod')
             stat_name = "Unknown Stat"
-            if isinstance(stat_to_mod_val, StatType):
-                stat_name = stat_to_mod_val.name.replace("_", " ").title()
-            elif isinstance(stat_to_mod_val, str):
-                stat_name = stat_to_mod_val.replace("_", " ").title()
+
+            stat_values = []
+            if isinstance(stat_to_mod_val, list):
+                stat_values = stat_to_mod_val
+            elif stat_to_mod_val is not None:
+                stat_values = [stat_to_mod_val]
+
+            if stat_values:
+                stat_names = []
+                for value in stat_values:
+                    if isinstance(value, StatType):
+                        stat_names.append(value.name.replace("_", " ").title())
+                    elif isinstance(value, str):
+                        stat_names.append(value.replace("_", " ").title())
+                    else:
+                        stat_names.append(str(value))
+                stat_name = ", ".join(stat_names)
+
+                # Use the first entry for downstream logic that expects a single stat.
+                stat_to_mod_val = stat_values[0]
+            else:
+                stat_to_mod_val = None
 
             if self.name == EFFECT_NAME_AWAKENING_DMG_REDUCTION:
                 return f"Reduces All Damage Taken by {abs(self.magnitude * 100):.0f}% (from Awakening)"

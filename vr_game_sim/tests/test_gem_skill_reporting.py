@@ -232,3 +232,78 @@ def test_skill_summary_includes_gem_skills():
     assert isinstance(name_widget, QtWidgets.QLabel)
     assert "Legendary" in name_widget.text()
     row.deleteLater()
+
+
+def test_export_summary_handles_list_gem_skill(tmp_path, monkeypatch):
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
+
+    try:
+        from PyQt6 import QtWidgets
+    except ImportError:
+        pytest.skip("PyQt6 is required for this test")
+
+    _app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    hero1 = Hero(
+        "HeroOne",
+        ["dummy_talent_empty", "dummy_talent_empty", "dummy_talent_empty"],
+        [],
+        [],
+        SKILL_REGISTRY_GLOBAL,
+    )
+    hero2 = Hero(
+        "HeroTwo",
+        ["dummy_talent_empty", "dummy_talent_empty", "dummy_talent_empty"],
+        [],
+        [],
+        SKILL_REGISTRY_GLOBAL,
+    )
+    unit = Unit(unit_type="infantry", tier=5, initial_count=100)
+    army = Army(name="ExportArmy", unit=unit, heroes=[hero1, hero2])
+
+    gem_skill_id = "gem_friggs_agate_piercing_pikes_legendary"
+    army.set_gem_skills({"friggs_agate": [gem_skill_id, ""]})
+    assert army.gem_skill_ids.get("friggs_agate") == gem_skill_id
+
+    cfg = {
+        "army_name": "ExportArmy",
+        "unit_type": "infantry",
+        "tier": 5,
+        "count": 100,
+        "atk_mod": 0.0,
+        "def_mod": 0.0,
+        "hp_mod": 0.0,
+        "bonus_stats": {},
+        "heroes": [
+            {"hero_name_or_preset": "HeroOne"},
+            {"hero_name_or_preset": "HeroTwo"},
+        ],
+        "gem_skills": {"friggs_agate": [gem_skill_id, "spare"]},
+    }
+
+    summary = gui_main.build_army_skill_summary(army, cfg, "red")
+
+    window = gui_main.MainWindow()
+    window._last_simulation_payload = {
+        "setup": [cfg],
+        "army_names": ["ExportArmy", "Opponent"],
+        "summary": [summary],
+        "win_rate": 0.5,
+        "runs": 10,
+    }
+
+    save_path = tmp_path / "summary.html"
+
+    monkeypatch.setattr(
+        gui_main.QtWidgets.QFileDialog,
+        "getSaveFileName",
+        lambda *args, **kwargs: (str(save_path), "HTML Files (*.html)"),
+    )
+    monkeypatch.setattr(gui_main.QtWidgets.QMessageBox, "warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gui_main.QtWidgets.QMessageBox, "critical", lambda *args, **kwargs: None)
+
+    window.export_summary_html()
+
+    assert save_path.exists()
+    window.close()

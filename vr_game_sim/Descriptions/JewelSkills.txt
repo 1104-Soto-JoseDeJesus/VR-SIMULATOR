@@ -1,0 +1,404 @@
+Let's get into the Gem Skills feature now, clicking the Gem skills button should pop up a window with 6 fields, one for each of the following gems
+
+Frigg's Agate
+Tyr's Emerald
+Thor's Ruby
+Freya's Amethyst
+Odin's Amber
+Heimdall's Sapphire
+
+Each should have a field that is searchable and scrollable like that of hero/plugin selection, the following Gem skills should be selectable (each army can have one skill from each of the 6 gem slots)
+(recall the code convention that duration is one more than in code, IE a duration of 0 in code means 1 in practice)
+
+Frigg's Agate:
+
+(Note the first batch is Legendary level and the second batch is epic level which are the same skills as the legendary but with reduced values)
+
+Legendary level - 
+
+"Piercing Pikes": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's pikemen (if own army is pikemen) troops deal 9.5% more overall damage (+0.095 to applicable damage multipliers, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable
+
+"Anti-Infantry Phalanx": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's pikemen receive 7.5% less damage from infantry (if enemy army is infantry) (-0.075 to applicable damage multipliers of enemy, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable
+
+"Explosive Arts of the Counter": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 13% more reactive skill damage (+0.13 to reactive skill damage multiplier, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable
+
+"Retaliatory Spears": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 64% more counterattack damage (+0.64 to counterattack damage multiplier) for 30 rounds (IE round 31 is the final round this applies in), Removable
+
+"Lacerating Spears": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops Lacerate effects on enemy get 32% more damage (+0.32 to lacerate specific damage multiplier) for 30 rounds (IE round 31 is the final round this applies in), Removable
+
+"Spear and Shield Stance": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops shields are 26% larger (+0.26 to shield size multiplier) for 30 rounds (IE round 31 is the final round this applies in), Removable
+
+"Pikemen Momentum": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the overall damage this army deals (only if pikemen) by 6% (+0.06 to applicable damage multipliers, no DOTS), Removable
+
+"Enduring Phalanx": Triggers 30 rounds into the battle (and is applied the round after IE round 31), decreases the overall damage this army receives from infantry armies by 4.5% (-0.045 to applicable enemy damage multipliers, no DOTS), Removable
+
+"Retributive Spears": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the reactive skill damage this army deals by 7.5% (+0.075 to applicable reactive skill damage multipliers, no DOTS), Removable
+
+"Vindictive Spears": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the counterattack damage this army deals by 37.5% (+0.375 to counterattack damage multiplier), Removable
+
+"Rending Spears": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the Lacerate damage this army deals by 18.75% (+0.1875 to lacerate specific damage multiplier), Removable
+
+"Spear and Shield Bulwark": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the shield size that this army receives by 15% (+0.15 to shield size multiplier), Removable
+
+Epic level -
+
+"Piercing Pikes": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's pikemen (if own army is pikemen) troops deal 9% more overall damage (+0.09 to applicable damage multipliers, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable
+
+"Anti-Infantry Phalanx": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's pikemen receive 7% less damage from infantry (if enemy army is infantry) (-0.07 to applicable damage multipliers of enemy, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable
+
+"Explosive Arts of the Counter": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 12.5% more reactive skill damage (+0.125 to reactive skill damage multiplier, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable
+
+"Retaliatory Spears": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 60% more counterattack damage (+0.60 to counterattack damage multiplier) for 20 rounds (IE round 21 is the final round this applies in), Removable
+
+"Lacerating Spears": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops Lacerate effects on enemy get 30% more damage (+0.30 to lacerate specific damage multiplier) for 20 rounds (IE round 21 is the final round this applies in), Removable
+
+"Spear and Shield Stance": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops shields are 25% larger (+0.25 to shield size multiplier) for 20 rounds (IE round 21 is the final round this applies in), Removable
+
+"Pikemen Momentum": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the overall damage this army deals (only if pikemen) by 4.75% (+0.0475 to applicable damage multipliers, no DOTS), Removable
+
+"Enduring Phalanx": Triggers 40 rounds into the battle (and is applied the round after IE round 41), decreases the overall damage this army receives from infantry armies by 3.5% (-0.035 to applicable enemy damage multipliers, no DOTS), Removable
+
+"Retributive Spears": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the reactive skill damage this army deals by 6% (+0.06 to applicable reactive skill damage multipliers, no DOTS), Removable
+
+"Vindictive Spears": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the counterattack damage this army deals by 30% (+0.30 to counterattack damage multiplier), Removable
+
+"Rending Spears": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the Lacerate damage this army deals by 15% (+0.15 to lacerate specific damage multiplier), Removable
+
+"Spear and Shield Bulwark": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the shield size that this army receives by 12% (+0.12 to shield size multiplier), Removable
+
+Implement those and then we will move on to the next gem
+
+Now Tyr's Emerald:
+
+
+
+(recall the code convention that duration is one more than in code, IE a duration of 0 in code means 1 in practice)
+
+Tyr's Emerald: 
+
+(Note the first batch is Legendary level and the second batch is epic level which are the same skills as the legendary but with reduced values)
+
+Legendary level - 
+
+Unstoppable Vanguards": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's infantry(if own army is infantry) troops deal 9.5% more overall damage (+0.095 to applicable damage multipliers, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable 
+
+"Anti-Missile Stance": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's infantry receive 7.5% less damage from archers (if enemy army is infantry) (-0.075 to applicable damage multipliers of enemy, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable 
+
+"Secret of Cooperation": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 13% more cooperation skill damage (+0.13 to cooperation skill damage multiplier, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable 
+
+"Fatal Strike": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 64% more basic attack damage (+0.64 to basic attack damage multiplier) for 30 rounds (IE round 31 is the final round this applies in), Removable 
+
+"Blood-soaked Strike": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops Bleed effects on enemy get 32% more damage (+0.32 to Bleed specific damage multiplier) for 30 rounds (IE round 31 is the final round this applies in), Removable 
+
+"Healing Arts": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops heal are 32% larger (+0.32 to heal size multiplier) for 30 rounds (IE round 31 is the final round this applies in), Removable 
+
+"Relentless Vanguards": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the overall damage this army deals (only if infantry) by 6% (+0.06 to applicable damage multipliers, no DOTS), Removable 
+
+"Arrowbreaker Shields": Triggers 30 rounds into the battle (and is applied the round after IE round 31), decreases the overall damage this army receives from archer armies by 4.5% (-0.045 to applicable enemy damage multipliers, no DOTS), Removable 
+
+"Cooperative Strike": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the Cooperation skill damage this army deals by 7.5% (+0.075 to applicable Cooperation skill damage multipliers, no DOTS), Removable 
+
+"Earth-Shattering Strike": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the basic attack damage this army deals by 37.5% (+0.375 to basic attack damage multiplier), Removable 
+
+"Mortal Wounds": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the Bleed damage this army deals by 18.75% (+0.1875 to bleed specific damage multiplier), Removable 
+
+"Gift of Recuperation": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the heal size that this army receives by 18.75% (+0.1875 to heal size multiplier), Removable 
+
+Epic level -
+
+Unstoppable Vanguards": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's infantry(if own army is infantry) troops deal 9% more overall damage (+0.09 to applicable damage multipliers, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable 
+
+"Anti-Missile Stance": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's infantry receive 7% less damage from archers (if enemy army is infantry) (-0.07 to applicable damage multipliers of enemy, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable 
+
+"Secret of Cooperation": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 12.5% more cooperation skill damage (+0.125 to cooperation skill damage multiplier, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable 
+
+"Fatal Strike": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 60% more basic attack damage (+0.60 to basic attack damage multiplier) for 20 rounds (IE round 21 is the final round this applies in), Removable 
+
+"Blood-soaked Strike": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops Bleed effects on enemy get 30% more damage (+0.30 to Bleed specific damage multiplier) for 20 rounds (IE round 21 is the final round this applies in), Removable 
+
+"Healing Arts": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops heal are 30% larger (+0.30 to heal size multiplier) for 20 rounds (IE round 21 is the final round this applies in), Removable 
+
+"Relentless Vanguards": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the overall damage this army deals (only if infantry) by 4.75% (+0.0475 to applicable damage multipliers, no DOTS), Removable 
+
+"Arrowbreaker Shields": Triggers 40 rounds into the battle (and is applied the round after IE round 41), decreases the overall damage this army receives from archer armies by 3.5% (-0.035 to applicable enemy damage multipliers, no DOTS), Removable 
+
+"Cooperative Strike": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the Cooperation skill damage this army deals by 6% (+0.06 to applicable Cooperation skill damage multipliers, no DOTS), Removable 
+
+"Earth-Shattering Strike": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the basic attack damage this army deals by 30% (+0.30 to basic attack damage multiplier), Removable 
+
+"Mortal Wounds": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the Bleed damage this army deals by 15% (+0.15 to bleed specific damage multiplier), Removable 
+
+"Gift of Recuperation": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the heal size that this army receives by 15% (+0.15 to heal size multiplier), Removable  
+
+Implement these then we will move on to the next gem but actually change the name to Jewel not gem, so Jewel Skills
+
+Now Thor's Ruby: 
+
+
+
+(recall the code convention that duration is one more than in code, IE a duration of 0 in code means 1 in practice)
+
+Thor's Ruby:  
+
+(Note the first batch is Legendary level and the second batch is epic level which are the same skills as the legendary but with reduced values)
+
+Legendary level - 
+
+"Rank-breaker Bows": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's archers (if own army is archers) troops deal 9.5% more overall damage (+0.095 to applicable damage multipliers, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable  
+
+"Anti-Pikemen Range": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's archers receive 7.5% less damage from pikemen(if enemy army is pikemen) (-0.075 to applicable damage multipliers of enemy, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable  
+
+"Commander's Technique": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 13% more command skill damage (+0.13 to command skill damage multiplier, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable  
+
+"Piercing Arrows": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 32% more basic attack damage and 32% more counterattack damage (+0.32 to each of those two damage multipliers) for 30 rounds (IE round 31 is the final round this applies in), Removable  
+
+"Burning Arrows": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops burn effects on enemy get 32% more damage (+0.32 to burn specific damage multiplier) for 30 rounds (IE round 31 is the final round this applies in), Removable  
+
+"Venomous Arrows": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's poison effects deal 32% more damage (+0.32 to poison specific damage multiplier) for 30 rounds (IE round 31 is the final round this applies in), Removable  
+
+"Heartseeker Arrows": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the overall damage this army deals (only if archers) by 6% (+0.06 to applicable damage multipliers, no DOTS), Removable  
+
+"Arrow Curtain": Triggers 30 rounds into the battle (and is applied the round after IE round 31), decreases the overall damage this army receives from pikemen armies by 4.5% (-0.045 to applicable enemy damage multipliers, no DOTS), Removable  
+
+"Arrow of Leadership": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the Command skill damage this army deals by 7.5% (+0.075 to applicable Command skill damage multipliers, no DOTS), Removable  
+
+"Fearless Arrows": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the basic attack damage this army deals by 18.75% and counterattack damage by 18.75% (+0.1875 to both attack damage multipliers), Removable  
+
+"Scorching Arrows": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the burn damage this army deals by 18.75% (+0.1875 to burn specific damage multiplier), Removable  
+
+"Corrosive Arrows": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the poison effects damage of this army by 18.75% (+0.1875 to poison specific damage multiplier), Removable  
+
+Epic level -  
+
+"Rank-breaker Bows": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's archers (if own army is archers) troops deal 9% more overall damage (+0.09 to applicable damage multipliers, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable  
+
+"Anti-Pikemen Range": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's archers receive 7% less damage from pikemen(if enemy army is pikemen) (-0.07 to applicable damage multipliers of enemy, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable  
+
+"Commander's Technique": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 12.5% more command skill damage (+0.125 to command skill damage multiplier, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable  
+
+"Piercing Arrows": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 30% more basic attack damage and 30% more counterattack damage (+0.30 to each of those two damage multipliers) for 20 rounds (IE round 21 is the final round this applies in), Removable  
+
+"Burning Arrows": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops burn effects on enemy get 30% more damage (+0.30 to burn specific damage multiplier) for 20 rounds (IE round 21 is the final round this applies in), Removable  
+
+"Venomous Arrows": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's poison effects deal 30% more damage (+0.30 to poison specific damage multiplier) for 20 rounds (IE round 21 is the final round this applies in), Removable  
+
+"Heartseeker Arrows": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the overall damage this army deals (only if archers) by 4.75% (+0.0475 to applicable damage multipliers, no DOTS), Removable  
+
+"Arrow Curtain": Triggers 40 rounds into the battle (and is applied the round after IE round 41), decreases the overall damage this army receives from pikemen armies by 3.5% (-0.035 to applicable enemy damage multipliers, no DOTS), Removable  
+
+"Arrow of Leadership": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the Command skill damage this army deals by 6% (+0.06 to applicable Command skill damage multipliers, no DOTS), Removable  
+
+"Fearless Arrows": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the basic attack damage this army deals by 15% and counterattack damage by 15% (+0.15 to both attack damage multipliers), Removable  
+
+"Scorching Arrows": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the burn damage this army deals by 15% (+0.15 to burn specific damage multiplier), Removable  
+
+"Corrosive Arrows": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the poison effects damage of this army by 15% (+0.15 to poison specific damage multiplier), Removable 
+
+Implement this and then we will move on to the next one
+
+Now Freya's Amethyst:  
+
+
+
+(recall the code convention that duration is one more than in code, IE a duration of 0 in code means 1 in practice)
+
+Freya's Amethyst:  
+
+(Note the first batch is Legendary level and the second batch is epic level which are the same skills as the legendary but with reduced values)
+
+Legendary level - 
+"Fearless Blades": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 6% more overall damage (+0.06 to applicable damage multipliers, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable
+
+"Battle Initiative": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops rage skills deal 34% more damage (+0.34 to applicable rage skill damage multipliers, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable
+
+"Wrathful Vengeance": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops passive skills deal 15% more damage (+0.15 to applicable passive skill damage multipliers, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable
+
+
+
+
+
+
+Implement this and then we will move on to the next one
+
+"Counter Resistance": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops receive 9.5% less reactive skill damage (-0.095 to applicable reactive skill damage multipliers, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable
+
+"Command Resistance": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops receive 9.5% less command skill damage (-0.095 to applicable command skill damage multipliers, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable
+
+"Cooperation Resistance": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops receive 9.5% less cooperation skill damage (-0.095 to applicable cooperation skill damage multipliers, remember this doesn't apply to DOTs) for 30 rounds (IE round 31 is the final round this applies in), Removable
+
+"Legion's Wrath": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the overall damage this army deals by 3.75% (+0.0375 to applicable damage multipliers, no DOTS), Removable
+
+"Explosive Initiative": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the rage skill damage this army deals by 18.75% (+0.1875 to applicable rage skill damage multipliers, no DOTS), Removable
+
+"Valkyrie's Vengeance": Triggers 30 rounds into the battle (and is applied the round after IE round 31), increase the passive skill damage this army deals by 9% (+0.09 to applicable passive skill damage multipliers, no DOTS), Removable
+
+"Counter Barrier": Triggers 30 rounds into the battle (and is applied the round after IE round 31), reduces the reactive skill damage this army receives by 6% (-0.06 to applicable reactive skill damage multipliers, no DOTS), Removable
+
+"Command Barrier": Triggers 30 rounds into the battle (and is applied the round after IE round 31), reduces the command skill damage this army receives by 6% (-0.06 to applicable command skill damage multipliers, no DOTS), Removable
+
+"Cooperation Barrier": Triggers 30 rounds into the battle (and is applied the round after IE round 31), reduces the cooperation skill damage this army receives by 6% (-0.06 to applicable cooperation skill damage multipliers, no DOTS), Removable
+
+Epic Level-
+
+"Fearless Blades": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops deal 5.5% more overall damage (+0.055 to applicable damage multipliers, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable
+
+"Battle Initiative": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops rage skills deal 32% more damage (+0.32 to applicable rage skill damage multipliers, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable
+
+"Wrathful Vengeance": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops passive skills deal 14.25% more damage (+0.1425 to applicable passive skill damage multipliers, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable
+
+
+
+
+
+
+
+"Counter Resistance": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops receive 9% less reactive skill damage (-0.09 to applicable reactive skill damage multipliers, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable
+
+"Command Resistance": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops receive 9% less command skill damage (-0.09 to applicable command skill damage multipliers, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable
+
+"Cooperation Resistance": Triggers on the first round of battle (and is applied on the 2nd round of battle), this army's troops receive 9% less cooperation skill damage (-0.09 to applicable cooperation skill damage multipliers, remember this doesn't apply to DOTs) for 20 rounds (IE round 21 is the final round this applies in), Removable
+
+"Legion's Wrath": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the overall damage this army deals by 3% (+0.03 to applicable damage multipliers, no DOTS), Removable
+
+"Explosive Initiative": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the rage skill damage this army deals by 15% (+0.15 to applicable rage skill damage multipliers, no DOTS), Removable
+
+"Valkyrie's Vengeance": Triggers 40 rounds into the battle (and is applied the round after IE round 41), increase the passive skill damage this army deals by 7% (+0.07 to applicable passive skill damage multipliers, no DOTS), Removable
+
+"Counter Barrier": Triggers 40 rounds into the battle (and is applied the round after IE round 41), reduces the reactive skill damage this army receives by 4.75% (-0.0475 to applicable reactive skill damage multipliers, no DOTS), Removable
+
+"Command Barrier": Triggers 40 rounds into the battle (and is applied the round after IE round 41), reduces the command skill damage this army receives by 4.75% (-0.0475 to applicable command skill damage multipliers, no DOTS), Removable
+
+"Cooperation Barrier": Triggers 40 rounds into the battle (and is applied the round after IE round 41), reduces the cooperation skill damage this army receives by 4.75% (-0.0475 to applicable cooperation skill damage multipliers, no DOTS), Removable
+
+Implement it then we will move on to the next one
+
+Now Odin's Amber:   
+
+
+
+(recall the code convention that duration is one more than in code, IE a duration of 0 in code means 1 in practice)
+
+Odin's Amber:   
+
+(Note the first batch is Legendary level and the second batch is epic level which are the same skills as the legendary but with reduced values)
+
+Legendary level - 
+"Vampiric Arrows": Every 10 rounds (IE round 10, 20, 30, etc.) if there are fewer troops in this hero's army than in the enemy army (direct), deal damage with damage factor 405 and heal this hero's army with heal factor 370
+
+"Enraging Arrows": Every 10 rounds (IE round 10, 20, 30, etc.) if there are fewer troops in this hero's army than in the enemy army (direct), deal damage with damage factor 525 and this hero's army gains 75 rage
+
+"Incinerating Arrows": Every 10 rounds (IE round 10, 20, 30, etc.) if there are fewer troops in this hero's army than in the enemy army (direct), deal damage with damage factor 405 and inflict burn on the enemy with burn factor 185 for 2 rounds (after trigger round)
+
+"Blighting Arrows": Every 10 rounds (IE round 10, 20, 30, etc.) if there are fewer troops in this hero's army than in the enemy army (direct), deal damage with damage factor 405 and inflict poison on the enemy with poison factor 185 for 2 rounds (after trigger round)
+
+"Lacerating Rush": if there are fewer troops in this hero's army than in the enemy army (direct), counterattacks have a 10% chance to deal damage with damage factor 300 and inflict lacerate on the enemy with lacerate factor 140 for 2 rounds (after trigger round), can only trigger once every 5 rounds (IE if triggered round N cannot trigger again until round N+5)
+
+"Vampiric Rush": if there are fewer troops in this hero's army than in the enemy army (direct), counterattacks have a 10% chance to deal damage with damage factor 300 and heal this hero's troop with heal factor 275, can only trigger once every 5 rounds (IE if triggered round N cannot trigger again until round N+5)
+
+"Shielded Rush": if there are fewer troops in this hero's army than in the enemy army (direct), counterattacks have a 10% chance to deal damage with damage factor 300 and shield this hero's troop with shield factor 275 for 2 rounds (after trigger round), can only trigger once every 5 rounds (IE if triggered round N cannot trigger again until round N+5)
+
+"Enraging Rush": if there are fewer troops in this hero's army than in the enemy army (direct), counterattacks have a 10% chance to deal damage with damage factor 405 and this hero's army gains 75 rage, can only trigger once every 5 rounds (IE if triggered round N cannot trigger again until round N+5)
+
+"Vampiric Strike": if there are fewer troops in this hero's army than in the enemy army (direct), basic attacks have a 10% chance to deal damage with damage factor 405 and heal this hero's troop with heal factor 370
+
+"Shielded Strike": if there are fewer troops in this hero's army than in the enemy army (direct), basic attacks have a 10% chance to deal damage with damage factor 405 and shield this hero's troop with shield factor 370 for 2 rounds (after trigger round)
+
+"Enraging Strike": if there are fewer troops in this hero's army than in the enemy army (direct), basic attacks have a 10% chance to deal damage with damage factor 525 and this hero's army gains 75 rage
+
+"Bloodthirsty Strike": if there are fewer troops in this hero's army than in the enemy army (direct), basic attacks have a 10% chance to deal damage with damage factor 405 and inflict bleed on the enemy with bleed factor 185 for 2 rounds (after trigger round)
+
+Epic Level- 
+
+"Vampiric Arrows": Every 15 rounds (IE round 15, 30, etc.) if there are fewer troops in this hero's army than in the enemy army (direct), deal damage with damage factor 380 and heal this hero's army with heal factor 350
+
+"Enraging Arrows": Every 15 rounds (IE round 15, 30, etc.) if there are fewer troops in this hero's army than in the enemy army (direct), deal damage with damage factor 500 and this hero's army gains 70 rage
+
+"Incinerating Arrows": Every 15 rounds (IE round 15, 30, etc.) if there are fewer troops in this hero's army than in the enemy army (direct), deal damage with damage factor 380 and inflict burn on the enemy with burn factor 175 for 2 rounds (after trigger round)
+
+"Blighting Arrows": Every 15 rounds (IE round 15, 30, etc.) if there are fewer troops in this hero's army than in the enemy army (direct), deal damage with damage factor 380 and inflict poison on the enemy with poison factor 175 for 2 rounds (after trigger round)
+
+"Lacerating Rush": if there are fewer troops in this hero's army than in the enemy army (direct), counterattacks have a 7% chance to deal damage with damage factor 270 and inflict lacerate on the enemy with lacerate factor 125 for 2 rounds (after trigger round), can only trigger once every 5 rounds (IE if triggered round N cannot trigger again until round N+5)
+
+"Vampiric Rush": if there are fewer troops in this hero's army than in the enemy army (direct), counterattacks have a 7% chance to deal damage with damage factor 270 and heal this hero's troop with heal factor 250, can only trigger once every 5 rounds (IE if triggered round N cannot trigger again until round N+5)
+
+"Shielded Rush": if there are fewer troops in this hero's army than in the enemy army (direct), counterattacks have a 7% chance to deal damage with damage factor 270 and shield this hero's troop with shield factor 250 for 2 rounds (after trigger round), can only trigger once every 5 rounds (IE if triggered round N cannot trigger again until round N+5)
+
+"Enraging Rush": if there are fewer troops in this hero's army than in the enemy army (direct), counterattacks have a 7% chance to deal damage with damage factor 355 and this hero's army gains 70 rage, can only trigger once every 5 rounds (IE if triggered round N cannot trigger again until round N+5)
+
+"Vampiric Strike": if there are fewer troops in this hero's army than in the enemy army (direct), basic attacks have a 7% chance to deal damage with damage factor 355 and heal this hero's troop with heal factor 340
+
+"Shielded Strike": if there are fewer troops in this hero's army than in the enemy army (direct), basic attacks have a 7% chance to deal damage with damage factor 355 and shield this hero's troop with shield factor 340 for 2 rounds (after trigger round)
+
+"Enraging Strike": if there are fewer troops in this hero's army than in the enemy army (direct), basic attacks have a 7% chance to deal damage with damage factor 475 and this hero's army gains 70 rage
+
+"Bloodthirsty Strike": if there are fewer troops in this hero's army than in the enemy army (direct), basic attacks have a 7% chance to deal damage with damage factor 355 and inflict bleed on the enemy with bleed factor 175 for 2 rounds (after trigger round)
+
+Implement and we will get into the final jewel
+
+Now Heimdall's Sapphire:   
+
+
+
+(recall the code convention that duration is one more than in code, IE a duration of 0 in code means 1 in practice)
+
+Heimdall's Sapphire:   
+
+(Note the first batch is Legendary level and the second batch is epic level which are the same skills as the legendary but with reduced values)
+
+Legendary level - 
+
+"Purifying Barbs": Deals damage to the enemy with damage factor 525 and purifies 1 random debuff from self (after trigger round) every 10 rounds (IE round 10, 20, etc.) on the condition that this hero's army is less than 65% of its original troop count
+
+"Dispelling Barbs": Deals damage to the enemy with damage factor 525 and dispels 1 random buff from the enemy (after trigger round) every 10 rounds (IE round 10, 20, etc.) on the condition that this hero's army is less than 65% of its original troop count
+
+"Stealth Barbs": Deals damage to the enemy with damage factor 345 and this hero's army gains 12% evasion buff (evasion is a buff with a chance to take no basic/counter attack and direct skill damage for any given round its active) for 2 rounds (after trigger round) every 10 rounds (IE round 10, 20, etc.) on the condition that this hero's army is less than 65% of its original troop count
+
+"Enraging Barbs": Deals damage to the enemy with damage factor 405 and gain 75 rage (after trigger round) every 10 rounds (IE round 10, 20, etc.) on the condition that this hero's army is less than 65% of its original troop count
+
+"Purifying Lances": If there are fewer than 65% of this army's troops remaining, counterattacks have a 10% chance to deal damage with damage factor 400, and purify 1 random debuff from this army (after trigger round), can only trigger once every 5 rounds (IE if this triggers round N cannot trigger again until round N+5)
+
+"Dispelling Lances": If there are fewer than 65% of this army's troops remaining, counterattacks have a 10% chance to deal damage with damage factor 400, and dispel 1 random buff from enemy army (after trigger round), can only trigger once every 5 rounds (IE if this triggers round N cannot trigger again until round N+5)
+
+"Purifying Lances": If there are fewer than 65% of this army's troops remaining, counterattacks have a 10% chance to deal damage with damage factor 260, and gain 8% overall damage reduction (-0.08 to applicable damage modifiers, doesn't apply to DOTS) for 1 round (after trigger round), can only trigger once every 5 rounds (IE if this triggers round N cannot trigger again until round N+5)
+
+"Enraging Lances": If there are fewer than 65% of this army's troops remaining, counterattacks have a 10% chance to deal damage with damage factor 300, and gain 75 rage (after trigger round), can only trigger once every 5 rounds (IE if this triggers round N cannot trigger again until round N+5)
+
+"Purifying Frenzy": If there are fewer than 65% of this army's troops remaining, basic attacks have a 10% chance to deal damage with damage factor 525, and purify 1 random debuff from this army (after trigger round)
+
+"Dispelling Frenzy": If there are fewer than 65% of this army's troops remaining, basic attacks have a 10% chance to deal damage with damage factor 525, and dispel 1 random buff from enemy army (after trigger round)
+
+"Retributive Frenzy": If there are fewer than 65% of this army's troops remaining, basic attacks have a 10% chance to deal damage with damage factor 345, and gain 12% Retribution rate (Retribution is a buff which deals some portion of damage from basic/counter attacks and direct skill damage back to the enemy who inflicted it, in this case 12% of said damage would be inflicted back on each enemy who inflicted it) for 1 round (after trigger round)
+
+"Enraging Frenzy": If there are fewer than 65% of this army's troops remaining, basic attacks have a 10% chance to deal damage with damage factor 405, and gain 75 rage (after trigger round)
+
+Epic Level -
+
+"Purifying Barbs": Deals damage to the enemy with damage factor 470 and purifies 1 random debuff from self (after trigger round) every 12 rounds (IE round 12, 24, etc.) on the condition that this hero's army is less than 55% of its original troop count
+
+"Dispelling Barbs": Deals damage to the enemy with damage factor 470 and dispels 1 random buff from the enemy (after trigger round) every 12 rounds (IE round 12, 24, etc.) on the condition that this hero's army is less than 55% of its original troop count
+
+"Stealth Barbs": Deals damage to the enemy with damage factor 310 and this hero's army gains 10% evasion buff (evasion is a buff with a chance to take no basic/counter attack and direct skill damage for any given round its active) for 2 rounds (after trigger round) every 12 rounds (IE round 12, 24, etc.) on the condition that this hero's army is less than 55% of its original troop count
+
+"Enraging Barbs": Deals damage to the enemy with damage factor 365 and gain 65 rage (after trigger round) every 12 rounds (IE round 12, 24, etc.) on the condition that this hero's army is less than 55% of its original troop count
+
+"Purifying Lances": If there are fewer than 55% of this army's troops remaining, counterattacks have a 8% chance to deal damage with damage factor 370, and purify 1 random debuff from this army (after trigger round), can only trigger once every 5 rounds (IE if this triggers round N cannot trigger again until round N+5)
+
+"Dispelling Lances": If there are fewer than 55% of this army's troops remaining, counterattacks have a 8% chance to deal damage with damage factor 370, and dispel 1 random buff from enemy army (after trigger round), can only trigger once every 5 rounds (IE if this triggers round N cannot trigger again until round N+5)
+
+"Purifying Lances": If there are fewer than 55% of this army's troops remaining, counterattacks have a 8% chance to deal damage with damage factor 245, and gain 7% overall damage reduction (-0.07 to applicable damage modifiers, doesn't apply to DOTS) for 1 round (after trigger round), can only trigger once every 5 rounds (IE if this triggers round N cannot trigger again until round N+5)
+
+"Enraging Lances": If there are fewer than 55% of this army's troops remaining, counterattacks have a 8% chance to deal damage with damage factor 280, and gain 70 rage (after trigger round), can only trigger once every 5 rounds (IE if this triggers round N cannot trigger again until round N+5)
+
+"Purifying Frenzy": If there are fewer than 55% of this army's troops remaining, basic attacks have a 8% chance to deal damage with damage factor 490, and purify 1 random debuff from this army (after trigger round)
+
+"Dispelling Frenzy": If there are fewer than 55% of this army's troops remaining, basic attacks have a 8% chance to deal damage with damage factor 490, and dispel 1 random buff from enemy army (after trigger round)
+
+"Retributive Frenzy": If there are fewer than 55% of this army's troops remaining, basic attacks have a 8% chance to deal damage with damage factor 325, and gain 10% Retribution rate (Retribution is a buff which deals some portion of damage from basic/counter attacks and direct skill damage back to the enemy who inflicted it, in this case 10% of said damage would be inflicted back on each enemy who inflicted it) for 1 round (after trigger round)
+
+"Enraging Frenzy": If there are fewer than 55% of this army's troops remaining, basic attacks have a 8% chance to deal damage with damage factor 375, and gain 70 rage (after trigger round)
+
+
+
+Note: Please make sure all the rage gain abilities in all jewels apply the rage the round after trigger as is the simulator convention
+
+Note: Please make sure all damage, heal, shield, reduction, contribution, rage gain etc. etc. from jewels are reported in the skill breakdowns for both 1v1 and arena modes

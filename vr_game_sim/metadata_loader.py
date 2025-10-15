@@ -6,7 +6,7 @@ import os
 import re
 import unicodedata
 from functools import lru_cache
-from typing import Dict, Optional
+from typing import Dict, Iterable, Optional
 
 from .enums import SkillTriggerType, SkillType
 
@@ -28,14 +28,28 @@ def _load_raw_skill_descriptions() -> Dict[str, str]:
 
     descriptions: Dict[str, str] = {}
 
-    def _store_description(name: str, description: str) -> None:
+    def _store_description(name: str, description: str, context: Optional[str] = None) -> None:
         if not name or not description:
             return
-        lowered = name.lower()
-        descriptions.setdefault(lowered, description)
+        lowered = name.lower().strip()
         canonical = _canonicalise_name(name)
+
+        keys: list[str] = []
+        context_key = context.lower().strip() if isinstance(context, str) else None
+        if context_key:
+            if lowered:
+                keys.append(f"{context_key}:{lowered}")
+            if canonical and canonical != lowered:
+                keys.append(f"{context_key}:{canonical}")
+
+        if lowered:
+            keys.append(lowered)
         if canonical and canonical != lowered:
-            descriptions.setdefault(canonical, description)
+            keys.append(canonical)
+
+        for key in keys:
+            if key and key not in descriptions:
+                descriptions[key] = description
 
     def _normalise(text: str) -> str:
         cleaned = text.replace("\r", " ")
@@ -56,10 +70,11 @@ def _load_raw_skill_descriptions() -> Dict[str, str]:
                 r"(\w+?)name\s*:\s*\"([^\"]+)\"[\s\S]*?\1descr\s*:\s*\"([^\"]+)\"",
                 block,
             ):
-                skill_name = match.group(2)
-                description = _normalise(match.group(3))
+                prefix, skill_name, descr_text = match.groups()
+                description = _normalise(descr_text)
                 if skill_name:
-                    _store_description(skill_name, description)
+                    context = "talent" if prefix.startswith("talent") else "skill"
+                    _store_description(skill_name, description, context=context)
 
     # Parse the general skills list. This file is almost JSON but with single
     # quotes. We replace them before loading so the data can be processed using
@@ -73,7 +88,7 @@ def _load_raw_skill_descriptions() -> Dict[str, str]:
             raw,
         ):
             name, descr = match.groups()
-            _store_description(name, _normalise(descr))
+            _store_description(name, _normalise(descr), context="skill")
 
     jewel_path = os.path.join(_DESCRIPTIONS_DIR, "JewelSkills.txt")
     if os.path.exists(jewel_path):
@@ -92,9 +107,9 @@ def _load_raw_skill_descriptions() -> Dict[str, str]:
                 if match:
                     name, descr = match.groups()
                     description = _normalise(descr)
-                    _store_description(name, description)
+                    _store_description(name, description, context="jewel")
                     if current_rarity:
-                        _store_description(f"{name} ({current_rarity})", description)
+                        _store_description(f"{name} ({current_rarity})", description, context="jewel")
 
     return descriptions
 
@@ -179,6 +194,14 @@ _FALLBACK_DESCRIPTIONS = {
         "On basic attacks there is a chance to inflict a bleed on the target, dealing"
         " damage over time."
     ),
+    "plugin_helas_curse": (
+        "Every few rounds Hela's Curse ignites the enemy with burn damage and can also"
+        " strip their defenses, reducing their base defense for a short duration."
+    ),
+    "hela's curse": (
+        "Every few rounds Hela's Curse ignites the enemy with burn damage and can also"
+        " strip their defenses, reducing their base defense for a short duration."
+    ),
 }
 
 
@@ -187,11 +210,28 @@ def get_skill_description(skill_id: Optional[str], skill_name: Optional[str] = N
 
     descriptions = _load_raw_skill_descriptions()
 
-    def _lookup(name: Optional[str]) -> Optional[str]:
+    def _lookup(name: Optional[str], contexts: Iterable[str] = ()) -> Optional[str]:
         if not name:
             return None
-        lowered = name.lower()
-        for key in {lowered, _canonicalise_name(name)}:
+        lowered = name.lower().strip()
+        canonical = _canonicalise_name(name)
+
+        ordered_keys: list[str] = []
+        for context in contexts:
+            context_key = context.lower().strip() if isinstance(context, str) else ""
+            if not context_key:
+                continue
+            if lowered:
+                ordered_keys.append(f"{context_key}:{lowered}")
+            if canonical and canonical != lowered:
+                ordered_keys.append(f"{context_key}:{canonical}")
+
+        if lowered:
+            ordered_keys.append(lowered)
+        if canonical and canonical != lowered:
+            ordered_keys.append(canonical)
+
+        for key in ordered_keys:
             if not key:
                 continue
             description = descriptions.get(key)
@@ -199,16 +239,50 @@ def get_skill_description(skill_id: Optional[str], skill_name: Optional[str] = N
                 return description
         return None
 
+    contexts: list[str] = []
+    definition = None
     if skill_id:
+        from .skill_definitions import SKILL_REGISTRY_GLOBAL
+
+        definition = SKILL_REGISTRY_GLOBAL.get(skill_id)
+        skill_type_value = definition.get("type") if isinstance(definition, dict) else None
+
+        def _add_context(value: str) -> None:
+            lowered = value.strip().lower()
+            if lowered and lowered not in contexts:
+                contexts.append(lowered)
+
+        type_text: Optional[str]
+        if isinstance(skill_type_value, SkillType):
+            type_text = skill_type_value.name.lower()
+        elif isinstance(skill_type_value, str):
+            type_text = skill_type_value.lower()
+        else:
+            type_text = None
+
+        if not type_text and skill_id.startswith("talent_"):
+            type_text = "talent"
+        elif not type_text and skill_id.startswith("plugin_"):
+            type_text = "plugin"
+
+        if type_text == "talent":
+            _add_context("talent")
+            _add_context("skill")
+        elif type_text in {"plugin", "plugin_skill"}:
+            _add_context("plugin")
+            _add_context("skill")
+        else:
+            _add_context("skill")
+
         canonical_name = _skill_id_to_name().get(skill_id)
-        description = _lookup(canonical_name)
+        description = _lookup(canonical_name, contexts)
         if description:
             return description
         fallback = _FALLBACK_DESCRIPTIONS.get(skill_id)
         if fallback:
             return fallback
 
-    description = _lookup(skill_name)
+    description = _lookup(skill_name, contexts)
     if description:
         return description
 

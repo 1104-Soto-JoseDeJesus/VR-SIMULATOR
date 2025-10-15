@@ -7010,34 +7010,58 @@ class MainWindow(QtWidgets.QMainWindow):
             }}
             modal.classList.add('active');
         }};
-        const supportsTouch =
-            'ontouchstart' in window || (navigator && 'maxTouchPoints' in navigator && navigator.maxTouchPoints > 0);
+        const hasTouchSupport = () => {{
+            if (window.PointerEvent) {{
+                return true;
+            }}
+            const navigatorRef = typeof navigator === 'undefined' ? null : navigator;
+            return (
+                'ontouchstart' in window ||
+                (!!navigatorRef && 'maxTouchPoints' in navigatorRef && navigatorRef.maxTouchPoints > 0)
+            );
+        }};
         document.querySelectorAll('.bonus-button').forEach((btn) => {{
             if (!btn) {{
                 return;
             }}
-            let touchHandled = false;
             const open = () => openBonusModal(btn);
-            btn.addEventListener('click', () => {{
-                if (touchHandled) {{
-                    touchHandled = false;
+            let pointerHandled = false;
+            const handleClick = () => {{
+                if (pointerHandled) {{
+                    pointerHandled = false;
                     return;
                 }}
                 open();
-            }});
+            }};
+            btn.addEventListener('click', handleClick);
             btn.addEventListener('keydown', (event) => {{
                 if (event.key === 'Enter' || event.key === ' ') {{
                     event.preventDefault();
                     open();
                 }}
             }});
-            if (supportsTouch) {{
+            const markHandled = () => window.setTimeout(() => {{ pointerHandled = false; }}, 0);
+            if (window.PointerEvent) {{
+                btn.addEventListener(
+                    'pointerup',
+                    (event) => {{
+                        if (event.pointerType === 'touch' || event.pointerType === 'pen') {{
+                            pointerHandled = true;
+                            event.preventDefault();
+                            open();
+                            markHandled();
+                        }}
+                    }},
+                    {{ passive: false }}
+                );
+            }} else if (hasTouchSupport()) {{
                 btn.addEventListener(
                     'touchend',
                     (event) => {{
-                        touchHandled = true;
+                        pointerHandled = true;
                         event.preventDefault();
                         open();
+                        markHandled();
                     }},
                     {{ passive: false }}
                 );

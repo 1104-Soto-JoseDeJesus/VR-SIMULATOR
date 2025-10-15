@@ -77,12 +77,24 @@ def _load_raw_skill_descriptions() -> Dict[str, str]:
 
     jewel_path = os.path.join(_DESCRIPTIONS_DIR, "JewelSkills.txt")
     if os.path.exists(jewel_path):
+        current_rarity: Optional[str] = None
+
+        rarity_pattern = re.compile(r"^\s*([A-Za-z]+)\s+level\s*-", re.IGNORECASE)
+
         with open(jewel_path, "r", encoding="utf-8", errors="ignore") as fh:
             for line in fh:
+                rarity_match = rarity_pattern.match(line)
+                if rarity_match:
+                    current_rarity = rarity_match.group(1).strip().title()
+                    continue
+
                 match = re.match(r"\s*\"?([^\"]+)\"?\s*:\s*(.+)", line)
                 if match:
                     name, descr = match.groups()
-                    _store_description(name, _normalise(descr))
+                    description = _normalise(descr)
+                    _store_description(name, description)
+                    if current_rarity:
+                        _store_description(f"{name} ({current_rarity})", description)
 
     return descriptions
 

@@ -14,6 +14,8 @@ from functools import partial
 import time
 import re
 import concurrent.futures
+import base64
+import mimetypes
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
@@ -5682,11 +5684,8 @@ class MainWindow(QtWidgets.QMainWindow):
             output_dir = f"{base_output}_{suffix}"
             suffix += 1
 
-        assets_dir = os.path.join(output_dir, "assets")
-        hist_dir = os.path.join(assets_dir, "histograms")
-
         try:
-            os.makedirs(hist_dir, exist_ok=True)
+            os.makedirs(output_dir, exist_ok=True)
         except OSError as exc:
             QtWidgets.QMessageBox.critical(
                 self,
@@ -5695,32 +5694,29 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             return
 
-        copied_assets: dict[tuple[str, str], str] = {}
+        copied_assets: dict[str, str] = {}
 
         def ensure_asset(src: str | None, dest_rel: str | None = None) -> str | None:
+            del dest_rel  # compatibility placeholder
             if not src or not os.path.exists(src):
                 return None
-            rel = dest_rel or os.path.basename(src)
-            key = (src, rel)
-            cached = copied_assets.get(key)
+            cached = copied_assets.get(src)
             if cached:
                 return cached
-            dest_path = os.path.join(assets_dir, rel)
-            dest_parent = os.path.dirname(dest_path)
-            if dest_parent and not os.path.exists(dest_parent):
-                os.makedirs(dest_parent, exist_ok=True)
             try:
-                shutil.copy2(src, dest_path)
+                with open(src, "rb") as fh:
+                    raw = fh.read()
             except OSError as exc:
                 QtWidgets.QMessageBox.critical(
                     self,
                     "Error",
-                    f"Failed to copy asset {os.path.basename(src)}: {exc}",
+                    f"Failed to load asset {os.path.basename(src)}: {exc}",
                 )
                 return None
-            rel_path = os.path.join("assets", rel).replace("\\", "/")
-            copied_assets[key] = rel_path
-            return rel_path
+            mime_type = mimetypes.guess_type(src)[0] or "application/octet-stream"
+            data_uri = "data:" + mime_type + ";base64," + base64.b64encode(raw).decode("ascii")
+            copied_assets[src] = data_uri
+            return data_uri
 
         base_dir = os.path.dirname(__file__)
         stat_icons = {
@@ -5749,11 +5745,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 f"jewels/{slot_label.replace(' ', '_').replace("'", '')}.png",
             )
 
-        histograms = []
+        histograms: list[tuple[str, str]] = []
         for path in payload.get("histograms", []) or []:
-            rel = ensure_asset(path, f"histograms/{os.path.basename(path)}")
+            label = os.path.basename(path) if path else "Histogram"
+            rel = ensure_asset(path, f"histograms/{label}")
             if rel:
-                histograms.append(rel)
+                histograms.append((rel, label))
 
         setup = payload.get("setup") or []
         summary_data = payload.get("summary") or []
@@ -5963,11 +5960,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 + "</section>"
             )
 
-        armies_markup = "".join(armies_html)
+        if armies_html:
+            armies_markup = "<section class=\"army-grid\">" + "".join(armies_html) + "</section>"
+        else:
+            armies_markup = ""
 
         hist_markup = "".join(
-            f"<figure><img src=\"{path}\" alt=\"Histogram\"><figcaption>{html.escape(os.path.basename(path))}</figcaption></figure>"
-            for path in histograms
+            f"<figure><img src=\"{uri}\" alt=\"Histogram\"><figcaption>{html.escape(label)}</figcaption></figure>"
+            for uri, label in histograms
         )
         if hist_markup:
             hist_section = (
@@ -6120,6 +6120,12 @@ class MainWindow(QtWidgets.QMainWindow):
         }}
         .swatch-a {{ background: var(--accent-a); }}
         .swatch-b {{ background: var(--accent-b); }}
+        .army-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+            gap: 24px;
+            align-items: start;
+        }}
         .army-card {{
             background: var(--panel);
             border-radius: var(--card-radius);
@@ -6424,6 +6430,9 @@ class MainWindow(QtWidgets.QMainWindow):
             .victory-card {{
                 grid-template-columns: 1fr;
                 justify-items: center;
+            }}
+            .army-grid {{
+                grid-template-columns: 1fr;
             }}
             .army-header {{
                 flex-direction: column;

@@ -45,6 +45,10 @@ histogram figures. Use the **Export Figures** button to save these images to a
 directory of your choice.
 The adjacent **Export Summary Image** button saves a single PNG containing the
 army preview along with all histograms.
+The new **Export Summary HTML** option creates a standalone folder with an
+interactive web report. It includes hoverable skill tooltips sourced from the
+in-game descriptions, jewel loadouts, troop modifiers, bonus stat overlays and
+a modern victory distribution chart that mirrors the simulation results.
 
 ### Jewel skills
 

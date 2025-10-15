@@ -1,9 +1,11 @@
+import os
 import random
 
 import pytest
 
 from vr_game_sim.army_composition import Army
 from vr_game_sim.unit_definition import Unit
+
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.enums import (
     EffectType,
@@ -178,7 +180,55 @@ def test_skill_summary_includes_gem_skills():
     assert gem1_entry is not None
     assert gem1_entry["casts"] == 2
     assert gem1_entry["kills"] == 5
+    assert gem1_entry.get("rarity") == "Legendary"
 
     assert gem2_entry is not None
     assert gem2_entry["casts"] == 3
     assert gem2_entry["heals"] == 7
+    assert gem2_entry.get("rarity") == "Legendary"
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    try:
+        from PyQt6 import QtWidgets
+        from vr_game_sim.gui.arena_stats import SkillStatsRow
+    except ImportError:
+        return
+
+    _app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    def _total(field: str, skills: list[dict]) -> int:
+        boost_key = {
+            "rage_reduced": "boosted_rage_reduced",
+            "damage_reduced": "boosted_damage_reduced",
+        }.get(field, f"boosted_{field}")
+        total = 0
+        for entry in skills:
+            if not isinstance(entry, dict):
+                continue
+            total += int(entry.get(field, 0) or 0)
+            if boost_key in entry:
+                total += int(entry.get(boost_key, 0) or 0)
+        return total
+
+    totals = {
+        "kills": _total("kills", hero1_skills),
+        "healed": _total("heals", hero1_skills),
+        "shielded": _total("shielded", hero1_skills),
+        "rage_reduced": _total("rage_reduced", hero1_skills),
+        "rage": _total("rage", hero1_skills),
+        "damage_reduced": _total("damage_reduced", hero1_skills),
+    }
+
+    row = SkillStatsRow(
+        gem1_entry,
+        totals["kills"],
+        totals["healed"],
+        totals["shielded"],
+        totals["rage_reduced"],
+        totals["rage"],
+        totals["damage_reduced"],
+    )
+    name_widget = row.layout().itemAtPosition(0, 0).widget()
+    assert isinstance(name_widget, QtWidgets.QLabel)
+    assert "Legendary" in name_widget.text()
+    row.deleteLater()

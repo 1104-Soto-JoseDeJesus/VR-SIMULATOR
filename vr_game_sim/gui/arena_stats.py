@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 
+from vr_game_sim.metadata_loader import get_skill_description
+from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
+
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 
@@ -415,7 +418,34 @@ class SkillStatsRow(QtWidgets.QWidget):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(4)
 
-        name_lbl = QtWidgets.QLabel(data.get("name", ""))
+        raw_name = data.get("name", "")
+        rarity = data.get("rarity")
+        display_name = raw_name or ""
+        if rarity and rarity not in display_name:
+            display_name = f"{display_name} ({rarity})" if display_name else f"({rarity})"
+        name_lbl = QtWidgets.QLabel(display_name)
+        skill_id = data.get("id")
+        tooltip_lines: list[str] = []
+        skill_name_for_desc = raw_name or None
+        if skill_id:
+            desc = get_skill_description(skill_id, skill_name_for_desc)
+            if desc:
+                tooltip_lines.append(desc)
+            elif isinstance(skill_id, str):
+                skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id)
+                fallback_name = (
+                    skill_def.get("name")
+                    if isinstance(skill_def, dict)
+                    else skill_name_for_desc
+                )
+                if fallback_name and fallback_name != skill_name_for_desc:
+                    desc = get_skill_description(skill_id, fallback_name)
+                    if desc:
+                        tooltip_lines.append(desc)
+        if rarity:
+            tooltip_lines.append(f"Rarity: {rarity}")
+        if tooltip_lines:
+            name_lbl.setToolTip("\n\n".join(tooltip_lines))
         layout.addWidget(name_lbl, 0, 0)
 
         cast_icon = QtWidgets.QLabel()

@@ -6539,12 +6539,12 @@ class MainWindow(QtWidgets.QMainWindow):
         const modal = document.getElementById('bonus-modal');
         const modalList = document.getElementById('bonus-list');
         const closeModal = () => modal.classList.remove('active');
-        const closeActiveTooltips = () => {
-            document.querySelectorAll('.tooltip.active').forEach((tip) => {
+        const closeActiveTooltips = () => {{
+            document.querySelectorAll('.tooltip.active').forEach((tip) => {{
                 tip.classList.remove('active');
                 tip.dataset.touchHandled = 'false';
-            });
-        };
+            }});
+        }};
         modal.querySelector('.modal-backdrop').addEventListener('click', closeModal);
         modal.querySelector('.modal-close').addEventListener('click', closeModal);
         document.addEventListener('keydown', (evt) => {{

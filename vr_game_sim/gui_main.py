@@ -6416,6 +6416,11 @@ class MainWindow(QtWidgets.QMainWindow):
             opacity: 1;
             transform: translateY(0);
         }}
+        .tooltip.active .tooltip-content {{
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }}
         .empty-state {{
             color: var(--muted);
             font-style: italic;
@@ -6534,9 +6539,20 @@ class MainWindow(QtWidgets.QMainWindow):
         const modal = document.getElementById('bonus-modal');
         const modalList = document.getElementById('bonus-list');
         const closeModal = () => modal.classList.remove('active');
+        const closeActiveTooltips = () => {
+            document.querySelectorAll('.tooltip.active').forEach((tip) => {
+                tip.classList.remove('active');
+                tip.dataset.touchHandled = 'false';
+            });
+        };
         modal.querySelector('.modal-backdrop').addEventListener('click', closeModal);
         modal.querySelector('.modal-close').addEventListener('click', closeModal);
-        document.addEventListener('keydown', (evt) => {{ if (evt.key === 'Escape') closeModal(); }});
+        document.addEventListener('keydown', (evt) => {{
+            if (evt.key === 'Escape') {{
+                closeModal();
+                closeActiveTooltips();
+            }}
+        }});
         document.querySelectorAll('.bonus-button').forEach((btn) => {{
             btn.addEventListener('click', () => {{
                 const raw = btn.getAttribute('data-bonus') || '[]';
@@ -6562,6 +6578,55 @@ class MainWindow(QtWidgets.QMainWindow):
                 modal.classList.add('active');
             }});
         }});
+        const prefersNoHover = window.matchMedia('(hover: none)');
+        if (prefersNoHover.matches) {{
+            const tooltipElements = Array.from(document.querySelectorAll('.tooltip'));
+            const deactivateOthers = (current) => {{
+                tooltipElements.forEach((tooltip) => {{
+                    if (tooltip !== current) {{
+                        tooltip.classList.remove('active');
+                        tooltip.dataset.touchHandled = 'false';
+                    }}
+                }});
+            }};
+            tooltipElements.forEach((tooltip) => {{
+                const toggleTooltip = (evt) => {{
+                    if (evt.type === 'click' && tooltip.dataset.touchHandled === 'true') {{
+                        tooltip.dataset.touchHandled = 'false';
+                        evt.preventDefault();
+                        return;
+                    }}
+                    if (evt.type === 'pointerdown') {{
+                        tooltip.dataset.touchHandled = 'true';
+                    }}
+                    evt.preventDefault();
+                    evt.stopPropagation();
+                    const isActive = tooltip.classList.contains('active');
+                    deactivateOthers(isActive ? null : tooltip);
+                    tooltip.classList.toggle('active', !isActive);
+                }};
+                tooltip.addEventListener('pointerdown', toggleTooltip);
+                tooltip.addEventListener('click', toggleTooltip);
+            }});
+            const maybeCloseTooltip = (evt) => {{
+                if (!evt.target.closest('.tooltip')) {{
+                    closeActiveTooltips();
+                }}
+            }};
+            document.addEventListener('pointerdown', maybeCloseTooltip);
+            document.addEventListener('click', maybeCloseTooltip);
+        }} else {{
+            document.addEventListener('pointerdown', (evt) => {{
+                if (!evt.target.closest('.tooltip')) {{
+                    closeActiveTooltips();
+                }}
+            }});
+            document.addEventListener('click', (evt) => {{
+                if (!evt.target.closest('.tooltip')) {{
+                    closeActiveTooltips();
+                }}
+            }});
+        }}
     </script>
 </body>
 </html>

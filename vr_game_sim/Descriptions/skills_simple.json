@@ -245,7 +245,7 @@
   },
   {
     "name": "Shield Attacker",
-    "description": "When deployed Troop launches a basic attack and has a shield, there will be a 50% chance to deal direct damage (Damage Factor 1500) 1 time to target."
+    "description": "When deployed Troop launches a basic attack and has a shield, there will be a 50% chance to deal direct damage (Damage Factor 500) 1 time to target."
   },
   {
     "name": "Berserk Killing Machine",

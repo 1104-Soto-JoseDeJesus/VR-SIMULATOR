@@ -566,11 +566,11 @@
       },
       {
         "name": "Sanctity of Life",
-        "description": "There is a 20% chance every 1 s to heal the Lightly Wounded units in the deployed Troop once (Heal Factor 500), and a 20% chance to increase the Active Skill Damage of the Secondary Commander of the deployed Troop by 20% for 3s."
+        "description": "There is a 20% chance every 1 s to heal the Lightly Wounded units in the deployed Troop once (Heal Factor 600), and a 20% chance to increase the Active Skill Damage of the Secondary Commander of the deployed Troop by 20% for 3s."
       },
       {
         "name": "Vital Blessing",
-        "description": "Heals Lightly Wounded units (Heal Factor 1,250) of up to 5 ally Troops in a circular range, and increases Counterattack Damage of the deployed Troop by 30% for 5s."
+        "description": "Heals Lightly Wounded units (Heal Factor 1,400) of up to 5 ally Troops in a circular range, and increases Counterattack Damage of the deployed Troop by 30% for 5s."
       }
     ],
     "talents": [
@@ -580,11 +580,11 @@
       },
       {
         "name": "Healing Hymn",
-        "description": "When your deployed Troops receive healing, there is a 25% chance to deal 1 instance of damage (Damage Factor 800) to the target."
+        "description": "When your deployed Troops receive healing, there is a 25% chance to deal 1 instance of damage (Damage Factor 900) to the target."
       },
       {
         "name": "Horn of Countering",
-        "description": "When your deployed Troops deal counterattacks, there is a 20% chance to deal additional damage (Damage Factor 900)."
+        "description": "When your deployed Troops deal counterattacks, there is a 20% chance to deal additional damage (Damage Factor 1000)."
       }
     ]
   },
@@ -600,7 +600,7 @@
         "description": "Each time Active Skill Damage is received from the target, increases Counterattack Damage by 100% for 2s"
       },
       {
-        "name": "Paralyzing Teror",
+        "name": "Paralyzing Terror",
         "description": "Deals 1 instance of direct damage (Damage Factor 450) to up to 3 targets within an arc and fains a Shield for 3s (Shield Factor 700)"
       }
     ],
@@ -879,7 +879,7 @@
         "description": "When taking Basic Attack Damage, increases the Active Skill Damage of the Secondary Commander by 20% for 3s, with a 15% chance of recovering a certain number of Troops (Recovery Factor 800)."
       },
       {
-        "name": "Viking Saga",
+        "name": "Viking Sage",
         "description": "Increases the Attack, Defense, and Health of up to 3 ally Troops in a circular range by 15% for 4s. When acting as a Main Commander, 1 instance of direct damage (Damage Factor 1,400) will be dealt to up to 3 targets in a circular range, reducing each targets Attack by 20% for 4s. The amount of direct damage dealt to each unit will be reduced by 10% for each target previously hit."
       }
     ],
@@ -889,7 +889,7 @@
         "description": "Decreases witing time of Rallied Troops by 60s, and increases Rallied Troops Defense by 5%"
       },
       {
-        "name": "Rock Solid",
+        "name": "Deadly Raid",
         "description": "Increases deployed Troops Defense by 9%"
       },
       {

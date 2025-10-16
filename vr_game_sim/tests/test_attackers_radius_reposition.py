@@ -103,3 +103,47 @@ def test_ref_degrees_shrinks_existing_positions():
     assert angle_between(engine, 'A4', 'D') == pytest.approx(60, abs=1)
     assert angle_between(engine, 'A5', 'D') == pytest.approx(300, abs=1)
     assert angle_between(engine, 'A6', 'D') == pytest.approx(90, abs=1)
+
+
+def test_aligned_attackers_hold_position_without_drift():
+    engine = BattlefieldEngine()
+    atk1 = make_army('A1')
+    atk2 = make_army('A2')
+    dfd = make_army('D')
+
+    engine.add_army(atk1, 'red', position=(ENGAGEMENT_DISTANCE, 0), speed=0)
+    # Second attacker starts almost perfectly aligned with its eventual slot.
+    near_target_angle = math.radians(315.2)
+    engine.add_army(
+        atk2,
+        'red',
+        position=(math.cos(near_target_angle) * ENGAGEMENT_DISTANCE,
+                  math.sin(near_target_angle) * ENGAGEMENT_DISTANCE),
+        speed=0,
+    )
+    engine.add_army(dfd, 'blue', position=(0, 0), speed=0)
+
+    engine.engage('A1', 'D')
+    engine.tick(1.0)
+    engine.engage('A2', 'D')
+    engine.tick(1.0)
+
+    # Allow a few ticks for any repositioning logic to run.
+    for _ in range(5):
+        engine.tick(1.0)
+
+    ctx = engine._armies['A2']
+    pos = ctx.position
+    angle = angle_between(engine, 'A2', 'D')
+
+    assert ctx.arc_target_angle is None
+    assert ctx.arc_direction == 0
+
+    for _ in range(5):
+        engine.tick(1.0)
+        ctx = engine._armies['A2']
+        assert ctx.arc_target_angle is None
+        assert ctx.arc_direction == 0
+        assert ctx.position[0] == pytest.approx(pos[0], abs=1e-4)
+        assert ctx.position[1] == pytest.approx(pos[1], abs=1e-4)
+        assert angle_between(engine, 'A2', 'D') == pytest.approx(angle, abs=0.2)

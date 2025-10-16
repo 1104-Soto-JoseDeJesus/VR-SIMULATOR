@@ -52,6 +52,7 @@ from .constants import EFFECT_NAME_DISARM_DEBUFF
 ENGAGEMENT_DISTANCE: float = 60.0
 _ARC_PUSH_SPEED: float = 25.0  # speed in units/s when sliding around radius
 _ENGAGE_EPS: float = 0.01  # small tolerance for floating point comparisons
+_ARC_ALIGNMENT_EPS: float = 0.5  # tolerance (in degrees) for angular alignment
 
 
 @dataclass
@@ -690,7 +691,7 @@ class BattlefieldEngine:
                 target_angle = (base_angle + ctx.arc_index * ref_deg) % 360
                 curr = angles[id(ctx)]
                 diff_to_target = (curr - target_angle + 180) % 360 - 180
-                if diff_to_target != 0:
+                if abs(diff_to_target) > _ARC_ALIGNMENT_EPS:
                     cw = (curr - target_angle + 360) % 360
                     ccw = (target_angle - curr + 360) % 360
                     ctx.arc_target_angle = target_angle
@@ -699,6 +700,7 @@ class BattlefieldEngine:
                 else:
                     ctx.arc_target_angle = None
                     ctx.arc_direction = 0
+                    ctx.path.clear()
 
         # Progress any pending angular repositioning along the engagement
         # radius.  Combat continues while armies slide along the circle.
@@ -718,7 +720,7 @@ class BattlefieldEngine:
             target = ctx.arc_target_angle % 360
             if ctx.arc_direction == 1:
                 remaining = (target - curr_angle + 360) % 360
-                if remaining == 0:
+                if remaining <= _ARC_ALIGNMENT_EPS:
                     ctx.arc_target_angle = None
                     ctx.arc_direction = 0
                     continue
@@ -726,7 +728,7 @@ class BattlefieldEngine:
                 new_angle = curr_angle + step
             else:
                 remaining = (curr_angle - target + 360) % 360
-                if remaining == 0:
+                if remaining <= _ARC_ALIGNMENT_EPS:
                     ctx.arc_target_angle = None
                     ctx.arc_direction = 0
                     continue

@@ -29,8 +29,11 @@ class ArenaEngine(BattlefieldEngine):
         # formation.  ``start_arena_battle`` recalculates this based on slot
         # positions to satisfy timing expectations.
         self.default_speed: float = 50.0
+        # Default targeting behaviour when no explicit preference is supplied
+        # for a given arena battle.
+        self.targeting_mode: str = "legacy"
 
-    def start_arena_battle(self, layout_slots: Any) -> None:
+    def start_arena_battle(self, layout_slots: Any, *, targeting_mode: Optional[str] = None) -> None:
         """Register armies in ``layout_slots`` and queue march orders.
 
         Parameters
@@ -58,6 +61,7 @@ class ArenaEngine(BattlefieldEngine):
         """
 
         entries: List[Dict[str, Any]] = []
+        team_entries: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         columns: Dict[str, Dict[int, Dict[str, Dict[str, Any]]]] = defaultdict(
             lambda: defaultdict(dict)
         )
@@ -116,6 +120,7 @@ class ArenaEngine(BattlefieldEngine):
                 entry["column"] = col
                 entry["row"] = row
                 columns[team][col]["front" if row == 0 else "back"] = entry
+            team_entries[team].append(entry)
 
         # Derive default speeds for front and back rows so armies meet after
         # approximately 2 s (front vs. front) and 4 s (back vs. front).
@@ -178,73 +183,122 @@ class ArenaEngine(BattlefieldEngine):
 
         # Pair columns across teams to assign default targets and march orders
         self._row_fallbacks.clear()
+        mode = (targeting_mode or self.targeting_mode or "legacy").lower()
+        if mode not in {"legacy", "str", "frg"}:
+            mode = "legacy"
+        self.targeting_mode = mode
         if len(team_names) == 2:
             t1, t2 = team_names
-            all_cols = set(columns[t1].keys()) | set(columns[t2].keys())
-            for col in all_cols:
-                col1 = columns[t1].get(col, {})
-                col2 = columns[t2].get(col, {})
+            if mode == "legacy":
+                all_cols = set(columns[t1].keys()) | set(columns[t2].keys())
+                for col in all_cols:
+                    col1 = columns[t1].get(col, {})
+                    col2 = columns[t2].get(col, {})
 
-                # Determine target priority for each team: front opponent then back
-                targets1: List[str] = []
-                opp_front = col2.get("front")
-                opp_back = col2.get("back")
-                if opp_front:
-                    targets1.append(opp_front["army"].name)
-                if opp_back:
-                    targets1.append(opp_back["army"].name)
+                    # Determine target priority for each team: front opponent then back
+                    targets1: List[str] = []
+                    opp_front = col2.get("front")
+                    opp_back = col2.get("back")
+                    if opp_front:
+                        targets1.append(opp_front["army"].name)
+                    if opp_back:
+                        targets1.append(opp_back["army"].name)
 
-                targets2: List[str] = []
-                opp_front = col1.get("front")
-                opp_back = col1.get("back")
-                if opp_front:
-                    targets2.append(opp_front["army"].name)
-                if opp_back:
-                    targets2.append(opp_back["army"].name)
+                    targets2: List[str] = []
+                    opp_front = col1.get("front")
+                    opp_back = col1.get("back")
+                    if opp_front:
+                        targets2.append(opp_front["army"].name)
+                    if opp_back:
+                        targets2.append(opp_back["army"].name)
 
-                for row_key in ("front", "back"):
-                    e1 = col1.get(row_key)
-                    if e1 and not (
-                        e1.get("target_army")
-                        or e1.get("target")
-                        or e1.get("march_to")
-                    ):
-                        if targets1:
-                            self.set_direct_target(e1["army"].name, targets1[0])
-                            self._row_fallbacks[e1["army"].name] = list(targets1)
+                    for row_key in ("front", "back"):
+                        e1 = col1.get(row_key)
+                        if e1 and not (
+                            e1.get("target_army")
+                            or e1.get("target")
+                            or e1.get("march_to")
+                        ):
+                            if targets1:
+                                self.set_direct_target(e1["army"].name, targets1[0])
+                                self._row_fallbacks[e1["army"].name] = list(targets1)
+                            else:
+                                self._auto_select_closest_enemy(e1["army"].name)
+
+                        e2 = col2.get(row_key)
+                        if e2 and not (
+                            e2.get("target_army")
+                            or e2.get("target")
+                            or e2.get("march_to")
+                        ):
+                            if targets2:
+                                self.set_direct_target(e2["army"].name, targets2[0])
+                                self._row_fallbacks[e2["army"].name] = list(targets2)
+                            else:
+                                self._auto_select_closest_enemy(e2["army"].name)
+
+                    front1 = col1.get("front")
+                    front2 = col2.get("front")
+                    if front1 and front2:
+                        p1 = front1["position"]
+                        p2 = front2["position"]
+                        midpoint = ((p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0)
+                        if not (
+                            front1.get("target_army")
+                            or front1.get("target")
+                            or front1.get("march_to")
+                        ):
+                            self.set_waypoint(front1["army"].name, midpoint)
+                        if not (
+                            front2.get("target_army")
+                            or front2.get("target")
+                            or front2.get("march_to")
+                        ):
+                            self.set_waypoint(front2["army"].name, midpoint)
+            else:
+                def _has_explicit_target(entry: Dict[str, Any]) -> bool:
+                    return bool(
+                        entry.get("target_army")
+                        or entry.get("target")
+                        or entry.get("march_to")
+                    )
+
+                def _sorted_targets(team: str, opponent: str) -> List[str]:
+                    enemies = [
+                        e for e in team_entries[opponent] if not _has_explicit_target(e)
+                    ]
+                    if not enemies:
+                        return []
+
+                    if mode == "str":
+                        enemies.sort(
+                            key=lambda e: e["army"].unit.effective_attack(
+                                e["army"].active_effects
+                            ),
+                            reverse=True,
+                        )
+                    else:  # mode == "frg"
+                        enemies.sort(
+                            key=lambda e: (
+                                e["army"].unit.effective_defense(e["army"].active_effects)
+                                + e["army"].unit.effective_hp_per_troop(
+                                    e["army"].active_effects
+                                )
+                            )
+                        )
+                    return [e["army"].name for e in enemies]
+
+                for team, opponent in ((t1, t2), (t2, t1)):
+                    order = _sorted_targets(team, opponent)
+                    for entry in team_entries[team]:
+                        if _has_explicit_target(entry):
+                            continue
+                        attacker = entry["army"].name
+                        if order:
+                            self._row_fallbacks[attacker] = list(order)
+                            self.set_direct_target(attacker, order[0])
                         else:
-                            self._auto_select_closest_enemy(e1["army"].name)
-
-                    e2 = col2.get(row_key)
-                    if e2 and not (
-                        e2.get("target_army")
-                        or e2.get("target")
-                        or e2.get("march_to")
-                    ):
-                        if targets2:
-                            self.set_direct_target(e2["army"].name, targets2[0])
-                            self._row_fallbacks[e2["army"].name] = list(targets2)
-                        else:
-                            self._auto_select_closest_enemy(e2["army"].name)
-
-                front1 = col1.get("front")
-                front2 = col2.get("front")
-                if front1 and front2:
-                    p1 = front1["position"]
-                    p2 = front2["position"]
-                    midpoint = ((p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0)
-                    if not (
-                        front1.get("target_army")
-                        or front1.get("target")
-                        or front1.get("march_to")
-                    ):
-                        self.set_waypoint(front1["army"].name, midpoint)
-                    if not (
-                        front2.get("target_army")
-                        or front2.get("target")
-                        or front2.get("march_to")
-                    ):
-                        self.set_waypoint(front2["army"].name, midpoint)
+                            self._auto_select_closest_enemy(attacker)
 
         row_map = {e["army"].name: e.get("row") for e in entries}
 

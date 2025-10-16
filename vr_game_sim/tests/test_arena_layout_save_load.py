@@ -79,9 +79,11 @@ def test_save_and_load_layout(tmp_path, monkeypatch):
 
     with open(layout_file, "r", encoding="utf-8") as fh:
         saved = json.load(fh)
-    assert {entry["army_name"] for entry in saved} == {"Alpha", "Beta"}
+    assert saved.get("targeting_mode") == "legacy"
+    saved_entries = saved.get("entries", [])
+    assert {entry["army_name"] for entry in saved_entries} == {"Alpha", "Beta"}
     # Layout file now embeds full army configurations for standalone loading
-    assert all("config" in entry for entry in saved)
+    assert all("config" in entry for entry in saved_entries)
 
     # Clear and reload
     tab._refresh_arena()

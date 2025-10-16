@@ -24,3 +24,12 @@ def test_get_skill_description_jewel_with_rarity_alias():
         "30 rounds (IE round 31 is the final round this applies in), Removable"
     )
     assert description == expected
+
+
+def test_get_skill_description_jewel_with_inline_rarity_prefix():
+    description = get_skill_description(
+        "gem_tyrs_emerald_unstoppable_vanguards_legendary",
+        "Unstoppable Vanguards (Legendary)",
+    )
+    assert isinstance(description, str) and description
+    assert "triggers on the first round of battle" in description.lower()

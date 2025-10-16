@@ -122,71 +122,80 @@ class ArenaEngine(BattlefieldEngine):
                 columns[team][col]["front" if row == 0 else "back"] = entry
             team_entries[team].append(entry)
 
-        # Derive default speeds for front and back rows so armies meet after
-        # approximately 2 s (front vs. front) and 4 s (back vs. front).
         team_names = list(columns.keys())
-        front_entries: List[Dict[str, Any]] = []
-        back_entries: List[Dict[str, Any]] = []
-        front_dists: List[float] = []
-        back_dists: List[float] = []
-        if len(team_names) == 2:
-            t1, t2 = team_names
-            all_cols = set(columns[t1].keys()) | set(columns[t2].keys())
-            for col in all_cols:
-                col1 = columns[t1].get(col, {})
-                col2 = columns[t2].get(col, {})
-                f1 = col1.get("front")
-                f2 = col2.get("front")
-                b1 = col1.get("back")
-                b2 = col2.get("back")
-                if f1 and f2:
-                    p1 = f1["position"]
-                    p2 = f2["position"]
-                    front_dists.append(hypot(p2[0] - p1[0], p2[1] - p1[1]))
-                    front_entries.extend([f1, f2])
-                if b1 and f2:
-                    p1 = b1["position"]
-                    p2 = f2["position"]
-                    back_dists.append(hypot(p2[0] - p1[0], p2[1] - p1[1]))
-                    back_entries.append(b1)
-                if b2 and f1:
-                    p1 = b2["position"]
-                    p2 = f1["position"]
-                    back_dists.append(hypot(p2[0] - p1[0], p2[1] - p1[1]))
-                    back_entries.append(b2)
 
-        if front_dists:
-            front_speed = (
-                sum(d - ENGAGEMENT_DISTANCE for d in front_dists)
-                / (4.0 * len(front_dists))
-            )
-        else:
-            front_speed = 50.0
-        if back_dists:
-            back_speed = (
-                sum(d - ENGAGEMENT_DISTANCE for d in back_dists)
-                / (8.0 * len(back_dists))
-            )
-        else:
-            back_speed = front_speed
-
-        if abs(front_speed - back_speed) < 1e-6:
-            self.default_speed = front_speed
-        else:
-            self.default_speed = (front_speed + back_speed) / 2.0
-        for e in front_entries:
-            ctx = self._armies[e["army"].name]
-            ctx.speed = ctx.base_speed = front_speed
-        for e in back_entries:
-            ctx = self._armies[e["army"].name]
-            ctx.speed = ctx.base_speed = back_speed
-
-        # Pair columns across teams to assign default targets and march orders
-        self._row_fallbacks.clear()
         mode = (targeting_mode or self.targeting_mode or "legacy").lower()
         if mode not in {"legacy", "str", "frg"}:
             mode = "legacy"
         self.targeting_mode = mode
+
+        if mode == "legacy":
+            # Derive default speeds for front and back rows so armies meet after
+            # approximately 2 s (front vs. front) and 4 s (back vs. front).
+            front_entries: List[Dict[str, Any]] = []
+            back_entries: List[Dict[str, Any]] = []
+            front_dists: List[float] = []
+            back_dists: List[float] = []
+            if len(team_names) == 2:
+                t1, t2 = team_names
+                all_cols = set(columns[t1].keys()) | set(columns[t2].keys())
+                for col in all_cols:
+                    col1 = columns[t1].get(col, {})
+                    col2 = columns[t2].get(col, {})
+                    f1 = col1.get("front")
+                    f2 = col2.get("front")
+                    b1 = col1.get("back")
+                    b2 = col2.get("back")
+                    if f1 and f2:
+                        p1 = f1["position"]
+                        p2 = f2["position"]
+                        front_dists.append(hypot(p2[0] - p1[0], p2[1] - p1[1]))
+                        front_entries.extend([f1, f2])
+                    if b1 and f2:
+                        p1 = b1["position"]
+                        p2 = f2["position"]
+                        back_dists.append(hypot(p2[0] - p1[0], p2[1] - p1[1]))
+                        back_entries.append(b1)
+                    if b2 and f1:
+                        p1 = b2["position"]
+                        p2 = f1["position"]
+                        back_dists.append(hypot(p2[0] - p1[0], p2[1] - p1[1]))
+                        back_entries.append(b2)
+
+            if front_dists:
+                front_speed = (
+                    sum(d - ENGAGEMENT_DISTANCE for d in front_dists)
+                    / (4.0 * len(front_dists))
+                )
+            else:
+                front_speed = 50.0
+            if back_dists:
+                back_speed = (
+                    sum(d - ENGAGEMENT_DISTANCE for d in back_dists)
+                    / (8.0 * len(back_dists))
+                )
+            else:
+                back_speed = front_speed
+
+            if abs(front_speed - back_speed) < 1e-6:
+                self.default_speed = front_speed
+            else:
+                self.default_speed = (front_speed + back_speed) / 2.0
+            for e in front_entries:
+                ctx = self._armies[e["army"].name]
+                ctx.speed = ctx.base_speed = front_speed
+            for e in back_entries:
+                ctx = self._armies[e["army"].name]
+                ctx.speed = ctx.base_speed = back_speed
+        else:
+            if entries:
+                first_ctx = self._armies[entries[0]["army"].name]
+                self.default_speed = first_ctx.base_speed
+            else:
+                self.default_speed = 50.0
+
+        # Pair columns across teams to assign default targets and march orders
+        self._row_fallbacks.clear()
         if len(team_names) == 2:
             t1, t2 = team_names
             if mode == "legacy":
@@ -302,72 +311,73 @@ class ArenaEngine(BattlefieldEngine):
 
         row_map = {e["army"].name: e.get("row") for e in entries}
 
-        # Temporarily boost speed for armies that must travel diagonally or
-        # from the back row so engagements start at predictable times.
-        for entry in entries:
-            army = entry["army"]
-            ctx = self._armies[army.name]
-            target_name = ctx.direct_target
-            if target_name is None:
-                continue
-            tgt_ctx = self._armies.get(target_name)
-            if tgt_ctx is None:
-                continue
-            sx, sy = ctx.position
-            tx, ty = tgt_ctx.position
-            dist = hypot(tx - sx, ty - sy)
-            attacker_row = entry.get("row")
-            target_row = row_map.get(target_name)
-            if attacker_row == 1 and target_row == 0:
-                # Back row moving to a front defender – boost to engage in ~4 s.
-                # Use the defender's base speed for a theoretical forward
-                # advance.  ``tgt_ctx.speed`` may have been temporarily
-                # increased by another attacker which would otherwise reduce
-                # the calculated requirement here and make diagonal back row
-                # arrivals miss the 4 s window.
-                dx = tx - sx
-                dy = ty - sy
-                mv = 2 * tgt_ctx.base_speed
-                dist_vec = hypot(dx, dy)
-                if dist_vec > 1e-6:
-                    dx -= mv * dx / dist_vec
-                    dy -= mv * dy / dist_vec
-                required_dist = hypot(dx, dy) - ENGAGEMENT_DISTANCE
-                # Apply a small fudge factor (3.95 instead of 4) so the
-                # engagement completes before the 4 s mark even with discrete
-                # simulation steps.
-                needed_speed = required_dist / 3.95
-                if needed_speed > ctx.base_speed:
-                    ctx.speed = needed_speed
-            elif abs(sy - ty) > 1e-6:
-                # Diagonal engagement – ensure it completes in ~2 s.
-                # Diagonal attackers previously reached their target a full
-                # combat round later when another friendly was already
-                # engaging the defender.  Boost their speed so the combined
-                # travel time remains safely below the 2 s round boundary,
-                # accounting for the initial simulation step and float error.
-                required_sum = (dist - ENGAGEMENT_DISTANCE) / 1.87
+        if mode == "legacy":
+            # Temporarily boost speed for armies that must travel diagonally or
+            # from the back row so engagements start at predictable times.
+            for entry in entries:
+                army = entry["army"]
+                ctx = self._armies[army.name]
+                target_name = ctx.direct_target
+                if target_name is None:
+                    continue
+                tgt_ctx = self._armies.get(target_name)
+                if tgt_ctx is None:
+                    continue
+                sx, sy = ctx.position
+                tx, ty = tgt_ctx.position
+                dist = hypot(tx - sx, ty - sy)
+                attacker_row = entry.get("row")
+                target_row = row_map.get(target_name)
+                if attacker_row == 1 and target_row == 0:
+                    # Back row moving to a front defender – boost to engage in ~4 s.
+                    # Use the defender's base speed for a theoretical forward
+                    # advance.  ``tgt_ctx.speed`` may have been temporarily
+                    # increased by another attacker which would otherwise reduce
+                    # the calculated requirement here and make diagonal back row
+                    # arrivals miss the 4 s window.
+                    dx = tx - sx
+                    dy = ty - sy
+                    mv = 2 * tgt_ctx.base_speed
+                    dist_vec = hypot(dx, dy)
+                    if dist_vec > 1e-6:
+                        dx -= mv * dx / dist_vec
+                        dy -= mv * dy / dist_vec
+                    required_dist = hypot(dx, dy) - ENGAGEMENT_DISTANCE
+                    # Apply a small fudge factor (3.95 instead of 4) so the
+                    # engagement completes before the 4 s mark even with discrete
+                    # simulation steps.
+                    needed_speed = required_dist / 3.95
+                    if needed_speed > ctx.base_speed:
+                        ctx.speed = needed_speed
+                elif abs(sy - ty) > 1e-6:
+                    # Diagonal engagement – ensure it completes in ~2 s.
+                    # Diagonal attackers previously reached their target a full
+                    # combat round later when another friendly was already
+                    # engaging the defender.  Boost their speed so the combined
+                    # travel time remains safely below the 2 s round boundary,
+                    # accounting for the initial simulation step and float error.
+                    required_sum = (dist - ENGAGEMENT_DISTANCE) / 1.87
 
-                # ``tgt_ctx`` may itself be marching towards a different
-                # opponent.  Only the component of its movement along the
-                # attacker's approach vector helps close the distance.  Project
-                # the defender's velocity onto the attack vector to obtain this
-                # contribution.
-                tgt_component = 0.0
-                if tgt_ctx.direct_target:
-                    other = self._armies.get(tgt_ctx.direct_target)
-                    if other is not None:
-                        mx, my = other.position[0] - tx, other.position[1] - ty
-                        mv_dist = hypot(mx, my)
-                        if mv_dist > 1e-6:
-                            ux, uy = mx / mv_dist, my / mv_dist
-                            ax = (tx - sx) / dist
-                            ay = (ty - sy) / dist
-                            tgt_component = tgt_ctx.speed * (ax * ux + ay * uy)
+                    # ``tgt_ctx`` may itself be marching towards a different
+                    # opponent.  Only the component of its movement along the
+                    # attacker's approach vector helps close the distance.  Project
+                    # the defender's velocity onto the attack vector to obtain this
+                    # contribution.
+                    tgt_component = 0.0
+                    if tgt_ctx.direct_target:
+                        other = self._armies.get(tgt_ctx.direct_target)
+                        if other is not None:
+                            mx, my = other.position[0] - tx, other.position[1] - ty
+                            mv_dist = hypot(mx, my)
+                            if mv_dist > 1e-6:
+                                ux, uy = mx / mv_dist, my / mv_dist
+                                ax = (tx - sx) / dist
+                                ay = (ty - sy) / dist
+                                tgt_component = tgt_ctx.speed * (ax * ux + ay * uy)
 
-                needed_speed = required_sum + tgt_component
-                if needed_speed > ctx.base_speed:
-                    ctx.speed = needed_speed
+                    needed_speed = required_sum + tgt_component
+                    if needed_speed > ctx.base_speed:
+                        ctx.speed = needed_speed
 
         # Queue march orders (either waypoints or direct engagements)
         for entry in entries:

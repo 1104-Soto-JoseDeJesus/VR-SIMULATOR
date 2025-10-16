@@ -143,6 +143,57 @@ def test_str_targeting_prioritises_strongest_and_advances():
     assert engine._armies[attacker.name].direct_target == weak.name
 
 
+@pytest.mark.parametrize("mode", ["str", "frg"])
+def test_str_frg_modes_preserve_base_speeds(mode: str) -> None:
+    engine = ArenaEngine()
+    attacker = make_army("attacker")
+    defender_primary = make_army("primary")
+    defender_secondary = make_army("secondary")
+
+    layout = {
+        "red": [
+            {
+                "army": attacker,
+                "position": (0.0, 0.0),
+                "column": 0,
+                "row": 0,
+                "speed": 37.0,
+            }
+        ],
+        "blue": [
+            {
+                "army": defender_primary,
+                "position": (0.0, 200.0),
+                "column": 0,
+                "row": 0,
+                "speed": 41.5,
+            },
+            {
+                "army": defender_secondary,
+                "position": (100.0, 200.0),
+                "column": 1,
+                "row": 0,
+                "speed": 33.3,
+            },
+        ],
+    }
+
+    expected_speeds = {
+        attacker.name: 37.0,
+        defender_primary.name: 41.5,
+        defender_secondary.name: 33.3,
+    }
+
+    engine.start_arena_battle(layout, targeting_mode=mode)
+
+    for name, speed in expected_speeds.items():
+        ctx = engine._armies[name]
+        assert ctx.base_speed == pytest.approx(speed)
+        assert ctx.speed == pytest.approx(speed)
+
+    assert engine.default_speed == pytest.approx(expected_speeds[attacker.name])
+
+
 def test_frg_targeting_prioritises_fragile_and_advances():
     engine = ArenaEngine()
     attacker = make_army("attacker")

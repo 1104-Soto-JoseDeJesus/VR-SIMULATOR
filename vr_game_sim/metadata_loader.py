@@ -95,6 +95,11 @@ def _load_raw_skill_descriptions() -> Dict[str, str]:
         current_rarity: Optional[str] = None
 
         rarity_pattern = re.compile(r"^\s*([A-Za-z]+)\s+level\s*-", re.IGNORECASE)
+        rarity_name_pattern = re.compile(
+            r"^\s*([A-Za-z]+)\s+\"([^\"]+)\"\s*:\s*(.+)",
+            re.IGNORECASE,
+        )
+        name_pattern = re.compile(r"^\s*\"([^\"]+)\"\s*:\s*(.+)")
 
         with open(jewel_path, "r", encoding="utf-8", errors="ignore") as fh:
             for line in fh:
@@ -103,13 +108,27 @@ def _load_raw_skill_descriptions() -> Dict[str, str]:
                     current_rarity = rarity_match.group(1).strip().title()
                     continue
 
-                match = re.match(r"\s*\"?([^\"]+)\"?\s*:\s*(.+)", line)
+                rarity_name_match = rarity_name_pattern.match(line)
+                if rarity_name_match:
+                    rarity_text, name, descr = rarity_name_match.groups()
+                    rarity = rarity_text.strip().title()
+                    description = _normalise(descr)
+                    _store_description(name, description, context="jewel")
+                    _store_description(f"{name} ({rarity})", description, context="jewel")
+                    current_rarity = rarity
+                    continue
+
+                match = name_pattern.match(line)
                 if match:
                     name, descr = match.groups()
                     description = _normalise(descr)
                     _store_description(name, description, context="jewel")
                     if current_rarity:
-                        _store_description(f"{name} ({current_rarity})", description, context="jewel")
+                        _store_description(
+                            f"{name} ({current_rarity})",
+                            description,
+                            context="jewel",
+                        )
 
     return descriptions
 

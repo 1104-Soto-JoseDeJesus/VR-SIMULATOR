@@ -1141,76 +1141,52 @@ class GameSimulator:
         combat_counter_bonus = type_specific["combat_counter_bonus_multiplier"]
         skill_base = type_specific["skill_base"]
         skill_bonus = type_specific["skill_bonus_multiplier"]
-        non_mutual_base = type_specific["non_mutual_base"]
-        non_mutual_bonus = type_specific["non_mutual_bonus_multiplier"]
 
         type_label = normalized_type.capitalize()
 
-        if mutual_engagement:
-            total_basic_kills = defender_kills.get("combat_basic", 0.0) + opponent_kills.get(
-                "combat_basic", 0.0
-            )
-            enemy_basic_kills = opponent_kills.get("combat_basic", 0.0)
-            total_counter_kills = defender_kills.get(
-                "combat_counter", 0.0
-            ) + opponent_kills.get("combat_counter", 0.0)
-            enemy_counter_kills = opponent_kills.get("combat_counter", 0.0)
-            total_combat_kills = total_basic_kills + total_counter_kills
+        total_basic_kills = defender_kills.get("combat_basic", 0.0) + opponent_kills.get(
+            "combat_basic", 0.0
+        )
+        enemy_basic_kills = opponent_kills.get("combat_basic", 0.0)
+        total_counter_kills = defender_kills.get("combat_counter", 0.0) + opponent_kills.get(
+            "combat_counter", 0.0
+        )
+        enemy_counter_kills = opponent_kills.get("combat_counter", 0.0)
+        total_combat_kills = total_basic_kills + total_counter_kills
 
-            basic_ratio = combat_basic_base
+        basic_ratio = combat_basic_base
+        if total_basic_kills > 0:
+            basic_ratio += (enemy_basic_kills / total_basic_kills) * combat_basic_bonus
+        counter_ratio = combat_counter_base
+        if total_counter_kills > 0:
+            counter_ratio += (enemy_counter_kills / total_counter_kills) * combat_counter_bonus
+
+        if total_combat_kills > 0:
+            combat_ratio = 0.0
             if total_basic_kills > 0:
-                basic_ratio += (enemy_basic_kills / total_basic_kills) * combat_basic_bonus
-            counter_ratio = combat_counter_base
+                combat_ratio += (total_basic_kills / total_combat_kills) * basic_ratio
             if total_counter_kills > 0:
-                counter_ratio += (
-                    enemy_counter_kills / total_counter_kills
-                ) * combat_counter_bonus
-
-            if total_combat_kills > 0:
-                combat_ratio = 0.0
-                if total_basic_kills > 0:
-                    combat_ratio += (total_basic_kills / total_combat_kills) * basic_ratio
-                if total_counter_kills > 0:
-                    combat_ratio += (total_counter_kills / total_combat_kills) * counter_ratio
-            else:
-                combat_ratio = (basic_ratio + counter_ratio) / 2.0
-
-            total_skill_kills = defender_kills.get("skill", 0.0) + opponent_kills.get(
-                "skill", 0.0
-            )
-            enemy_skill_kills = opponent_kills.get("skill", 0.0)
-            skill_ratio = skill_base
-            if total_skill_kills > 0:
-                skill_ratio += (enemy_skill_kills / total_skill_kills) * skill_bonus
-
-            combat_unrevivable = round(combat_losses * combat_ratio)
-            skill_unrevivable = round(skill_losses * skill_ratio)
-            added_unrevivable = combat_unrevivable + skill_unrevivable
-            log_message = (
-                f"vs {opponent.name}: combat ratio {combat_ratio:.2%} "
-                f"(basic {basic_ratio:.2%}, counter {counter_ratio:.2%}) on {combat_losses:.1f} "
-                f"losses (+{combat_unrevivable}), skill ratio {skill_ratio:.2%} on "
-                f"{skill_losses:.1f} losses (+{skill_unrevivable}) -> +{added_unrevivable} "
-                f"unrevivable (using {type_label} attacker settings)."
-            )
+                combat_ratio += (total_counter_kills / total_combat_kills) * counter_ratio
         else:
-            total_combat_kills = defender_kills.get("combat_basic", 0.0)
-            total_combat_kills += defender_kills.get("combat_counter", 0.0)
-            total_combat_kills += opponent_kills.get("combat_basic", 0.0)
-            total_combat_kills += opponent_kills.get("combat_counter", 0.0)
-            enemy_combat_kills = (
-                opponent_kills.get("combat_basic", 0.0)
-                + opponent_kills.get("combat_counter", 0.0)
-            )
-            combined_ratio = non_mutual_base
-            if total_combat_kills > 0:
-                combined_ratio += (enemy_combat_kills / total_combat_kills) * non_mutual_bonus
-            combined_losses = combat_losses + skill_losses
-            added_unrevivable = round(combined_losses * combined_ratio)
-            log_message = (
-                f"vs {opponent.name}: non-mutual ratio {combined_ratio:.2%} on {combined_losses:.1f} "
-                f"losses -> +{added_unrevivable} unrevivable (using {type_label} attacker settings)."
-            )
+            combat_ratio = (basic_ratio + counter_ratio) / 2.0
+
+        total_skill_kills = defender_kills.get("skill", 0.0) + opponent_kills.get("skill", 0.0)
+        enemy_skill_kills = opponent_kills.get("skill", 0.0)
+        skill_ratio = skill_base
+        if total_skill_kills > 0:
+            skill_ratio += (enemy_skill_kills / total_skill_kills) * skill_bonus
+
+        combat_unrevivable = round(combat_losses * combat_ratio)
+        skill_unrevivable = round(skill_losses * skill_ratio)
+        added_unrevivable = combat_unrevivable + skill_unrevivable
+        engagement_label = "mutual" if mutual_engagement else "non-mutual"
+        log_message = (
+            f"vs {opponent.name} ({engagement_label}): combat ratio {combat_ratio:.2%} "
+            f"(basic {basic_ratio:.2%}, counter {counter_ratio:.2%}) on {combat_losses:.1f} "
+            f"losses (+{combat_unrevivable}), skill ratio {skill_ratio:.2%} on "
+            f"{skill_losses:.1f} losses (+{skill_unrevivable}) -> +{added_unrevivable} "
+            f"unrevivable (using {type_label} attacker settings)."
+        )
 
         if added_unrevivable > 0:
             defender.unrevivable_troops = min(

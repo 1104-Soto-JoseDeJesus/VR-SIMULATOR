@@ -6,7 +6,6 @@ from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim import dynamic_unrevivable_config
 from vr_game_sim.main import run_additional_simulations
 
-
 def _create_dynamic_armies():
     unit_a = Unit("pikemen", 5, initial_count=100)
     unit_b = Unit("archers", 5, initial_count=100)
@@ -26,6 +25,31 @@ def _create_dynamic_armies():
     return army_a, army_b, sim
 
 
+def _queue_round_losses(
+    army: Army,
+    opponent: Army,
+    *,
+    basic: float = 0.0,
+    counter: float = 0.0,
+    skill: float = 0.0,
+) -> None:
+    hp = army.unit.effective_hp_per_troop([])
+    total_losses = basic + counter + skill
+    if total_losses <= 0:
+        return
+    total_hp = hp * total_losses
+    contributions: dict[str, float] = {}
+    if basic:
+        contributions["basic_attack"] = hp * basic
+    if counter:
+        contributions["counter_attack"] = hp * counter
+    if skill:
+        contributions["skill_burst"] = hp * skill
+    army.pending_hp_damage_this_round = total_hp
+    army.damage_contributors_this_round = {opponent.name: total_hp}
+    army.damage_contributors_by_skill_this_round = {opponent.name: contributions}
+
+
 @pytest.fixture(autouse=True)
 def reset_dynamic_config(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch):
     settings_path = tmp_path_factory.mktemp("dyncfg") / "dynamic_unrevivable_settings.json"
@@ -39,28 +63,8 @@ def test_dynamic_unrevivable_mutual():
     army_a, army_b, sim = _create_dynamic_armies()
     army_a.clear_dynamic_unrevivable_tracking()
     army_b.clear_dynamic_unrevivable_tracking()
-    hp_a = army_a.unit.effective_hp_per_troop([])
-    hp_b = army_b.unit.effective_hp_per_troop([])
-
-    # Army A loses 10 combat and 20 skill troops to army B
-    army_a.pending_hp_damage_this_round = hp_a * 30
-    army_a.damage_contributors_this_round = {army_b.name: hp_a * 30}
-    army_a.damage_contributors_by_skill_this_round = {
-        army_b.name: {
-            "basic_attack": hp_a * 10,
-            "skill_burst": hp_a * 20,
-        }
-    }
-
-    # Army B loses 8 combat and 2 skill troops to army A
-    army_b.pending_hp_damage_this_round = hp_b * 10
-    army_b.damage_contributors_this_round = {army_a.name: hp_b * 10}
-    army_b.damage_contributors_by_skill_this_round = {
-        army_a.name: {
-            "basic_attack": hp_b * 8,
-            "skill_slash": hp_b * 2,
-        }
-    }
+    _queue_round_losses(army_a, army_b, basic=10, skill=20)
+    _queue_round_losses(army_b, army_a, basic=8, skill=2)
 
     army_a.commit_pending_healing_and_damage()
     army_b.commit_pending_healing_and_damage()
@@ -94,26 +98,8 @@ def test_dynamic_unrevivable_mutual_override_changes_result():
     army_a, army_b, sim = _create_dynamic_armies()
     army_a.clear_dynamic_unrevivable_tracking()
     army_b.clear_dynamic_unrevivable_tracking()
-    hp_a = army_a.unit.effective_hp_per_troop([])
-    hp_b = army_b.unit.effective_hp_per_troop([])
-
-    army_a.pending_hp_damage_this_round = hp_a * 30
-    army_a.damage_contributors_this_round = {army_b.name: hp_a * 30}
-    army_a.damage_contributors_by_skill_this_round = {
-        army_b.name: {
-            "basic_attack": hp_a * 10,
-            "skill_burst": hp_a * 20,
-        }
-    }
-
-    army_b.pending_hp_damage_this_round = hp_b * 10
-    army_b.damage_contributors_this_round = {army_a.name: hp_b * 10}
-    army_b.damage_contributors_by_skill_this_round = {
-        army_a.name: {
-            "basic_attack": hp_b * 8,
-            "skill_slash": hp_b * 2,
-        }
-    }
+    _queue_round_losses(army_a, army_b, basic=10, skill=20)
+    _queue_round_losses(army_b, army_a, basic=8, skill=2)
 
     army_a.commit_pending_healing_and_damage()
     army_b.commit_pending_healing_and_damage()
@@ -147,26 +133,8 @@ def test_dynamic_unrevivable_mutual_troop_multiplier_changes_result():
     army_a, army_b, sim = _create_dynamic_armies()
     army_a.clear_dynamic_unrevivable_tracking()
     army_b.clear_dynamic_unrevivable_tracking()
-    hp_a = army_a.unit.effective_hp_per_troop([])
-    hp_b = army_b.unit.effective_hp_per_troop([])
-
-    army_a.pending_hp_damage_this_round = hp_a * 30
-    army_a.damage_contributors_this_round = {army_b.name: hp_a * 30}
-    army_a.damage_contributors_by_skill_this_round = {
-        army_b.name: {
-            "basic_attack": hp_a * 10,
-            "skill_burst": hp_a * 20,
-        }
-    }
-
-    army_b.pending_hp_damage_this_round = hp_b * 10
-    army_b.damage_contributors_this_round = {army_a.name: hp_b * 10}
-    army_b.damage_contributors_by_skill_this_round = {
-        army_a.name: {
-            "basic_attack": hp_b * 8,
-            "skill_slash": hp_b * 2,
-        }
-    }
+    _queue_round_losses(army_a, army_b, basic=10, skill=20)
+    _queue_round_losses(army_b, army_a, basic=8, skill=2)
 
     army_a.commit_pending_healing_and_damage()
     army_b.commit_pending_healing_and_damage()
@@ -188,24 +156,8 @@ def test_dynamic_unrevivable_counterattack_fields_affect_ratio():
     army_a, army_b, sim = _create_dynamic_armies()
     army_a.clear_dynamic_unrevivable_tracking()
     army_b.clear_dynamic_unrevivable_tracking()
-    hp_a = army_a.unit.effective_hp_per_troop([])
-    hp_b = army_b.unit.effective_hp_per_troop([])
-
-    army_a.pending_hp_damage_this_round = hp_a * 10
-    army_a.damage_contributors_this_round = {army_b.name: hp_a * 10}
-    army_a.damage_contributors_by_skill_this_round = {
-        army_b.name: {
-            "counter_attack": hp_a * 10,
-        }
-    }
-
-    army_b.pending_hp_damage_this_round = hp_b * 8
-    army_b.damage_contributors_this_round = {army_a.name: hp_b * 8}
-    army_b.damage_contributors_by_skill_this_round = {
-        army_a.name: {
-            "basic_attack": hp_b * 8,
-        }
-    }
+    _queue_round_losses(army_a, army_b, counter=10)
+    _queue_round_losses(army_b, army_a, basic=8)
 
     army_a.commit_pending_healing_and_damage()
     army_b.commit_pending_healing_and_damage()
@@ -216,37 +168,22 @@ def test_dynamic_unrevivable_counterattack_fields_affect_ratio():
 
 
 def test_dynamic_unrevivable_non_mutual():
-    army_a, army_b, sim = _create_dynamic_armies()
-    army_a.clear_dynamic_unrevivable_tracking()
-    army_b.clear_dynamic_unrevivable_tracking()
-    hp_a = army_a.unit.effective_hp_per_troop([])
-    hp_b = army_b.unit.effective_hp_per_troop([])
+    def _simulate(mutual_flag: bool) -> tuple[int, int]:
+        army_a, army_b, sim = _create_dynamic_armies()
+        army_a.clear_dynamic_unrevivable_tracking()
+        army_b.clear_dynamic_unrevivable_tracking()
+        _queue_round_losses(army_a, army_b, basic=5, skill=5)
+        _queue_round_losses(army_b, army_a, basic=6)
+        army_a.commit_pending_healing_and_damage()
+        army_b.commit_pending_healing_and_damage()
+        sim.apply_unrevivable_post_commit(mutual_engagement=mutual_flag)
+        return army_a.unrevivable_troops, army_b.unrevivable_troops
 
-    # Army A loses 5 combat and 5 skill troops
-    army_a.pending_hp_damage_this_round = hp_a * 10
-    army_a.damage_contributors_this_round = {army_b.name: hp_a * 10}
-    army_a.damage_contributors_by_skill_this_round = {
-        army_b.name: {
-            "basic_attack": hp_a * 5,
-            "skill_burst": hp_a * 5,
-        }
-    }
+    mutual_result = _simulate(True)
+    non_mutual_result = _simulate(False)
 
-    # Army B loses 6 combat troops
-    army_b.pending_hp_damage_this_round = hp_b * 6
-    army_b.damage_contributors_this_round = {army_a.name: hp_b * 6}
-    army_b.damage_contributors_by_skill_this_round = {
-        army_a.name: {
-            "basic_attack": hp_b * 6,
-        }
-    }
-
-    army_a.commit_pending_healing_and_damage()
-    army_b.commit_pending_healing_and_damage()
-    sim.apply_unrevivable_post_commit(mutual_engagement=False)
-
-    assert army_a.unrevivable_troops == 5
-    assert army_b.unrevivable_troops == 3
+    assert mutual_result == (6, 2)
+    assert non_mutual_result == mutual_result
 
 
 def test_dynamic_unrevivable_non_mutual_override_changes_result():
@@ -258,47 +195,30 @@ def test_dynamic_unrevivable_non_mutual_override_changes_result():
             "pikemen_combat_counter_bonus_multiplier": 0.5,
             "pikemen_skill_base": 0.5,
             "pikemen_skill_bonus_multiplier": 0.5,
-            "pikemen_non_mutual_base": 0.5,
-            "pikemen_non_mutual_bonus_multiplier": 0.5,
             "archers_combat_basic_base": 0.5,
             "archers_combat_basic_bonus_multiplier": 0.5,
             "archers_combat_counter_base": 0.5,
             "archers_combat_counter_bonus_multiplier": 0.5,
             "archers_skill_base": 0.5,
             "archers_skill_bonus_multiplier": 0.5,
-            "archers_non_mutual_base": 0.5,
-            "archers_non_mutual_bonus_multiplier": 0.5,
         }
     )
-    army_a, army_b, sim = _create_dynamic_armies()
-    army_a.clear_dynamic_unrevivable_tracking()
-    army_b.clear_dynamic_unrevivable_tracking()
-    hp_a = army_a.unit.effective_hp_per_troop([])
-    hp_b = army_b.unit.effective_hp_per_troop([])
+    def _simulate(mutual_flag: bool) -> tuple[int, int]:
+        army_a, army_b, sim = _create_dynamic_armies()
+        army_a.clear_dynamic_unrevivable_tracking()
+        army_b.clear_dynamic_unrevivable_tracking()
+        _queue_round_losses(army_a, army_b, basic=5, skill=5)
+        _queue_round_losses(army_b, army_a, basic=6)
+        army_a.commit_pending_healing_and_damage()
+        army_b.commit_pending_healing_and_damage()
+        sim.apply_unrevivable_post_commit(mutual_engagement=mutual_flag)
+        return army_a.unrevivable_troops, army_b.unrevivable_troops
 
-    army_a.pending_hp_damage_this_round = hp_a * 10
-    army_a.damage_contributors_this_round = {army_b.name: hp_a * 10}
-    army_a.damage_contributors_by_skill_this_round = {
-        army_b.name: {
-            "basic_attack": hp_a * 5,
-            "skill_burst": hp_a * 5,
-        }
-    }
+    mutual_result = _simulate(True)
+    non_mutual_result = _simulate(False)
 
-    army_b.pending_hp_damage_this_round = hp_b * 6
-    army_b.damage_contributors_this_round = {army_a.name: hp_b * 6}
-    army_b.damage_contributors_by_skill_this_round = {
-        army_a.name: {
-            "basic_attack": hp_b * 6,
-        }
-    }
-
-    army_a.commit_pending_healing_and_damage()
-    army_b.commit_pending_healing_and_damage()
-    sim.apply_unrevivable_post_commit(mutual_engagement=False)
-
-    assert army_a.unrevivable_troops == 7
-    assert army_b.unrevivable_troops == 5
+    assert mutual_result == (9, 5)
+    assert non_mutual_result == mutual_result
 
 
 def test_run_additional_simulations_propagates_dynamic_settings(monkeypatch: pytest.MonkeyPatch) -> None:

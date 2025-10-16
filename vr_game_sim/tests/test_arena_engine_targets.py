@@ -13,6 +13,24 @@ def make_army(name: str) -> Army:
     return Army(name, unit)
 
 
+def make_army_with_mods(
+    name: str,
+    *,
+    atk_mod: float = 0.0,
+    def_mod: float = 0.0,
+    hp_mod: float = 0.0,
+) -> Army:
+    unit = Unit(
+        "pikemen",
+        5,
+        initial_count=1000,
+        initial_atk_modifier=atk_mod,
+        initial_def_modifier=def_mod,
+        initial_hp_modifier=hp_mod,
+    )
+    return Army(name, unit)
+
+
 def test_front_rows_target_and_meet_midpoint():
     engine = ArenaEngine()
     a_front = make_army("A_front")
@@ -96,6 +114,60 @@ def test_retarget_back_before_closest():
     assert "B_front" not in engine._armies
     assert engine._armies[a_front.name].direct_target == b_back.name
     assert engine._armies[a_back.name].direct_target == b_back.name
+
+
+def test_str_targeting_prioritises_strongest_and_advances():
+    engine = ArenaEngine()
+    attacker = make_army("attacker")
+    strong = make_army_with_mods("strong", atk_mod=0.5)
+    medium = make_army_with_mods("medium", atk_mod=0.2)
+    weak = make_army_with_mods("weak", atk_mod=-0.1)
+
+    layout = {
+        "red": [
+            {"army": attacker, "position": (0.0, 0.0), "column": 0, "row": 0},
+        ],
+        "blue": [
+            {"army": strong, "position": (0.0, 200.0), "column": 0, "row": 0},
+            {"army": medium, "position": (100.0, 200.0), "column": 1, "row": 0},
+            {"army": weak, "position": (-100.0, 200.0), "column": 2, "row": 0},
+        ],
+    }
+
+    engine.start_arena_battle(layout, targeting_mode="str")
+
+    assert engine._armies[attacker.name].direct_target == strong.name
+    engine._remove_army(strong.name)
+    assert engine._armies[attacker.name].direct_target == medium.name
+    engine._remove_army(medium.name)
+    assert engine._armies[attacker.name].direct_target == weak.name
+
+
+def test_frg_targeting_prioritises_fragile_and_advances():
+    engine = ArenaEngine()
+    attacker = make_army("attacker")
+    fragile = make_army_with_mods("fragile", def_mod=-0.3, hp_mod=-0.3)
+    middle = make_army_with_mods("middle", def_mod=0.0, hp_mod=0.1)
+    sturdy = make_army_with_mods("sturdy", def_mod=0.5, hp_mod=0.5)
+
+    layout = {
+        "red": [
+            {"army": attacker, "position": (0.0, 0.0), "column": 0, "row": 0},
+        ],
+        "blue": [
+            {"army": fragile, "position": (0.0, 200.0), "column": 0, "row": 0},
+            {"army": middle, "position": (100.0, 200.0), "column": 1, "row": 0},
+            {"army": sturdy, "position": (-100.0, 200.0), "column": 2, "row": 0},
+        ],
+    }
+
+    engine.start_arena_battle(layout, targeting_mode="frg")
+
+    assert engine._armies[attacker.name].direct_target == fragile.name
+    engine._remove_army(fragile.name)
+    assert engine._armies[attacker.name].direct_target == middle.name
+    engine._remove_army(middle.name)
+    assert engine._armies[attacker.name].direct_target == sturdy.name
 
 
 def test_arena_retains_initial_direct_target():

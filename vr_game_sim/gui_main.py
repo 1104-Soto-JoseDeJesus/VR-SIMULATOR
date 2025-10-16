@@ -3412,12 +3412,19 @@ class ArenaBatchWorker(QtCore.QThread):
     progress_update = QtCore.pyqtSignal(int, int)
     finished_dict = QtCore.pyqtSignal(dict)
 
-    def __init__(self, layout_entries: list[dict[str, Any]], runs: int, num_workers: int) -> None:
+    def __init__(
+        self,
+        layout_entries: list[dict[str, Any]],
+        runs: int,
+        num_workers: int,
+        targeting_mode: str,
+    ) -> None:
         super().__init__()
         self.layout_entries = layout_entries
         self.runs = runs
         self.num_workers = num_workers
         self._cancelled = threading.Event()
+        self.targeting_mode = targeting_mode or "legacy"
 
     def cancel(self) -> None:
         self._cancelled.set()
@@ -3439,7 +3446,7 @@ class ArenaBatchWorker(QtCore.QThread):
                     }
                 )
             engine = ArenaEngine()
-            engine.start_arena_battle(battle_layout)
+            engine.start_arena_battle(battle_layout, targeting_mode=self.targeting_mode)
             while True:
                 engine.tick(0.016)
                 alive = {
@@ -3484,6 +3491,10 @@ class ArenaTab(QtWidgets.QWidget):
         self.load_pos_layout_btn = QtWidgets.QPushButton("Load Position Layout")
         self.refresh_btn = QtWidgets.QPushButton("Refresh Arena")
         self.swap_btn = QtWidgets.QPushButton("Swap Teams")
+        self.targeting_combo = QtWidgets.QComboBox()
+        self.targeting_combo.addItem("Legacy", "legacy")
+        self.targeting_combo.addItem("STR", "str")
+        self.targeting_combo.addItem("FRG", "frg")
         self.run_batch_btn = QtWidgets.QPushButton("Run Batch")
         self.run_btn = QtWidgets.QPushButton("Run Arena")
         self.last_run_btn = QtWidgets.QPushButton("Run Last")
@@ -3496,6 +3507,7 @@ class ArenaTab(QtWidgets.QWidget):
             self.load_pos_layout_btn,
             self.refresh_btn,
             self.swap_btn,
+            self.targeting_combo,
             self.run_batch_btn,
             self.run_btn,
             self.last_run_btn,
@@ -3821,10 +3833,10 @@ class ArenaTab(QtWidgets.QWidget):
                     self._assign_team(info2, "team1")
                     icon2.team = info2["team"]
 
-    def _collect_layout_data(self) -> list[dict[str, Any]]:
-        """Return layout entries for all occupied slots."""
+    def _collect_layout_data(self) -> dict[str, Any]:
+        """Return layout entries and metadata for all occupied slots."""
 
-        data: list[dict[str, Any]] = []
+        entries: list[dict[str, Any]] = []
         for (team, idx), info in self._slot_army.items():
             if not info:
                 continue
@@ -3840,14 +3852,18 @@ class ArenaTab(QtWidgets.QWidget):
             cfg = info.get("config")
             if cfg:
                 entry["config"] = cfg
-            data.append(entry)
-        return data
+            entries.append(entry)
+        return {
+            "targeting_mode": self.targeting_combo.currentData(),
+            "entries": entries,
+        }
 
     def _save_last_layout(self) -> None:
         """Persist the current layout for quick access later."""
 
         data = self._collect_layout_data()
-        if not data:
+        entries = data.get("entries", []) if isinstance(data, dict) else data
+        if not entries:
             return
         os.makedirs(self._setups_dir, exist_ok=True)
         try:
@@ -3860,7 +3876,8 @@ class ArenaTab(QtWidgets.QWidget):
         """Persist current slot assignments to a JSON file."""
 
         data = self._collect_layout_data()
-        if not data:
+        entries = data.get("entries", []) if isinstance(data, dict) else data
+        if not entries:
             QtWidgets.QMessageBox.information(
                 self, "Nothing to save", "No armies are placed in the arena."
             )
@@ -3894,7 +3911,7 @@ class ArenaTab(QtWidgets.QWidget):
             return
         self._apply_layout(layout_data)
 
-    def _apply_layout(self, layout_data: list[dict[str, Any]]) -> None:
+    def _apply_layout(self, layout_data: Any) -> None:
         """Apply a previously saved layout to the arena."""
 
         try:
@@ -3906,7 +3923,16 @@ class ArenaTab(QtWidgets.QWidget):
             saved_armies = {}
 
         self._refresh_arena()
-        for entry in layout_data:
+        entries = layout_data
+        targeting_mode = None
+        if isinstance(layout_data, dict):
+            entries = layout_data.get("entries", [])
+            targeting_mode = layout_data.get("targeting_mode")
+        if targeting_mode:
+            idx = self.targeting_combo.findData(targeting_mode)
+            if idx != -1:
+                self.targeting_combo.setCurrentIndex(idx)
+        for entry in entries:
             name = entry.get("army_name")
             team = entry.get("team")
             col = entry.get("column")
@@ -4097,7 +4123,8 @@ class ArenaTab(QtWidgets.QWidget):
             return
         self._save_last_layout()
         self.engine.reset(report_builder=self.report_builder)
-        self.engine.start_arena_battle(layout)
+        targeting_mode = self.targeting_combo.currentData()
+        self.engine.start_arena_battle(layout, targeting_mode=targeting_mode)
         self._running = True
         self.run_btn.setEnabled(False)
         for item in self._slot_items.values():
@@ -4141,6 +4168,7 @@ class ArenaTab(QtWidgets.QWidget):
         if not layout_entries:
             return
 
+        targeting_mode = self.targeting_combo.currentData()
         if count is not None:
             results: dict[str, int] = {}
             for _ in range(count):
@@ -4157,7 +4185,7 @@ class ArenaTab(QtWidgets.QWidget):
                         }
                     )
                 engine = ArenaEngine()
-                engine.start_arena_battle(battle_layout)
+                engine.start_arena_battle(battle_layout, targeting_mode=targeting_mode)
                 while True:
                     engine.tick(0.016)
                     alive = {
@@ -4183,7 +4211,7 @@ class ArenaTab(QtWidgets.QWidget):
         window.progress.setRange(0, runs)
         window.progress.setValue(0)
         self.run_batch_btn.setEnabled(False)
-        worker = ArenaBatchWorker(layout_entries, runs, workers)
+        worker = ArenaBatchWorker(layout_entries, runs, workers, str(targeting_mode))
         self._batch_worker = worker
         worker.progress_update.connect(
             lambda d, t: (window.progress.setMaximum(t), window.progress.setValue(d))

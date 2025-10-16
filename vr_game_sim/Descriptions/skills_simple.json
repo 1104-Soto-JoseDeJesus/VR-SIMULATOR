@@ -168,7 +168,7 @@
     "description": "Gains 75 Rage every 1s for 30s. Triggers immediately upon enetering the battle."
   },
   {
-    "name": "Halo of Thorns",
+    "name": "Hale of Thorns",
     "description": "Reduces the normal attack of the Hero-led Squad by 15%, but increases their Counterattack Damage by 50%."
   },
   {
@@ -184,7 +184,7 @@
     "description": "When deployed Troop launches basic attack, ther is a 20% chance to increase their Basic Attack Damage by 75% for 2 seconds, and Purify all Debuffs."
   },
   {
-    "name": "Heightened Chase",
+    "name": "Heightened Chance",
     "description": "When performing a basic attack, there is a 25% chance of increasing the Basic Attack Damage of the deployed Troop by 40% for 2s. If the target is Slowed, Counterattack Damage will also be increased."
   },
   {

@@ -131,7 +131,7 @@
         "description": "Inflicts drect damage in a fan shape to up to 5 target Troops once (Damage Factor 600), and increases targets damage received from basic attacks by 7.5% for 4s."
       },
       {
-        "name": "Divine Punishment",
+        "name": "Divine Energize",
         "description": "When deployed Troops does a basic attack, there is a 25% chance of dealing direct damage 1 time (Damage Factor 300) to the target, and increases targets damage received from basic attacks by 20% for 2s."
       },
       {
@@ -145,7 +145,7 @@
         "description": "Triggers when entering battle, increases trigger chance of deployed Troops Cooperation Skills by 6% for 30s."
       },
       {
-        "name": "Divine Blessing",
+        "name": "Divine Blite",
         "description": "When deployed Troop performs a basic attack, there is a 20% chance to heal their Lightly Wounded units (heal Factor 450)."
       },
       {
@@ -658,7 +658,7 @@
         "description": "Deals 1 instance of direct damage to the target (Damage Factor 560) and inflicts them with Burn. Burning enemies will take continuous damage every second (Damage Factor 245) for 4s."
       },
       {
-        "name": "Blades Judgement",
+        "name": "Blades Judgment",
         "description": "Deals 1 instance of direct damage to the target every 9 seconds (Damage Factor 240) and inflicts them with Burn. Burning enemies will take continuous damage every second (Damage Factor 240) for 3s."
       },
       {
@@ -672,7 +672,7 @@
         "description": "Triggers when entering battle, reduces deployed Troops Counterattack Damage by 30% for 30 seconds. After 30 seconds, increases their Burn Damage by 15% (this Buff cannot be removed and will last until the end of the battle)."
       },
       {
-        "name": "Battle Hymn",
+        "name": "Battle Chime",
         "description": "Deals 1 instance of direct damage (Damage Factor 800) to the target every 9 seconds. When your deployed Troops Rage is lower than the target, they restore 50 Rage."
       },
       {
@@ -1062,7 +1062,7 @@
       },
       {
         "name": "Heart of Tolerance",
-        "description": "Every 9s, deals 1 instance of direct damage (Damage Factor ??) to the target Troop, and has a ??% chance to reduce the target Troops Rage by ??."
+        "description": "Every 9s, deals 1 instance of direct damage (Damage Factor 900) to the target Troop, and has a 35% chance to reduce the target Troops Rage by 50."
       },
       {
         "name": "Holy Enlightenment",
@@ -1103,15 +1103,15 @@
     "talents": [
       {
         "name": "Hold Fast",
-        "description": "When deployed Troop counterattacks, there is a ???% chance to grant them a shield (Shield Factor ???) for 2s. Triggers up to 1 time every 4s."
+        "description": "When deployed Troop counterattacks, there is a 15% chance to grant them a shield (Shield Factor 600) for 2s. Triggers up to 1 time every 4s."
       },
       {
         "name": "Tit for Tat",
-        "description": "When deployed Troop receives Active Skill Damage, deals 1 instance of direct damage (Damage Factor ???) to the target Troop. If your own Troop does not have a shield, they receive ??% less damage for 1s. Triggers up to 1 time every 1s."
+        "description": "When deployed Troop receives Active Skill Damage, deals 1 instance of direct damage (Damage Factor 500) to the target Troop. If your own Troop does not have a shield, they receive 30% less damage for 1s. Triggers up to 1 time every 1s."
       },
       {
         "name": "Determined Defense",
-        "description": "When deployed Troop receives a basic attack, there is a ??% chance to deal 1 instance of direct damage (Damage Factor ???) to the target Troop, and heal your own Troop (Heal Factor ???). If your own Troop has a shield, the target Troop receives Broken Blade for 1s. Triggers up to 1 time every 3 seconds."
+        "description": "When deployed Troop receives a basic attack, there is a 20% chance to deal 1 instance of direct damage (Damage Factor 300) to the target Troop, and heal your own Troop (Heal Factor 300). If your own Troop has a shield, the target Troop receives Broken Blade for 1s. Triggers up to 1 time every 3 seconds."
       }
     ]
   },

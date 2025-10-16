@@ -425,10 +425,14 @@ class BattlefieldEngine:
                     atk_ctx.path = [(target_x, target_y)]
                     atk_ctx.path_start = atk_ctx.position
                 else:
-                    # Already within the desired distance; reposition immediately
-                    atk_ctx.position = (target_x, target_y)
-                    atk_ctx.path.clear()
-                    atk_ctx.path_start = atk_ctx.position
+                    # Already within the desired distance; queue a short retreat
+                    if not atk_ctx.path or hypot(
+                        atk_ctx.path[0][0] - target_x,
+                        atk_ctx.path[0][1] - target_y,
+                    ) > _ENGAGE_EPS:
+                        atk_ctx.path = [(target_x, target_y)]
+                    if atk_ctx.path_start is None:
+                        atk_ctx.path_start = atk_ctx.position
             else:
                 # Overlapping positions; choose arbitrary offset
                 atk_ctx.position = (dx_ - ENGAGEMENT_DISTANCE, dy_)
@@ -560,14 +564,20 @@ class BattlefieldEngine:
                 norm_x, norm_y = vec_x / dist, vec_y / dist
                 target_x = dx - norm_x * ENGAGEMENT_DISTANCE
                 target_y = dy - norm_y * ENGAGEMENT_DISTANCE
-                if dist > ENGAGEMENT_DISTANCE:
-                    ctx.path = [(target_x, target_y)]
+                if ctx.path:
+                    ctx.path[0] = (target_x, target_y)
                 else:
-                    ctx.position = (target_x, target_y)
-                    ctx.path.clear()
+                    ctx.path = [(target_x, target_y)]
+                if ctx.path_start is None:
+                    ctx.path_start = ctx.position
             else:
-                ctx.position = (dx - ENGAGEMENT_DISTANCE, dy)
-                ctx.path.clear()
+                fallback = (dx - ENGAGEMENT_DISTANCE, dy)
+                if ctx.path:
+                    ctx.path[0] = fallback
+                else:
+                    ctx.path = [fallback]
+                if ctx.path_start is None:
+                    ctx.path_start = ctx.position
 
     def _step_movements(self, dt: float) -> None:
         """Interpolate movement towards the next waypoint in an army's path."""
@@ -606,15 +616,18 @@ class BattlefieldEngine:
             dx_, dy_ = dfd_ctx.position
             vec_x, vec_y = ax - dx_, ay - dy_
             dist = hypot(vec_x, vec_y)
-            if dist < ENGAGEMENT_DISTANCE:
+            if dist + _ENGAGE_EPS < ENGAGEMENT_DISTANCE:
                 if dist > 0:
                     norm_x, norm_y = vec_x / dist, vec_y / dist
+                    push = min(ENGAGEMENT_DISTANCE - dist, _ARC_PUSH_SPEED * dt)
+                    new_dist = dist + push
+                    atk_ctx.position = (
+                        dx_ + norm_x * new_dist,
+                        dy_ + norm_y * new_dist,
+                    )
                 else:
-                    norm_x, norm_y = 1.0, 0.0
-                atk_ctx.position = (
-                    dx_ + norm_x * ENGAGEMENT_DISTANCE,
-                    dy_ + norm_y * ENGAGEMENT_DISTANCE,
-                )
+                    push = min(ENGAGEMENT_DISTANCE, _ARC_PUSH_SPEED * dt)
+                    atk_ctx.position = (dx_ + push, dy_)
                 atk_ctx.path.clear()
                 dfd_ctx.path.clear()
 

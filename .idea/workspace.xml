@@ -6,29 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="0ec79d29-f83e-4486-9f45-deb2b221e113" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Artur.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Artur.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Athelstan.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Athelstan.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Bjorn.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Bjorn.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Freydis.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Freydis.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Gregory.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Gregory.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Harald.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Harald.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Heahmund.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Heahmund.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Helgar.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Helgar.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Hobert.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Hobert.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Ivana.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Ivana.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Ivor.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Ivor.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Jens.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Jens.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Lagertha.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Lagertha.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Laird.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Laird.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Leif.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Leif.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Olena.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Olena.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Ragnar.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Ragnar.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Rollo.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Rollo.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Sigurd.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Sigurd.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Verdandi.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Verdandi.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Wooder.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Wooder.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Yulmi.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Yulmi.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/vr_game_sim/Hero Images/Yvette.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Hero Images/Yvette.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/damage_accumulated_army1.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/damage_accumulated_army1.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/damage_accumulated_army2.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/damage_accumulated_army2.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/diff_vs_rounds.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/diff_vs_rounds.png" afterDir="false" />
@@ -46,6 +23,7 @@
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/troop_difference.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/troop_difference.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/unrevivable_victory_distribution.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/unrevivable_victory_distribution.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/victory_distribution.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/victory_distribution.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/setups/_last_arena_layout.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/setups/_last_arena_layout.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

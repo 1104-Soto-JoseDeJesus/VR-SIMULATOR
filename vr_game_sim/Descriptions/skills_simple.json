@@ -1,0 +1,286 @@
+[
+  {
+    "name": "Furious Hack and Slash",
+    "description": "When deployed Troop performs a basic attack, there is a 20% chance to inflict Bleed on the target, dealing continuous damage every second (Damage Factor 350) for 2s. There is also a 15% chance for this hero Troop to recover 60 Rage, and a 15% chance to inflict Silence on the tarqetfor 1s."
+  },
+  {
+    "name": "Poison Arrow",
+    "description": "Every 9 seconds, inflict Poison on the target, dealing continuous damage (Damage Factor 425) for 3 seconds. When inflicting Poison, has a 20% ► 35% chance to decrease targets ATK by 15% for 2 seconds."
+  },
+  {
+    "name": "Divine Shield",
+    "description": "Increases deployed Troops shield by 20%. Shielded targets have a 20% chance to deal direct damage 1 time (Damage Factor 850) to the target every second and have a 50% chance to gain Immunity Control (cannot be Disarmed. Broken Bladed, or Silenced), for 1 seconds."
+  },
+  {
+    "name": "Rest and Counterattack",
+    "description": "When deployed Troop counterattacks, there is a 15% chance to grant them a Shield (Shield Factor of 400) for 2s. Your own Troop will also heal 1 time (Heal Factor 400). This effect triggers at most once every 4s."
+  },
+  {
+    "name": "This Too Shall Pass",
+    "description": "Every 9 seconds, if target is Poisoned, deal 1 instance of direct damage (Damage Factor 1,000) to them. If target is Burning, your own Troop heals 1 time (Heal Factor 1,000)."
+  },
+  {
+    "name": "Shield Reflector",
+    "description": "Increass Counterattack Damage by 130% when the deployed Troop is shielded"
+  },
+  {
+    "name": "Chance of Reversal",
+    "description": "When deployed Troops receive Healing, there is a 25% chance to deal direct damage 1 time (Damage Factor 550) to the target and recover 50 Rage."
+  },
+  {
+    "name": "Awakening",
+    "description": "When deployed Troop recieves Healing, Purify all Debuffs an reduce damage received by 10% for 1 seond. (Triggers up to 1 time in every 4 second period)"
+  },
+  {
+    "name": "Disarmament",
+    "description": "When deployed Troop launches a counterattack, there is a 20% chance to deal direct damage 1 time (Damage Factor 325) to the target, inflict Disarm on target for 1 seconds, and decrease target speed by 20% for 2 seconds. Triggers up to 1 time every 3 seconds."
+  },
+  {
+    "name": "Silencer",
+    "description": "When deployed Troop receives a basic attack, there is a 20% chance to deal direct damage 1 time (Damage Factor 450) to the target, and inflict Silence for 2 seconds."
+  },
+  {
+    "name": "Fiery Rage",
+    "description": "When deployed Troops receive a basic attack, there is a 10% chance to inflict Burning to the target, dealing continuous damage every second (Damage Factor 350) for 2 seconds. If the target is Burning, the damage dealt is increased (to Damage Factor 700)."
+  },
+  {
+    "name": "Fiery Detonation",
+    "description": "Every 9 seconds, deal direct damage 1 time to the target (Damage Factor 600). If the target is Burning, deal direct damage 1 more time (Damage Factor 600), and reduce target Defense by 15% for 2 seconds."
+  },
+  {
+    "name": "Enrage",
+    "description": "When deployed Troops launch basic attacks, there is a 20% chance to deal direct damage 1 time (Damage Factor 300) to the target, and recover 100 rage."
+  },
+  {
+    "name": "Rage Leech",
+    "description": "When deployed Troops use an Active Skill, if the target is Burning, heals your Lightly Wounded Troops (Heal Factor 900). If the target is not Burning, your Troops gain 80 Rage."
+  },
+  {
+    "name": "Retaliate",
+    "description": "When the deployed Troop does a counterattack, there is a 15% chance to deal 1 instance if direct damage to up to 5 targets within a circular range (Damage Factor 350)"
+  },
+  {
+    "name": "Blessed Negation",
+    "description": "Every 9 seconds, deal direct damage 1 time (Damage Factor 700) to target, Dispell all Buffs on the target, and recude the target Rage by 100."
+  },
+  {
+    "name": "Wild Indulgence",
+    "description": "Every 10 seconds, Purify deployed Troops Debuffs an deal direct damage 1 time to target (Damage Factor 1000)."
+  },
+  {
+    "name": "Breaking Free",
+    "description": "Every 10 seconds, Purify deployed Troops Debuufs, increase their damage dealt by 30%, and decrease their Counterattack Damage received by 30% for 3 seconds."
+  },
+  {
+    "name": "Fading Battle",
+    "description": "When deployed Troops use a basic attack, there is a 20% chance to deal direct dmage 1 time to up to 3 targets in a circular range (Damage Factor 350)."
+  },
+  {
+    "name": "Enchanted Pursuit",
+    "description": "When deployed Troops use a basic attack, there is a 10% chance to inflict up to 2 continuous damage effects (Burning, Bleed) on the target, dealing continuous damage every second (Damage Factor 275) for 2 seconds."
+  },
+  {
+    "name": "Blow of Chaos",
+    "description": "When deployed Troops counterattack, if the target is inflicted with any continuous damage (Bleed, Poison, Burning), there is a 20% chance of dealing direct damage 1 time (Damage Factor 1,000) to target. Triggers up to 1 time every 3 seconds."
+  },
+  {
+    "name": "Divine Blessing",
+    "description": "Triggers when entering battle, deployed Troops gain 30% damage reduction for 30 seconds. Every second after 30 seconds, there is a 30% chance for your Troops to gain 30% damage reduction for 1 seconds."
+  },
+  {
+    "name": "Battle Hymn",
+    "description": "When deployed Troops counterattack, there is a 10% chance to deal direct damage 1 time (Damage Factor 850) to target, and recover 75 Rage. Triggers up to 1 time every 5 seconds."
+  },
+  {
+    "name": "On Alert",
+    "description": "Increases Counterattack Damage by 17% every 9 seconds. This effect can be stacked up to 5 times (This effect cannot be removed)"
+  },
+  {
+    "name": "Rapid Attack",
+    "description": "When deployed Troop receives a basic attack, there is a 10% chance to deal direct damage 1 time (Damage Factor 650) to target, and inflict Broken Blade for 2 seconds. Triggers up to 1 time every 5 seconds."
+  },
+  {
+    "name": "Shield Support",
+    "description": "Every 9 seconds, grant deployed Troops a shield (Shield Factor 750) for 2 seconds. When you have fewer Troops than the target, your shield effect increases (to Shield Factor 1,000)."
+  },
+  {
+    "name": "Hymn of Life",
+    "description": "When deployed Troops receive a basic attack, there is a 20% chance for them to heal Lightly Wounded units (Heal Factor 275) for every second for 2 seconds, and increase the Health of your Troops by 10% by 1 seconds."
+  },
+  {
+    "name": "Blessed by Fate",
+    "description": "Triggers when entering battle, increases deployed Troops Basic Attack Damage by 50% for 30 seconds. Every second after 30 seconds, there is a 30% chance to increase the damage received by target by 20% for 1 seconds."
+  },
+  {
+    "name": "Helas Curse",
+    "description": "Every 9 seconds, inflict Burning on the target, dealing continuous damage every second (Damage Factor 500) for 2 seconds. There is also a 50% chance to reduce Defense of the target by 20% for 2 seconds."
+  },
+  {
+    "name": "Freyas Blessing",
+    "description": "When deployed Troops receive a basic attack, there is a 15% chance for them to receive a Blessing buff that increases their Healing received by 25% for 3 seconds, and immediately heal Lightly Wounded Troops (Heal Factor 550)."
+  },
+  {
+    "name": "Thors Determination",
+    "description": "Every 9 seconds, your deployed Troops gain a Duel buff, increasing Basic Attack Damage 225% for 2 seconds. If your Troops are besieged, they will also gain a damage reduction buff, reducing damage received by 15% for 2 seconds."
+  },
+  {
+    "name": "Lokis Trick",
+    "description": "When deployed Troop launches a counterattack, there is a 20% chance to deal direct damage 1 time (Damage Factor 450) to the target. Damage dealt has a 30% chance to Dispel all of targets Buffs, and a 30% chance to reduce the targets Rage by 100. Triggers up to 1 time every 3 seconds."
+  },
+  {
+    "name": "Odins Asylum",
+    "description": "When deployed Troops cast a Rage Skill, deal direct damage 1 time (Damage Factor 450) to the target and grant deployed Troops a shield (Shield Factor 200) for 2 seconds."
+  },
+  {
+    "name": "Baldrs Blessing",
+    "description": "Every 9 seconds, deployed Troops gain one of these \"effects\": gain a shield (Shield Factor 900) for 2 seconds; or heal Lightly Wounded Troops 1 time (Heal Factor 900), or gain a damage reduction buff, reducing damage taken by 30% for 2 seconds."
+  },
+  {
+    "name": "Fearless",
+    "description": "Every 12 seconds, deal direct damage 1 time to the target (Damage Factor 800). Damage has a 20% chance to increase Attack of your deployed Troops by 15% for 2 seconds."
+  },
+  {
+    "name": "Joint Offense",
+    "description": "When deployed Troops use an Active Skill, there is a 50% chance to deal direct damage 1 time (Damage Factor 800) to the target."
+  },
+  {
+    "name": "Bloody Rage",
+    "description": "When deployed Troops have fewer than 80% units, there is a 20% chance every second to deal direct damage 1 time (Damage Factor 500) to the target."
+  },
+  {
+    "name": "Rage Purge",
+    "description": "When deployed Troops take damage from a basic attack, there is a 20% chance to deal direct damage 1 time (Damage Factor 600) to the target, and consume 100 of their own Rage."
+  },
+  {
+    "name": "Tidal Attack",
+    "description": "When deployed Troops does a basic attack, there is a 20% chance to deal direct damage 1 time (Damage Factor 290), and when acting as Main Commander, damage dealt is increased (increased to Damage Factor 370)."
+  },
+  {
+    "name": "Broken Armor",
+    "description": "When deployed Troops take damage from a basic attack, there is a 15% chance to deal direct damage 1 time (Damage Factor 350) to the target and inflict Defenseless (increase damage taken by 5%) for 2 seconds. Triggers up to 1 time every 4 seconds."
+  },
+  {
+    "name": "Splinter",
+    "description": "Every 12 seconds, deal direct damage 1 time (Damage Factor 800) to the target. Damage has 35% chance to cause target to be Slowed by 10% for 2 seconds."
+  },
+  {
+    "name": "First Strike",
+    "description": "Gains 75 Rage every 1s for 30s. Triggers immediately upon enetering the battle."
+  },
+  {
+    "name": "Halo of Thorns",
+    "description": "Reduces the normal attack of the Hero-led Squad by 15%, but increases their Counterattack Damage by 50%."
+  },
+  {
+    "name": "Counterstrike",
+    "description": "When deployed Troops recieve Active Skill Damage, there is a 50% chance to deal direct damage 1 time (Damage Factor 700) to the target."
+  },
+  {
+    "name": "Gaining Momentum",
+    "description": "Deals direct damage 1 time (Damage Factor 850 ) to the target every 12 seconds."
+  },
+  {
+    "name": "Halo of Sacrifice",
+    "description": "When deployed Troop launches basic attack, ther is a 20% chance to increase their Basic Attack Damage by 75% for 2 seconds, and Purify all Debuffs."
+  },
+  {
+    "name": "Heightened Chase",
+    "description": "When performing a basic attack, there is a 25% chance of increasing the Basic Attack Damage of the deployed Troop by 40% for 2s. If the target is Slowed, Counterattack Damage will also be increased."
+  },
+  {
+    "name": "Overdraft",
+    "description": "Increases deployed Troops Basic Attack Damage by 35%. However, at the end of the battle 20% Lightly Wounded will be converted into Heavily Wounded."
+  },
+  {
+    "name": "Containment",
+    "description": "Every 12 seconds, deal direct damage 1 time (Damage Factor 600) to target, and inflict Broken Blade to both friendly and enemy Troops for 2 seconds"
+  },
+  {
+    "name": "Solitude",
+    "description": "When the hero-led Squad is flanked, their normal attacks have a 15% chance to inflict 1 instance of direct damage to up to 3 surrounding targets (Damage Factor 250)."
+  },
+  {
+    "name": "Siege",
+    "description": "When deployed Troop launches a basic attack on a flanked target, there is a 50% chance to increase their Attack by 20% for 2 seconds."
+  },
+  {
+    "name": "Tenacity",
+    "description": "When deployed Troops take Active Skill Damage, there is a 50% chance of healing Lightly wounded Troops (Heal Factor 700)."
+  },
+  {
+    "name": "Blessed Healing",
+    "description": "Heal Lightly Wounded Troops every 12 seconds (Heal Factor 850)."
+  },
+  {
+    "name": "Dampened Spirits",
+    "description": "When deployed Troops use an Active Skill, there is a 50% chance to deal direct damage 1 time (Damage Factor 550) to target, and a 15% chance to reduce the targets Rage by 300."
+  },
+  {
+    "name": "Valkyries Gaze",
+    "description": "When deployed Troop are healed, there is a 20% chance to grant the Troop a Shield (Shield Factor 500) for 2s, and a 25% chance to deal damage to the target (Damage Factor 500) 1 time, and a 15% chance to inflict Broken Blade on the target for 1s. This effect can only trigger once every 3s."
+  },
+  {
+    "name": "Venom Agrregation",
+    "description": "Every 9 seconds, inflict Poison on the target, dealing continuous damage every second (Damage Factor 350) for 3s. If target is protected by a Shield, Dispel targets Shield and deal additional damage to the target (Damage Factor 600) 1 time."
+  },
+  {
+    "name": "Silent Invasion",
+    "description": "When deployed Troop performs a basic attack, if the target is Slowed, there is a 25% chance to deal 1 instance of direct damage (Damage Factor 650) to the target and inflict Silence on them for 1s. If the target is not Slowed, there is a 25% chance to inflict the target with Bleed, which deals continuous damage every second (Damage Factor 325) for 2s, and inflict the target with Silence for 1s."
+  },
+  {
+    "name": "Bone-corroding Arrow",
+    "description": "Every 6 seconds, deal direct damage 1 time (Damage Factor 500) to the target. If target is Poisoned, your Troops gain a damage reduction effect, reducing the damage taken by 30% for 3 seconds."
+  },
+  {
+    "name": "Deadly Counterattack",
+    "description": "When deployed Troop counterattacks, there is a 20% chance to deal direct damage 1 time (Damage Factor 450) to the target and a 15% chance to heal 1 time (Heal Factor 200) for 2s. This effect triggers at most once every 3s."
+  },
+  {
+    "name": "Trap of Despair",
+    "description": "Every 9 seconds, deal direct damage 1 time (Damage Factor 1,300) to the target. Damage has 50% chance to cause target to be Slowed, reducing March Speed by 20% for 2 seconds."
+  },
+  {
+    "name": "Bloodstained Icefield",
+    "description": "When deployed Troop performs a basic attack, if the target is Slowed or Bleeding, there is a 20% chance to heal your own Troop 1 time (Heal Factor 700). This effect triggers at most once every 3s."
+  },
+  {
+    "name": "Shield Attacker",
+    "description": "When deployed Troop launches a basic attack and has a shield, there will be a 50% chance to deal direct damage (Damage Factor 1500) 1 time to target."
+  },
+  {
+    "name": "Berserk Killing Machine",
+    "description": "Basic attacks from this Heros Troop will generate 25 Rage if target Troop is affected with Bleed. There is also a 25% chance to unleash a follow-up strike (Damage Factor per strike 250) (up to 2 times) on target Troop. 20% chance to grant Retribution on this Heros Troop, and increase the chance of triggering Retribution by 50% for 2s if target Troop is not affected by Bleed."
+  },
+  {
+    "name": "Green Chant",
+    "description": "Purify 1 random debuff from this Heros Troop when it is granted a shield. There is also a 35% chance to heal this Heros Troop (Heal Factor 225) 1 time for 2s.35% chance to deal direct damage (Damage Factor 500) 1 time to target Troop if this Heros Troop is affected by a continuous damage effect (Bleed, Poison, Burning). This effect can only trigger once every 2s."
+  },
+  {
+    "name": "Devastating Charge",
+    "description": "Deal direct damage (Damage Factor 700)1 time to target Troop every 6s. If target is affected by Poison, there is a 100% chance to inflict Devastation on target for 1 s, and prevent target from receiving healing. If target is affected with Burning, there is a 100% chance to increase the Evasion of this Heros Troop by 50% for 1s."
+  },
+  {
+    "name": "Einherjars Oath",
+    "description": "When deployed troop performs a basic attack, there is a 20% chance to deal 1 instance of direct damage (Damage Factor 250) to the target, and grant the deployed troop Retribution effect, increasing Retribution Rate by 25% for 1 seconds. When damage is triggered, if deployed Troop has more units than the target, the target will be inflicted with Bleed, dealing continuous damage (Damage Factor 200) every second for 2 seconds. If deployed Troop has fewer units than the target, grants the deployed Troop a shield (Shield Factor 500) for 2 seconds."
+  },
+  {
+    "name": "Batlle Role Shift",
+    "description": "When deployed Troop counterattacks, there is a 20% chance to deal 1 instance of direct damage (Damage Factor 250) to the target, and restore 100 Rage to the deployed Troop. When damage is triggered, if deployed Troop has more units than the target, the target will be inflicted with Lacerate, dealing continuous damage (Damage Factor 200) every second for 2 seconds, and will be inflicted with Silence for 1 seconds. If deployed Troop has fewer units than the target, heals the deployed Troop 1 time (Heal Factor 500), and randomly Purifies 1 Debuff effects from the deployed Troop. This effect triggers at most once every 3 seconds."
+  },
+  {
+    "name": "Arrow of Truth",
+    "description": "Every 9 seconds, reduces deployed Troops damage received by 50% for 3 seconds when flanked in Outer City Battles. If deployed Troop has more units than the target, inflicts Burning on the target, dealing continuous damage (Damage Factor 350) every second for 2 seconds. If deployed Troop has fewer units than the target, inflicts Poison on the target, dealing continuous damage (Damage Factor 350) every second for 2 seconds, and increases evasion of the deployed Troop by 100% for 1 seconds."
+  },
+  {
+    "name": "Blood Eagle Punishment",
+    "description": "When deployed Troop performs a basic attack, there is a 20% chance to inflict the target Troop with Bleed, dealing continuous damage every second (Damage Factor 200) for 2 seconds. When this effect is triggered, if the deployed Troops units are higher than the target Troops units, deals 1 instance of direct damage (Damage Factor 400) to the target Troop, and inflicts Slow on the the target, decreasing their March Speed by 30% for 1s. If the deployed Troops units are lower than the target Troops units, it gains Retribution, increasing Retribution Rate by 20% for 2s. If the target Troop is inflicted with Bleed, heals the deployed Troop 1 time (Heal Factor 300)."
+  },
+  {
+    "name": "Danger Omen",
+    "description": "When deployed Troop receives a basic attack, there is a 20% chance to inflict Lacerate on the target, dealing continuous damage (Damage Factor 200) for 2s. When this effect is triggered, there is a 50% chance to reduce the damage taken by your Troop by 40% for 1 seconds. If your Troop is affected by a continuous damage effect (Bleed, Poison, Burning, Lacerate), heals the deployed Troop 1 time (Heal Factor 500) and randomly Purifies 1 Debuff effects from the deployed Troop. This effect triggers at most once every 3 seconds."
+  },
+  {
+    "name": "Leshys Grudge",
+    "description": "Every 6 seconds, inflict Poison on the target, dealing continuous damage every second (Damage Factor 250) for 2 seconds. If the target is already Poisoned, damage dealt to the target will be increased by 30% for 1 seconds. If the target is Burning, reduces damage taken by your Troop by 20% for 2 seconds. If your Troop is flanked in Outer City Battles, increases Evasion of the Troop by 100% for 1 seconds."
+  }
+]

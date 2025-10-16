@@ -1,0 +1,1304 @@
+[
+  {
+    "hero": "Gregory",
+    "skills": [
+      {
+        "name": "Agitation",
+        "description": "Increases Basic Attack Damage of up to 4 ally troops in a circular range by 45% for 5 seconds. Also has a 100% chance to inflict Bleed on the target, dealing continuous damage every second (Damage Facor 300) for 2 seconds."
+      },
+      {
+        "name": "Drumming Disturbance",
+        "description": "When the deployed Troop does a Basic Attack, there is a 20% chance of Healing Lightly Wounded units (Heal Factor 250) every second for 2s, durng which the targets Active Skill Damage is reduced by 10%."
+      },
+      {
+        "name": "Inspiring Dance",
+        "description": "Increases Basic Attack Damage of up to 5 ally troops in a circular range by 50% for 5 seconds. Also has a 100% chance to inflict Bleed on the target, dealing continuous damage every second (Damage Facor 400) for 2 seconds."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Great Morale",
+        "description": "Increases deployed Troops Basic Attack Damage by 30%"
+      },
+      {
+        "name": "Missing Beat",
+        "description": "When deployed Troop performs a basic attack, there is a 20% chance to deal direct damage 1 time (Damage Factor 400) to the target. Damage has a 25% chance to cause target to be Slowed, reducing March Speed by 10% for 2s."
+      },
+      {
+        "name": "Excite",
+        "description": "When deployed Troops use an Active Skill, there is a 40% chance to deal direct damage 1 time (Damage Factor 1800) to the target."
+      }
+    ]
+  },
+  {
+    "hero": "Harald",
+    "skills": [
+      {
+        "name": "Slicing Crush",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1500) to the target and inflicts them with Slow, reducing their March Speed by 20% for 3s."
+      },
+      {
+        "name": "Fleet raider",
+        "description": "When the deployed Troop does a Basic Attack, there is a 20% chance of dealing direct damage 1 time (Damage Factor 300) to the target. When deployed Troops deal damage, increases their Basic Attack Damage by 25% for 5s."
+      },
+      {
+        "name": "Raging Smash",
+        "description": "Deals 1 instance of direct damage (Damage Factor 2000) to the target and inflicts them with Slow, reducing their March Speed by 25% for 4s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Battle Preparation",
+        "description": "Trigger when entering battle, increases deployed Troops Basic Attack Damage by 45% for 30s. Also grants them immunity to Disarm for 30s"
+      },
+      {
+        "name": "Coordinated Strike",
+        "description": "When deployed Troops does a basic attack, there is 20% chance of dealing direct damage 1 time (Damage Factor 300) to the target. When deployed Troops deal damage, increases their Cooperation skill Damage by 12% for 3s."
+      },
+      {
+        "name": "Slow Strike",
+        "description": "Increases deployed Troops Basic Attack Damage by 50%. If the Troops are Slowed there is a 30% chance to deal direct damage to the target during a basic attack (Damage Factor 600)."
+      }
+    ]
+  },
+  {
+    "hero": "Lagertha",
+    "skills": [
+      {
+        "name": "Parry",
+        "description": "Deals direct damage 1 time (Damage Factor 1000) to the target, inflicting Bleed, which deals continuous damage every second (Damage Factor 145) for 3s. Also has a 100% chance to grant deployed Troops a shield (Shield Factor 425) for 3s."
+      },
+      {
+        "name": "Shield Breaker",
+        "description": "When the deployed Troop does a basic attack, there is a 20% chance of dealing 1 instance of direct damage to the target (Damage Factor 550). If the target is Bleeding, the Troops Basic Attack Damage is further increased by 50% for 2s"
+      },
+      {
+        "name": "Showdown",
+        "description": "Deals direct damage 1 time (Damage Factor 1500) to the target, inflicting Bleed, which deals continuous damage every second (Damage Factor 150) for 3s. Also has a 100% chance to grant deployed Troops a shield (Shield Factor 800) for 3s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Shieldaxe Attack",
+        "description": "Increases Bleed Damage by 25%"
+      },
+      {
+        "name": "Chiefs Might",
+        "description": "When your deployed Troops deal basic attacks, there is a 20% chance to inflict Bleed on the target, dealing continuous damage every second (Damage Factor 400) for 2s."
+      },
+      {
+        "name": "Fatal Strike",
+        "description": "If the target is Slowed, there is a 50% chance for the deployed Troops to deal direct damage 1 time (Damage Factor 1000) to the target when using a basic attack."
+      }
+    ]
+  },
+  {
+    "hero": "Rollo",
+    "skills": [
+      {
+        "name": "Full Plunder",
+        "description": "Deals 1 instance of direct damage (Damage Factor 975) to the target and inflicts them with Bleed. Bleeding enemies will take continuous damage every second (Damage Factor 230) for 2s."
+      },
+      {
+        "name": "Tough Choice",
+        "description": "Increases deployed Troops Basic Attack Damage by 30%, but decreases Counterattack Damage by 30%. When performing a basic attack, if the target is Slowed, there is a 20% chance for your own Troop to receive healing 1 time (Heal Factor 900)."
+      },
+      {
+        "name": "Bloody Pillage",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1500) to the target and inflicts them with Bleed. Bleeding enemies will take continuous damage every second (Damage Factor 350) for 2s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Patient and Waiting",
+        "description": "Triggers when entering battle, increases deployed Troops Basic Attack Damage by 20% and there is a 50% chance of dealing direct damage 1 time (Damage Factor 500) to the target for 30s"
+      },
+      {
+        "name": "Revolutionary Resolve",
+        "description": "When your deployed Troops use an Active Skill there is a 40% chance to deal 1 instance of direct damage (Damage Factor 1500) to the target and inflicts them with slow, reducing their March Speed by 20% for 2s"
+      },
+      {
+        "name": "Adaptable Agility",
+        "description": "If deployed Troops are greater than target Troops, basic attacks have a 25% chance to inflict direct damage to target once (Damage Factor 900). If deployed Troops are less than target Troops, basic attacks have a 20% chance of healing your own Troop 1 time (Heal Factor 500)"
+      }
+    ]
+  },
+  {
+    "hero": "Jens",
+    "skills": [
+      {
+        "name": "Sacred Strike",
+        "description": "Inflicts drect damage in a fan shape to up to 5 target Troops once (Damage Factor 600), and increases targets damage received from basic attacks by 7.5% for 4s."
+      },
+      {
+        "name": "Divine Punishment",
+        "description": "When deployed Troops does a basic attack, there is a 25% chance of dealing direct damage 1 time (Damage Factor 300) to the target, and increases targets damage received from basic attacks by 20% for 2s."
+      },
+      {
+        "name": "Heavenly Descent",
+        "description": "Inflicts drect damage in a circular range to up to 5 target Troops once (Damage Factor 825), and increases targets damage received from basic attacks by 10% for 4s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Godly Wrath",
+        "description": "Triggers when entering battle, increases trigger chance of deployed Troops Cooperation Skills by 6% for 30s."
+      },
+      {
+        "name": "Divine Blessing",
+        "description": "When deployed Troop performs a basic attack, there is a 20% chance to heal their Lightly Wounded units (heal Factor 450)."
+      },
+      {
+        "name": "Divine Punishment",
+        "description": "Increases deployed Troops Basic attack Damage by 20%. If the Troops are Bleeding, there is a 20% chance to deal 1 direct damage to the target during a basic attack (Damage Factor 500)."
+      }
+    ]
+  },
+  {
+    "hero": "Bjorn",
+    "skills": [
+      {
+        "name": "Splitting Blades",
+        "description": "Deals 1 instance(s) of direct damage (Damage Factor 1700) to the target, Slowing them down and reducing their March Speed by 15% for 3s. At the same time, increases infantry attack by 10% for 3s."
+      },
+      {
+        "name": "Crippling Pursuit",
+        "description": "When the deployed Troop performs a basic attack, there is a 20% chance of dealing 1 instance of direct damage to the target (Damage Factor 500). If the target is Slowed, another instance of direct damage (Damage Factor 250) will be dealt."
+      },
+      {
+        "name": "Lethal Fracture",
+        "description": "Deals 1 instance(s) of direct damage (Damage Factor 2000) to the target, Slowing them down and reducing their March Speed by 20% for 3s. At the same time, increases infantry attack by 15% for 3s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Trained Up",
+        "description": "When deployed Troop performs a basic attack, there is a 25% chance to deal direct damage 1 time (Damage Factor 300) to the target. Damage has 30% chance to cause target to be Slowed, reducing March Speed by 25% for 2s."
+      },
+      {
+        "name": "Undefeated",
+        "description": "Increases deployed Troops Cooperation Skill Damage by 15%"
+      },
+      {
+        "name": "Fatal Bleeding",
+        "description": "Every 6s inflict Bleed on the target, dealing coninuous damage every second (Damage Factor 600) for 2s."
+      }
+    ]
+  },
+  {
+    "hero": "Hobert",
+    "skills": [
+      {
+        "name": "Goundshaker",
+        "description": "Deals direct damage 1 time to the target (Damage Factor 1000), Dispels 1 random Buff from the target and Purifies 1 Debuff from deployed Troop. Deployed Troop also gains a Shield (Shield Factor 300) for 2s."
+      },
+      {
+        "name": "Berserk Fury",
+        "description": "For every 6% of Health that the deployed Troop loses, you receive 3% Rage Gain and 12% Basic Attack Damage bonus. This effect Stacks up to 5 times. (This effect cannot be cleared)."
+      },
+      {
+        "name": "Brutal Blow",
+        "description": "Deals direct damage 1 time to the target (Damage Factor 1200), Dispels 2 random Buffs from the target and Purifies 1 Debuff from deployed Troop. Deployed Troop also gains a Shield (Shield Factor 400) for 2s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Bold Shieldaxe",
+        "description": "Increases deployed troops Basic attack Damage by 35%."
+      },
+      {
+        "name": "Fearless Pursuit",
+        "description": "When deployed Troop performs a basic attack, There is a 20% chance to deal damage 1 time (Damage Factor 350). If the target is suffering from a Debuff, the damage will be increasd (Damage Factor 700)."
+      },
+      {
+        "name": "Steadfast Armor",
+        "description": "When deployed Troops use a basic attack, there is a 20% chance to grant the Troops a damage reduction effect, reducing the damage taken by 28% for 1s. Also causes the target to be Slowed by 10% for 2s."
+      }
+    ]
+  },
+  {
+    "hero": "Vali",
+    "skills": [
+      {
+        "name": "Deadly Slash",
+        "description": "Deals direct damage (Damage Factor 1385) to up to 3 targets within a circular range. If the target is inflicted with Bleed, deals diect damage (Damage Factor 435) to the target."
+      },
+      {
+        "name": "Curse of the Frost",
+        "description": "Reduces deployed Troops Counterattack Damage by 15%. When deployed Troop casts an Active Skill, deals direct damage 1 time on the target (Damage Factor 600). If the target is inflicted with Slow, this damage is increased (Damage Factor 900), and deployed Troop gains a shield (Shield Factor 500) that lasts for 2 rounds."
+      },
+      {
+        "name": "Frostblade",
+        "description": "Deals direct damage (Damage Factor 1600) to up to 4 targets within a circular range. If the target is inflicted with Bleed, deals diect damage (Damage Factor 500) to the target. If own deployed Troop is inflicted with Retribution, they will receive healing (Heal Factor 1200)."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Icy Edge",
+        "description": "Increases deployed Troops Basic Attack Damage by 30%, and Bleed Damage dealt by 10%"
+      },
+      {
+        "name": "Ice Cleave",
+        "description": "When deployed Troop performs a basic attack, There is a 10% chance to inflict Bleed on the target. Bleeding enemies will take continuous damage every second (Damage Factor 700) for 2s. There is a 10% chance to inflict Silence ont the target for 2s. There is a 10% chance to inflict Slow on the target, decreasing their March Speed by 30% for 2s. (values need confirming)"
+      },
+      {
+        "name": "An Eye for an Eye",
+        "description": "When deployed Troop performs a basic attack, there is a 20% chance to grant them Retribution, increasing Retribution Rate by 25% for 2s. If the target is inflicted with Bleed, Retribution Rate increases to 50% and an additional direct damage (Damage Factor 750) is dealt to the target."
+      }
+    ]
+  },
+  {
+    "hero": "Sephina",
+    "skills": [
+      {
+        "name": "Night Ravens Raid",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1360) to the target. If the target is inflicted with Slow, they will be inflicted with Bleed. Bleeding enemies will take continuous damage every second (Damage Factor 240) for 2s"
+      },
+      {
+        "name": "Darkmoon Elegy",
+        "description": "When deployed Troop performs a basic attack, there is a 20% chance to deal direct damage 1 time to the target (Damage Factor 500). Also clears 1 debuff from own deployed Troop. When dealing damage, if the target is inflicted with Silence, there is a 100% chance to deal direct damage 1 time to the target (Damage Factor 1,000), and dispel 1 buff on the target."
+      },
+      {
+        "name": "Moonlit Strike",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,700) to the target, and inflicts them with Bleed. If the target is inflicted with Slow, they will be inflicted with Bleed. Bleeding enemies will take continuous damage every second (Damage Factor 300) for 2s. If the target is inflicted with Silence, deals an additional instance of direct damage to the target (Damage Factor 1,200)."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Raven Feather Blade",
+        "description": "Increases deployed Troops Basic Attack Damage by 30%. When performing a basic attack, if the target is inflicted with Bleed, there is a 25% chance for your own Troop to receive healing (Heal Factor 250)."
+      },
+      {
+        "name": "Death Ravens Shadow",
+        "description": "When deployed Troop casts an Active Skill, deals direct damage 1 time on the target (Damage Factor 400). If deployed Troop has more units than the target, the target will be inflicted with Bleed. Bleeding enemies will take continuous damage every second (Damage Factor 200) for 2s. If deployed Troop has fewer units than the target, deals direct damage 1 time on the target (Damage Factor 425), and inflicts Slow on the the target, decreasing their March Speed by 30% for 3s."
+      },
+      {
+        "name": "Ominous Raven Feather",
+        "description": "When deployed Troop performs a basic attack, there is a chance of 15% to deal direct damage 1 time to the target (Damage Factor 325). There is a 15% chance to inflict Silence on the target for 1s, a 15% chance to heal own Troop (Heal Factor 325), and a 25% chance to grant own Troop with Retribution, increasing Retribution Rate by 50% for 2s."
+      }
+    ]
+  },
+  {
+    "hero": "Margit",
+    "skills": [
+      {
+        "name": "Fierce battle at Sea",
+        "description": "Deals 1 instance of single-target damage (Damage Factor 1,050) to the target and inflicts them with Bleed. Bleeding enemies will take continuous damage every second (Damage Factor 400) for 2s."
+      },
+      {
+        "name": "Ride the Waves",
+        "description": "Increases deployed Troops Basic Attack Damage by 20%. When performing a basic attack, if the target is Slowed, there is a 50% chance for your own Troop to increase their Basic Attack Damage by 100% for 2s."
+      },
+      {
+        "name": "Raging Tide",
+        "description": "Deals 1 instance of single-target damage (Damage Factor 1,600) to the target and inflicts them with Bleed. Bleeding enemies will take continuous damage every second (Damage Factor 600) for 2s. Also inflicts target with Slow, reducing their March Speed by 25% for 4s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Cutting Blade",
+        "description": "Increases Bleed Damage by 25%"
+      },
+      {
+        "name": "Thirst for Blood",
+        "description": "When deployed Troops perform a basic attack, if the target is Bleeding, there is a 35% chance for Lightly Wounded units from your own Troops to heal 1 time (Heal Factor 800)."
+      },
+      {
+        "name": "Seas Grace",
+        "description": "Every 6s, Purifies own Troop of 1 Debuff, and randomly inflicts one of the following effects to the \"target\": Bleed, which causes continuous damage every second (Damage Factor 1000) for 2s, or \"Slow\": which reduces March Speed by 30% for 2s."
+      }
+    ]
+  },
+  {
+    "hero": "Cecia",
+    "skills": [
+      {
+        "name": "Carnage",
+        "description": "Deals 1 instance of direct damage (Damage Factor 950) to the target and increases their Basic Attack Damage received by 25% for 3s."
+      },
+      {
+        "name": "All In",
+        "description": "Increase Attack by 30% and reduce Defense by 10%"
+      },
+      {
+        "name": "Fight for Life",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,250) to the target and increases their Basic Attack Damage received by 30% for 3s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Death Fight",
+        "description": "Increases deployed Troops Basic Attack Damage by 20%"
+      },
+      {
+        "name": "Mad Arsonist",
+        "description": "When deployed Troops use an Active Skill, there is a 50% chance to deal direct damage 1 time (Damage Factor 750) to the target."
+      },
+      {
+        "name": "Power War Axe",
+        "description": "When your deployed Troop does basic attacks, there is a 15% chance to deal an additional instance of damage (Damage Factor 750)."
+      }
+    ]
+  },
+  {
+    "hero": "Rosky",
+    "skills": [
+      {
+        "name": "Spirit Ship",
+        "description": "Deals 1 instance of direct damage (Damage Factor 2000) to the target and reduces their Defense by 20% for 4s"
+      },
+      {
+        "name": "Flurry",
+        "description": "When deployed Troops receive a basic attack, there is a 20% chance to deal direct damage 1 time (Damage Factor 700) to the target. Also increases Counterattack Skill Damage of deployed Troops by 50% for 2 seconds."
+      },
+      {
+        "name": "Spirit Battleship",
+        "description": "Deals 1 instance of direct damage (Damage Factor 2800) to the target and reduces their Defense by 30% for 4s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Blade Wielder",
+        "description": "Triggers when entering battle, increases deployed Troops Counterattack Damage by 150% for 60s"
+      },
+      {
+        "name": "Maniacal",
+        "description": "When deployed Troops counterattack, there is a 20% chance to heal Lightly Wounded Troops (Heal Factor 350) every second for 2 seconds."
+      },
+      {
+        "name": "Pirate Tricks",
+        "description": "When deployed Troops take Active Skill Damage, there is a 50% chance to grant them a shield (Shield Factor 1250) for 3 seconds."
+      }
+    ]
+  },
+  {
+    "hero": "Helgar",
+    "skills": [
+      {
+        "name": "Spear of Judgement",
+        "description": "Deals 1 instance of direct damage (Damage Factor 900) to up to 3 targets within an arc. If the deployed Troop has more than 5 stacks of Judgment Mark, deals an additional instance of damage (Damage Factor 720)."
+      },
+      {
+        "name": "Judgements Fury",
+        "description": "When taking Basic Attack Damage, the deployed Troop will receive 1 stack of Judgment Mark. When there are 20 stacks, it will deal direct damage (Damage Factor 1,150) 1 time to target, all the Marks are removed, and Troops Counterattack Damage will be increased by 45% for 2s. (Judgment Mark cannot be removed by the enemy)"
+      },
+      {
+        "name": "Ruling Trial",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,000) to up to 4 targets in a circular range. If the target has less than 20% Troops, they will receive greater damage (Damage Factor 1,500). If the target has more than 5 stacks of Judgment Mark, they will take 1 additional instance of damage (Damage Factor 800)."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Saintly Guardian",
+        "description": "Increases deployed Troops Shield by 35%"
+      },
+      {
+        "name": "War Blessing",
+        "description": "When deployed Troop receives healing, there is a 50% chance to gain a shield (Shield Factor 500) for 2 seconds and obtain 1 Judgment Mark(s) (up to 1 Mark stacks every 1 seconds. Judgment Mark cannot be removed by the enemy)."
+      },
+      {
+        "name": "Judgement Mark",
+        "description": "When deployed Troop counterattacks, there is a 50% chance to deal direct damage 1 time to the target (Damage Factor 350) and obtain 3 stacks of Judgment Mark (this Mark effect triggers up to 3 times every 1 seconds. Judgment Marks cannot be removed by the enemy)."
+      }
+    ]
+  },
+  {
+    "hero": "Laird",
+    "skills": [
+      {
+        "name": "Divine Destruction",
+        "description": "Deals 1 instance of direct damage (Damage Factor 800) to up to 3 targets within an arc and increases Pikeman Attack by 15% for 3s."
+      },
+      {
+        "name": "Flame Guardian",
+        "description": "When deployed Troops counterattack, there is a 20% chance to deal direct damage 1 time (Damage Factor 250) to the target. Damage has a 50% chance to grant deployed Troops a shield (Shield Factor 400) for 2 seconds."
+      },
+      {
+        "name": "Sacred Blade",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,400) to up to 3 targets in a circular range and increases Pikeman Attack by 20% for 3s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Holy Shield",
+        "description": "Increases deployed Troops Shield by 25%"
+      },
+      {
+        "name": "Sacred Counter",
+        "description": "When deployed Troops are targeted by a basic attack, there is a 20% chance of dealing direct damage 1 time (Damage Factor 600) to the target."
+      },
+      {
+        "name": "Divine Resistance",
+        "description": "Reduces Basic Attack Damage taken by deployed Trops by 40% and increases Counterattack damage by 40%"
+      }
+    ]
+  },
+  {
+    "hero": "Leif",
+    "skills": [
+      {
+        "name": "Chasing Waves",
+        "description": "Deal direct damage 1 time (Damage Factor 1,050) to the target and grant deployed Troops a shield (Shield Factor 420) for 2 seconds."
+      },
+      {
+        "name": "Planned Attack",
+        "description": "When deployed Troops counterattack, there is a 15% chance to deal direct damage 2 times to the target (Damage Factor 300,420)."
+      },
+      {
+        "name": "Sharp Pursuit",
+        "description": "Deal direct damage 1 time (Damage Factor 1,500) to the target and grant deployed Troops a shield (Shield Factor 600) for 2 seconds."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Blade Counter",
+        "description": "When deployed Troop counterattacks, there is a 15% chance to increase Counterattack Damage by 30% for 4 seconds. Also, there is a 25% chance to gain Immunity to Broken Blade for 4 seconds."
+      },
+      {
+        "name": "Shield of Resistance",
+        "description": "When deployed Troops receive healing, there is a 20% chance to grant them a shield (Shield Factor 950) for 2 seconds."
+      },
+      {
+        "name": "Revenge Echo",
+        "description": "When deployed Troops receive a basic attack, there is a 25% chance to deal direct damage 1 time (Damage Factor 650) to the target. When deployed Troops deal damage while they have a shield, increases their Counterattack Damage by 30% for 2 seconds"
+      }
+    ]
+  },
+  {
+    "hero": "Sigurd",
+    "skills": [
+      {
+        "name": "Violent Tendencies",
+        "description": "Deals direct damage 1 time (Damage Factor 1,400) to the target. Also increases counterattack skill damage of deployed Troops by 12% for 2 seconds."
+      },
+      {
+        "name": "Snake Eyes",
+        "description": "When deployed Troop is shielded, there is a 25% chance to deal direct damage 1 time to the target (Damage Factor 500), and a 20% chance to inflict Broken Blade on the target for 2 seconds."
+      },
+      {
+        "name": "Snakes Frenzy",
+        "description": "Deals direct damage 1 time (Damage Factor 1,600) to the target. Also increases counterattack skill damage of deployed Troops by 15% for 2 seconds."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Fiery Snake Spirit",
+        "description": "Increases Main Commander active skill Damage by 30%"
+      },
+      {
+        "name": "Serpents Rage",
+        "description": "Deals direct damage 1 time (Damage Factor 900) to the target every 9 seconds."
+      },
+      {
+        "name": "Full Focus",
+        "description": "When deployed Troops receive Healing, there is a 35% chance to deal direct damage 1 time (Damage Factor 700) to the target."
+      }
+    ]
+  },
+  {
+    "hero": "Rolfe",
+    "skills": [
+      {
+        "name": "Fatal Rhythm",
+        "description": "Deal direct damage 1 time (Damage Factor 1,665) to up to 4 targets within a circular area, and inflict targets with Broken Blade for 2 seconds."
+      },
+      {
+        "name": "Inspiration Arrives",
+        "description": "When deployed Troops are healed, there is a 50% chance to deal direct damage 1 time (Damage Factor 400) to target, and increase deployed Troops counterattack damage by 100% for 1 seconds. Triggers up to 1 time every 1 seconds."
+      },
+      {
+        "name": "Indomitable Spirit",
+        "description": "Deal direct damage 1 time (amage Factor 2000) to up to 4 targets within a circular area, and inflict targets with Broken Blade for 2 seconds. If the target Troops units are below 50%, they will receive even higher damage (Damage Factor 2,500)."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Assassination Raid",
+        "description": "When deployed Troop receives Active Skill Damage, deal direct damage 1 time (Damage Factor 400) to target. If target is inflicted with Broken Blade, deployed Troop receives healing 1 time (Heal Factor 650)."
+      },
+      {
+        "name": "Scale Armor Shield",
+        "description": "When deployed Troops counterattack, there is a 25% chance to grant them a shield (Shield Factor 660) for 2 seconds. Triggers up to 1 time every 2 seconds."
+      },
+      {
+        "name": "Feigned Death Strike",
+        "description": "When deployed Troop receives a basic attack, there is a 25% chance to deal direct damage 1 time (Damage Factor 650) to target. If target is inflicted with Broken Blade, deployed Troop receives healing 1 time (Heal Factor 650). Triggers up to 1 time every 2 seconds."
+      }
+    ]
+  },
+  {
+    "hero": "Naya",
+    "skills": [
+      {
+        "name": "Icebreaker Strike",
+        "description": "Deal direct damage 1 time (Damage Factor 1600) to the target and grant deployed Troops a shield (Shield Factor 600) for 2 seconds"
+      },
+      {
+        "name": "Hunting Instinct",
+        "description": "When deployed Troop launches a counterattack, there is a 20% chance of dealing direct damage (Damage Factor 600) 1 time to target. If deployed Troop is shielded, this damage is increased (Damage Factor 1,000), and the target is inflicted with Broken Blade for 1 seconds. Triggers up to 1 time every 3 seconds."
+      },
+      {
+        "name": "Blizzard Spear",
+        "description": "Deal direct damage 1 time (Damage Factor 2000) to the target and grant deployed Troops a shield (Shield Factor 900). If the target is inflicted with Broken Blade, the shield is enhanced (Shield Factor 1200) and lasts for 2 seconds."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Forcefull Ambush",
+        "description": "When deployed Troops are healed, counterattack damage is increased by 25% for 1 seconds. There is an additional 20% chance for deployed Troops to gain a shield (Shield Factor 650) for 2 seconds. Triggers up to 1 time every 3 seconds."
+      },
+      {
+        "name": "Trapped Beast Struggle",
+        "description": "When deployed Troop receives a basic attack, there is a 20% chance of dealing direct damage 1 time (Damage Factor 600) to target. If the target is inflicted with Broken Blade, this damage is increased (Damage Factor 1000). Triggers up to 1 time every 3 seconds."
+      },
+      {
+        "name": "Bear Spirit Protection",
+        "description": "When deployed Troop receives healing, there is a 50% chance to deal direct damage 1 time (Damage Factor 500) to target, and inflict target with Broken Blade for 1 seconds. Triggers up to 1 time every 1 seconds."
+      }
+    ]
+  },
+  {
+    "hero": "Yvette",
+    "skills": [
+      {
+        "name": "Mending Light",
+        "description": "Heals Lightly Wounded units (Heal Factor 850) of up to 3 ally Troops in a circular range, and increases Counterattack Damage of the deployed Troop by 20% for 5s."
+      },
+      {
+        "name": "Sanctity of Life",
+        "description": "There is a 20% chance every 1 s to heal the Lightly Wounded units in the deployed Troop once (Heal Factor 500), and a 20% chance to increase the Active Skill Damage of the Secondary Commander of the deployed Troop by 20% for 3s."
+      },
+      {
+        "name": "Vital Blessing",
+        "description": "Heals Lightly Wounded units (Heal Factor 1,250) of up to 5 ally Troops in a circular range, and increases Counterattack Damage of the deployed Troop by 30% for 5s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Healing Chords",
+        "description": "Increases deployed Troops Healing Received by 20%"
+      },
+      {
+        "name": "Healing Hymn",
+        "description": "When your deployed Troops receive healing, there is a 25% chance to deal 1 instance of damage (Damage Factor 800) to the target."
+      },
+      {
+        "name": "Horn of Countering",
+        "description": "When your deployed Troops deal counterattacks, there is a 20% chance to deal additional damage (Damage Factor 900)."
+      }
+    ]
+  },
+  {
+    "hero": "Wooder",
+    "skills": [
+      {
+        "name": "Defensive Attack",
+        "description": "Deals 1 instance of direct damage (Damage Factor 300) to up to 3 targets within an arc and fains a Shield for 3s (Shield Factor 500)"
+      },
+      {
+        "name": "Ready to Pounce",
+        "description": "Each time Active Skill Damage is received from the target, increases Counterattack Damage by 100% for 2s"
+      },
+      {
+        "name": "Paralyzing Teror",
+        "description": "Deals 1 instance of direct damage (Damage Factor 450) to up to 3 targets within an arc and fains a Shield for 3s (Shield Factor 700)"
+      }
+    ],
+    "talents": [
+      {
+        "name": "Massive Shield",
+        "description": "Increases deployed Troops Shield by 15%"
+      },
+      {
+        "name": "Bold Charge",
+        "description": "When your deployed Troops deal counterattacks, there is a 20% chance to deal additional damage (Damage Factor 250)"
+      },
+      {
+        "name": "Specialized Attack",
+        "description": "When deployed Troops receive Active Skill Damage, there is a 50% chance to deal direct damage 1 time (Damage Factor 1,250) to the target."
+      }
+    ]
+  },
+  {
+    "hero": "Verdandi",
+    "skills": [
+      {
+        "name": "Diversion Shot",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,400) to the target and inflicts them with Burning. Burning enemies will take continuous damage every second (Damage Factor 200) for 2s."
+      },
+      {
+        "name": "Rapid Fire",
+        "description": "Deals direct damage 1 time (Damage Factor 800) to the target every 9s and deployed Troops gane 50 Rage"
+      },
+      {
+        "name": "Raining Arrows",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,800) to the target and inflicts them with Burning. Burning enemies will take continuous damage every second (Damage Factor 300) for 2s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Hunting Instinct",
+        "description": "Increases Burn damage by 18%"
+      },
+      {
+        "name": "Hunting Experience",
+        "description": "Every 9 seconds, inflict Burning on the target, dealing continuous damage every second (Damage Factor 500) for 2 seconds."
+      },
+      {
+        "name": "Targeted Strike",
+        "description": "Deals direct damage 1 time (Damage Factor 550) to the target every 6 seconds and if the target is Burning, damage dealt is increased (increased to Damage Factor 1100)."
+      }
+    ]
+  },
+  {
+    "hero": "Freydis",
+    "skills": [
+      {
+        "name": "Flame Slash",
+        "description": "Deals 1 instance of direct damage to the target (Damage Factor 560) and inflicts them with Burn. Burning enemies will take continuous damage every second (Damage Factor 245) for 4s."
+      },
+      {
+        "name": "Blades Judgement",
+        "description": "Deals 1 instance of direct damage to the target every 9 seconds (Damage Factor 240) and inflicts them with Burn. Burning enemies will take continuous damage every second (Damage Factor 240) for 3s."
+      },
+      {
+        "name": "Desperate Strike",
+        "description": "Deals 1 instance of direct damage (Damage Factor 800) to the target and inflicts them with Burning. Burning enemies will take continuous damage every second (Damage Factor 350) for 4s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Heroic Blessing",
+        "description": "Triggers when entering battle, reduces deployed Troops Counterattack Damage by 30% for 30 seconds. After 30 seconds, increases their Burn Damage by 15% (this Buff cannot be removed and will last until the end of the battle)."
+      },
+      {
+        "name": "Battle Hymn",
+        "description": "Deals 1 instance of direct damage (Damage Factor 800) to the target every 9 seconds. When your deployed Troops Rage is lower than the target, they restore 50 Rage."
+      },
+      {
+        "name": "Flames Judgment",
+        "description": "If the target is Burning, there is a 30% chance for deployed Troops to deal direct damage 1 time (Damage Factor 1000) to the target when triggering a Command Skill."
+      }
+    ]
+  },
+  {
+    "hero": "Artur",
+    "skills": [
+      {
+        "name": "Burning fire",
+        "description": "Inflicts direct damage in a fan shape to up to 3 target Troops once (Damage Factor 900), with a 35% chance of increasing Burn Damage by 20% for 4s."
+      },
+      {
+        "name": "Torment",
+        "description": "Deals direct damage to target Troops every 9s (Damage Factor 700), and inflicts them with Burn. Burning enemies will take continuous damage every second (Damage Factor 350) for 3s."
+      },
+      {
+        "name": "Incineration",
+        "description": "Inflicts direct damage in a circular shape to up to 3 target Troops once (Damage Factor 1,300), with a 50% chance of increasing Burn Damage by 30% for 4s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Hellfire Shelter",
+        "description": "Counterattack Damage taken by deployed Troops is reduced by 40%."
+      },
+      {
+        "name": "Pent-Up Anger",
+        "description": "Every 9 seconds, deployed Troops gain 300 Rage."
+      },
+      {
+        "name": "Furious Fire",
+        "description": "Deals direct damage 1 time (Damage Factor 1100) to the target every 6 seconds."
+      }
+    ]
+  },
+  {
+    "hero": "Leandra",
+    "skills": [
+      {
+        "name": "Jagged Edge",
+        "description": "Deals 1 instance of direct damage (Damage Factor 900) to the target with a 50% chance of dealing another instance of damage (Damage Factor 900). Also has a 50% chance to Poison the target when dealing damage for the first time. Poisoned enemies take 1 instance of damage each second (Damage Factor 360) for 3s."
+      },
+      {
+        "name": "Vengeful Fury",
+        "description": "When deployed Troop performs a basic attack, there is a 20% chance to inflict Burning on the target, dealing continuous damage every second (Damage Factor 200) for 2 seconds. If the target is already Poisoned, deployed Troop gains an additional 100 Rage."
+      },
+      {
+        "name": "Serrated Flourish",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,400) to the target with a 50% chance of dealing another instance of damage (Damage Factor 1,400). Also has a 50% chance to Poison the target when dealing damage for the first time. Poisoned enemies take 1 instance of damage each second (Damage Factor 600) for 3s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Soul Awakening",
+        "description": "Counterattack Damage taken by deployed Troops is reduced by 45%."
+      },
+      {
+        "name": "Flexible Strike",
+        "description": "If target is Burning, basic attacks have a 25% chance to deal damage 1 time (Damage Factor 500) to the target. If target is not burning, your Troop has a 25% chance to heal 1 time (Heal Factor 500)."
+      },
+      {
+        "name": "Oppertune Strike",
+        "description": "Every 6 seconds, inflict Poison on the target, dealing continuous damage every second (Damage Factor 650) for 2 seconds"
+      }
+    ]
+  },
+  {
+    "hero": "Sasha",
+    "skills": [
+      {
+        "name": "Entwined Vines",
+        "description": "Inflict Poison on the target, dealing continuous damage (Damage Factor 560) every second for 3s. If Nature Mark of deployed Troop reaches 5 stacks, deal additional direct damage (Damage Factor 720)."
+      },
+      {
+        "name": "Nature Blessing",
+        "description": "Every 9s, grant deployed Troop 1 stacks of Nature Mark and 1 time healing (Heal Factor 700). When Nature Mark reaches 5 stacks, deal direct damage (Damage Factor 700) once to the target. When Nature Mark reaches 15 stacks, deployed Troops evasion increases by 100% for 2s, and the Mark is removed."
+      },
+      {
+        "name": "Froral Burial",
+        "description": "Inflict Poison on the target, dealing continuous damage (Damage Factor 700) every second for 3s. If Nature Mark of deployed Troop reaches 5 stacks, deal additional direct damage (Damage Factor 900) once. If Nature Mark of deployed Troop reaches 10 stacks, trigger Life Drain, converting 50% of the damage dealt to heal deployed Troop."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Forest Force",
+        "description": "The active skill damage of deployed Troop is increased by 20%. And Poison damage is increased by 20%."
+      },
+      {
+        "name": "Natures Killer",
+        "description": "Every 6s, grant 1 stacks of Nature Mark to deployed Troop. When Nature Mark reaches 5 stacks, inflict Poison on the target, dealing continuous damage (Damage Factor 250) per second for 3s. When Nature Mark reaches 10 stacks, inflict Burning on the target, dealing continuous damage (Damage Factor 400) per second for 3s."
+      },
+      {
+        "name": "Life Cycle",
+        "description": "When deployed Troop casts an active skill, deployed Troop gains 2 stacks of Nature Mark. If the target is inflicted with Burning, deal direct damage (Damage Factor 900) once to target. If the target is inflicted with Poison, deployed Troop receives healing (Heal Factor 900) once."
+      }
+    ]
+  },
+  {
+    "hero": "Alf",
+    "skills": [
+      {
+        "name": "Rapid Assault",
+        "description": "Deal direct damage (Damage Factor 1,120) once to the target. There is a 32% chance to trigger Burst once, inflict Burning on tarnet and deal continuous damage (Damage Factor 480) every second for 3s."
+      },
+      {
+        "name": "Hugginns Slingshot",
+        "description": "Deployed Troops basic attacks have a 20% chance to deal direct damage (Damage Factor 400) once to the target. If the target is inflicted with Burning, this damage is increased (Damage Factor 800)."
+      },
+      {
+        "name": "Chain Meteor",
+        "description": "Deal direct damage (Damage Factor 1,400) once to the target. There is a 40% chance to trigger Burst once, inflict Burning on target and deal continuous damage (Damage Factor 600) every second for 3s. There is a 40% chance to launch an additional Poison Marble, inflict Poison on the target and deal continuous damage (Damage Factor 600) every second for 3s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Fiery Poison Bullet",
+        "description": "Increase Burning damage by 15%, and increase Poison damage by 15%"
+      },
+      {
+        "name": "Fiery Poison Bomb",
+        "description": "Inflict target with Poison every 9s, dealing continuous damage (Damage Factor 575) per second for 2s, and granting 200 Rage to deployed Troop."
+      },
+      {
+        "name": "Agile Missile",
+        "description": "Inflict target with Burning every 6s, dealing continuous damage (Damage Factor 450) every second for 2s. If the target is inflicted with Poison, there is a 30% chance to increase deployed Troops evasion by 100% for 1s."
+      }
+    ]
+  },
+  {
+    "hero": "Yulmi",
+    "skills": [
+      {
+        "name": "Deathly Scythe",
+        "description": "Inflicts direct damage in a fan shape to up to 3 target Troops once (Damage Factor 1,350), and decreases target Troops Health by 8% for 2s."
+      },
+      {
+        "name": "Plague",
+        "description": "Every 9 seconds, inflict Poison on the target, dealing continuous damage every second (Damage Factor 500) for 3 seconds. If the target is already Poisoned, damage dealt to the target will be increased by 20% for 3 seconds."
+      },
+      {
+        "name": "Undead Harvest",
+        "description": "Inflicts direct damage in a fan shape to up to 3 target Troops once (Damage Factor 1,800), and decreases target Troops Health by 10% for 2s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Dreadful Curse",
+        "description": "Increases Poison Damage by 25%"
+      },
+      {
+        "name": "High Fighting Spirit",
+        "description": "Deals direct damage 1 time (Damage Factor 1300) to the target every 9 seconds and increases Active Skill Damage of your deployed Troops by 20% for 5 seconds."
+      },
+      {
+        "name": "Low Whispers",
+        "description": "Every 6 seconds, your deployed Troops gain a damage reduction buff, reducing damage taken by 30% for 2 seconds. If the target is Burning, your deployed Troops also gain 180 Rage."
+      }
+    ]
+  },
+  {
+    "hero": "Olena",
+    "skills": [
+      {
+        "name": "High Focus",
+        "description": "Inflict direct damage to target once (Damage Factor 900), and recover 50 Rage every second for all deployed Troops for 2s. If target is Burning. deployed Troops will gain 100 Rage after 1 round."
+      },
+      {
+        "name": "Enchanted Arrow",
+        "description": "When the active skill is cast, it has a 35% chance to burn target Troops, inflicting 600 damage per second (Damage Factor 600) for 2s"
+      },
+      {
+        "name": "Concentration",
+        "description": "Inflict direct damage to target once (Damage Factor 1,250), and recover 100 Rage every second for all deployed Troops for 2s. If target is Burning, deployed Troops will gain 200 Rage after 1 round."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Scorching Arrow",
+        "description": "Increases Burn Damage by 15%."
+      },
+      {
+        "name": "Multi-Shot Arrow",
+        "description": "When your deployed Troops receive active Skill Damage, ther is a 50% chance of dealing 1 instance of direct damage (Damage Factor 750) to the target"
+      },
+      {
+        "name": "Poised Shot",
+        "description": "When deployed Troops use an Active skill, deal direct damage 1 time (Damage Factor 575) to the target, with a 15% chance to reduce targets Rage by 150"
+      }
+    ]
+  },
+  {
+    "hero": "Ragnar",
+    "skills": [
+      {
+        "name": "Road of Conquest",
+        "description": "Increases the Attack, Defense, and Health of up to 3 ally Troops in a circular range by 12% for 4s. When acting as a Main Commander, 1 instance of direct damage (Damage Factor 900) will be dealt to up to 3 target units in a circular range. The amount of direct damage dealt to each unit will be reduced by 10% for each target previously hit."
+      },
+      {
+        "name": "Unyielding Will",
+        "description": "When taking Basic Attack Damage, increases the Active Skill Damage of the Secondary Commander by 20% for 3s, with a 15% chance of recovering a certain number of Troops (Recovery Factor 800)."
+      },
+      {
+        "name": "Viking Saga",
+        "description": "Increases the Attack, Defense, and Health of up to 3 ally Troops in a circular range by 15% for 4s. When acting as a Main Commander, 1 instance of direct damage (Damage Factor 1,400) will be dealt to up to 3 targets in a circular range, reducing each targets Attack by 20% for 4s. The amount of direct damage dealt to each unit will be reduced by 10% for each target previously hit."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Dragons Blood",
+        "description": "Decreases witing time of Rallied Troops by 60s, and increases Rallied Troops Defense by 5%"
+      },
+      {
+        "name": "Rock Solid",
+        "description": "Increases deployed Troops Defense by 9%"
+      },
+      {
+        "name": "Born King",
+        "description": "Increases Rallied Troops March Speed by 10%, and increases Rallied Troops Capacity by 15%"
+      }
+    ]
+  },
+  {
+    "hero": "Ivana",
+    "skills": [
+      {
+        "name": "Wordless",
+        "description": "Inflicts direct damage in a circular area to up to 3 target Troops 1 time(s) (Damage Factor 600), and decreases targets Rage by 40, with a 50% chance to Silence target (unable to cast active skills) for 1s."
+      },
+      {
+        "name": "Threatening Blade",
+        "description": "If deployed Troops are greater than target Troops, basic attacks have a 30% chance to inflict direct damage to target once (Damage Factor 253). If deployed Troops are less than target Troops, basic attacks have a 30% chance of increasing deployed Troops defense by 10% for 5s."
+      },
+      {
+        "name": "Intimidation",
+        "description": "Inflicts direct damage in a circular area to up to 3 target Troops 2 time(s) (Damage Factor 300/Damage Factor 600), and decreases targets Rage by 50, with a 50% chance to Silence target (unable to cast active skills) for 2s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Power of Silence",
+        "description": "When target Troops are Silenced, there is a 50% chance to reduce target Troops Rage by 125"
+      },
+      {
+        "name": "Combat Focus",
+        "description": "Deals direct damage 1 time (Damage Factor 1000) to the target every 9 seconds."
+      },
+      {
+        "name": "Time Crunch",
+        "description": "Increases Rallied Troops March Speed by 8%, and increases Rallied Troops Capacity by 10%"
+      }
+    ]
+  },
+  {
+    "hero": "Aethelflaed",
+    "skills": [
+      {
+        "name": "Resonating Bowstring",
+        "description": "Deals 1 instance of direct damage (Damage Factor 800) in a fan shape to the 3 targets and reduces their Basic Attack Damage dealt by 25% for 3 seconds."
+      },
+      {
+        "name": "Heartstrike Arrow",
+        "description": "Deals 1 instance of direct damage (Damage Factor 650) to the target every 9 seconds and restores 50 Rage to deployed Troops."
+      },
+      {
+        "name": "Pierce Through",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,200) in a fan shape to the 3 targets and reduces their Basic Attack Damage dealt by 30% for 3 seconds."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Valuable Experience",
+        "description": "Increases EXP gained by deployed Troops by 32% when they defeat Niflungs and other neutral units."
+      },
+      {
+        "name": "Vicory Within Reach",
+        "description": "Increases deployed Troops Damage against Niflungs and other neutral units by 30%."
+      },
+      {
+        "name": "Trap Maker",
+        "description": "Beast Pen Trap Point Basic Recovery Value increased by 25 per minute (This Talent can be boosted by Beast Taming Workers)."
+      }
+    ]
+  },
+  {
+    "hero": "Leidolf",
+    "skills": [
+      {
+        "name": "Herald",
+        "description": "Deals 1 instance of direct damage (Damage Factor 450) to up to 3 targets in a circular range, and heals Lightly Wounded units in the Troop once (Heal Factor 225)."
+      },
+      {
+        "name": "Armor of Twilight",
+        "description": "When the deployed Troops take damage from basic attacks, there is a 25% chance to increase Defense by 30% for 2s."
+      },
+      {
+        "name": "Death Rites",
+        "description": "Deals 1 instance of direct damage (Damage Factor 600) to up to 4 targets in a circular range, and heals Lightly Wounded units in the Troop once (Heal Factor 300)."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Valuable Experience",
+        "description": "Increases EXP gained by deployed Troops by 26% when they defeat Niflungs and other neutral units."
+      },
+      {
+        "name": "Standby",
+        "description": "Increases deployed Troops damage against Niflungs and other neutral units by 15%"
+      },
+      {
+        "name": "Pioneer Will",
+        "description": "Increases deployed Troops Damage against Niflungs and other neutral units by 20%"
+      }
+    ]
+  },
+  {
+    "hero": "Gunnar",
+    "skills": [
+      {
+        "name": "Piercing Thrust",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1440) to the target and inflicts them with Lacerate dealing continuous damage every second (Damage Factor 400) for 2s."
+      },
+      {
+        "name": "Bloody Mad",
+        "description": "When deployed Troop is healed, there is a 35% chance to inflict Lacerate on the tagret Troop, dealing continuous damage every second (Damage Factor 200) for 2s, and a 35% chance to grant own Troop a shield (Shield Factor 400) for 2s. Triggers up to 1 time every 1s"
+      },
+      {
+        "name": "One Stroke One Kill",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1800) to the target and inflicts them with Lacerate dealing continuous damage every second (Damage Factor 500) for 2s. If your own Troop is shielded, inflict Broken Blade on the target Troop for 3s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "High Tide Hunt",
+        "description": "Deployed Troops damage dealt from Lacerate increases by 15%. When deployed Troop counterattacks, there is a 20% chance to reduce your own Troops damage received by 30% for 1s. There is a 20% chance to heal your own Troop (Heal Factor 250). Triggers up to 1 time every 3s."
+      },
+      {
+        "name": "Fierce Fighting Spirit",
+        "description": "When deployed Troop is healed, there is a 60% chance to deal 1 instance of direct damage (Damage Factor 300) to target Troop. When dealing damage, if the target Troop is inflicted with Lacerate, also inflicts Broken Blade on the target Troop for 1s. Triggers up to 1 time every 1s."
+      },
+      {
+        "name": "Deadly Strike",
+        "description": "When deployed Troop receives Active Skill Damage, deals 1 instance of direct damage (Damage Factor 650) to the target Troop, randomly dispels one buff from the target Troop, and grants your own Troop a shield (Shield Factor 650) for 2s. Triggers up to 1 time every is."
+      }
+    ]
+  },
+  {
+    "hero": "Hilda",
+    "skills": [
+      {
+        "name": "Lethal Smash",
+        "description": "Deals 1 instance of direct damage to the target Troop (Damage Factor 1600), and grants a shield to your own Troop (Shield Factor 400) for 2s."
+      },
+      {
+        "name": "Boiling Fighting Spirit",
+        "description": "When deployed Troop launches a counterattack, there is a 20% chance of dealing 1 instance of direct damage (Damage Factor 400) to the target Troop. When dealing damage, if your own Troop is shielded, the target Troop will be inflicted with Lacerate, dealing continuous damage every second (Damage Factor 300) for 3s. Triggers up to 1 time every 3s."
+      },
+      {
+        "name": "Shatter",
+        "description": "Deals 1 instance of direct damage to the target Troop (Damage Factor 2,000), and grants a shield to your own Troop (Shield Factor 500) for 2s. If the target Troop is inflicted with Lacerate, heals your own Troop (Heal Factor 400) for 2s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Hammer And Shield",
+        "description": "Deployed Troop's shield increases by 15% and damage dealt from Lacerate increases by 15%. When deployed Troop launches a counterattack, there is a 20% chance of dealing 1 instance of direct damage (Damage Factor 200) to the target Troop. Triggers up to 1 time every 3s."
+      },
+      {
+        "name": "Savage Physique",
+        "description": "When deployed Troop receives healing, there is a 35% chance to deal 1 instance of direct damage (Damage Factor 500) to the target Troop, and randomly Purify 2 debuff from your own Troop. If your own Troop is shielded, immediately restores 150 of their Rage, and increases their Counterattack Damage by 50% for 1 s. Triggers up to 1 time every 2s."
+      },
+      {
+        "name": "Berserk Counterattack",
+        "description": "When deployed Troop receives a basic attack, there is a 20% chance to grant your own Troop a shield (Shield Factor 500) for 2s, a 15% chance to inflict Broken Blade on the target Troop for 2s, and a 20% chance to inflict Lacerate on the target Troop, dealing continuous damage every second (Damage Factor 300) for 2s. Triggers up to 1 time every 3s."
+      }
+    ]
+  },
+  {
+    "hero": "Athelstan",
+    "skills": [
+      {
+        "name": "Eloquence",
+        "description": "Deals 1 instance of direct damage to the target Troop (Damage Factor 320) and has a 50% chance to inflict them with Burn. Burning enemies will take continuous damage every second (Damage Factor 60) for 2s."
+      },
+      {
+        "name": "Heart of Tolerance",
+        "description": "Every 9s, deals 1 instance of direct damage (Damage Factor ??) to the target Troop, and has a ??% chance to reduce the target Troops Rage by ??."
+      },
+      {
+        "name": "Holy Enlightenment",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,400) to the target Troop, and has a 50% chance to inflict them with Burn. Burning enemies will take continuous damage every second (Damage Factor 200) for 3s. There is a 50% chance to increase the target Troops damage received by 25% for 3s."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Erudite",
+        "description": "Increases deployed Troops Burning damage dealt by 15% and Poison damage dealt by 10%"
+      },
+      {
+        "name": "Strategize",
+        "description": "Every 9s, increases deployed Troops Command Skill damage dealt by 35% for 3s. If the target Troop is inflicted with Burning, there is a 50% chance for deployed Troop to receive healing (Heal Factor 600)."
+      },
+      {
+        "name": "Adaptable to Changes",
+        "description": "Every 6s, deals 1 instance of direct damage (Damage Factor 650) to the target Troop, and has a 50% chance to inflict the target Troop with Poison. Poisoned enemies take continuous damage every second (Damage Factor 250) for 2s."
+      }
+    ]
+  },
+  {
+    "hero": "Heahmund",
+    "skills": [
+      {
+        "name": "Authoritative Suppression",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1325) to the target Troop, and heals own Troop (Heal Factor 310)."
+      },
+      {
+        "name": "Zeal",
+        "description": "When deployed Troop receives healing, there is a 20% chance to deal 1 instance of direct damage (Damage Factor 750) to the target Troop, and a 20% chance to randomly Purify 1 debuffs from your own Troop. Triggers up to 1 time every 3s."
+      },
+      {
+        "name": "Vanquishing Blade",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1700) to the target Troop, and heals own Troop (Heal Factor 400), and reduces damage taken by 10% for 2s"
+      }
+    ],
+    "talents": [
+      {
+        "name": "Hold Fast",
+        "description": "When deployed Troop counterattacks, there is a ???% chance to grant them a shield (Shield Factor ???) for 2s. Triggers up to 1 time every 4s."
+      },
+      {
+        "name": "Tit for Tat",
+        "description": "When deployed Troop receives Active Skill Damage, deals 1 instance of direct damage (Damage Factor ???) to the target Troop. If your own Troop does not have a shield, they receive ??% less damage for 1s. Triggers up to 1 time every 1s."
+      },
+      {
+        "name": "Determined Defense",
+        "description": "When deployed Troop receives a basic attack, there is a ??% chance to deal 1 instance of direct damage (Damage Factor ???) to the target Troop, and heal your own Troop (Heal Factor ???). If your own Troop has a shield, the target Troop receives Broken Blade for 1s. Triggers up to 1 time every 3 seconds."
+      }
+    ]
+  },
+  {
+    "hero": "Charlton",
+    "skills": [
+      {
+        "name": "Death Omen Crossbow",
+        "description": "Deals 1 instance of direct damage (Damage Factor 900) to the target and inflicts them with Poison. Poisoned enemies will take continuous damage every second (Damage Factor 220) for 3 seconds. Also increases own Troop's evasion by 15% for 1 seconds."
+      },
+      {
+        "name": "Foresight",
+        "description": "Every 9 seconds, inflict a Burning effect on the target Troop, causing continuous damage per second (Damage Factor 350) for 3 seconds. If deployed Troop is flanked in Outer City Battles, it deals 1 additional instance of direct damage (Damage Factor 500) to the target Troop, and heals itself 1 time (Heal Factor 500)."
+      },
+      {
+        "name": "Face Perils Together",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,200) to the target and inflicts them with Poison. Poisoned enemies will take continuous damage every second (Damage Factor 300) for 3 seconds. Also increases own Troop's evasion by 20% for 1 seconds, and increases the damage taken by the target by 25% for 1 seconds."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Eagle Flame Pursuit",
+        "description": "The active skill damage of deployed Troop is increased by 20%, and Burning damage dealt is increased by 20%."
+      },
+      {
+        "name": "Shadowed Gaze Ambush",
+        "description": "Every 9 seconds, deals 1 instance of direct damage (Damage Factor 750) to the target, randomly dispels 1 buff from the target, and restores 200 Rage to your own Troop. If your Troop is under the evasion effect, additionally inflicts Poison on the target Troop. Poisoned enemies will take continuous damage every second (Damage Factor 600) for 2 seconds."
+      },
+      {
+        "name": "Heralding Eagles Cry",
+        "description": "Every 6 seconds, if the target is Poisoned, there is a 100% chance to deal 1 instance of direct damage (Damage Factor 500) and increase the target's damage received by 20% for 2 seconds. If the target is Burning, your Troop has a 100% chance to receive healing (Heal Factor 500) 1 time, and increase evasion by 40% for 1 seconds."
+      }
+    ]
+  },
+  {
+    "hero": "Heidrun",
+    "skills": [
+      {
+        "name": "Poison Blades Kiss",
+        "description": "Deals 1 instance of direct damage (Damage Factor 480) to the target and inflicts them with Poison. Poisoned enemies will take continuous damage every second (Damage Factor 360) for 3 seconds. If the target is inflicted with Poison, deals 1 instance of direct damage to the target (Damage Factor 320)."
+      },
+      {
+        "name": "Burning Blade Scorching Heart",
+        "description": "Every 9 seconds, inflict a Burning effect on the target Troop, causing continuous damage per second (Damage Factor 325) for 3 seconds. If your Troop has fewer units than the target Troop, heal this Hero's Troop 1 time (Heal Factor 650). If your Troop has more units than the target Troop, deal 1 instance of direct damage to the target (Damage Factor 650)."
+      },
+      {
+        "name": "Dance of Death",
+        "description": "Deals 1 instance of direct damage (Damage Factor 600) to the target and inflicts them with Poison. Poisoned enemies will take continuous damage every second (Damage Factor 450) for 3 seconds. If the target is inflicted with Poison, deals 1 instance of direct damage to the target (Damage Factor 400). If the target is inflicted with Burning, deployed Troop's evasion increases by 40% for 1 seconds."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Bloody Slash Venomous Bite",
+        "description": "The Active Skill damage of deployed Troop is increased by 20%, and Poison damage is increased by 20%."
+      },
+      {
+        "name": "Armor-corroding Blood",
+        "description": "When deployed Troop receives healing, there is a 50% chance to inflict Poison on the target, dealing continuous damage every second (Damage Factor 350) for 2 seconds, and reduce deployed Troop's damage received by 30% for 1 seconds. If target is inflicted with Burning, dispels 1 random buff on the target."
+      },
+      {
+        "name": "Returning Blood Flame Edge",
+        "description": "Inflict target with Burning every 6s, dealing continuous damage (Damage Factor 400) every second for 2 seconds. There is a 50% chance to increase deployed Troop's evasion by 40% for 1 seconds, a 50% chance to restore 300 Rage to this Hero's Troop, and a 50% chance to Purify 1 random debuff on this Hero's Troop."
+      }
+    ]
+  },
+  {
+    "hero": "Greta",
+    "skills": [
+      {
+        "name": "Falling Impact",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,300) to up to 4 target Troops within a circular area. If deployed Troop has more units than the target, the target will be inflicted with Bleed. Bleeding enemies will take continuous damage every second (Damage Factor 320) for 2s. If deployed Troop has fewer units than the target, grants Retribution to the deployed Troop, increasing Retribution Rate by 40% for 2s."
+      },
+      {
+        "name": "Broken Blade Charge",
+        "description": "When deployed Troop performs a basic attack, if deployed Troop is inflicted with Retribution, there is a 25% chance that they will get a shield (Shield Factor 400) for 2s, and a 25% chance to inflict Slow on target Troops, reducing their March Speed by 30% for 2s. If target Troops are inflicted with Silence, there is a 50% chance to deal 1 instance of direct damage to the target (Damage Factor 500). If target Troops are inflicted with Bleed, there is a 20% chance that deployed Troop will receive 1 instance of healing (Heal Factor 400)."
+      },
+      {
+        "name": "Time of Severance",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,600) to up to 4 target Troops within a circular area. If deployed Troop has more units than the target, the target will be inflicted with Bleed. Bleeding enemies will take continuous damage every second (Damage Factor 400) for 2s. If deployed Troop has fewer units than the target, grants Retribution to the deployed Troop, increasing Retribution Rate by 50% for 2s. If target Troops are inflicted with Slow, deals 1 additional instance of direct damage (Damage Factor 600) to target Troops."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Shattered Edge",
+        "description": "Increases deployed Troops Basic Attack Damage by 20%, and Bleed Damage dealt by 20%."
+      },
+      {
+        "name": "Oathbreakers Blade",
+        "description": "When deployed Troop activates an Active Skill, target Troop is inflicted with Silence for 1s. If deployed Troop has more units than the target, deals 1 instance of direct damage to target (Damage Factor 800). If deployed Troop has fewer units than the target, reduces the damage taken by deployed Troop by 20% for 1s, and deployed Troop receives 1 instance of healing (Heal Factor 600)."
+      },
+      {
+        "name": "Exiled Bloodblade",
+        "description": "When deployed Troop performs a basic attack, there is a 20% chance to inflict the target Troop with Bleed (Damage Factor 400) for 1s, and deployed Troop gains Retribution, increasing Retribution Rate by 50% for 1 s. When this effect is triggered, if target Troop is already inflicted with Bleed, they will be inflicted with Silence for 1s. If the deployed Troop already has Retribution, it will gain a shield (Shield Factor 400) for 1s."
+      }
+    ]
+  },
+  {
+    "hero": "Sigrid",
+    "skills": [
+      {
+        "name": "Blade of Conquest",
+        "description": "Deals 1 instance of direct damage to the target Troop (Damage Factor 1,440), grants your Troop the Retribution effect, increasing Retribution Rate by 40% for 2 seconds. If the target Troop is inflicted with Bleed, your Troop will be healed 1 time (Heal Factor 320)."
+      },
+      {
+        "name": "Winters Coronation",
+        "description": "When deployed Troop activates an Active Skill, it causes the target Troop to suffer from Bleed, taking continuous damage per second (Damage Factor 400) for 2 seconds. If the deployed Troop's units are higher than the target Troop's units, the target Troop is slowed, reducing March Speed by 30% for 2 seconds. If the deployed Troop's units are lower than the target Troop's units, the deployed Troop gains a shield (Shield Factor 400) for 2 seconds and purifies 1 debuffs from itself."
+      },
+      {
+        "name": "Triumphant Presence",
+        "description": "Deals 1 instance of direct damage to the target Troop (Damage Factor 1,800), grants your Troop the Retribution effect, increasing Retribution Rate by 50% for 2 seconds. If the target Troop is inflicted with Bleed, your Troop will be healed 1 time (Heal Factor 400). If the target Troop is inflicted with Slow, deals 1 additional instance of direct damage to the target Troop (Damage Factor 400)."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Northern Blood Feast",
+        "description": "Increases deployed Troop's Basic Attack Damage by 30%. When performing a basic attack, if target is inflicted with Slow, there is a 50% chance to inflict Bleed on the target Troops (Damage Factor 150) for 1s."
+      },
+      {
+        "name": "Cold Iron Oath",
+        "description": "When deployed Troop performs a basic attack, there is a 20% chance to deal 1 instance of direct damage (Damage Factor 400). When dealing damage, if the target Troop is inflicted with Slow, 1 additional distance of direct damage (Damage Factor 400) will be dealt to target Troops. If target Troop is inflicted with Bleed, there is a 50% chance that your Troop will be healed 1 time (Heal Factor 400)."
+      },
+      {
+        "name": "Royal Authority",
+        "description": "When deployed Troop performs a basic attack, there is a 15% chance to grant them Retribution, increasing Retribution Rate by 50% for 2s. If deployed Troop is inflicted with Retribution, there is a 50% chance to inflict Silence on target Troops for 1 s. If target Troops are inflicted with Bleed, there is a 50% chance to increase the damage received by target Troop by 20% for 1s."
+      }
+    ]
+  },
+  {
+    "hero": "Tiroti",
+    "skills": [
+      {
+        "name": "Riding Waves",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,600) to the target and inflicts them with Lacerate. Lacerated enemies will take continuous damage every second (Damage Factor 240) for 3 seconds. If the target is inflicted with Broken Blade, deployed Troop receives healing 1 time (Heal Factor 640)."
+      },
+      {
+        "name": "Roam the World",
+        "description": "When deployed Troop receives a basic attack, there is a 20% chance to grant your own Troop a shield (Shield Factor ??) for 2s, a 20% chance to inflict Lacerate on the target Troop, dealing continuous damage every second (Damage Factor ??) for 2s, and a 20% chance to deal 1 instance of direct damage (Damage Factor ???) to the target. Triggers up to 1 time every 3s.(Triggers up to 1 time(s) in every 3 second period)"
+      },
+      {
+        "name": "Sea-sundering Strike",
+        "description": "Deals 1 instance of direct damage (Damage Factor 2,000) to the target and inflicts them with Lacerate. Lacerated enemies will take continuous damage every second (Damage Factor 300) for 3 seconds. If the target is inflicted with Broken Blade, deployed Troop receives healing 1 time (Heal Factor 800). If the deployed Troop is in a Shielded state, deals 1 additional instance of direct damage to the target (Damage Factor 600)."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Colossal Anchor Strike",
+        "description": "Deployed Troop's damage dealt from Lacerate increases by 20%. When deployed Troop counterattacks, there is a 20% chance to inflict Lacerate on target Troop that deals continuous damage each second (Damage Factor 200) for 2 seconds. This effect can only trigger once every 3 seconds."
+      },
+      {
+        "name": "Raging Waves",
+        "description": "When deployed Troop counterattacks, there is a 20% chance to inflict Broken Blade on the target Troop for 1 seconds. When this effect is triggered, if the target Troop is inflicted with Lacerate, increase deployed Troops' Counterattack Damage by 40% for 2 seconds. If your own Troop is shielded, immediately restores 200 of their Rage. Triggers up to 1 time every 3s."
+      },
+      {
+        "name": "Wavebreaker Shield",
+        "description": "When deployed Troop receives Active Skill Damage, grants your own Troop a shield (Shield Factor 600) for 2s and purifies 2 Debuff effects from the Troop. If the target Troop is inflicted with Lacerate, deals 1 instance of direct damage (Damage Factor 600) to the target. If deployed Troop is flanked receive healing (Heal Factor 800) 1 time. Triggers up to 1 time every 1s."
+      }
+    ]
+  },
+  {
+    "hero": "Signy",
+    "skills": [
+      {
+        "name": "Shoveling Snow",
+        "description": "Deals 1 instance of direct damage (Damage Factor 1,600) to up to 3 targets within a circular area, and grants a shield to your own Troop (Shield Factor 800) for 2s. If the target Troop is inflicted with Lacerate, inflicts Broken Blade on the target Troop for 2s."
+      },
+      {
+        "name": "Sharp and Alert",
+        "description": "When deployed Troop counterattacks, there is a 20% chance to inflict Lacerate on the target Troop, dealing continuous damage every second (Damage Factor 250) for 2s, a 20% chance to inflict Broken Blade on the target Troop for 1s, and a 20% chance to grant your own Troop a shield (Shield Factor 400) for 2s. Triggers up to 1 time every 3s.(Triggers up to 1 time(s) in every 3 second period)"
+      },
+      {
+        "name": "Invincible Iron Shovel",
+        "description": "Deals 1 instance of direct damage (Damage Factor 2,000) to up to 4 targets within a circular area, and grants a shield to your own Troop (Shield Factor 1,000) for 2s. If the target Troop is inflicted with Lacerate, inflicts Broken Blade on the target Troop for 2s. If the target is inflicted with Broken Blade, deployed Troop receives healing 1 time (Heal Factor 800)."
+      }
+    ],
+    "talents": [
+      {
+        "name": "Rolling Potato",
+        "description": "Increases deployed Troop's shield by 15% and increases their Healing Received by 15%. When deployed Troop receives a basic attack, there is a 30% chance that deployed Troop receives healing 1 time (Heal Factor 250). Triggers up to 1 time every 2s."
+      },
+      {
+        "name": "Snowball Splat",
+        "description": "When deployed Troop receives Active Skill Damage, inflicts Broken Blade on the target Troop for 1 s. If your own Troop is shielded, increases their Counterattack Damage by 100% for 1 seconds. If the target is inflicted with Lacerate, deals 1 instance of direct damage to the target (Damage Factor 1,000). Triggers up to 1 time every 1s."
+      },
+      {
+        "name": "Paw Assault",
+        "description": "When deployed Troop receives healing, there is a 40% chance to reduce the damage taken by your Troop by 30% for 1 seconds. When this effect is triggered, if your own Troop is shielded, deals 1 instance of direct damage to the target (Damage Factor 300). If the target is inflicted with Broken Blade, dispels 2 buffs from the target. If the target Troop is inflicted with Lacerate, increases damage taken by the target by 30% for 1 seconds. Triggers up to 1 time every 3s."
+      }
+    ]
+  }
+]

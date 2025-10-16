@@ -1,0 +1,326 @@
+[
+  {
+    "name": "Crippling Strike",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, deal direct damage (Damage Factor 780) 1 time to target every 6s."
+  },
+  {
+    "name": "Firewing Ashes",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, Burning DMG dealt by deployed Troop is increased by 50% for 2s every 6s."
+  },
+  {
+    "name": "Bonegnaw Bug",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, Poison DMG dealt by deployed Troop is increased by 50% for 2s every 6s."
+  },
+  {
+    "name": "Pain N Fury",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, deployed Troop recovers 155 Rage every 6s."
+  },
+  {
+    "name": "Abyssal Maw",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, every 6s, deployed Troops Basic Attack Damage is increased by 100%, and Counterattack DMG is increased by 100% for 2s"
+  },
+  {
+    "name": "Bone Spurs",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, deployed Troops DMG is increased by 16% for 2s every 6s."
+  },
+  {
+    "name": "Hard Shell",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, deployed Troop receives 32% less damage for 1s every 6s."
+  },
+  {
+    "name": "Untamed Wilderness",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, every 6s, deal direct damage (Damage Factor 390) 1 time to target, and recover 40 Rage to deployed Troop for 2s."
+  },
+  {
+    "name": "Flame Serpent",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, every 6s, deal direct damage (Damage Factor 390) 1 time to target, and increase deployed Troops Burning DMG by 9% for 2s."
+  },
+  {
+    "name": "Razor Fangs",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, every 6s, deal direct damage (Damage Factor 390) 1 time to target, and increase deployed Troops Poison DMG by 9% for 2s."
+  },
+  {
+    "name": "Teeth N Claws",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, every 6s, deal direct damage (Damage Factor 390) 1 time to target, and increase deployed Troops DMG by 8% for 2s."
+  },
+  {
+    "name": "Dragon Venomfire",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, every 6s, deployed Troops Burning DMG is increased by 35%, and Poison DMG increased by 35% for 2s."
+  },
+  {
+    "name": "Ragebeast Soul",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 2%. When deployed Troop receives Active Skill Damage, there is a 100% chance for deployed Troop to recover 105 Rage. Triggers up to 2 times every 8s."
+  },
+  {
+    "name": "Retaliation Fangs",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 2%. When deployed Troop receives a basic attack, there is a 15% chance to increase deployed Iroops Counterattack damage by 150% for 2s. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Pincer Strike",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 2%. When deployed Troop receives a basic attack, there is a 15% chance to deal direct damage (Damage Factor 650) 1 time to target. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Spiritual Blessing",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 2%. When deployed Troop receives a basic attack, there is a 15% chance to increase deployed Troops healing by 40% for 2s. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Beastly Rage",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 2%. When deployed Troop receives a basic attack, there is a 15% chance for deployed Troop to recover 125 Rage. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Shatterbone Bite",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 2%. When deployed Troop receives a basic attack, there is a 15% chance to increase deployed Troops DMG by 12.5% for 2s. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Impenetrable Scales",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 2%. When deployed Troop receives a basic attack, there is a 15% chance to decrease deployed Troops damage received by 12.5% for 2s. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Power Swipe",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 2%. When deployed Troop receives Active Skill Damage, there is a 100% chance to deal direct damage (Damage Factor 500) 1 time to target. Triggers up to 2 times every 8s."
+  },
+  {
+    "name": "Healing Leaf",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 2%. When deployed Troop receives Active Skill Damage, there is a 100% chance to increase deployed Troops healing by 32.5% for 2s. Triggers up to 2 times every 8s."
+  },
+  {
+    "name": "Hoof Strike",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 2%. When deployed Troop receives Active Skill Damage, there is a 100% chance to increase deployed Troops Counterattack damage by 125% for 2s. Triggers up to 2 times every 8s."
+  },
+  {
+    "name": "Corrosive Claws",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 2%. When deployed Troop receives Active Skill Damage, there is a 100% chance to increase deployed Troops DMG by 10.5% for 2s. Triggers up to 2 times every 8s."
+  },
+  {
+    "name": "Purple-Gold Scales",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 2%. When deployed Troop receives Active Skill Damage, there is a 100% chance to decrease deployed Troops damage received by 10.5% for 2s. Triggers up to 2 times every 8s."
+  },
+  {
+    "name": "Stinging Tongue",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 2%. When deployed Troop launches a basic attack, there is a 15% chance to deal direct damage (Damage Factor 865) 1 time to target."
+  },
+  {
+    "name": "Razor Sharp Spikes",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 2%. When deployed Troop launches a basic attack, there is a 15% chance to increase deployed Troops Bleeding DMG by 58% for 2s."
+  },
+  {
+    "name": "Soul of Fury",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 2%. When deployed Troop launches a basic attack, there is a 15% chance for deployed Troop to recover 180 Rage."
+  },
+  {
+    "name": "Bone-shatter Jaw",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 2%. When deployed Troop launches a basic attack, there is a 15% chance to increase deployed Troops Basic Attack Damage by 215% for 2s."
+  },
+  {
+    "name": "Bladed Spines",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 2%. When deployed Troop launches a basic attack, there is a 15% chance to increase deployed Troops DMG bv 18% for 2s."
+  },
+  {
+    "name": "Sturdy Bone Armor",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 2%. When deployed Troop launches a basic attack, there is a 15% chance to decrease deployed Troops damage received by 18% for 2s."
+  },
+  {
+    "name": "Strangled Death",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 2%. When deployed Troop releases an active skill, there is a 100% chance to deal direct damage (DMG Factor 725) 1 time to target."
+  },
+  {
+    "name": "Bloody Jaws",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 2%. When deployed Troop releases an active skill, there is a 100% chance to increase deployed Troops Bleeding DMG by 47.5% for 2s."
+  },
+  {
+    "name": "Bloodthirst Gaze",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 2%. When deployed Troop releases an active skill, there is a 100% chance for deployed Troop to recover 150 Rage."
+  },
+  {
+    "name": "Severing Strike",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 2%. When deployed Troop releases an active skill, there is a 100% chance to increase deployed Troops Basic Attack Damaqe by 180% for 2s."
+  },
+  {
+    "name": "Frost Jotun Roar",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 2%. When deployed Troop releases an active skill, there is a 100% chance to increase deployed Troops DMG by 15% for 2s."
+  },
+  {
+    "name": "Emerald Scales",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 2%. When deployed Troop releases an active skill, there is a 100% chance to decrease deployed Troops damage received by 15% for 2s."
+  },
+  {
+    "name": "Firedrake Soul",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, inflict target with Burning every 6s, dealing continuous damage (Damage Factor 500) for 2s. If deployed Troop has fewer units than the target, deployed Troop will receive healing (Heal Factor 550) 1 time."
+  },
+  {
+    "name": "Flaming Claws",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, inflict target with Burning every 6s, dealing continuous damage (Damage Factor 425) for 2s. If deployed Troop has more units than the target, Burning DMG dealt will increase (Damage Factor 850)."
+  },
+  {
+    "name": "Poison N Heal",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, inflict target with Poison every 6s, dealing continuous damage (Damage Factor 500) for 2s. If deployed Troop has fewer units than the target, deployed Troop will receive healing (Heal Factor 550) 1 time."
+  },
+  {
+    "name": "Venom Rip",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, inflict target with Poison every 6s, dealing continuous damage (Damage Factor 425) for 2s. If deployed Troop has more units than the target, Poison DMG dealt will increase (Damage Factor 850)."
+  },
+  {
+    "name": "Venom Impact",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, deployed Troop recovers 100 Rage every 6s, and deals direct damage (Damage Factor 500) 1 time to target. If target is inflicted with Poison, deployed Troop will receive healing (Heal Factor 375) 1 time."
+  },
+  {
+    "name": "Blazing Wolf Spirit",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, deployed Troop recovers 100 Rage every 6s, and deals direct damage (Damage Factor 450) 1 time to target. If target is inflicted with Burning, damage dealt will increase (Damage Factor 900)."
+  },
+  {
+    "name": "Ravens Breath",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, deployed Troop recovers 100 Rage every 6s. If deployed Troop has more units than target, targets Shield is dispelled, and deployed Troops DMG is increased by 25% for 2s."
+  },
+  {
+    "name": "Deer Blessing",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, deployed Troop recovers 100 Rage every 6s. If deployed Troop has less units than target, deployed Troop will receive 20% less damage for 2s, and receive healing (Heal Factor 650) 1 time."
+  },
+  {
+    "name": "Lava Beast",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, deals direct damage (Damage Factor 400) 1 time to target every 6s. If target is not inflicted with Burning, inflict Burning on target, dealing continuous damage (Damage Factor 300) for 2s. If target is inflicted with Burning, deployed Troops DMG is increased by 20% for 2s."
+  },
+  {
+    "name": "Toxic Fly",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, deals direct damage (Damage Factor 400) 1 time to target every 6s. If target is not inflicted with Poison, \"inflict\": Poison on target, dealing continuous damage (Damage Factor 300) for 2s. If target is inflicted with Poison, deployed Troops DMG is increased by 20% for 2s."
+  },
+  {
+    "name": "Deer Judgement",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, destroys targets shield, and deals direct damage (Damage Factor 550) 1 time to target every 6s. It deployed Iroop has more units than target, damage dealt will be increased (Damage Factor 1,100)."
+  },
+  {
+    "name": "Ancient Insight",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, destroys targets shield, and deals direct damage (Damage Factor 550) 1 time to target every 6s. If deployed Troop has less units than target, deployed Troop receives healing (Heal Factor 550) 1 time."
+  },
+  {
+    "name": "Blazing Firebird",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, if deployed Troops units are more than 50%, inflicts Burning on target, dealing continuous damage (Damage Factor 750) every 6s for 2s. If deployed Troops units are less than 50%, deployed Troop receives healing (Heal Factor 1,000) 1 time."
+  },
+  {
+    "name": "Toxic Spike",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, if deployed Troops units are more than 50%, inflicts Poison on target, dealing continuous damage (Damage Factor 750) every 6s for 2s. If deployed Troops units are less than 50%, deployed Troop receives healing (Heal Factor 1,000) 1 time."
+  },
+  {
+    "name": "Corrosive Poison",
+    "description": "Deployed Troops Command Skill Critical Rate increases by 3%. Upon entering battle, if target is inflicted with Burning, deals direct damage (Damage Factor 950) 1 time to target every 6s. If target is inflicted with Poison, deployed Troop receives 30% less damage for 1s."
+  },
+  {
+    "name": "Golden Feather",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to deal direct damage (Damage Factor 825) 1 time to target. If deployed Troop has less units than target, deployed Troop receives healing (Heal Factor 600) 1 time. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Razor Armor",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to deal direct damage (Damage Factor 400) 1 time to up to 3 targets within a circular area around self. If deployed Troops units are less than 50%, deployed Troop gains a shield (Shield Factor 300) for 2s. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Roaring Waves",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to deal direct damage (Damage Factor 400) 1 time to up to 3 targets within a circular area around self. If deployed Troops units are more than 50%, damage dealt is increased (Damage Factor 525). Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Evil Threat",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives Active Skill Damage, there is a 100% chance to deal direct damage (Damage Factor 425) 1 time to target, and receive healing (Heal Factor 325) 1 time for deployed Troop. If deployed Troop has less units than target, there is an additional 35% chance to inflict Disarm on target for 2s. Triggers up to 2 times every 8s."
+  },
+  {
+    "name": "Winged Guardian",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives Active Skill Damage, there is a 100% chance to deal direct damage (Damage Factor 425) 1 time to target, and gain a shield (Shield Factor 300) for deployed Troop for 2s. If deployed Troop has less units than target, there is an additional 35% chance to inflict Disarm on target for 2s. Triggers up to 2 times every 8s."
+  },
+  {
+    "name": "Moonlit Howl",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to deal direct damage (Damage Factor 850) 1 time to target. It deployed Troop has a shield, the damage dealt is increased (Damage Factor 1,200). Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Armor Chant",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to deal direct damage (Damage Factor 875) 1 time to target. If deployed Troop has a shield, deployed Troop receives 40% less damage for 1s. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Reptile Heal",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives healing, there is a 15% chance to deal direct damage (Damage Factor 1,200) 1 time to target. If deployed Troop has less units than target, deployed Troop receives 25% less damage for 1s. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Destructive Clamp",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives healing, there is a 15% chance to deal direct damage (Damage Factor 1,250) 1 time to target. If deployed Troop has more units than target, the damage dealt is increased (Damage Factor 1,750). Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Scaly Rebirth",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives healing, there is a 15% chance to deal direct damage (Damage Factor 1,200) 1 time to target. If deployed Troop has a shield, deployed Troop receives 50% less damage for 1s. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Marsh Reptile",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives healing, there is a 15% chance to deal direct damage (Damage Factor 1,000) 1 time to target. If deployed Troop has a shield, the damage dealt is increased (Damage Factor 1,500). Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Bloodthirsty Eye",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to gain 100 Rage. If deployed Troop has a shield, there is an additional 100% chance to deal direct damage (Damage Factor 3/5) 1 time to up to 3 targets within a circular area around self. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Manic Heal",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to gain 100 Rage, deployed Troop has less units than target there is an additional 100% chance to deal direct damage (Damage Factor 650) 1 time to target, and receive healing (Heal Factor 650) 1 time for deployed Troop. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Wolfus Gnaw",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to gain 100 Rage. If deployed Troop has more units than target, there is an additional 100% chance to deal direct damage (Damage Factor 850) 1 time to target, and inflict Disarm on target for 1s. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Ripping Claws",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to inflict Bleed on target, dealing continuous damage (Damage Factor 575) for 2s. If deployed Troop has more units than target, damage dealt is increased (Damage Factor 850)."
+  },
+  {
+    "name": "Deer Redemption",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to inflict Slow on target, decreasing March Speed by 20% for 2s. If deployed Troop has less units than target, deployed Troop receives healing (Heal Factor 750) 1 time and all Debuffs are removed. It deployed Troop has more units than target, deal direct damage (Damage Factor 1,500) 1 time to target."
+  },
+  {
+    "name": "Slaughter N Heal",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, if target is inflicted with Slow, there is a 15% chance to deal direct damage (Damage Factor 1,550) 1 time to target. If target is not inflicted with Slow, there is a 15% chance for deployed Troop to receive healing (Heal Factor 800) 1 time."
+  },
+  {
+    "name": "Spiked Shield",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, if target is inflicted with Bleed, there is a 15% chance to deal direct damage (Damage Factor 1,550) 1 time to target. If target is not inflicted with Bleed, there is a 15% chance for deployed Troop to gain a shield (Shield Factor 725) for 2s."
+  },
+  {
+    "name": "Icedrake Breath",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, deployed Troop has a 15% chance to recover 100 Rage, and deal direct damage (Damage Factor 700) 1 time to target. If deployed Troop has more units than target, the damage dealt is increased (Damage Factor 1,200), and target is inflicted with Slow, decreasing March Speed by 20% for 2s."
+  },
+  {
+    "name": "Frostwing Fury",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, deployed Troop has a 15% chance to recover 100 Rage, and deal direct damage (Damage Factor 700) 1 time to target. If deployed Troop has less units than target, there is a 100% chance to inflict Silence on the target for 1s, and decrease damage received by deployed Troop by 20% for 1s."
+  },
+  {
+    "name": "Kraken Touch",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to deal direct damage (Damage Factor 700) 1 time to target. If target is inflicted with Slow, the damage dealt is increased (Damage Factor 1,400). If target is not inflicted with Slow, decrease damage received by deployed Troop by 30% for 1s."
+  },
+  {
+    "name": "Fatal Chomp",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop releases an active skill, there is a 100% chance to deal direct damage (Damage Factor 650) 1 time to target. If target is not inflicted with Bleed, inflict target with Bleed, dealing continuous damage (Damage Factor 550) for 2s. If target is inflicted with Bleed, deployed iroops Basic Attack Damage is increased by 100% for 2s."
+  },
+  {
+    "name": "Agonizing Frost",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop releases an active skill, there is a 100% chance to deal direct damage (Damage Factor 825) 1 time to target. If target is not inflicted with Slow, damage dealt is increased (Damage Factor 1,200), and target is inflicted with Slow, decreasing March Speed by 30% for 2s. If target is inflicted with Slow, deployed Troops Basic Attack Damage is increased by 100% for 2s."
+  },
+  {
+    "name": "Divine Awe",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, there is a 15% chance to Purify deployed Troops Debuffs, and deal direct damage (Damage Factor 1,200) 1 time to target. If deployed Troop has more units than target, the damage dealt is increased (Damage Factor 1,600), and target is inflicted with Silence for 2s."
+  },
+  {
+    "name": "Blessed Dew",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, there is a 15% chance to Purify deployed Troops Debuffs, and deal direct damage (Damage Factor 1,000) 1 time to target. If deployed Troop has less units than target, deployed Troop receives healing (Heal Factor 850) 1 time."
+  },
+  {
+    "name": "Icicle Armor",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, if deployed Troops units are more than 50%, there is a 15% chance to inflict Bleed on target, dealing continuous damage (Damage Factor 1,000) for 2s. If deployed Troops units are less than 50%, there is a 15% chance to gain a shield (Shield Factor 800) for 2s."
+  },
+  {
+    "name": "Bloodwing Assault",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, there is a 15% chance to deal direct damage (Damage Factor 675) 1 time to target. If target is inflicted with Bleed, the damage dealt is increased (Damage Factor 1,350). If target is not inflicted with Bleed, target is inflicted with Disarm and Silence for 2s."
+  },
+  {
+    "name": "Biting Chill",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, if target is inflicted with Bleed, there is a 15% chance to deal direct damage (Damage Factor 1,100) 1 time to target. If target is not inflicted with Slow, there is a 15% chance for deployed Troop to receive healing (Heal Factor 800) 1 time."
+  },
+  {
+    "name": "Steel Scale",
+    "description": "Deployed Troops Counterattack Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to deal direct damage (Damage Factor 825) 1 time to target. If deployed Troop has less units than target, deployed Troop gains 1 shield (Shield Factor 550) for 2s. Triggers up to 1 time every 4s."
+  },
+  {
+    "name": "Bloodthirst Recovery",
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to inflict Bleed on target, dealing continuous damage (Damage Factor 575) for 2s. If deployed Troop has less units than target, deployed Troop receives healing (Heal Factor 550) 1 time."
+  }
+]

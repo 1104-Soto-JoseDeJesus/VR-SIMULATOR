@@ -1,634 +1,637 @@
-[
-  {
-    "army_name": "Laird/Leif",
-    "team": "team1",
-    "column": 2,
-    "row": 0,
-    "speed": 50.0,
-    "config": {
+{
+  "targeting_mode": "str",
+  "entries": [
+    {
       "army_name": "Laird/Leif",
-      "unit_type": "pikemen",
-      "tier": 5,
-      "count": 150000,
-      "atk_mod": 1.024,
-      "def_mod": 0.861,
-      "hp_mod": 0.22,
-      "unrevivable_ratio": 0.65,
-      "heroes": [
-        {
-          "hero_name_or_preset": "Laird",
-          "talent_ids": [
-            "talent_holy_shield",
-            "talent_sacred_counter",
-            "talent_divine_resistance"
-          ],
-          "base_skill_ids": [
-            "base_skill_flame_guardian",
-            "base_skill_sacred_blade"
-          ],
-          "plugin_skill_ids": [
-            "plugin_divine_blessing",
-            "plugin_rest_and_counterattack"
-          ],
-          "skill_overrides": {
-            "plugin_rest_and_counterattack": {
-              "trigger_chance": 0.11,
-              "config": {
-                "shield_factor": 320.0,
-                "heal_factor": 320.0
+      "team": "team1",
+      "column": 2,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Laird/Leif",
+        "unit_type": "pikemen",
+        "tier": 5,
+        "count": 150000,
+        "atk_mod": 1.024,
+        "def_mod": 0.861,
+        "hp_mod": 0.22,
+        "unrevivable_ratio": 0.65,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Laird",
+            "talent_ids": [
+              "talent_holy_shield",
+              "talent_sacred_counter",
+              "talent_divine_resistance"
+            ],
+            "base_skill_ids": [
+              "base_skill_flame_guardian",
+              "base_skill_sacred_blade"
+            ],
+            "plugin_skill_ids": [
+              "plugin_divine_blessing",
+              "plugin_rest_and_counterattack"
+            ],
+            "skill_overrides": {
+              "plugin_rest_and_counterattack": {
+                "trigger_chance": 0.11,
+                "config": {
+                  "shield_factor": 320.0,
+                  "heal_factor": 320.0
+                }
               }
             }
+          },
+          {
+            "hero_name_or_preset": "Leif",
+            "talent_ids": [
+              "talent_blade_counter",
+              "talent_shield_of_resistance",
+              "talent_revenge_echo"
+            ],
+            "base_skill_ids": [
+              "base_skill_planned_attack",
+              "base_skill_sharp_pursuit"
+            ],
+            "plugin_skill_ids": [
+              "plugin_freyas_blessing",
+              "plugin_hymn_of_life"
+            ]
           }
-        },
-        {
-          "hero_name_or_preset": "Leif",
-          "talent_ids": [
-            "talent_blade_counter",
-            "talent_shield_of_resistance",
-            "talent_revenge_echo"
-          ],
-          "base_skill_ids": [
-            "base_skill_planned_attack",
-            "base_skill_sharp_pursuit"
-          ],
-          "plugin_skill_ids": [
-            "plugin_freyas_blessing",
-            "plugin_hymn_of_life"
-          ]
-        }
-      ],
-      "team": "red",
-      "speed": 50.0
-    }
-  },
-  {
-    "army_name": "Ivor/Wooder",
-    "team": "team1",
-    "column": 3,
-    "row": 0,
-    "speed": 50.0,
-    "config": {
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
       "army_name": "Ivor/Wooder",
-      "unit_type": "infantry",
-      "tier": 5,
-      "count": 150000,
-      "atk_mod": 0.512,
-      "def_mod": 0.305,
-      "hp_mod": 0.09,
-      "unrevivable_ratio": 0.65,
-      "heroes": [
-        {
-          "hero_name_or_preset": "Ivor",
-          "talent_ids": [
-            "talent_tactical_rules",
-            "talent_specter_lycan_assault",
-            "talent_amazing_attack"
-          ],
-          "base_skill_ids": [
-            "base_skill_throwing_axe",
-            "rage_skill_all_kill"
-          ],
-          "plugin_skill_ids": [
-            "plugin_odins_asylum",
-            "plugin_lokis_trick"
-          ],
-          "skill_overrides": {
-            "plugin_odins_asylum": {
-              "config": {
-                "damage_factor": 360.0,
-                "shield_factor": 160.0
-              }
-            },
-            "plugin_lokis_trick": {
-              "trigger_chance": 0.16
-            }
-          }
-        },
-        {
-          "hero_name_or_preset": "Wooder",
-          "talent_ids": [
-            "talent_massive_shield",
-            "talent_bold_charge",
-            "talent_specialized_attack"
-          ],
-          "base_skill_ids": [
-            "base_skill_ready_to_pounce",
-            "base_skill_paralyzing_terror"
-          ],
-          "plugin_skill_ids": [
-            "plugin_shield_support",
-            "plugin_thors_determination"
-          ],
-          "skill_overrides": {
-            "plugin_thors_determination": {
-              "config": {
-                "buff_magnitude": 1.85,
-                "damage_reduction_magnitude": -0.13
+      "team": "team1",
+      "column": 3,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Ivor/Wooder",
+        "unit_type": "infantry",
+        "tier": 5,
+        "count": 150000,
+        "atk_mod": 0.512,
+        "def_mod": 0.305,
+        "hp_mod": 0.09,
+        "unrevivable_ratio": 0.65,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Ivor",
+            "talent_ids": [
+              "talent_tactical_rules",
+              "talent_specter_lycan_assault",
+              "talent_amazing_attack"
+            ],
+            "base_skill_ids": [
+              "base_skill_throwing_axe",
+              "rage_skill_all_kill"
+            ],
+            "plugin_skill_ids": [
+              "plugin_odins_asylum",
+              "plugin_lokis_trick"
+            ],
+            "skill_overrides": {
+              "plugin_odins_asylum": {
+                "config": {
+                  "damage_factor": 360.0,
+                  "shield_factor": 160.0
+                }
+              },
+              "plugin_lokis_trick": {
+                "trigger_chance": 0.16
               }
             }
+          },
+          {
+            "hero_name_or_preset": "Wooder",
+            "talent_ids": [
+              "talent_massive_shield",
+              "talent_bold_charge",
+              "talent_specialized_attack"
+            ],
+            "base_skill_ids": [
+              "base_skill_ready_to_pounce",
+              "base_skill_paralyzing_terror"
+            ],
+            "plugin_skill_ids": [
+              "plugin_shield_support",
+              "plugin_thors_determination"
+            ],
+            "skill_overrides": {
+              "plugin_thors_determination": {
+                "config": {
+                  "buff_magnitude": 1.85,
+                  "damage_reduction_magnitude": -0.13
+                }
+              }
+            }
           }
-        }
-      ],
-      "team": "red",
-      "speed": 50.0
-    }
-  },
-  {
-    "army_name": "Verdandi/Olena",
-    "team": "team1",
-    "column": 2,
-    "row": 1,
-    "speed": 50.0,
-    "config": {
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
       "army_name": "Verdandi/Olena",
-      "unit_type": "archers",
-      "tier": 5,
-      "count": 150000,
-      "atk_mod": 0.997,
-      "def_mod": 0.707,
-      "hp_mod": 0.165,
-      "unrevivable_ratio": 0.65,
-      "heroes": [
-        {
-          "hero_name_or_preset": "Verdandi",
-          "talent_ids": [
-            "talent_hunting_instinct",
-            "talent_hunting_experience",
-            "talent_targeted_strike"
-          ],
-          "base_skill_ids": [
-            "base_skill_rapid_fire",
-            "base_skill_raining_arrows"
-          ],
-          "plugin_skill_ids": [
-            "plugin_enrage",
-            "plugin_first_strike"
-          ]
-        },
-        {
-          "hero_name_or_preset": "Olena",
-          "talent_ids": [
-            "talent_scorching_arrow",
-            "talent_multi_shot_arrow",
-            "talent_poised_shot"
-          ],
-          "base_skill_ids": [
-            "base_skill_enchanted_arrow",
-            "base_skill_concentration"
-          ],
-          "plugin_skill_ids": [
-            "plugin_rage_leech",
-            "plugin_blessed_negation"
-          ],
-          "skill_overrides": {
-            "plugin_blessed_negation": {
-              "config": {
-                "damage_factor": 630.0,
-                "rage_reduction": 90.0
+      "team": "team1",
+      "column": 2,
+      "row": 1,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Verdandi/Olena",
+        "unit_type": "archers",
+        "tier": 5,
+        "count": 150000,
+        "atk_mod": 0.997,
+        "def_mod": 0.707,
+        "hp_mod": 0.165,
+        "unrevivable_ratio": 0.65,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Verdandi",
+            "talent_ids": [
+              "talent_hunting_instinct",
+              "talent_hunting_experience",
+              "talent_targeted_strike"
+            ],
+            "base_skill_ids": [
+              "base_skill_rapid_fire",
+              "base_skill_raining_arrows"
+            ],
+            "plugin_skill_ids": [
+              "plugin_enrage",
+              "plugin_first_strike"
+            ]
+          },
+          {
+            "hero_name_or_preset": "Olena",
+            "talent_ids": [
+              "talent_scorching_arrow",
+              "talent_multi_shot_arrow",
+              "talent_poised_shot"
+            ],
+            "base_skill_ids": [
+              "base_skill_enchanted_arrow",
+              "base_skill_concentration"
+            ],
+            "plugin_skill_ids": [
+              "plugin_rage_leech",
+              "plugin_blessed_negation"
+            ],
+            "skill_overrides": {
+              "plugin_blessed_negation": {
+                "config": {
+                  "damage_factor": 630.0,
+                  "rage_reduction": 90.0
+                }
               }
             }
           }
-        }
-      ],
-      "team": "red",
-      "speed": 50.0
-    }
-  },
-  {
-    "army_name": "Artur/Athelstan",
-    "team": "team1",
-    "column": 3,
-    "row": 1,
-    "speed": 50.0,
-    "config": {
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
       "army_name": "Artur/Athelstan",
-      "unit_type": "archers",
-      "tier": 5,
-      "count": 150000,
-      "atk_mod": 0.746,
-      "def_mod": 0.497,
-      "hp_mod": 0.145,
-      "unrevivable_ratio": 0.65,
-      "heroes": [
-        {
-          "hero_name_or_preset": "Artur",
-          "talent_ids": [
-            "talent_hellfire_shelter",
-            "talent_pent_up_anger",
-            ""
-          ],
-          "base_skill_ids": [
-            "base_skill_torment",
-            "base_skill_incineration"
-          ],
-          "plugin_skill_ids": [
-            "plugin_silencer",
-            "plugin_fiery_rage"
-          ],
-          "skill_overrides": {
-            "base_skill_incineration": {
-              "config": {
-                "damage_factor": 900.0,
-                "burn_boost_chance": 0.35,
-                "burn_boost_magnitude": 0.2
+      "team": "team1",
+      "column": 3,
+      "row": 1,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Artur/Athelstan",
+        "unit_type": "archers",
+        "tier": 5,
+        "count": 150000,
+        "atk_mod": 0.746,
+        "def_mod": 0.497,
+        "hp_mod": 0.145,
+        "unrevivable_ratio": 0.65,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Artur",
+            "talent_ids": [
+              "talent_hellfire_shelter",
+              "talent_pent_up_anger",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_torment",
+              "base_skill_incineration"
+            ],
+            "plugin_skill_ids": [
+              "plugin_silencer",
+              "plugin_fiery_rage"
+            ],
+            "skill_overrides": {
+              "base_skill_incineration": {
+                "config": {
+                  "damage_factor": 900.0,
+                  "burn_boost_chance": 0.35,
+                  "burn_boost_magnitude": 0.2
+                }
+              },
+              "plugin_silencer": {
+                "trigger_chance": 0.19,
+                "config": {
+                  "damage_factor": 426.0
+                }
+              },
+              "plugin_fiery_rage": {
+                "trigger_chance": 0.095,
+                "config": {
+                  "burn_factor": 331.0,
+                  "boosted_burn_factor": 663.0
+                }
               }
-            },
-            "plugin_silencer": {
-              "trigger_chance": 0.19,
-              "config": {
-                "damage_factor": 426.0
-              }
-            },
-            "plugin_fiery_rage": {
-              "trigger_chance": 0.095,
-              "config": {
-                "burn_factor": 331.0,
-                "boosted_burn_factor": 663.0
+            }
+          },
+          {
+            "hero_name_or_preset": "Athelstan",
+            "talent_ids": [
+              "talent_erudite",
+              "talent_strategize",
+              "talent_adaptable_to_changes"
+            ],
+            "base_skill_ids": [
+              "base_skill_heart_of_tolerance",
+              "base_skill_holy_enlightenment"
+            ],
+            "plugin_skill_ids": [
+              "plugin_dampened_spirits",
+              "plugin_enchanted_pursuit"
+            ],
+            "skill_overrides": {
+              "plugin_enchanted_pursuit": {
+                "config": {
+                  "burn_chance": 0.095,
+                  "burn_factor": 255.0,
+                  "bleed_chance": 0.095,
+                  "bleed_factor": 255.0
+                }
               }
             }
           }
-        },
-        {
-          "hero_name_or_preset": "Athelstan",
-          "talent_ids": [
-            "talent_erudite",
-            "talent_strategize",
-            "talent_adaptable_to_changes"
-          ],
-          "base_skill_ids": [
-            "base_skill_heart_of_tolerance",
-            "base_skill_holy_enlightenment"
-          ],
-          "plugin_skill_ids": [
-            "plugin_dampened_spirits",
-            "plugin_enchanted_pursuit"
-          ],
-          "skill_overrides": {
-            "plugin_enchanted_pursuit": {
-              "config": {
-                "burn_chance": 0.095,
-                "burn_factor": 255.0,
-                "bleed_chance": 0.095,
-                "bleed_factor": 255.0
-              }
-            }
-          }
-        }
-      ],
-      "team": "red",
-      "speed": 50.0
-    }
-  },
-  {
-    "army_name": "Yvette/Laird",
-    "team": "team2",
-    "column": 2,
-    "row": 0,
-    "speed": 50.0,
-    "config": {
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
       "army_name": "Yvette/Laird",
-      "unit_type": "pikemen",
-      "tier": 5,
-      "count": 150000,
-      "atk_mod": 1.027,
-      "def_mod": 1.025,
-      "hp_mod": 0.303,
-      "unrevivable_ratio": 0.65,
-      "heroes": [
-        {
-          "hero_name_or_preset": "Yvette",
-          "talent_ids": [
-            "talent_healing_chords",
-            "talent_healing_hymn",
-            "talent_horn_of_countering"
-          ],
-          "base_skill_ids": [
-            "base_skill_sanctity_of_life",
-            "base_skill_vital_blessing"
-          ],
-          "plugin_skill_ids": [
-            "plugin_shield_support",
-            "plugin_hymn_of_life"
-          ],
-          "skill_overrides": {
-            "plugin_hymn_of_life": {
-              "trigger_chance": 0.17,
-              "config": {
-                "hot_heal_factor": 225.0,
-                "hp_buff_magnitude": 0.085
+      "team": "team2",
+      "column": 2,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Yvette/Laird",
+        "unit_type": "pikemen",
+        "tier": 5,
+        "count": 150000,
+        "atk_mod": 1.027,
+        "def_mod": 1.025,
+        "hp_mod": 0.303,
+        "unrevivable_ratio": 0.65,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Yvette",
+            "talent_ids": [
+              "talent_healing_chords",
+              "talent_healing_hymn",
+              "talent_horn_of_countering"
+            ],
+            "base_skill_ids": [
+              "base_skill_sanctity_of_life",
+              "base_skill_vital_blessing"
+            ],
+            "plugin_skill_ids": [
+              "plugin_shield_support",
+              "plugin_hymn_of_life"
+            ],
+            "skill_overrides": {
+              "plugin_hymn_of_life": {
+                "trigger_chance": 0.17,
+                "config": {
+                  "hot_heal_factor": 225.0,
+                  "hp_buff_magnitude": 0.085
+                }
+              }
+            }
+          },
+          {
+            "hero_name_or_preset": "Laird",
+            "talent_ids": [
+              "talent_holy_shield",
+              "talent_sacred_counter",
+              "talent_divine_resistance"
+            ],
+            "base_skill_ids": [
+              "base_skill_flame_guardian",
+              "base_skill_sacred_blade"
+            ],
+            "plugin_skill_ids": [
+              "plugin_rest_and_counterattack",
+              "plugin_shield_reflector"
+            ],
+            "skill_overrides": {
+              "plugin_rest_and_counterattack": {
+                "trigger_chance": 0.12,
+                "config": {
+                  "shield_factor": 340.0,
+                  "heal_factor": 340.0
+                }
               }
             }
           }
-        },
-        {
-          "hero_name_or_preset": "Laird",
-          "talent_ids": [
-            "talent_holy_shield",
-            "talent_sacred_counter",
-            "talent_divine_resistance"
-          ],
-          "base_skill_ids": [
-            "base_skill_flame_guardian",
-            "base_skill_sacred_blade"
-          ],
-          "plugin_skill_ids": [
-            "plugin_rest_and_counterattack",
-            "plugin_shield_reflector"
-          ],
-          "skill_overrides": {
-            "plugin_rest_and_counterattack": {
-              "trigger_chance": 0.12,
-              "config": {
-                "shield_factor": 340.0,
-                "heal_factor": 340.0
-              }
-            }
-          }
-        }
-      ],
-      "team": "blue",
-      "speed": 50.0
-    }
-  },
-  {
-    "army_name": "Helgar/Wooder",
-    "team": "team2",
-    "column": 3,
-    "row": 0,
-    "speed": 50.0,
-    "config": {
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
+    },
+    {
       "army_name": "Helgar/Wooder",
-      "unit_type": "pikemen",
-      "tier": 5,
-      "count": 150000,
-      "atk_mod": 0.477,
-      "def_mod": 0.535,
-      "hp_mod": 0.17,
-      "unrevivable_ratio": 0.65,
-      "heroes": [
-        {
-          "hero_name_or_preset": "Helgar",
-          "talent_ids": [
-            "talent_saintly_guardian",
-            "talent_war_blessing",
-            "talent_judgement_mark"
-          ],
-          "base_skill_ids": [
-            "base_skill_judgements_fury",
-            "rage_skill_ruling_trial"
-          ],
-          "plugin_skill_ids": [
-            "plugin_battle_hymn",
-            "plugin_on_alert"
-          ],
-          "skill_overrides": {
-            "talent_judgement_mark": {
-              "trigger_chance": 0.35,
-              "config": {
-                "damage_factor": 130.0
+      "team": "team2",
+      "column": 3,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Helgar/Wooder",
+        "unit_type": "pikemen",
+        "tier": 5,
+        "count": 150000,
+        "atk_mod": 0.477,
+        "def_mod": 0.535,
+        "hp_mod": 0.17,
+        "unrevivable_ratio": 0.65,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Helgar",
+            "talent_ids": [
+              "talent_saintly_guardian",
+              "talent_war_blessing",
+              "talent_judgement_mark"
+            ],
+            "base_skill_ids": [
+              "base_skill_judgements_fury",
+              "rage_skill_ruling_trial"
+            ],
+            "plugin_skill_ids": [
+              "plugin_battle_hymn",
+              "plugin_on_alert"
+            ],
+            "skill_overrides": {
+              "talent_judgement_mark": {
+                "trigger_chance": 0.35,
+                "config": {
+                  "damage_factor": 130.0
+                }
+              },
+              "base_skill_judgements_fury": {
+                "config": {
+                  "damage_factor": 981.0,
+                  "counter_buff": 0.41
+                }
+              },
+              "rage_skill_ruling_trial": {
+                "config": {
+                  "damage_factor": 900.0,
+                  "low_hp_damage_factor": 900.0,
+                  "extra_damage_factor": 720.0
+                }
+              },
+              "plugin_battle_hymn": {
+                "trigger_chance": 0.09,
+                "config": {
+                  "damage_factor": 440.0,
+                  "rage_gain": 39.0
+                }
+              },
+              "plugin_on_alert": {
+                "config": {
+                  "buff_magnitude": 0.15
+                }
               }
-            },
-            "base_skill_judgements_fury": {
-              "config": {
-                "damage_factor": 981.0,
-                "counter_buff": 0.41
-              }
-            },
-            "rage_skill_ruling_trial": {
-              "config": {
-                "damage_factor": 900.0,
-                "low_hp_damage_factor": 900.0,
-                "extra_damage_factor": 720.0
-              }
-            },
-            "plugin_battle_hymn": {
-              "trigger_chance": 0.09,
-              "config": {
-                "damage_factor": 440.0,
-                "rage_gain": 39.0
-              }
-            },
-            "plugin_on_alert": {
-              "config": {
-                "buff_magnitude": 0.15
+            }
+          },
+          {
+            "hero_name_or_preset": "Wooder",
+            "talent_ids": [
+              "talent_massive_shield",
+              "talent_bold_charge",
+              "talent_specialized_attack"
+            ],
+            "base_skill_ids": [
+              "base_skill_ready_to_pounce",
+              "base_skill_paralyzing_terror"
+            ],
+            "plugin_skill_ids": [
+              "plugin_tenacity",
+              "plugin_disarmament"
+            ],
+            "skill_overrides": {
+              "talent_specialized_attack": {
+                "trigger_chance": 0.4,
+                "config": {
+                  "damage_factor": 200.0
+                }
+              },
+              "base_skill_ready_to_pounce": {
+                "config": {
+                  "buff_magnitude": 0.77
+                }
+              },
+              "base_skill_paralyzing_terror": {
+                "config": {
+                  "damage_factor": 252.0,
+                  "shield_factor": 427.0
+                }
+              },
+              "plugin_tenacity": {
+                "trigger_chance": 0.475,
+                "config": {
+                  "heal_factor": 375.0
+                }
+              },
+              "plugin_disarmament": {
+                "trigger_chance": 0.14,
+                "config": {
+                  "damage_factor": 195.0
+                }
               }
             }
           }
-        },
-        {
-          "hero_name_or_preset": "Wooder",
-          "talent_ids": [
-            "talent_massive_shield",
-            "talent_bold_charge",
-            "talent_specialized_attack"
-          ],
-          "base_skill_ids": [
-            "base_skill_ready_to_pounce",
-            "base_skill_paralyzing_terror"
-          ],
-          "plugin_skill_ids": [
-            "plugin_tenacity",
-            "plugin_disarmament"
-          ],
-          "skill_overrides": {
-            "talent_specialized_attack": {
-              "trigger_chance": 0.4,
-              "config": {
-                "damage_factor": 200.0
-              }
-            },
-            "base_skill_ready_to_pounce": {
-              "config": {
-                "buff_magnitude": 0.77
-              }
-            },
-            "base_skill_paralyzing_terror": {
-              "config": {
-                "damage_factor": 252.0,
-                "shield_factor": 427.0
-              }
-            },
-            "plugin_tenacity": {
-              "trigger_chance": 0.475,
-              "config": {
-                "heal_factor": 375.0
-              }
-            },
-            "plugin_disarmament": {
-              "trigger_chance": 0.14,
-              "config": {
-                "damage_factor": 195.0
-              }
-            }
-          }
-        }
-      ],
-      "team": "blue",
-      "speed": 50.0
-    }
-  },
-  {
-    "army_name": "Verdandi/Artur",
-    "team": "team2",
-    "column": 2,
-    "row": 1,
-    "speed": 50.0,
-    "config": {
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
+    },
+    {
       "army_name": "Verdandi/Artur",
-      "unit_type": "archers",
-      "tier": 5,
-      "count": 150000,
-      "atk_mod": 1.209,
-      "def_mod": 0.435,
-      "hp_mod": 0.27,
-      "unrevivable_ratio": 0.65,
-      "heroes": [
-        {
-          "hero_name_or_preset": "Artur",
-          "talent_ids": [
-            "talent_hellfire_shelter",
-            "talent_pent_up_anger",
-            "talent_furious_fire"
-          ],
-          "base_skill_ids": [
-            "base_skill_torment",
-            "base_skill_incineration"
-          ],
-          "plugin_skill_ids": [
-            "plugin_odins_asylum",
-            "plugin_fiery_detonation"
-          ],
-          "skill_overrides": {
-            "plugin_odins_asylum": {
-              "config": {
-                "damage_factor": 225.0,
-                "shield_factor": 100.0
+      "team": "team2",
+      "column": 2,
+      "row": 1,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Verdandi/Artur",
+        "unit_type": "archers",
+        "tier": 5,
+        "count": 150000,
+        "atk_mod": 1.209,
+        "def_mod": 0.435,
+        "hp_mod": 0.27,
+        "unrevivable_ratio": 0.65,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Artur",
+            "talent_ids": [
+              "talent_hellfire_shelter",
+              "talent_pent_up_anger",
+              "talent_furious_fire"
+            ],
+            "base_skill_ids": [
+              "base_skill_torment",
+              "base_skill_incineration"
+            ],
+            "plugin_skill_ids": [
+              "plugin_odins_asylum",
+              "plugin_fiery_detonation"
+            ],
+            "skill_overrides": {
+              "plugin_odins_asylum": {
+                "config": {
+                  "damage_factor": 225.0,
+                  "shield_factor": 100.0
+                }
+              }
+            }
+          },
+          {
+            "hero_name_or_preset": "Verdandi",
+            "talent_ids": [
+              "talent_hunting_instinct",
+              "talent_hunting_experience",
+              "talent_targeted_strike"
+            ],
+            "base_skill_ids": [
+              "base_skill_rapid_fire",
+              "base_skill_raining_arrows"
+            ],
+            "plugin_skill_ids": [
+              "plugin_rage_leech",
+              "plugin_enrage"
+            ],
+            "skill_overrides": {
+              "plugin_rage_leech": {
+                "config": {
+                  "heal_factor": 630.0,
+                  "rage_gain": 68.0
+                }
+              },
+              "plugin_enrage": {
+                "trigger_chance": 0.18
               }
             }
           }
-        },
-        {
-          "hero_name_or_preset": "Verdandi",
-          "talent_ids": [
-            "talent_hunting_instinct",
-            "talent_hunting_experience",
-            "talent_targeted_strike"
-          ],
-          "base_skill_ids": [
-            "base_skill_rapid_fire",
-            "base_skill_raining_arrows"
-          ],
-          "plugin_skill_ids": [
-            "plugin_rage_leech",
-            "plugin_enrage"
-          ],
-          "skill_overrides": {
-            "plugin_rage_leech": {
-              "config": {
-                "heal_factor": 630.0,
-                "rage_gain": 68.0
-              }
-            },
-            "plugin_enrage": {
-              "trigger_chance": 0.18
-            }
-          }
-        }
-      ],
-      "team": "blue",
-      "speed": 50.0
-    }
-  },
-  {
-    "army_name": "Bjorn/Hobert",
-    "team": "team2",
-    "column": 3,
-    "row": 1,
-    "speed": 50.0,
-    "config": {
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
+    },
+    {
       "army_name": "Bjorn/Hobert",
-      "unit_type": "infantry",
-      "tier": 5,
-      "count": 150000,
-      "atk_mod": 0.955,
-      "def_mod": 0.555,
-      "hp_mod": 0.265,
-      "unrevivable_ratio": 0.65,
-      "heroes": [
-        {
-          "hero_name_or_preset": "Bjorn",
-          "talent_ids": [
-            "talent_trained_up",
-            "talent_undefeated",
-            "talent_fatal_bleeding"
-          ],
-          "base_skill_ids": [
-            "base_skill_crippling_pursuit",
-            "base_skill_lethal_fracture"
-          ],
-          "plugin_skill_ids": [
-            "plugin_silencer",
-            "plugin_blow_of_chaos"
-          ],
-          "skill_overrides": {
-            "plugin_silencer": {
-              "trigger_chance": 0.18,
-              "config": {
-                "damage_factor": 358.0
-              }
-            },
-            "plugin_blow_of_chaos": {
-              "trigger_chance": 0.14
-            }
-          }
-        },
-        {
-          "hero_name_or_preset": "Hobert",
-          "talent_ids": [
-            "talent_bold_shieldaxe",
-            "talent_fearless_pursuit",
-            ""
-          ],
-          "base_skill_ids": [
-            "base_skill_berserk_fury",
-            "base_skill_brutal_blow"
-          ],
-          "plugin_skill_ids": [
-            "plugin_blessed_by_fate",
-            "plugin_baldr_blessing"
-          ],
-          "skill_overrides": {
-            "base_skill_berserk_fury": {
-              "config": {
-                "basic_buff": 0.1125,
-                "rage_bonus_pct": 0.028
-              }
-            },
-            "base_skill_brutal_blow": {
-              "config": {
-                "damage_factor": 926.0,
-                "shield_factor": 280.0
-              }
-            },
-            "plugin_blessed_by_fate": {
-              "config": {
-                "initial_buff_magnitude": 0.46,
-                "secondary_proc_chance": 0.29,
-                "secondary_debuff_magnitude": 0.1925
-              }
-            },
-            "plugin_baldr_blessing": {
-              "config": {
-                "shield_factor": 720.0,
-                "damage_reduction_magnitude": -0.28,
-                "heal_factor": 720.0
+      "team": "team2",
+      "column": 3,
+      "row": 1,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Bjorn/Hobert",
+        "unit_type": "infantry",
+        "tier": 5,
+        "count": 150000,
+        "atk_mod": 0.955,
+        "def_mod": 0.555,
+        "hp_mod": 0.265,
+        "unrevivable_ratio": 0.65,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Bjorn",
+            "talent_ids": [
+              "talent_trained_up",
+              "talent_undefeated",
+              "talent_fatal_bleeding"
+            ],
+            "base_skill_ids": [
+              "base_skill_crippling_pursuit",
+              "base_skill_lethal_fracture"
+            ],
+            "plugin_skill_ids": [
+              "plugin_silencer",
+              "plugin_blow_of_chaos"
+            ],
+            "skill_overrides": {
+              "plugin_silencer": {
+                "trigger_chance": 0.18,
+                "config": {
+                  "damage_factor": 358.0
+                }
+              },
+              "plugin_blow_of_chaos": {
+                "trigger_chance": 0.14
               }
             }
+          },
+          {
+            "hero_name_or_preset": "Hobert",
+            "talent_ids": [
+              "talent_bold_shieldaxe",
+              "talent_fearless_pursuit",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_berserk_fury",
+              "base_skill_brutal_blow"
+            ],
+            "plugin_skill_ids": [
+              "plugin_blessed_by_fate",
+              "plugin_baldr_blessing"
+            ],
+            "skill_overrides": {
+              "base_skill_berserk_fury": {
+                "config": {
+                  "basic_buff": 0.1125,
+                  "rage_bonus_pct": 0.028
+                }
+              },
+              "base_skill_brutal_blow": {
+                "config": {
+                  "damage_factor": 926.0,
+                  "shield_factor": 280.0
+                }
+              },
+              "plugin_blessed_by_fate": {
+                "config": {
+                  "initial_buff_magnitude": 0.46,
+                  "secondary_proc_chance": 0.29,
+                  "secondary_debuff_magnitude": 0.1925
+                }
+              },
+              "plugin_baldr_blessing": {
+                "config": {
+                  "shield_factor": 720.0,
+                  "damage_reduction_magnitude": -0.28,
+                  "heal_factor": 720.0
+                }
+              }
+            }
           }
-        }
-      ],
-      "team": "blue",
-      "speed": 50.0
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
     }
-  }
-]
+  ]
+}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import unicodedata
@@ -57,38 +58,111 @@ def _load_raw_skill_descriptions() -> Dict[str, str]:
         cleaned = re.sub(r"\s+", " ", cleaned)
         return cleaned.strip()
 
-    # Parse hero skill descriptions. The file contains JavaScript objects with
-    # repeated ``name``/``descr`` pairs (e.g. ``skillonename`` and
-    # ``skillonedescr``). We match entries using a shared prefix to capture the
-    # associated description.
-    hero_path = os.path.join(_DESCRIPTIONS_DIR, "heroesskillsandtalents.js")
-    if os.path.exists(hero_path):
-        with open(hero_path, "r", encoding="utf-8", errors="ignore") as fh:
-            content = fh.read()
-        for block in re.findall(r"\{([^{}]*)\}", content, flags=re.DOTALL):
-            for match in re.finditer(
-                r"(\w+?)name\s*:\s*\"([^\"]+)\"[\s\S]*?\1descr\s*:\s*\"([^\"]+)\"",
-                block,
-            ):
-                prefix, skill_name, descr_text = match.groups()
-                description = _normalise(descr_text)
-                if skill_name:
-                    context = "talent" if prefix.startswith("talent") else "skill"
-                    _store_description(skill_name, description, context=context)
+    # Parse hero skill descriptions. Prefer the simplified JSON export but fall
+    # back to the historical JavaScript file if necessary.
+    hero_json_path = os.path.join(_DESCRIPTIONS_DIR, "heroes_skills_talents_simple.json")
+    hero_entries = None
+    if os.path.exists(hero_json_path):
+        try:
+            with open(hero_json_path, "r", encoding="utf-8") as fh:
+                hero_entries = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            hero_entries = None
 
-    # Parse the general skills list. This file is almost JSON but with single
-    # quotes. We replace them before loading so the data can be processed using
-    # :mod:`json`.
-    skills_path = os.path.join(_DESCRIPTIONS_DIR, "skills.js")
-    if os.path.exists(skills_path):
-        with open(skills_path, "r", encoding="utf-8", errors="ignore") as fh:
-            raw = fh.read()
-        for match in re.finditer(
-            r"name:\s*'([^']+)'[\s\S]*?description:\s*'([^']+)'",
-            raw,
-        ):
-            name, descr = match.groups()
-            _store_description(name, _normalise(descr), context="skill")
+    if isinstance(hero_entries, list):
+        for entry in hero_entries:
+            skills = entry.get("skills") if isinstance(entry, dict) else None
+            for skill in skills or ():
+                if not isinstance(skill, dict):
+                    continue
+                name = skill.get("name")
+                description = skill.get("description")
+                if isinstance(name, str) and isinstance(description, str):
+                    _store_description(name, _normalise(description), context="skill")
+
+            talents = entry.get("talents") if isinstance(entry, dict) else None
+            for talent in talents or ():
+                if not isinstance(talent, dict):
+                    continue
+                name = talent.get("name")
+                description = talent.get("description")
+                if isinstance(name, str) and isinstance(description, str):
+                    _store_description(name, _normalise(description), context="talent")
+    else:
+        hero_path = os.path.join(_DESCRIPTIONS_DIR, "heroesskillsandtalents.js")
+        if os.path.exists(hero_path):
+            with open(hero_path, "r", encoding="utf-8", errors="ignore") as fh:
+                content = fh.read()
+            for block in re.findall(r"\{([^{}]*)\}", content, flags=re.DOTALL):
+                for match in re.finditer(
+                    r"(\w+?)name\s*:\s*\"([^\"]+)\"[\s\S]*?\1descr\s*:\s*\"([^\"]+)\"",
+                    block,
+                ):
+                    prefix, skill_name, descr_text = match.groups()
+                    description = _normalise(descr_text)
+                    if skill_name:
+                        context = "talent" if prefix.startswith("talent") else "skill"
+                        _store_description(skill_name, description, context=context)
+
+    skills_json_path = os.path.join(_DESCRIPTIONS_DIR, "skills_simple.json")
+    skills_entries = None
+    if os.path.exists(skills_json_path):
+        try:
+            with open(skills_json_path, "r", encoding="utf-8") as fh:
+                skills_entries = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            skills_entries = None
+
+    if isinstance(skills_entries, list):
+        for entry in skills_entries:
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name")
+            description = entry.get("description")
+            if isinstance(name, str) and isinstance(description, str):
+                _store_description(name, _normalise(description), context="skill")
+    else:
+        # Parse the historical JavaScript export which used single quotes and
+        # therefore required manual extraction.
+        skills_path = os.path.join(_DESCRIPTIONS_DIR, "skills.js")
+        if os.path.exists(skills_path):
+            with open(skills_path, "r", encoding="utf-8", errors="ignore") as fh:
+                raw = fh.read()
+            for match in re.finditer(
+                r"name:\s*'([^']+)'[\s\S]*?description:\s*'([^']+)'",
+                raw,
+            ):
+                name, descr = match.groups()
+                _store_description(name, _normalise(descr), context="skill")
+
+    mount_json_path = os.path.join(_DESCRIPTIONS_DIR, "mountskills_simple.json")
+    mount_entries = None
+    if os.path.exists(mount_json_path):
+        try:
+            with open(mount_json_path, "r", encoding="utf-8") as fh:
+                mount_entries = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            mount_entries = None
+
+    if isinstance(mount_entries, list):
+        for entry in mount_entries:
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name")
+            description = entry.get("description")
+            if isinstance(name, str) and isinstance(description, str):
+                _store_description(name, _normalise(description), context="mount")
+    else:
+        mount_path = os.path.join(_DESCRIPTIONS_DIR, "mountskills.js")
+        if os.path.exists(mount_path):
+            with open(mount_path, "r", encoding="utf-8", errors="ignore") as fh:
+                raw = fh.read()
+            for match in re.finditer(
+                r"name:\s*\"([^\"]+)\"[\s\S]*?description:\s*\"([^\"]+)\"",
+                raw,
+            ):
+                name, descr = match.groups()
+                _store_description(name, _normalise(descr), context="mount")
 
     jewel_path = os.path.join(_DESCRIPTIONS_DIR, "JewelSkills.txt")
     if os.path.exists(jewel_path):

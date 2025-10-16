@@ -6155,6 +6155,38 @@ class MainWindow(QtWidgets.QMainWindow):
             if bonus_entries:
                 bonus_button_label = f"Bonus Stats ({len(bonus_entries)})"
 
+            bonus_button_markup = ""
+            if bonus_icon:
+                bonus_button_markup = (
+                    "<button class=\"bonus-button\" data-bonus='"
+                    + bonus_data_attr
+                    + "'>"
+                    + (
+                        f"<img src=\"{bonus_icon}\" alt=\"Bonus stats\">"
+                        if bonus_icon
+                        else ""
+                    )
+                    + f"<span>{html.escape(bonus_button_label)}</span></button>"
+                )
+
+            if bonus_entries:
+                fallback_items = "".join(
+                    (
+                        "<li>"
+                        + f"<span>{html.escape(entry['label'])}</span>"
+                        + f"<strong>{html.escape(entry['value'])}</strong>"
+                        + "</li>"
+                    )
+                    for entry in bonus_entries
+                )
+            else:
+                fallback_items = (
+                    "<li class=\"empty-state\">No bonus stats configured.</li>"
+                )
+            bonus_fallback_markup = (
+                "<ul class=\"bonus-fallback\">" + fallback_items + "</ul>"
+            )
+
             stats_html = []
             for key, label in (("attack", "Attack"), ("defense", "Defense"), ("health", "Health")):
                 icon = stat_icons.get(key) or ""
@@ -6413,15 +6445,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 + f"<h2>{html.escape(army_name)}</h2>"
                 + f"<p>{html.escape(unit_type.title())} • Tier {tier} • {troop_count:,} troops</p>"
                 + "</div></div>"
-                + (
-                    "<button class=\"bonus-button\" data-bonus='"
-                    + bonus_data_attr
-                    + "'>"
-                    + (f"<img src=\"{bonus_icon}\" alt=\"Bonus stats\">" if bonus_icon else "")
-                    + f"<span>{html.escape(bonus_button_label)}</span></button>"
-                    if bonus_icon
-                    else ""
-                )
+                + bonus_button_markup
+                + bonus_fallback_markup
                 + "</header>"
                 + "<div class=\"section\"><h3>Army Info</h3><div class=\"stat-row\">"
                 + "".join(stats_html)
@@ -6894,6 +6919,25 @@ class MainWindow(QtWidgets.QMainWindow):
             font-size: 1.4rem;
             cursor: pointer;
         }}
+        .bonus-fallback {{
+            margin: 16px 0 0 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            gap: 8px;
+        }}
+        .bonus-fallback li {{
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 12px;
+            background: var(--panel-alt);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }}
+        body.js .bonus-fallback {{
+            display: none;
+        }}
         .bonus-list {{
             list-style: none;
             margin: 24px 0 0 0;
@@ -6968,6 +7012,9 @@ class MainWindow(QtWidgets.QMainWindow):
         </div>
     </div>
     <script>
+        if (document && document.body) {{
+            document.body.classList.add('js');
+        }}
         const enableTouchTooltips = () => {{
             const tooltipNodes = Array.from(document.querySelectorAll('.tooltip'));
             if (!tooltipNodes.length) {{

@@ -7020,11 +7020,11 @@ class MainWindow(QtWidgets.QMainWindow):
         enableTouchTooltips();
         const modal = document.getElementById('bonus-modal');
         const modalList = document.getElementById('bonus-list');
-        const closeModal = () => modal.classList.remove('active');
+        const closeModal = function () {{ modal.classList.remove('active'); }};
         modal.querySelector('.modal-backdrop').addEventListener('click', closeModal);
         modal.querySelector('.modal-close').addEventListener('click', closeModal);
-        document.addEventListener('keydown', (evt) => {{ if (evt.key === 'Escape') closeModal(); }});
-        const openBonusModal = (btn) => {{
+        document.addEventListener('keydown', function (evt) {{ if (evt.key === 'Escape') closeModal(); }});
+        const openBonusModal = function (btn) {{
             const raw = btn.getAttribute('data-bonus') || '[]';
             let entries = [];
             try {{ entries = JSON.parse(raw); }} catch (err) {{ entries = []; }}
@@ -7034,7 +7034,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 li.textContent = 'No bonus stats configured.';
                 modalList.appendChild(li);
             }} else {{
-                entries.forEach((entry) => {{
+                for (var idx = 0; idx < entries.length; idx += 1) {{
+                    const entry = entries[idx];
                     const li = document.createElement('li');
                     const label = document.createElement('span');
                     label.textContent = entry.label || 'Bonus';
@@ -7043,11 +7044,11 @@ class MainWindow(QtWidgets.QMainWindow):
                     li.appendChild(label);
                     li.appendChild(value);
                     modalList.appendChild(li);
-                }});
+                }}
             }}
             modal.classList.add('active');
         }};
-        const hasTouchSupport = () => {{
+        const hasTouchSupport = function () {{
             if (window.PointerEvent) {{
                 return true;
             }}
@@ -7057,13 +7058,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 (!!navigatorRef && 'maxTouchPoints' in navigatorRef && navigatorRef.maxTouchPoints > 0)
             );
         }};
-        document.querySelectorAll('.bonus-button').forEach((btn) => {{
+        const buttons = document.querySelectorAll('.bonus-button');
+        for (var btnIndex = 0; btnIndex < buttons.length; btnIndex += 1) {{
+            const btn = buttons[btnIndex];
             if (!btn) {{
-                return;
+                continue;
             }}
-            const open = () => openBonusModal(btn);
+            const open = function () {{ openBonusModal(btn); }};
             let pointerHandled = false;
-            const handleClick = () => {{
+            const handleClick = function () {{
                 if (pointerHandled) {{
                     pointerHandled = false;
                     return;
@@ -7071,17 +7074,19 @@ class MainWindow(QtWidgets.QMainWindow):
                 open();
             }};
             btn.addEventListener('click', handleClick);
-            btn.addEventListener('keydown', (event) => {{
+            btn.addEventListener('keydown', function (event) {{
                 if (event.key === 'Enter' || event.key === ' ') {{
                     event.preventDefault();
                     open();
                 }}
             }});
-            const markHandled = () => window.setTimeout(() => {{ pointerHandled = false; }}, 0);
+            const markHandled = function () {{
+                window.setTimeout(function () {{ pointerHandled = false; }}, 0);
+            }};
             if (window.PointerEvent) {{
                 btn.addEventListener(
                     'pointerup',
-                    (event) => {{
+                    function (event) {{
                         if (event.pointerType === 'touch' || event.pointerType === 'pen') {{
                             pointerHandled = true;
                             event.preventDefault();
@@ -7094,7 +7099,7 @@ class MainWindow(QtWidgets.QMainWindow):
             }} else if (hasTouchSupport()) {{
                 btn.addEventListener(
                     'touchend',
-                    (event) => {{
+                    function (event) {{
                         pointerHandled = true;
                         event.preventDefault();
                         open();
@@ -7103,7 +7108,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     {{ passive: false }}
                 );
             }}
-        }});
+        }}
     </script>
 </body>
 </html>

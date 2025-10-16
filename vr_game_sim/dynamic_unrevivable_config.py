@@ -19,6 +19,11 @@ from typing import Dict, Iterable, Mapping
 
 
 UNIT_TYPES: tuple[str, ...] = ("pikemen", "archers", "infantry")
+# ``non_mutual_*`` values are retained for backwards compatibility with
+# previously persisted settings.  The simulator now applies the same combat and
+# skill ratio logic for both mutual and non-mutual engagements, so these
+# coefficients no longer influence runtime behavior but remain configurable to
+# avoid breaking older serialized data.
 TYPE_SPECIFIC_FIELDS: tuple[str, ...] = (
     "combat_basic_base",
     "combat_basic_bonus_multiplier",

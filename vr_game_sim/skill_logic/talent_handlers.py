@@ -1053,6 +1053,7 @@ def handle_talent_adaptable_agility(triggering_army: ArmyRef, opponent_army: Arm
     happened = False
     logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
     if triggering_army.current_troop_count > opponent_army.current_troop_count:
         if random.random() < cfg.get("damage_chance_high", 0.0):
             dmg_factor = cfg.get("damage_factor", 0.0)

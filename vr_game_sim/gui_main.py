@@ -41,6 +41,7 @@ from vr_game_sim.main import (
     load_setup_from_file,
     save_army_to_file,
     load_army_from_file,
+    HISTOGRAM_BG_COLOR,
 )
 from vr_game_sim import dynamic_unrevivable_config
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
@@ -5817,7 +5818,30 @@ class MainWindow(QtWidgets.QMainWindow):
         if not save_path.lower().endswith(".html"):
             save_path += ".html"
 
-        copied_assets: dict[tuple[str, tuple | None], str] = {}
+        copied_assets: dict[tuple[str, tuple | None, tuple | None], str] = {}
+
+        hist_color = HISTOGRAM_BG_COLOR.lstrip("#")
+        if len(hist_color) != 6:
+            hist_color = hist_color[:6].ljust(6, "0")
+        histogram_bg_tuple = tuple(int(hist_color[i : i + 2], 16) for i in range(0, 6, 2))
+
+        def _transparent_histogram_bytes(path: str) -> bytes:
+            with Image.open(path) as img:
+                converted = img.convert("RGBA")
+                data = np.array(converted, dtype=np.uint8)
+                if data.size == 0:
+                    buf = io.BytesIO()
+                    converted.save(buf, format="PNG")
+                    return buf.getvalue()
+                bg = np.array(histogram_bg_tuple, dtype=np.int16)
+                rgb = data[..., :3].astype(np.int16)
+                diff = np.abs(rgb - bg)
+                mask = (diff <= 2).all(axis=-1)
+                data[..., 3][mask] = 0
+                result = Image.fromarray(data.astype(np.uint8), mode="RGBA")
+                buf = io.BytesIO()
+                result.save(buf, format="PNG")
+                return buf.getvalue()
 
         def _parse_argb_hex(value: str) -> tuple[int, int, int, int] | None:
             val = value.strip()
@@ -5907,6 +5931,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if not src or not os.path.exists(src):
                 return None
             overlay_key: tuple | None = None
+            histogram_variant: tuple | None = None
+            make_transparent_histogram = False
             if star_overlay:
                 try:
                     count_val = int(star_overlay.get("count", 0))
@@ -5931,13 +5957,22 @@ class MainWindow(QtWidgets.QMainWindow):
                         tuple(float(x) for x in star_overlay.get("h_offsets", ())),
                         tuple(int(max(0, min(255, round(v)))) for v in color_vals[:4]),
                     )
-            key = (os.path.abspath(src), overlay_key)
+            elif os.path.splitext(src)[1].lower() == ".png":
+                base_name = os.path.basename(src).lower()
+                if base_name in {"own_remaining_troops.png", "enemy_remaining_troops.png"}:
+                    make_transparent_histogram = True
+                    histogram_variant = ("transparent-bg",)
+
+            key = (os.path.abspath(src), overlay_key, histogram_variant)
             cached = copied_assets.get(key)
             if cached:
                 return cached
             try:
                 if star_overlay:
                     raw = _render_star_overlay(src, star_overlay)
+                    mime_type = "image/png"
+                elif make_transparent_histogram:
+                    raw = _transparent_histogram_bytes(src)
                     mime_type = "image/png"
                 else:
                     with open(src, "rb") as fh:

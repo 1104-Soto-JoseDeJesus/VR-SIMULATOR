@@ -425,9 +425,8 @@ def run_additional_simulations(
             own_color = "#2ecc71"
             subtle_line = (1, 1, 1, 0.2)
             fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
-            fig.patch.set_facecolor("none")
-            fig.patch.set_alpha(0.0)
-            ax.set_facecolor("none")
+            fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.set_facecolor(HISTOGRAM_BG_COLOR)
             ax.hist(
                 own_remaining,
                 bins=HISTOGRAM_BINS,
@@ -458,7 +457,7 @@ def run_additional_simulations(
                 os.path.join(HISTOGRAM_DIR, "own_remaining_troops.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
-                transparent=True,
+                facecolor=fig.get_facecolor(),
             )
             plt.close(fig)
 
@@ -466,9 +465,8 @@ def run_additional_simulations(
             enemy_color = "#e74c3c"
             subtle_line = (1, 1, 1, 0.2)
             fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
-            fig.patch.set_facecolor("none")
-            fig.patch.set_alpha(0.0)
-            ax.set_facecolor("none")
+            fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+            ax.set_facecolor(HISTOGRAM_BG_COLOR)
             ax.hist(
                 enemy_remaining,
                 bins=HISTOGRAM_BINS,
@@ -499,7 +497,7 @@ def run_additional_simulations(
                 os.path.join(HISTOGRAM_DIR, "enemy_remaining_troops.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
-                transparent=True,
+                facecolor=fig.get_facecolor(),
             )
             plt.close(fig)
 

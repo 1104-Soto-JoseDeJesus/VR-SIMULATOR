@@ -6093,6 +6093,15 @@ class MainWindow(QtWidgets.QMainWindow):
             icon_path = resolve_from_lookup(slot_label, icon_lookup)
             jewel_icon_map[slot_key] = ensure_asset(icon_path) if icon_path else None
 
+        histogram_lookup: dict[str, str | None] = {}
+        for hist_path in payload.get("histograms") or []:
+            if not hist_path:
+                continue
+            filename = os.path.basename(hist_path)
+            if not filename:
+                continue
+            histogram_lookup[filename.lower()] = ensure_asset(hist_path)
+
         summary_data = payload.get("summary") or []
         win_rate = float(payload.get("win_rate", 0.0) or 0.0)
         runs = max(int(payload.get("runs", 0)), 0)
@@ -6493,17 +6502,40 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             armies_markup = ""
 
+        own_troops_uri = histogram_lookup.get("own_remaining_troops.png")
+        enemy_troops_uri = histogram_lookup.get("enemy_remaining_troops.png")
+
+        def build_troops_panel(title: str, image_uri: str | None) -> str:
+            safe_title = html.escape(title)
+            if image_uri:
+                alt_text = html.escape(f"{title} histogram")
+                body = f"<img src=\"{image_uri}\" alt=\"{alt_text}\">"
+            else:
+                body = "<p class=\"graph-fallback\">Graph unavailable</p>"
+            return (
+                "<div class=\"victory-panel graph-panel\">"
+                + f"<h3>{safe_title}</h3>"
+                + body
+                + "</div>"
+            )
+
         donut_style = f"--stop:{army_one_pct:.2f}%;"
+        army_one_label = html.escape(army_one_name)
+        army_two_label = html.escape(army_two_name)
         victory_markup = (
             "<section class=\"card victory-card\">"
-            + "<h2>Victory Distribution</h2>"
-            + "<div class=\"victory-content\">"
+            + "<h2>Battle Overview</h2>"
+            + "<div class=\"victory-grid\">"
+            + build_troops_panel(f"{army_one_name} Troops Remaining", own_troops_uri)
+            + "<div class=\"victory-panel victory-summary\">"
             + f"<div class=\"donut\" style=\"{donut_style}\" aria-hidden=\"true\">"
             + "<div class=\"donut-inner\"></div></div>"
             + "<div class=\"legend\">"
-            + f"<div class=\"legend-item\"><span class=\"swatch swatch-a\"></span><span>{html.escape(army_names[0] if army_names else 'Army 1')} ({army_one_pct:.1f}% • {army_one_wins} wins)</span></div>"
-            + f"<div class=\"legend-item\"><span class=\"swatch swatch-b\"></span><span>{html.escape(army_names[1] if len(army_names) > 1 else 'Army 2')} ({army_two_pct:.1f}% • {army_two_wins} wins)</span></div>"
-            + "</div></div></section>"
+            + f"<div class=\"legend-item\"><span class=\"swatch swatch-a\"></span><span>{army_one_label} ({army_one_pct:.1f}% • {army_one_wins} wins)</span></div>"
+            + f"<div class=\"legend-item\"><span class=\"swatch swatch-b\"></span><span>{army_two_label} ({army_two_pct:.1f}% • {army_two_wins} wins)</span></div>"
+            + "</div></div>"
+            + build_troops_panel(f"{army_two_name} Troops Remaining", enemy_troops_uri)
+            + "</div></section>"
         )
 
         html_output = f"""<!DOCTYPE html>
@@ -6568,16 +6600,45 @@ class MainWindow(QtWidgets.QMainWindow):
         }}
         .victory-card {{
             display: grid;
-            gap: 20px;
-            justify-items: center;
-            text-align: center;
-            margin: 0 auto;
-            max-width: 520px;
+            gap: 24px;
+            grid-column: 1 / -1;
+            width: 100%;
         }}
-        .victory-content {{
+        .victory-grid {{
             display: grid;
-            gap: 20px;
-            justify-items: center;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 24px;
+            align-items: stretch;
+        }}
+        .victory-panel {{
+            background: var(--panel-alt);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            align-items: center;
+            text-align: center;
+            min-height: 100%;
+        }}
+        .victory-panel img {{
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            background: #04060f;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }}
+        .graph-panel {{
+            width: 100%;
+        }}
+        .victory-summary {{
+            justify-content: center;
+        }}
+        .graph-fallback {{
+            margin: 0;
+            color: var(--muted);
+            font-style: italic;
         }}
         .donut {{
             width: 220px;
@@ -6982,6 +7043,11 @@ class MainWindow(QtWidgets.QMainWindow):
             border-radius: 12px;
             border: 1px solid var(--border);
         }}
+        @media (max-width: 1100px) {{
+            .victory-grid {{
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            }}
+        }}
         @media (max-width: 600px) {{
             body {{
                 padding: 24px 16px 60px;
@@ -7009,8 +7075,8 @@ class MainWindow(QtWidgets.QMainWindow):
             }}
         }}
         @media (max-width: 820px) {{
-            .victory-card {{
-                max-width: 100%;
+            .victory-grid {{
+                grid-template-columns: 1fr;
             }}
             .army-grid {{
                 grid-template-columns: 1fr;
@@ -7028,8 +7094,8 @@ class MainWindow(QtWidgets.QMainWindow):
             <h1>Battle Summary</h1>
             <p>Generated {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))}</p>
         </header>
-        {armies_markup}
         {victory_markup}
+        {armies_markup}
     </main>
     <div class=\"modal\" id=\"bonus-modal\">
         <div class=\"modal-backdrop\"></div>

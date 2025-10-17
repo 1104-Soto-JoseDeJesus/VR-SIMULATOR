@@ -324,4 +324,11 @@ def test_export_summary_handles_list_gem_skill(tmp_path, monkeypatch):
     window.export_summary_html()
 
     assert save_path.exists()
+    html_content = save_path.read_text(encoding="utf-8")
+    expected_badge_snippet = (
+        f"<span class=\"hero-name\">{hero1.name}</span>"
+        + "<span class=\"hero-badge\">Main Hero</span>"
+    )
+    assert expected_badge_snippet in html_content
+    assert html_content.count("hero-badge") == 1
     window.close()

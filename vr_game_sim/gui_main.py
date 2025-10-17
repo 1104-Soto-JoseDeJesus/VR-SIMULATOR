@@ -6348,6 +6348,34 @@ class MainWindow(QtWidgets.QMainWindow):
                     or f"Hero {hero_idx + 1}"
                 )
                 name_display = html.escape(raw_name)
+                is_primary_flag = False
+                if isinstance(hero_cfg, dict):
+                    for primary_key in (
+                        "is_primary_hero",
+                        "is_primary",
+                        "primary",
+                        "primary_hero",
+                    ):
+                        if primary_key in hero_cfg:
+                            is_primary_flag = bool(hero_cfg.get(primary_key))
+                            break
+                if not is_primary_flag:
+                    primary_idx = summary_entry.get("primary_hero_index")
+                    if isinstance(primary_idx, int):
+                        is_primary_flag = primary_idx == hero_idx
+                    else:
+                        primary_indices = summary_entry.get("primary_hero_indices")
+                        if isinstance(primary_indices, (list, tuple, set)):
+                            try:
+                                is_primary_flag = hero_idx in primary_indices
+                            except TypeError:
+                                is_primary_flag = False
+                is_primary_hero = is_primary_flag or hero_idx == 0
+                hero_name_markup = f'<span class="hero-name">{name_display}</span>'
+                badge_markup = (
+                    '<span class="hero-badge">Main Hero</span>' if is_primary_hero else ""
+                )
+                header_markup = f"<div><h4>{hero_name_markup}{badge_markup}</h4></div>"
                 star_value = hero_cfg.get("star_count") if isinstance(hero_cfg, dict) else None
                 portrait_overlay = build_star_overlay_info(
                     portrait_path,
@@ -6495,7 +6523,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     "<div class=\"hero-card\">"
                     + "<div class=\"hero-header\">"
                     + portrait_html
-                    + f"<div><h4>{name_display}</h4></div>"
+                    + header_markup
                     + "</div>"
                     + "".join(hero_sections)
                     + "</div>"
@@ -6906,6 +6934,26 @@ class MainWindow(QtWidgets.QMainWindow):
         }}
         .hero-header h4 {{
             margin: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }}
+        .hero-name {{
+            font-weight: 600;
+        }}
+        .hero-badge {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 10px;
+            border-radius: 999px;
+            background: rgba(46, 204, 113, 0.18);
+            border: 1px solid rgba(46, 204, 113, 0.35);
+            color: var(--accent-a);
+            font-size: 0.75rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
         }}
         .hero-section {{
             display: grid;
@@ -7107,6 +7155,10 @@ class MainWindow(QtWidgets.QMainWindow):
             }}
             .hero-card {{
                 min-width: 0;
+            }}
+            .hero-badge {{
+                font-size: 0.7rem;
+                padding: 2px 8px;
             }}
         }}
         @media (max-width: 820px) {{

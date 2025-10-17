@@ -422,20 +422,24 @@ def run_additional_simulations(
         avg_rounds = sum(rounds_taken) / len(rounds_taken) if rounds_taken else 0
 
         with plt.style.context("ggplot"):
+            own_color = "#2ecc71"
+            subtle_line = (1, 1, 1, 0.2)
             fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
-            fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
-            ax.set_facecolor(HISTOGRAM_BG_COLOR)
+            fig.patch.set_facecolor("none")
+            fig.patch.set_alpha(0.0)
+            ax.set_facecolor("none")
             ax.hist(
                 own_remaining,
                 bins=HISTOGRAM_BINS,
-                color="green",
-                edgecolor="black",
+                color=own_color,
+                edgecolor="none",
+                alpha=0.35,
             )
             counts, bins_ = np.histogram(own_remaining, bins=HISTOGRAM_BINS)
             centers = (bins_[:-1] + bins_[1:]) / 2
             smooth = _smooth_counts(counts)
-            ax.plot(centers, smooth, color="yellow", linewidth=0.5)
-            ax.axvline(avg_own, color="white", linestyle="dashed", linewidth=1)
+            ax.plot(centers, smooth, color=own_color, linewidth=0.8)
+            ax.axvline(avg_own, color=own_color, linestyle="dashed", linewidth=1)
             ax.set_title(
                 f"{army1_name} Remaining Troops",
                 fontsize=HISTOGRAM_FONT_SIZE,
@@ -444,7 +448,9 @@ def run_additional_simulations(
             ax.set_xlabel("Troops", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
             ax.set_ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
             ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
-            ax.grid(linewidth=HISTOGRAM_GRIDLINE_WIDTH)
+            ax.grid(color=subtle_line, linewidth=HISTOGRAM_GRIDLINE_WIDTH)
+            for spine in ax.spines.values():
+                spine.set_edgecolor(subtle_line)
             ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             fig.tight_layout()
@@ -452,25 +458,29 @@ def run_additional_simulations(
                 os.path.join(HISTOGRAM_DIR, "own_remaining_troops.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
-                facecolor=fig.get_facecolor(),
+                transparent=True,
             )
             plt.close(fig)
 
         with plt.style.context("ggplot"):
+            enemy_color = "#e74c3c"
+            subtle_line = (1, 1, 1, 0.2)
             fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
-            fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
-            ax.set_facecolor(HISTOGRAM_BG_COLOR)
+            fig.patch.set_facecolor("none")
+            fig.patch.set_alpha(0.0)
+            ax.set_facecolor("none")
             ax.hist(
                 enemy_remaining,
                 bins=HISTOGRAM_BINS,
-                color="red",
-                edgecolor="black",
+                color=enemy_color,
+                edgecolor="none",
+                alpha=0.35,
             )
             counts, bins_ = np.histogram(enemy_remaining, bins=HISTOGRAM_BINS)
             centers = (bins_[:-1] + bins_[1:]) / 2
             smooth = _smooth_counts(counts)
-            ax.plot(centers, smooth, color="yellow", linewidth=0.5)
-            ax.axvline(avg_enemy, color="white", linestyle="dashed", linewidth=1)
+            ax.plot(centers, smooth, color=enemy_color, linewidth=0.8)
+            ax.axvline(avg_enemy, color=enemy_color, linestyle="dashed", linewidth=1)
             ax.set_title(
                 f"{army2_name} Remaining Troops",
                 fontsize=HISTOGRAM_FONT_SIZE,
@@ -479,7 +489,9 @@ def run_additional_simulations(
             ax.set_xlabel("Troops", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
             ax.set_ylabel("Frequency", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
             ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
-            ax.grid(linewidth=HISTOGRAM_GRIDLINE_WIDTH)
+            ax.grid(color=subtle_line, linewidth=HISTOGRAM_GRIDLINE_WIDTH)
+            for spine in ax.spines.values():
+                spine.set_edgecolor(subtle_line)
             ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             fig.tight_layout()
@@ -487,7 +499,7 @@ def run_additional_simulations(
                 os.path.join(HISTOGRAM_DIR, "enemy_remaining_troops.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
-                facecolor=fig.get_facecolor(),
+                transparent=True,
             )
             plt.close(fig)
 

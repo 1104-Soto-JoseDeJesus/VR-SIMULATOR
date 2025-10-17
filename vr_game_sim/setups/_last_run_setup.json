@@ -1,90 +1,90 @@
 [
     {
-        "army_name": "Gregory/Harald",
+        "army_name": "Verdandi/Olena",
         "unit_type": "archers",
-        "tier": 5,
-        "count": 100000,
-        "atk_mod": 0.0,
-        "def_mod": 0.0,
-        "hp_mod": 0.0,
+        "tier": 7,
+        "count": 2000000,
+        "atk_mod": 3.51,
+        "def_mod": 1.49,
+        "hp_mod": 0.857,
         "unrevivable_ratio": 0.65,
-        "use_dynamic_unrevivable_ratio": false,
+        "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Gregory",
+                "hero_name_or_preset": "Verdandi",
                 "talent_ids": [
-                    "talent_great_morale",
-                    "talent_missing_beat",
-                    "talent_excite"
+                    "talent_hunting_instinct",
+                    "talent_hunting_experience",
+                    "talent_targeted_strike"
                 ],
                 "base_skill_ids": [
-                    "base_skill_drumming_disturbance",
-                    "base_skill_inspiring_dance"
+                    "base_skill_rapid_fire",
+                    "base_skill_raining_arrows"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_breaking_free",
-                    "plugin_chance_of_reversal"
+                    "plugin_odins_asylum",
+                    "plugin_joint_offense"
                 ]
             },
             {
-                "hero_name_or_preset": "Harald",
+                "hero_name_or_preset": "Olena",
                 "talent_ids": [
-                    "talent_battle_preparation",
-                    "talent_coordinated_strike",
-                    "talent_slow_strike"
+                    "talent_scorching_arrow",
+                    "talent_multi_shot_arrow",
+                    "talent_poised_shot"
                 ],
                 "base_skill_ids": [
-                    "base_skill_fleet_raider",
-                    "base_skill_raging_smash"
+                    "base_skill_enchanted_arrow",
+                    "base_skill_concentration"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_dampened_spirits",
-                    "plugin_disarmament"
+                    "plugin_first_strike",
+                    "plugin_dampened_spirits"
                 ]
             }
         ]
     },
     {
-        "army_name": "Heahmund/Helgar",
+        "army_name": "Verdandi2/Olena2",
         "unit_type": "archers",
-        "tier": 5,
-        "count": 100000,
-        "atk_mod": 0.0,
-        "def_mod": 0.0,
-        "hp_mod": 0.0,
+        "tier": 7,
+        "count": 2000000,
+        "atk_mod": 2.81,
+        "def_mod": 2.19,
+        "hp_mod": 0.857,
         "unrevivable_ratio": 0.65,
-        "use_dynamic_unrevivable_ratio": false,
+        "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Heahmund",
+                "hero_name_or_preset": "Verdandi",
                 "talent_ids": [
-                    "talent_hold_fast",
-                    "talent_tit_for_tat",
-                    "talent_determined_defense"
+                    "talent_hunting_instinct",
+                    "talent_hunting_experience",
+                    "talent_targeted_strike"
                 ],
                 "base_skill_ids": [
-                    "base_skill_zeal",
-                    "base_skill_vanquishing_blade"
+                    "base_skill_rapid_fire",
+                    "base_skill_raining_arrows"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_divine_blessing",
-                    "plugin_divine_shield"
+                    "plugin_odins_asylum",
+                    "plugin_joint_offense"
                 ]
             },
             {
-                "hero_name_or_preset": "Helgar",
+                "hero_name_or_preset": "Olena",
                 "talent_ids": [
-                    "talent_saintly_guardian",
-                    "talent_war_blessing",
-                    "talent_judgement_mark"
+                    "talent_scorching_arrow",
+                    "talent_multi_shot_arrow",
+                    "talent_poised_shot"
                 ],
                 "base_skill_ids": [
-                    "base_skill_judgements_fury",
-                    "rage_skill_ruling_trial"
+                    "base_skill_enchanted_arrow",
+                    "base_skill_concentration"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_enchanted_pursuit",
-                    "plugin_enrage"
+                    "plugin_first_strike",
+                    "plugin_dampened_spirits"
                 ]
             }
         ]

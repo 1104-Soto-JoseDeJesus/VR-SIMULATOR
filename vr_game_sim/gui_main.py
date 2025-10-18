@@ -1323,52 +1323,69 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
         self._status.setText("Dynamic ratios reset to defaults.")
         self.settings_applied.emit()
 
+PathComponent = str | int
+
+
 class SkillParamEditor(QtWidgets.QWidget):
     """Widget providing spin boxes for configurable skill parameters."""
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self._layout = QtWidgets.QFormLayout(self)
-        self._fields: dict[tuple[str, ...], QtWidgets.QDoubleSpinBox] = {}
-        self._defaults: dict[tuple[str, ...], float] = {}
+        self._fields: dict[tuple[PathComponent, ...], QtWidgets.QDoubleSpinBox] = {}
+        self._defaults: dict[tuple[PathComponent, ...], float] = {}
         self._skill_id: str | None = None
+        self._base_definition: dict[str, Any] | None = None
 
     def set_skill(self, skill_id: str | None, overrides: dict | None = None) -> None:
         """Populate editors for ``skill_id`` using optional ``overrides``."""
         # Save current overrides before switching
         self.clear()
         self._skill_id = skill_id or None
+        self._base_definition = None
         if not skill_id:
             return
         sdef = SKILL_REGISTRY_GLOBAL.get(skill_id)
         if not sdef:
             return
+        self._base_definition = copy.deepcopy(sdef)
         overrides = overrides or {}
         # Trigger chance
         tc = sdef.get("trigger_chance")
         if isinstance(tc, (int, float)):
             spin = QtWidgets.QDoubleSpinBox()
             spin.setRange(0.0, 1.0)
-            spin.setDecimals(4)
+            spin.setDecimals(6)
             spin.setSingleStep(0.0001)
             spin.setValue(overrides.get("trigger_chance", tc))
             self._layout.addRow("Trigger Chance", spin)
             self._fields[("trigger_chance",)] = spin
             self._defaults[("trigger_chance",)] = float(tc)
-        # Config numeric entries
-        cfg = sdef.get("config", {})
-        override_cfg = overrides.get("config", {})
-        if isinstance(cfg, dict):
-            for key, val in cfg.items():
-                if isinstance(val, (int, float)):
-                    spin = QtWidgets.QDoubleSpinBox()
-                    spin.setRange(-1e9, 1e9)
-                    spin.setDecimals(4)
-                    spin.setSingleStep(0.0001)
-                    spin.setValue(override_cfg.get(key, float(val)))
-                    self._layout.addRow(key.replace("_", " ").title(), spin)
-                    self._fields[("config", key)] = spin
-                    self._defaults[("config", key)] = float(val)
+
+        def walk(value: Any, path: tuple[PathComponent, ...], override_value: Any) -> None:
+            if isinstance(value, dict):
+                ov_dict = override_value if isinstance(override_value, dict) else {}
+                for key, sub_value in value.items():
+                    next_path = path + (key,)
+                    if next_path == ("trigger_chance",):
+                        continue
+                    walk(sub_value, next_path, ov_dict.get(key))
+            elif isinstance(value, list):
+                ov_list = override_value if isinstance(override_value, list) else []
+                for index, item in enumerate(value):
+                    override_item = ov_list[index] if index < len(ov_list) else None
+                    walk(item, path + (index,), override_item)
+            else:
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    default_val = float(value)
+                    override_val = (
+                        float(override_value)
+                        if isinstance(override_value, (int, float)) and not isinstance(override_value, bool)
+                        else None
+                    )
+                    self._create_numeric_field(path, default_val, override_val)
+
+        walk(sdef, tuple(), overrides)
 
     def clear(self) -> None:
         while self._layout.count():
@@ -1378,19 +1395,99 @@ class SkillParamEditor(QtWidgets.QWidget):
                 w.deleteLater()
         self._fields.clear()
         self._defaults.clear()
+        self._base_definition = None
 
     def get_overrides(self) -> dict:
-        overrides: dict = {}
+        if not self._base_definition:
+            return {}
+
+        base_copy = copy.deepcopy(self._base_definition)
+        modified = copy.deepcopy(self._base_definition)
+        changed = False
+
         for path, spin in self._fields.items():
             val = float(spin.value())
             default = self._defaults.get(path)
-            if default is None or val == default:
+            if default is not None and math.isclose(val, default, rel_tol=1e-9, abs_tol=1e-9):
                 continue
-            d = overrides
-            for key in path[:-1]:
-                d = d.setdefault(key, {})
-            d[path[-1]] = val
-        return overrides
+            self._set_path_value(modified, path, val)
+            changed = True
+
+        if not changed:
+            return {}
+
+        diff = self._diff_structures(base_copy, modified)
+        return diff if isinstance(diff, dict) else {}
+
+    def _create_numeric_field(
+        self,
+        path: tuple[PathComponent, ...],
+        default: float,
+        override: float | None,
+    ) -> None:
+        label = self._format_label(path)
+        spin = QtWidgets.QDoubleSpinBox()
+        spin.setRange(-1e9, 1e9)
+        spin.setDecimals(6)
+        spin.setSingleStep(0.0001)
+        spin.setValue(override if override is not None else default)
+        self._layout.addRow(label, spin)
+        self._fields[path] = spin
+        self._defaults[path] = default
+
+    @staticmethod
+    def _format_label(path: tuple[PathComponent, ...]) -> str:
+        parts: list[str] = []
+        for component in path:
+            if isinstance(component, int):
+                if parts:
+                    parts[-1] = f"{parts[-1]}[{component}]"
+                else:
+                    parts.append(f"[{component}]")
+            else:
+                parts.append(str(component))
+        return " / ".join(parts) if parts else ""
+
+    @staticmethod
+    def _set_path_value(container: Any, path: tuple[PathComponent, ...], value: float) -> None:
+        current = container
+        for component in path[:-1]:
+            current = current[component]
+        last = path[-1]
+        current[last] = value
+
+    @staticmethod
+    def _values_equal(a: Any, b: Any) -> bool:
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            return math.isclose(float(a), float(b), rel_tol=1e-9, abs_tol=1e-9)
+        return a == b
+
+    @classmethod
+    def _diff_structures(cls, base: Any, modified: Any) -> Any | None:
+        if isinstance(base, dict) and isinstance(modified, dict):
+            diff: dict[str, Any] = {}
+            for key, mod_value in modified.items():
+                if key not in base:
+                    diff[key] = copy.deepcopy(mod_value)
+                    continue
+                sub_diff = cls._diff_structures(base[key], mod_value)
+                if sub_diff is not None:
+                    diff[key] = sub_diff
+            return diff or None
+        if isinstance(base, list) and isinstance(modified, list):
+            if len(base) != len(modified):
+                return copy.deepcopy(modified)
+            lists_equal = True
+            for b_item, m_item in zip(base, modified):
+                if cls._diff_structures(b_item, m_item) is not None:
+                    lists_equal = False
+                    break
+            if lists_equal:
+                return None
+            return copy.deepcopy(modified)
+        if cls._values_equal(base, modified):
+            return None
+        return modified
 
 
 class BonusStatsDialog(QtWidgets.QDialog):

@@ -1160,6 +1160,121 @@ def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
     return happened, logs, dmg_flag
 
 
+# --- Leandra Base Skill Handlers ---
+def handle_base_skill_vengeful_fury(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+
+    burn_factor = cfg.get("burn_factor", 0.0)
+    burn_duration = cfg.get("burn_duration", 1)
+    if burn_factor > 0:
+        burn_data = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_VENGEFUL_FURY_BURN,
+            "dot_type": DoTType.BURN,
+            "status_effect_factor": burn_factor,
+            "duration": burn_duration,
+            "activate_next_round": True,
+        }
+        created_burn = opponent_army._create_and_add_single_effect(
+            burn_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_burn:
+            happened = True
+            logs.append((
+                f"Inflicts '{EFFECT_NAME_VENGEFUL_FURY_BURN}' on {opponent_army.name} (Factor: {burn_factor}) "
+                f"for {burn_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    enemy_has_poison = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.POISON
+        for eff in opponent_army.active_effects
+    )
+    bonus_rage = cfg.get("bonus_rage", 0)
+    if enemy_has_poison and bonus_rage > 0:
+        rage_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+            "duration": 0,
+            "config": {"rage_amount": float(bonus_rage)},
+            "activate_next_round": True,
+        }
+        created_rage = triggering_army._create_and_add_single_effect(
+            rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_rage:
+            happened = True
+            logs.append((f"Gains {bonus_rage} rage next round because the enemy is poisoned.", None))
+    return happened, logs
+
+
+# --- Margit Base Skill Handlers ---
+def handle_base_skill_ride_the_waves(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+
+    base_mag = cfg.get("passive_buff_magnitude", 0.0)
+    if base_mag != 0 and not any(
+        eff.name == EFFECT_NAME_RIDE_THE_WAVES_PASSIVE and eff.source_skill_id == skill_def["id"]
+        for eff in triggering_army.active_effects
+    ):
+        passive_buff = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_RIDE_THE_WAVES_PASSIVE,
+            "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
+            "magnitude": base_mag,
+            "duration": -1,
+            "activate_next_round": False,
+            "config": {"is_dispellable": False},
+        }
+        created_buff = triggering_army._create_and_add_single_effect(
+            passive_buff, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_buff:
+            happened = True
+            logs.append((
+                f"Gains permanent '{EFFECT_NAME_RIDE_THE_WAVES_PASSIVE}' (+{base_mag * 100:.0f}% basic attack damage).",
+                None,
+            ))
+
+    enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
+    if enemy_has_slow:
+        conditional_chance = cfg.get("conditional_buff_chance", 0.0)
+        if random.random() < conditional_chance:
+            buff_mag = cfg.get("conditional_buff_magnitude", 0.0)
+            buff_dur = cfg.get("conditional_buff_duration", 1)
+            if buff_mag != 0:
+                surge_buff = {
+                    "effect_type": EffectType.STAT_MOD,
+                    "name": EFFECT_NAME_RIDE_THE_WAVES_SURGE_BUFF,
+                    "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
+                    "magnitude": buff_mag,
+                    "duration": buff_dur,
+                    "activate_next_round": True,
+                }
+                created_surge = triggering_army._create_and_add_single_effect(
+                    surge_buff, skill_def["id"], triggering_army, triggering_army, opponent_army
+                )
+                if created_surge:
+                    happened = True
+                    logs.append((
+                        f"Gains '{EFFECT_NAME_RIDE_THE_WAVES_SURGE_BUFF}' (+{buff_mag * 100:.0f}% basic damage) "
+                        f"for {buff_dur + 1} rounds (starting next round).",
+                        None,
+                    ))
+    return happened, logs
+
 # --- Helgar Base Skill Handlers ---
 def handle_base_skill_judgements_fury(
         triggering_army: ArmyRef, opponent_army: ArmyRef,

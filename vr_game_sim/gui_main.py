@@ -1889,6 +1889,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.count_spin.setRange(0, 100000000)
         self.count_spin.setValue(100000)
 
+        self.rally_checkbox = QtWidgets.QCheckBox("Treat as rally army")
+
         self.atk_edit = QtWidgets.QDoubleSpinBox()
         self.atk_edit.setRange(-10.0, 10.0)
         self.atk_edit.setDecimals(4)
@@ -1964,6 +1966,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         layout.addWidget(QtWidgets.QLabel("Troops:"), row, 0)
         layout.addWidget(self.count_spin, row, 1)
+        row += 1
+
+        layout.addWidget(QtWidgets.QLabel("Rally army:"), row, 0)
+        layout.addWidget(self.rally_checkbox, row, 1)
         row += 1
 
         layout.addWidget(QtWidgets.QLabel("Atk mod:"), row, 0)
@@ -2286,6 +2292,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self._unit_changed(self.unit_combo.currentText())
         self.tier_spin.setValue(int(cfg.get("tier", 5)))
         self.count_spin.setValue(int(cfg.get("count", 100000)))
+        self.rally_checkbox.setChecked(bool(cfg.get("is_rally", False)))
         self.atk_edit.setValue(float(cfg.get("atk_mod", 0)))
         self.def_edit.setValue(float(cfg.get("def_mod", 0)))
         self.hp_edit.setValue(float(cfg.get("hp_mod", 0)))
@@ -2399,6 +2406,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             "unit_type": self.unit_combo.currentText(),
             "tier": int(self.tier_spin.value()),
             "count": int(self.count_spin.value()),
+            "is_rally": self.rally_checkbox.isChecked(),
             "atk_mod": float(self.atk_edit.value()),
             "def_mod": float(self.def_edit.value()),
             "hp_mod": float(self.hp_edit.value()),

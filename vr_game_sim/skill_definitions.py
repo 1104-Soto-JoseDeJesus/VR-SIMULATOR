@@ -40,7 +40,11 @@ from .skill_logic.talent_handlers import (
     # JENS TALENT HANDLERS
     handle_talent_godly_wrath, handle_talent_divine_punishment,
     # FREYDIS TALENT HANDLERS
-    handle_talent_heroic_blessing, handle_talent_battle_chime, handle_talent_flames_judgment
+    handle_talent_heroic_blessing, handle_talent_battle_chime, handle_talent_flames_judgment,
+    # LEANDRA TALENT HANDLERS
+    handle_talent_soul_awakening, handle_talent_flexible_strike, handle_talent_opportune_strike,
+    # MARGIT TALENT HANDLERS
+    handle_talent_cutting_blade, handle_talent_thirst_for_blood, handle_talent_seas_grace
 )
 from .skill_logic.base_skill_handlers import (
     handle_base_skill_planned_attack, handle_base_skill_flame_guardian,
@@ -67,7 +71,8 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_berserk_fury, handle_rage_brutal_blow,
     handle_base_skill_judgements_fury,
     handle_base_skill_shield_breaker,
-    handle_base_skill_plague, handle_base_skill_throwing_axe
+    handle_base_skill_plague, handle_base_skill_throwing_axe,
+    handle_base_skill_vengeful_fury, handle_base_skill_ride_the_waves
 )
 from .skill_logic.plugin_skill_handlers import (
     handle_plugin_divine_blessing, handle_plugin_shield_support, handle_plugin_freyas_blessing,
@@ -116,6 +121,8 @@ from .skill_logic.rage_skill_handlers import (
     handle_rage_showdown,
     handle_rage_undead_harvest,
     handle_rage_all_kill,
+    handle_rage_serrated_flourish,
+    handle_rage_raging_tide,
     # ROSKY RAGE SKILL HANDLER
     handle_rage_spirit_battleship
 )
@@ -1076,6 +1083,93 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_spirit_battleship,
         "config": {"damage_factor": 2800.0, "def_reduction_magnitude": -0.30, "def_reduction_duration": 3}
+    },
+
+
+    # --- Leandra Skills ---
+    "talent_soul_awakening": {
+        "id": "talent_soul_awakening", "name": "Soul Awakening", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF",
+        "logic_handler": handle_talent_soul_awakening,
+        "config": {"counter_reduction": -0.45}
+    },
+    "talent_flexible_strike": {
+        "id": "talent_flexible_strike", "name": "Flexible Strike", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.25, "target": "ENEMY",
+        "logic_handler": handle_talent_flexible_strike,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"damage_factor": 500.0, "heal_factor": 500.0}
+    },
+    "talent_opportune_strike": {
+        "id": "talent_opportune_strike", "name": "Opportune Strike", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_opportune_strike,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 6, "poison_factor": 650.0, "poison_duration": 1}
+    },
+    "base_skill_vengeful_fury": {
+        "id": "base_skill_vengeful_fury", "name": "Vengeful Fury", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_base_skill_vengeful_fury,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"burn_factor": 200.0, "burn_duration": 1, "conditional_rage_gain": 100}
+    },
+    "rage_skill_serrated_flourish": {
+        "id": "rage_skill_serrated_flourish", "name": "Serrated Flourish", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_serrated_flourish,
+        "config": {
+            "damage_factor": 1400.0,
+            "extra_hit_chance": 0.50,
+            "poison_chance": 0.50,
+            "poison_factor": 600.0,
+            "poison_duration": 2
+        }
+    },
+
+    # --- Margit Skills ---
+    "talent_cutting_blade": {
+        "id": "talent_cutting_blade", "name": "Cutting Blade", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF",
+        "logic_handler": handle_talent_cutting_blade,
+        "config": {"bleed_bonus": 0.25}
+    },
+    "talent_thirst_for_blood": {
+        "id": "talent_thirst_for_blood", "name": "Thirst for Blood", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.35, "target": "SELF",
+        "logic_handler": handle_talent_thirst_for_blood,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"heal_factor": 800.0}
+    },
+    "talent_seas_grace": {
+        "id": "talent_seas_grace", "name": "Sea's Grace", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_talent_seas_grace,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {
+            "trigger_interval": 6,
+            "bleed_factor": 1000.0,
+            "bleed_duration": 1,
+            "slow_duration": 1
+        }
+    },
+    "base_skill_ride_the_waves": {
+        "id": "base_skill_ride_the_waves", "name": "Ride the Waves", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_base_skill_ride_the_waves,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {
+            "base_basic_damage_boost": 0.20,
+            "bonus_chance": 0.50,
+            "bonus_basic_damage_boost": 1.0,
+            "bonus_duration": 1
+        }
+    },
+    "rage_skill_raging_tide": {
+        "id": "rage_skill_raging_tide", "name": "Raging Tide", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_raging_tide,
+        "config": {"damage_factor": 1600.0, "bleed_factor": 600.0, "bleed_duration": 1, "slow_duration": 3}
     },
 
 

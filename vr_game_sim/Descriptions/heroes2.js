@@ -25,7 +25,7 @@ const Heroes = [
       immunitycontrol: false,
       purify: false,
       devastation: false,
-      damagereduction: false,
+      damagereduction: true,
       id: 1
     },
     {
@@ -41,7 +41,7 @@ const Heroes = [
       basicattack: true,
       shield: false,
       heal: false,
-      rage: false,
+      rage: true,
       silence: false,
       disarm: false,
       brokenblade: false,

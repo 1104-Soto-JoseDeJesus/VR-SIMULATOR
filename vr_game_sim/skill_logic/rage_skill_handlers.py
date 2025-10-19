@@ -772,6 +772,180 @@ def handle_rage_incineration(
     return an_effect_happened, log_details, damage_dealt_flag
 
 
+# --- Leandra Rage Skill Handler ---
+def handle_rage_serrated_flourish(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    damage_dealt_flag = False
+
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    is_hero2_delayed = event_data.get("is_hero2_delayed_rage", False)
+
+    effect_target = event_data.get("direct_target_army") or opponent_army
+    calc_target = event_data.get("actual_opponent_for_calc", effect_target)
+
+    damage_factor = cfg.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army,
+            calc_target,
+            damage_factor,
+            is_hero2_rage_skill=is_hero2_delayed,
+            source_skill_def=skill_def,
+            damage_application_target=effect_target,
+        )
+        if hp_damage > 0:
+            effect_target.pending_hp_damage_this_round += hp_damage
+            damage_dealt_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage (Factor: {damage_factor}) to {effect_target.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+        if random.random() < cfg.get("poison_chance", 0.0):
+            poison_factor = cfg.get("poison_factor", 0.0)
+            poison_duration = cfg.get("poison_duration", 2)
+            if poison_factor > 0:
+                poison_data = {
+                    "effect_type": EffectType.DAMAGE_OVER_TIME,
+                    "name": EFFECT_NAME_SERRATED_FLOURISH_POISON,
+                    "dot_type": DoTType.POISON,
+                    "status_effect_factor": poison_factor,
+                    "duration": poison_duration,
+                    "activate_next_round": True,
+                }
+                created_poison = effect_target._create_and_add_single_effect(
+                    poison_data, skill_id, triggering_army, effect_target, triggering_army
+                )
+                if created_poison:
+                    an_effect_happened = True
+                    damage_dealt_flag = True
+                    log_details.append(
+                        (
+                            f"Inflicts '{EFFECT_NAME_SERRATED_FLOURISH_POISON}' on {effect_target.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                            None,
+                        )
+                    )
+
+    extra_hit_chance = cfg.get("extra_hit_chance", 0.0)
+    if damage_factor > 0 and extra_hit_chance > 0 and random.random() < extra_hit_chance:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army,
+            calc_target,
+            damage_factor,
+            is_hero2_rage_skill=is_hero2_delayed,
+            source_skill_def=skill_def,
+            damage_application_target=effect_target,
+        )
+        if hp_damage > 0:
+            effect_target.pending_hp_damage_this_round += hp_damage
+            damage_dealt_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals additional damage (Factor: {damage_factor}) to {effect_target.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    return an_effect_happened, log_details, damage_dealt_flag
+
+
+# --- Margit Rage Skill Handler ---
+def handle_rage_raging_tide(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    damage_dealt_flag = False
+
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    is_hero2_delayed = event_data.get("is_hero2_delayed_rage", False)
+
+    effect_target = event_data.get("direct_target_army") or opponent_army
+    calc_target = event_data.get("actual_opponent_for_calc", effect_target)
+
+    damage_factor = cfg.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army,
+            calc_target,
+            damage_factor,
+            is_hero2_rage_skill=is_hero2_delayed,
+            source_skill_def=skill_def,
+            damage_application_target=effect_target,
+        )
+        if hp_damage > 0:
+            effect_target.pending_hp_damage_this_round += hp_damage
+            damage_dealt_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage (Factor: {damage_factor}) to {effect_target.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    bleed_factor = cfg.get("bleed_factor", 0.0)
+    bleed_duration = cfg.get("bleed_duration", 1)
+    if bleed_factor > 0:
+        bleed_data = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_RAGING_TIDE_BLEED,
+            "dot_type": DoTType.BLEED,
+            "status_effect_factor": bleed_factor,
+            "duration": bleed_duration,
+            "activate_next_round": True,
+        }
+        created_bleed = effect_target._create_and_add_single_effect(
+            bleed_data, skill_id, triggering_army, effect_target, triggering_army
+        )
+        if created_bleed:
+            an_effect_happened = True
+            damage_dealt_flag = True
+            log_details.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_RAGING_TIDE_BLEED}' on {effect_target.name} (Factor: {bleed_factor}) for {bleed_duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    slow_duration = cfg.get("slow_duration", 3)
+    slow_data = {
+        "effect_type": EffectType.DEBUFF,
+        "name": EFFECT_NAME_SLOW_DEBUFF,
+        "duration": slow_duration,
+        "activate_next_round": True,
+    }
+    created_slow = effect_target._create_and_add_single_effect(
+        slow_data, skill_id, triggering_army, effect_target, triggering_army
+    )
+    if created_slow:
+        an_effect_happened = True
+        log_details.append(
+            (
+                f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {effect_target.name} for {slow_duration + 1} rounds (starting next round).",
+                None,
+            )
+        )
+
+    return an_effect_happened, log_details, damage_dealt_flag
+
+
 # --- Freydis Rage Skill Handler ---
 def handle_rage_desperate_strike(
         triggering_army: ArmyRef, opponent_army: ArmyRef,

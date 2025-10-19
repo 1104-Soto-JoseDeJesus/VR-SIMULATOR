@@ -1514,6 +1514,302 @@ def handle_talent_low_whispers(
     return an_effect_happened, log_details
 
 
+# --- Leandra Talent Handlers ---
+def handle_talent_soul_awakening(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    reduction = cfg.get("counter_reduction", -0.45)
+    already_active = any(
+        eff.name == EFFECT_NAME_SOUL_AWAKENING_COUNTER_REDUCTION and eff.source_skill_id == skill_def["id"]
+        for eff in triggering_army.active_effects
+    )
+    if already_active:
+        return False, []
+
+    effect_data = {
+        "effect_type": EffectType.STAT_MOD,
+        "name": EFFECT_NAME_SOUL_AWAKENING_COUNTER_REDUCTION,
+        "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+        "magnitude": reduction,
+        "duration": -1,
+        "activate_next_round": False,
+        "config": {"is_dispellable": False},
+    }
+    created = triggering_army._create_and_add_single_effect(
+        effect_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+    )
+    if created:
+        return True, [(f"Gains permanent '{EFFECT_NAME_SOUL_AWAKENING_COUNTER_REDUCTION}'.", None)]
+    return False, []
+
+
+def handle_talent_flexible_strike(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    effect_target = (
+        event_data.get("direct_target_army")
+        if event_data and event_data.get("direct_target_army")
+        else opponent_army
+    )
+    calc_target = event_data.get("actual_opponent_for_calc", effect_target) if event_data else effect_target
+
+    enemy_burning = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BURN
+        for eff in effect_target.active_effects
+    )
+    if enemy_burning:
+        damage_factor = cfg.get("damage_factor", 0.0)
+        if damage_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army,
+                calc_target,
+                damage_factor,
+                source_skill_def=skill_def,
+                damage_application_target=effect_target,
+            )
+            if hp_damage > 0:
+                effect_target.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append(
+                (
+                    f"Deals damage (Factor: {damage_factor}) to {effect_target.name} (target burning).",
+                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                )
+            )
+    else:
+        heal_factor = cfg.get("heal_factor", 0.0)
+        if heal_factor > 0:
+            healed = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, effect_target, source_skill_id=skill_id
+            )
+            if healed > 0:
+                happened = True
+                logs.append((f"Heals for {healed:.0f} HP (Factor: {heal_factor}).", None))
+
+    return happened, logs
+
+
+def handle_talent_opportune_strike(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+
+    if current_round > 0 and current_round % interval == 0:
+        effect_target = (
+            event_data.get("direct_target_army")
+            if event_data and event_data.get("direct_target_army")
+            else opponent_army
+        )
+        poison_factor = cfg.get("poison_factor", 0.0)
+        poison_duration = cfg.get("poison_duration", 1)
+        if poison_factor > 0:
+            poison_data = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": EFFECT_NAME_OPPORTUNE_STRIKE_POISON,
+                "dot_type": DoTType.POISON,
+                "status_effect_factor": poison_factor,
+                "duration": poison_duration,
+                "activate_next_round": True,
+            }
+            created_poison = effect_target._create_and_add_single_effect(
+                poison_data, skill_def["id"], triggering_army, effect_target, triggering_army
+            )
+            if created_poison:
+                happened = True
+                logs.append(
+                    (
+                        f"Inflicts '{EFFECT_NAME_OPPORTUNE_STRIKE_POISON}' on {effect_target.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                        None,
+                    )
+                )
+        if not happened:
+            logs.append(("Opportune Strike triggered but no poison applied (factor missing).", None))
+    return happened, logs
+
+
+# --- Margit Talent Handlers ---
+def handle_talent_cutting_blade(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    magnitude = cfg.get("bleed_bonus", 0.25)
+    already_active = any(
+        eff.name == EFFECT_NAME_CUTTING_BLADE_BLEED_BOOST and eff.source_skill_id == skill_def["id"]
+        for eff in triggering_army.active_effects
+    )
+    if already_active:
+        return False, []
+
+    effect_data = {
+        "effect_type": EffectType.STAT_MOD,
+        "name": EFFECT_NAME_CUTTING_BLADE_BLEED_BOOST,
+        "stat_to_mod": StatType.BLEED_DAMAGE_BOOST,
+        "magnitude": magnitude,
+        "duration": -1,
+        "activate_next_round": False,
+        "config": {"is_dispellable": False},
+    }
+    created = triggering_army._create_and_add_single_effect(
+        effect_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+    )
+    if created:
+        return True, [(f"Gains permanent '{EFFECT_NAME_CUTTING_BLADE_BLEED_BOOST}'.", None)]
+    return False, []
+
+
+def handle_talent_thirst_for_blood(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    effect_target = (
+        event_data.get("direct_target_army")
+        if event_data and event_data.get("direct_target_army")
+        else opponent_army
+    )
+
+    enemy_bleeding = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in effect_target.active_effects
+    )
+    if enemy_bleeding:
+        heal_factor = cfg.get("heal_factor", 0.0)
+        if heal_factor > 0:
+            healed = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, effect_target, source_skill_id=skill_id
+            )
+            if healed > 0:
+                happened = True
+                logs.append((f"Heals for {healed:.0f} HP (Factor: {heal_factor}).", None))
+    else:
+        logs.append((f"Condition not met: {effect_target.name} is not bleeding.", None))
+
+    return happened, logs
+
+
+def handle_talent_seas_grace(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+
+    if current_round > 0 and current_round % interval == 0:
+        # Purify one random debuff
+        eligible_debuffs = [
+            eff
+            for eff in triggering_army.active_effects
+            if (
+                eff.effect_type == EffectType.DEBUFF
+                or (
+                    eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                    and eff.config.get("dot_type") in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
+                )
+                or eff.config.get("prevents_counterattack")
+                or eff.config.get("prevents_basic_attack")
+                or eff.config.get("prevents_rage_skill_cast")
+            )
+        ]
+        if eligible_debuffs:
+            target_debuff = random.choice(eligible_debuffs)
+            cleanse_data = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY,
+                "duration": 0,
+                "config": {
+                    "debuff_ids_to_remove": [target_debuff.id],
+                    "debuff_names_removed_log": [target_debuff.name],
+                },
+                "activate_next_round": True,
+            }
+            created_cleanse = triggering_army._create_and_add_single_effect(
+                cleanse_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+            )
+            if created_cleanse:
+                happened = True
+                logs.append((f"Purifies debuff '{target_debuff.name}' next round.", None))
+        else:
+            logs.append(("Sea's Grace triggered but no debuffs to purify.", None))
+
+        effect_target = (
+            event_data.get("direct_target_army")
+            if event_data and event_data.get("direct_target_army")
+            else opponent_army
+        )
+        if random.random() < 0.5:
+            bleed_factor = cfg.get("bleed_factor", 0.0)
+            bleed_duration = cfg.get("bleed_duration", 1)
+            if bleed_factor > 0:
+                bleed_data = {
+                    "effect_type": EffectType.DAMAGE_OVER_TIME,
+                    "name": EFFECT_NAME_SEAS_GRACE_BLEED,
+                    "dot_type": DoTType.BLEED,
+                    "status_effect_factor": bleed_factor,
+                    "duration": bleed_duration,
+                    "activate_next_round": True,
+                }
+                created_bleed = effect_target._create_and_add_single_effect(
+                    bleed_data, skill_def["id"], triggering_army, effect_target, triggering_army
+                )
+                if created_bleed:
+                    happened = True
+                    logs.append(
+                        (
+                            f"Inflicts '{EFFECT_NAME_SEAS_GRACE_BLEED}' on {effect_target.name} (Factor: {bleed_factor}) for {bleed_duration + 1} rounds (starting next round).",
+                            None,
+                        )
+                    )
+        else:
+            slow_duration = cfg.get("slow_duration", 1)
+            slow_data = {
+                "effect_type": EffectType.DEBUFF,
+                "name": EFFECT_NAME_SLOW_DEBUFF,
+                "duration": slow_duration,
+                "activate_next_round": True,
+            }
+            created_slow = effect_target._create_and_add_single_effect(
+                slow_data, skill_def["id"], triggering_army, effect_target, triggering_army
+            )
+            if created_slow:
+                happened = True
+                logs.append(
+                    (
+                        f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {effect_target.name} for {slow_duration + 1} rounds (starting next round).",
+                        None,
+                    )
+                )
+
+    return happened, logs
+
+
 # --- Ivor Talent Handlers ---
 def handle_talent_specter_lycan_assault(triggering_army: ArmyRef, opponent_army: ArmyRef,
                                         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],

@@ -118,6 +118,11 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_drumming_disturbance", "base_skill_inspiring_dance"],
         'plugin_skills': [],
     },
+    'leandra': {
+        'talents': ["talent_soul_awakening", "talent_flexible_strike", "talent_opportune_strike"],
+        'base_skills': ["base_skill_vengeful_fury", "rage_skill_serrated_flourish"],
+        'plugin_skills': [],
+    },
     'jens': {
         'talents': ["talent_godly_wrath", "talent_divine_blite", "talent_divine_punishment"],
         'base_skills': ["base_skill_divine_energize", "base_skill_heavenly_descent"],
@@ -146,6 +151,11 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
     'helgar': {
         'talents': ["talent_saintly_guardian", "talent_war_blessing", "talent_judgement_mark"],
         'base_skills': ["base_skill_judgements_fury", "rage_skill_ruling_trial"],
+        'plugin_skills': [],
+    },
+    'margit': {
+        'talents': ["talent_cutting_blade", "talent_thirst_for_blood", "talent_seas_grace"],
+        'base_skills': ["base_skill_ride_the_waves", "rage_skill_raging_tide"],
         'plugin_skills': [],
     },
     'lagertha': {

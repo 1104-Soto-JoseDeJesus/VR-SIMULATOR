@@ -201,3 +201,17 @@ EFFECT_NAME_POISON_ARROW_POISON = "Poison Arrow Poison"
 EFFECT_NAME_POISON_ARROW_ATK_REDUCTION = "Poison Arrow Attack Reduction"
 EFFECT_NAME_DIVINE_SHIELD_STRENGTH = "Divine Shield Shield Boost"
 EFFECT_NAME_DIVINE_SHIELD_IMMUNITY = "Divine Shield Debuff Immunity"
+
+# --- Leandra Skill Effect Names ---
+EFFECT_NAME_SOUL_AWAKENING_COUNTER_REDUCTION = "Soul Awakening Counter Reduction"
+EFFECT_NAME_VENGEFUL_FURY_BURN = "Vengeful Fury Burn"
+EFFECT_NAME_SERRATED_FLOURISH_POISON = "Serrated Flourish Poison"
+EFFECT_NAME_OPPORTUNE_STRIKE_POISON = "Opportune Strike Poison"
+
+# --- Margit Skill Effect Names ---
+EFFECT_NAME_RIDE_THE_WAVES_BASE_BUFF = "Ride the Waves Basic Attack Buff"
+EFFECT_NAME_RIDE_THE_WAVES_SURGE = "Ride the Waves Surge"
+EFFECT_NAME_RAGING_TIDE_BLEED = "Raging Tide Bleed"
+EFFECT_NAME_CUTTING_BLADE_BLEED_BOOST = "Cutting Blade Bleed Boost"
+EFFECT_NAME_SEAS_GRACE_BLEED = "Sea's Grace Bleed"
+EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY = "PENDING_SEAS_GRACE_PURIFY"

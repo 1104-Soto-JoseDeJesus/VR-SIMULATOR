@@ -18,6 +18,7 @@ from .constants import (
     EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
     EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
     EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
+    EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY,
     EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Import Olena's new effect
     EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
     EFFECT_NAME_DELAYED_RAGE_GAIN,
@@ -971,6 +972,7 @@ class Army:
                 EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
                 EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
                 EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
+                EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY,
                 EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Add Olena's custom rage gain effect
                 EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
                 EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
@@ -1290,7 +1292,7 @@ class Army:
 
             elif effect.name in [EFFECT_NAME_PENDING_AWAKENING_CLEANSE, EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
                                  EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
-                                 EFFECT_NAME_PENDING_HEIMDALL_PURIFY] \
+                                 EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY, EFFECT_NAME_PENDING_HEIMDALL_PURIFY] \
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
                     debuff_ids_to_remove = effect.config.get("debuff_ids_to_remove", [])

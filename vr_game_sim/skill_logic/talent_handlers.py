@@ -1522,21 +1522,53 @@ def handle_talent_soul_awakening(
 ) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
     cfg = skill_def.get("config", {})
     reduction = cfg.get("counter_reduction", -0.45)
-    already_active = any(
-        eff.name == EFFECT_NAME_SOUL_AWAKENING_COUNTER_REDUCTION and eff.source_skill_id == skill_def["id"]
-        for eff in triggering_army.active_effects
-    )
-    if already_active:
-        return False, []
+    desired_filter = {"attack_type": "COUNTER"}
+
+    existing_container = None
+    existing_index = -1
+    existing_effect = None
+    for effect_list in (
+        triggering_army.active_effects,
+        triggering_army.upcoming_effects,
+        triggering_army.effects_to_activate_next_round,
+    ):
+        for idx, effect in enumerate(effect_list):
+            if (
+                effect.name == EFFECT_NAME_SOUL_AWAKENING_COUNTER_REDUCTION
+                and effect.source_skill_id == skill_def["id"]
+            ):
+                existing_container = effect_list
+                existing_index = idx
+                existing_effect = effect
+                break
+        if existing_effect:
+            break
+
+    if existing_effect:
+        has_correct_stat = (
+            existing_effect.config.get("stat_to_mod") == StatType.DAMAGE_TAKEN_MULTIPLIER
+        )
+        has_correct_filter = existing_effect.config.get("config_filter") == desired_filter
+        is_non_dispellable = existing_effect.config.get("is_dispellable") is False
+        has_correct_magnitude = existing_effect.magnitude == reduction
+
+        if has_correct_stat and has_correct_filter and is_non_dispellable and has_correct_magnitude:
+            return False, []
+
+        if existing_container is not None and existing_index >= 0:
+            existing_container.pop(existing_index)
 
     effect_data = {
         "effect_type": EffectType.STAT_MOD,
         "name": EFFECT_NAME_SOUL_AWAKENING_COUNTER_REDUCTION,
-        "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+        "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
         "magnitude": reduction,
         "duration": -1,
         "activate_next_round": False,
-        "config": {"is_dispellable": False},
+        "config": {
+            "is_dispellable": False,
+            "config_filter": desired_filter,
+        },
     }
     created = triggering_army._create_and_add_single_effect(
         effect_data, skill_def["id"], triggering_army, triggering_army, opponent_army

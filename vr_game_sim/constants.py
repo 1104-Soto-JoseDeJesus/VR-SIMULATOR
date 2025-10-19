@@ -96,11 +96,14 @@ EFFECT_NAME_SCORCHING_ARROW_BURN_BOOST = "Scorching Arrow Burn Boost"
 # Poised Shot: Direct damage and direct rage reduction, no specific effect names needed.
 EFFECT_NAME_ENCHANTED_ARROW_BURN = "Enchanted Arrow Burn"
 EFFECT_NAME_CONCENTRATION_RAGE_GAIN = "Concentration Rage Gain Effect" # Custom effect for multi-round rage
+EFFECT_NAME_VENGEFUL_FURY_BURN = "Vengeful Fury Burn"
+EFFECT_NAME_SERRATED_FLOURISH_POISON = "Serrated Flourish Poison"
 
 # --- Artur Skill Effect Names ---
 EFFECT_NAME_TORMENT_BURN = "Torment Burn"
 EFFECT_NAME_INCINERATION_BURN_BOOST = "Incineration Burn Damage Boost"
 EFFECT_NAME_HELLFIRE_SHELTER_COUNTER_REDUCTION = "Hellfire Shelter Counter Damage Reduction"
+EFFECT_NAME_SOUL_AWAKENING_COUNTER_REDUCTION = "Soul Awakening Counter Damage Reduction"
 
 # --- Freydis Skill Effect Names ---
 EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF = "Heroic Blessing Counter Debuff"
@@ -125,6 +128,7 @@ EFFECT_NAME_PATIENT_WAITING_BUFF = "Patient and Waiting Attack Buff"
 EFFECT_NAME_TOUGH_CHOICE_BASIC_BUFF = "Tough Choice Basic Damage Buff"
 EFFECT_NAME_TOUGH_CHOICE_COUNTER_DEBUFF = "Tough Choice Counter Damage Debuff"
 EFFECT_NAME_BLOODY_PILLAGE_BLEED = "Bloody Pillage Bleed"
+EFFECT_NAME_SEAS_GRACE_BLEED = "Sea's Grace Bleed"
 
 # --- Harald Skill Effect Names ---
 EFFECT_NAME_BATTLE_PREPARATION_BUFF = "Battle Preparation Attack Buff"
@@ -148,6 +152,7 @@ EFFECT_NAME_DELAYED_RAGE_REDUCTION = "Delayed Rage Reduction"
 EFFECT_NAME_BRUTAL_BLOW_SHIELD = "Brutal Blow Shield"
 EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL = "PENDING_BRUTAL_BLOW_BUFF_REMOVAL"
 EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE = "PENDING_BRUTAL_BLOW_CLEANSE"
+EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY = "PENDING_SEAS_GRACE_PURIFY"
 EFFECT_NAME_PENDING_HEIMDALL_PURIFY = "PENDING_HEIMDALL_PURIFY"
 EFFECT_NAME_PENDING_HEIMDALL_DISPEL = "PENDING_HEIMDALL_DISPEL"
 EFFECT_NAME_HEIMDALL_STEALTH_EVASION = "Heimdall's Sapphire Evasion"
@@ -157,8 +162,12 @@ EFFECT_NAME_HEIMDALL_DAMAGE_REDUCTION = "Heimdall's Sapphire Damage Reduction"
 EFFECT_NAME_SHIELDAXE_ATTACK_BLEED_BOOST = "Shieldaxe Attack Bleed Boost"
 EFFECT_NAME_CHIEFS_MIGHT_BLEED = "Chief's Might Bleed"
 EFFECT_NAME_SHIELD_BREAKER_BASIC_BUFF = "Shield Breaker Basic Attack Buff"
+EFFECT_NAME_CUTTING_BLADE_BLEED_BOOST = "Cutting Blade Bleed Boost"
 EFFECT_NAME_SHOWDOWN_BLEED = "Showdown Bleed"
 EFFECT_NAME_SHOWDOWN_SHIELD = "Showdown Shield"
+EFFECT_NAME_RIDE_THE_WAVES_PASSIVE = "Ride the Waves Basic Attack Buff"
+EFFECT_NAME_RIDE_THE_WAVES_SURGE_BUFF = "Ride the Waves Surge Buff"
+EFFECT_NAME_RAGING_TIDE_BLEED = "Raging Tide Bleed"
 # --- Additional Plugin Effect Names ---
 EFFECT_NAME_HALE_OF_THORNS_GENERAL_REDUCTION = "Hale of Thorns General Damage Debuff"
 EFFECT_NAME_HALE_OF_THORNS_COUNTER_BUFF = "Hale of Thorns Counterattack Buff"
@@ -183,6 +192,7 @@ EFFECT_NAME_DREADFUL_CURSE_POISON_BOOST = "Dreadful Curse Poison Boost"
 EFFECT_NAME_HIGH_FIGHTING_SPIRIT_RAGE_BUFF = "High Fighting Spirit Rage Buff"
 EFFECT_NAME_LOW_WHISPERS_REDUCTION = "Low Whispers Damage Reduction"
 EFFECT_NAME_PLAGUE_POISON = "Plague Poison"
+EFFECT_NAME_OPPORTUNE_STRIKE_POISON = "Opportune Strike Poison"
 EFFECT_NAME_PLAGUE_DAMAGE_TAKEN_DEBUFF = "Plague Damage Taken Debuff"
 EFFECT_NAME_UNDEAD_HARVEST_HP_REDUCTION = "Undead Harvest HP Reduction"
 

@@ -34,6 +34,7 @@ from .constants import (
     EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
     EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
     EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
+    EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY,
     EFFECT_NAME_SAINTLY_GUARDIAN_SHIELD_BOOST,
     EFFECT_NAME_WAR_BLESSING_SHIELD,
     EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF,
@@ -1290,7 +1291,7 @@ class Army:
 
             elif effect.name in [EFFECT_NAME_PENDING_AWAKENING_CLEANSE, EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
                                  EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
-                                 EFFECT_NAME_PENDING_HEIMDALL_PURIFY] \
+                                 EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY, EFFECT_NAME_PENDING_HEIMDALL_PURIFY] \
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
                     debuff_ids_to_remove = effect.config.get("debuff_ids_to_remove", [])

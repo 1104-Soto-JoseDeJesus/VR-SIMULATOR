@@ -1532,11 +1532,14 @@ def handle_talent_soul_awakening(
     effect_data = {
         "effect_type": EffectType.STAT_MOD,
         "name": EFFECT_NAME_SOUL_AWAKENING_COUNTER_REDUCTION,
-        "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+        "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
         "magnitude": reduction,
         "duration": -1,
         "activate_next_round": False,
-        "config": {"is_dispellable": False},
+        "config": {
+            "is_dispellable": False,
+            "config_filter": {"attack_type": "COUNTER"},
+        },
     }
     created = triggering_army._create_and_add_single_effect(
         effect_data, skill_def["id"], triggering_army, triggering_army, opponent_army

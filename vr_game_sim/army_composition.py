@@ -90,6 +90,7 @@ class Army:
     heroes: List[Hero] = field(default_factory=list)
     unrevivable_ratio: float = 0.65
     use_dynamic_unrevivable_ratio: bool = False
+    is_rally: bool = False
     bonus_stats_config: Dict[str, Any] = field(default_factory=dict)
     gem_skill_ids: Dict[str, str] = field(default_factory=dict)
     gem_skills: List[SkillDefinition] = field(init=False, default_factory=list)
@@ -1686,5 +1687,5 @@ class Army:
         hero_names = [h.name for h in self.heroes if h] if self.heroes else []
         return (
             f"Army(Name: {self.name}, Unit: {self.unit.unit_type} T{self.unit.tier}, Troops: {self.current_troop_count:.0f}/{self.unit.initial_count} "
-            f"(Unrev: {round(self.unrevivable_troops)}), Rage: {self.current_rage:.0f}, Heroes: {hero_names}, Active Effects: {len(self.active_effects)})")
+            f"(Unrev: {round(self.unrevivable_troops)}), Rage: {self.current_rage:.0f}, Rally: {self.is_rally}, Heroes: {hero_names}, Active Effects: {len(self.active_effects)})")
 

@@ -216,6 +216,7 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
             use_dynamic_unrevivable_ratio=army_config.get(
                 "use_dynamic_unrevivable_ratio", False
             ),
+            is_rally=bool(army_config.get("is_rally", False)),
             bonus_stats_config=copy.deepcopy(army_config.get("bonus_stats", {})),
         )
         gem_skills_cfg = army_config.get("gem_skills")

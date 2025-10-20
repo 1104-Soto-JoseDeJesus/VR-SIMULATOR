@@ -1222,6 +1222,96 @@ def handle_plugin_breaking_free(
     return an_effect_happened, log_details
 
 
+def handle_plugin_fading_battle(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    damage_factor = skill_config.get("damage_factor", 0.0)
+
+    if damage_factor <= 0:
+        return False, []
+
+    targets: List[ArmyRef] = [opponent_army]
+
+    calc_target = opponent_army
+    if event_data and event_data.get("actual_opponent_for_calc"):
+        calc_target = event_data["actual_opponent_for_calc"]
+
+    # Only attempt to add splash targets in multi-engagement modes
+    if simulator and simulator.mode in ("battlefield", "arena"):
+        engine = getattr(simulator, "parent_engine", None)
+        if engine:
+            engaged = engine.get_engaged_enemies(triggering_army.name) or []
+            extras: List[ArmyRef] = []
+            seen_names = {opponent_army.name}
+            for army in engaged:
+                if army is opponent_army:
+                    continue
+                if army.current_troop_count <= 0:
+                    continue
+                if army.name in seen_names:
+                    continue
+                seen_names.add(army.name)
+                extras.append(army)
+            if len(extras) > 2:
+                extras = random.sample(extras, 2)
+            targets.extend(extras)
+
+    # Resolve primary target damage first so calculation respects event context
+    primary_damage = simulator._calculate_generic_skill_damage(
+        triggering_army,
+        calc_target,
+        damage_factor,
+        source_skill_def=skill_def,
+        damage_application_target=opponent_army,
+    )
+    hp_damage, absorbed, kills, raw_logged_damage = primary_damage
+    if hp_damage > 0:
+        opponent_army.pending_hp_damage_this_round += hp_damage
+    if hp_damage > 0 or absorbed > 0:
+        an_effect_happened = True
+    log_details.append(
+        (
+            f"Deals damage to {opponent_army.name}.",
+            {
+                "damage_done_hp": round(raw_logged_damage),
+                "absorbed_hp": round(absorbed),
+                "potential_kills": kills,
+            },
+        )
+    )
+
+    # Secondary targets are processed using their own context
+    for extra_target in targets[1:]:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army,
+            extra_target,
+            damage_factor,
+            source_skill_def=skill_def,
+            damage_application_target=extra_target,
+        )
+        if hp_damage > 0:
+            extra_target.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage to {extra_target.name}.",
+                {
+                    "damage_done_hp": round(raw_logged_damage),
+                    "absorbed_hp": round(absorbed),
+                    "potential_kills": kills,
+                },
+            )
+        )
+
+    return an_effect_happened, log_details
+
+
 def handle_plugin_battle_hymn(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],

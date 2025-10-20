@@ -83,7 +83,8 @@ from .skill_logic.plugin_skill_handlers import (
     handle_plugin_blow_of_chaos, handle_plugin_on_alert, handle_plugin_helas_curse,
     handle_plugin_fearless, handle_plugin_joint_offense, handle_plugin_bloody_rage,
     handle_plugin_silencer, handle_plugin_enrage, handle_plugin_blessed_negation,
-    handle_plugin_wild_indulgence, handle_plugin_breaking_free, handle_plugin_battle_hymn,
+    handle_plugin_wild_indulgence, handle_plugin_breaking_free, handle_plugin_fading_battle,
+    handle_plugin_battle_hymn,
     handle_plugin_rapid_attack, handle_plugin_rage_purge, handle_plugin_blessed_by_fate,
     handle_plugin_tidal_attack, handle_plugin_splinter, handle_plugin_hale_of_thorns,
     handle_plugin_halo_of_sacrifice, handle_plugin_heightened_chance, handle_plugin_tenacity,
@@ -175,7 +176,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
     },
     "talent_sacred_counter": {
         "id": "talent_sacred_counter", "name": "Sacred Counter", "type": SkillType.TALENT,
-        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_generic_single_damage_skill,
         "labels": [PluginSkillLabel.REACTIVE],
         "config": {"damage_factor": 600.0}
@@ -1242,7 +1243,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
     "plugin_fading_battle": {
         "id": "plugin_fading_battle", "name": "Fading Battle", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
-        "logic_handler": handle_generic_single_damage_skill,
+        "logic_handler": handle_plugin_fading_battle,
         "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_factor": 350.0}
     },

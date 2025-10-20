@@ -60,3 +60,20 @@ def test_dot_counts_as_debuff_for_condition(monkeypatch):
     monkeypatch.setattr(random, "random", lambda: 0.0)
     handle_talent_fearless_pursuit(army1, army2, skill_def, None, sim)
     assert recorded.get("factor") == 200
+
+
+def test_no_debuff_uses_base_damage(monkeypatch):
+    army1, army2, sim = _basic_armies()
+    skill_def = copy.deepcopy(SKILL_REGISTRY_GLOBAL["talent_fearless_pursuit"])
+    skill_def["config"]["damage_factor"] = 150
+    skill_def["config"]["alt_damage_factor"] = 325
+    recorded = {}
+
+    def fake_calc(trig, opp, factor, **kwargs):
+        recorded["factor"] = factor
+        return 0, 0, 0, 0
+
+    monkeypatch.setattr(sim, "_calculate_generic_skill_damage", fake_calc)
+    monkeypatch.setattr(random, "random", lambda: 0.0)
+    handle_talent_fearless_pursuit(army1, army2, skill_def, None, sim)
+    assert recorded.get("factor") == 150

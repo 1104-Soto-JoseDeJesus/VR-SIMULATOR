@@ -2,9 +2,18 @@
 Defines the Hero class and hero presets.
 """
 from dataclasses import dataclass, field, InitVar
-from typing import List, Dict, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import copy
+
+from .gear_definitions import (
+    VALID_GEAR_SLOTS,
+    normalize_gear_slot,
+    resolve_gear,
+)
 from .skill_system import SkillDefinition
+
+if TYPE_CHECKING:
+    from .gear_definitions import GearDefinition
 
 _SKILL_REGISTRY_TYPE_HINT: Dict[str, SkillDefinition] = {}
 
@@ -16,9 +25,18 @@ class Hero:
     base_skill_ids: List[str]
     plugin_skill_ids: List[str]
     skill_registry: InitVar[Dict[str, SkillDefinition]]
+    gear_config: InitVar[Dict[str, Any] | None] = None
     skills: List[SkillDefinition] = field(init=False, default_factory=list)
+    gear_ids: Dict[str, str] = field(init=False, default_factory=dict)
+    gear_items: Dict[str, "GearDefinition"] = field(init=False, default_factory=dict)
 
-    def __post_init__(self, skill_registry: Dict[str, SkillDefinition]):
+    def __post_init__(
+        self,
+        skill_registry: Dict[str, SkillDefinition] | None,
+        gear_config: Dict[str, Any] | None,
+    ):
+        if skill_registry is None:
+            skill_registry = {}
         if len(self.talent_ids) != 3:
             if len(self.talent_ids) < 3:
                 self.talent_ids.extend(["dummy_talent_empty"] * (3 - len(self.talent_ids)))
@@ -41,10 +59,43 @@ class Hero:
                         elif "dummy_talent_empty" in skill_registry:
                             self.skills.append(copy.deepcopy(skill_registry["dummy_talent_empty"]))
 
+        self.gear_ids = {}
+        self.gear_items = {}
+        raw_gear_config: Dict[str, Any] = {}
+        if isinstance(gear_config, dict):
+            raw_gear_config = gear_config
+        elif gear_config is not None:
+            print(f"Warning: Gear configuration for hero '{self.name}' must be a mapping. Got {type(gear_config).__name__}.")
+
+        for slot_key, raw_value in raw_gear_config.items():
+            slot = normalize_gear_slot(slot_key)
+            if not slot or slot not in VALID_GEAR_SLOTS:
+                print(
+                    f"Warning: Unknown gear slot '{slot_key}' for hero '{self.name}'. Expected one of {sorted(VALID_GEAR_SLOTS)}."
+                )
+                continue
+            gear_def = resolve_gear(raw_value)
+            if not gear_def:
+                if raw_value not in (None, ""):
+                    print(
+                        f"Warning: Gear '{raw_value}' for hero '{self.name}' could not be resolved."
+                    )
+                continue
+            if gear_def.slot != slot:
+                print(
+                    f"Warning: Gear '{gear_def.name} ({gear_def.rarity})' assigned to '{slot_key}' on hero '{self.name}' but is a '{gear_def.slot}' item."
+                )
+            self.gear_ids[slot] = gear_def.id
+            self.gear_items[slot] = gear_def
+
 
     def __repr__(self):
         skill_names = [s['name'] for s in self.skills if s['id'] != "dummy_talent_empty"]
-        return f"Hero(Name: {self.name}, Skills: {skill_names if skill_names else 'None'})"
+        gear_names = [f"{gear.name} ({gear.rarity})" for gear in self.gear_items.values()]
+        return (
+            f"Hero(Name: {self.name}, Skills: {skill_names if skill_names else 'None'}, "
+            f"Gear: {gear_names if gear_names else 'None'})"
+        )
 
 HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
     'leif': {

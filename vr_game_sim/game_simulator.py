@@ -1396,6 +1396,10 @@ class GameSimulator:
             self.army1.commit_pending_healing_and_damage()
             self.army2.commit_pending_healing_and_damage()
             self.apply_unrevivable_post_commit(mutual_engagement=True)
+            self.army1.troop_count_history.append(self.army1.current_troop_count)
+            self.army2.troop_count_history.append(self.army2.current_troop_count)
+            self.army1.unrevivable_history.append(self.army1.unrevivable_troops)
+            self.army2.unrevivable_history.append(self.army2.unrevivable_troops)
             if self.track_stats:
                 heal1 = self.army1.pending_hp_healing_this_round
                 heal2 = self.army2.pending_hp_healing_this_round

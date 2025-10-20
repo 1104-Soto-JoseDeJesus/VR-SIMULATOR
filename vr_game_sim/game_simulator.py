@@ -1200,6 +1200,8 @@ class GameSimulator:
         self.army2.reset_for_new_battle()
         self.army1.register_simulator(self)
         self.army2.register_simulator(self)
+        self.army1._apply_initial_passive_skills()
+        self.army2._apply_initial_passive_skills()
         self.round = 0
 
         while self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:

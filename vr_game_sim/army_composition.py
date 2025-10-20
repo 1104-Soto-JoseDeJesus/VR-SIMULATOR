@@ -307,63 +307,84 @@ class Army:
         self.gem_skill_ids = normalized
         self._reload_gem_skills()
 
-    def _apply_initial_passive_skills(self):
-        sim = self.simulator
+    def _apply_initial_passive_skills(
+        self, *, simulator: Optional[GameSimulatorRef] = None
+    ) -> None:
+        sim = simulator if simulator is not None else self.simulator
 
+        skill_definitions: List[SkillDefinition] = []
         for hero in self.heroes:
-            for skill_def in hero.skills:
-                if (
-                    skill_def["trigger"] == SkillTriggerType.PASSIVE
-                    and skill_def.get("id") != "dummy_talent_empty"
-                ):
-                    # Passive skills may be applied multiple times when armies
-                    # join new engagements.  Skip any skill that has already
-                    # triggered once to avoid stacking permanent effects.
-                    if self.skill_trigger_counts.get(skill_def.get("id")):
-                        continue
-                    an_effect_truly_happened_passive = False
-                    log_details_passive: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+            if not hero:
+                continue
+            skill_definitions.extend(hero.skills)
+        skill_definitions.extend(self.gem_skills)
 
-                    if skill_def.get("effects_to_apply"):
-                        applied_logs = self._add_effects_from_skill_def(
-                            skill_def, self, source_army=self, opponent_for_calc=None
+        for skill_def in skill_definitions:
+            if (
+                skill_def.get("trigger") != SkillTriggerType.PASSIVE
+                or skill_def.get("id") == "dummy_talent_empty"
+            ):
+                continue
+
+            # Passive skills may be applied multiple times when armies join new
+            # engagements. Skip any skill that has already triggered once to
+            # avoid stacking permanent effects.
+            if self.skill_trigger_counts.get(skill_def.get("id")):
+                continue
+
+            an_effect_truly_happened_passive = False
+            log_details_passive: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+
+            if skill_def.get("effects_to_apply"):
+                applied_logs = self._add_effects_from_skill_def(
+                    skill_def, self, source_army=self, opponent_for_calc=None
+                )
+                for _, desc in applied_logs:
+                    log_details_passive.append((desc, None))
+                if applied_logs:
+                    an_effect_truly_happened_passive = True
+            elif skill_def.get("sub_effects"):
+                for sub_effect_data in skill_def["sub_effects"]:
+                    if random.random() < sub_effect_data.get("chance", 1.0):
+                        effect_to_apply_data = sub_effect_data["effect_to_apply"]
+                        created_effect = self._create_and_add_single_effect(
+                            effect_data=effect_to_apply_data.copy(),
+                            source_skill_id=skill_def["id"],
+                            owner_army=self,
+                            target_army=self,
+                            opponent_of_owner_for_calc=None,
                         )
-                        for _, desc in applied_logs:
-                            log_details_passive.append((desc, None))
-                        if applied_logs:
+                        if created_effect:
                             an_effect_truly_happened_passive = True
-                    elif skill_def.get("sub_effects"):
-                        for sub_effect_data in skill_def["sub_effects"]:
-                            if random.random() < sub_effect_data.get("chance", 1.0):
-                                effect_to_apply_data = sub_effect_data["effect_to_apply"]
-                                created_effect = self._create_and_add_single_effect(
-                                    effect_data=effect_to_apply_data.copy(), source_skill_id=skill_def["id"],
-                                    owner_army=self, target_army=self, opponent_of_owner_for_calc=None)
-                                if created_effect:
-                                    an_effect_truly_happened_passive = True
-                                    log_details_passive.append(
-                                        (f"{sub_effect_data.get('name_suffix', 'Effect')}: {created_effect.get_functionality_description()} for {created_effect.duration + 1} rounds.",
-                                         None)
-                                    )
-                    elif skill_def.get("logic_handler") and sim:
-                        opponent = (
-                            sim.army2 if self is sim.army1 else sim.army1
-                        )
-                        logic_handler = skill_def.get("logic_handler")
-                        an_effect_truly_happened_passive, log_details_passive = logic_handler(
-                            self, opponent, skill_def, None, sim
-                        )
-                    else:
-                        # Without a simulator we cannot safely run custom logic handlers.
-                        if skill_def.get("logic_handler"):
-                            continue
+                            log_details_passive.append(
+                                (
+                                    f"{sub_effect_data.get('name_suffix', 'Effect')}: "
+                                    f"{created_effect.get_functionality_description()} "
+                                    f"for {created_effect.duration + 1} rounds.",
+                                    None,
+                                )
+                            )
+            elif skill_def.get("logic_handler") and sim:
+                opponent = sim.army2 if self is sim.army1 else sim.army1
+                logic_handler = skill_def.get("logic_handler")
+                an_effect_truly_happened_passive, log_details_passive = logic_handler(
+                    self, opponent, skill_def, None, sim
+                )
+            else:
+                # Without a simulator we cannot safely run custom logic handlers.
+                if skill_def.get("logic_handler"):
+                    continue
 
-                    if an_effect_truly_happened_passive:
-                        if sim:
-                            sim._log_skill_trigger(self, skill_def['name'], "Passive applied at start.")
-                            for desc_str, dmg_details in log_details_passive:
-                                sim._log_skill_trigger(self, "  ↳", desc_str, damage_details=dmg_details)
-                        self.increment_skill_trigger_count(skill_def["id"])
+            if an_effect_truly_happened_passive:
+                if sim:
+                    sim._log_skill_trigger(
+                        self, skill_def["name"], "Passive applied at start."
+                    )
+                    for desc_str, dmg_details in log_details_passive:
+                        sim._log_skill_trigger(
+                            self, "  ↳", desc_str, damage_details=dmg_details
+                        )
+                self.increment_skill_trigger_count(skill_def["id"])
         self.activate_queued_effects()
 
     @staticmethod
@@ -1521,7 +1542,6 @@ class Army:
 
         self._identify_hero_rage_skills()
         self._apply_bonus_stats()
-        self._apply_initial_passive_skills()
 
     def _apply_bonus_stats(self) -> None:
         if not self.bonus_stats_config:

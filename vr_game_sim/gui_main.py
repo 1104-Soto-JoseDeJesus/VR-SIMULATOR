@@ -32,6 +32,7 @@ from vr_game_sim.hero_definition import HERO_PRESETS
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.army_composition import Army, normalize_gem_skill_id
 from vr_game_sim.gear_definitions import (
+    GEAR_REGISTRY,
     GEAR_SLOT_ORDER,
     RARITY_BACKGROUNDS,
     normalize_gear_slot,
@@ -1717,6 +1718,112 @@ class JewelSkillsDialog(QtWidgets.QDialog):
         return selections
 
 
+class GearSelectionDialog(QtWidgets.QDialog):
+    """Dialog for assigning gear to each hero slot."""
+
+    def __init__(
+        self,
+        hero_names: list[str],
+        current_gear: dict[int, dict[str, str]] | None,
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Configure Gear")
+        self.setModal(True)
+        self._slot_boxes: dict[tuple[int, str], QtWidgets.QComboBox] = {}
+        self._hero_enabled: dict[int, bool] = {}
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        normalized_current: dict[int, dict[str, str]] = {1: {}, 2: {}}
+        if current_gear:
+            for hero_idx, gear_map in current_gear.items():
+                if hero_idx not in normalized_current or not isinstance(gear_map, dict):
+                    continue
+                for slot_key, raw_value in gear_map.items():
+                    slot_name = normalize_gear_slot(slot_key)
+                    if not slot_name:
+                        continue
+                    gear_def = resolve_gear(raw_value)
+                    if not gear_def or gear_def.slot != slot_name:
+                        continue
+                    normalized_current[hero_idx][slot_name] = gear_def.id
+
+        gear_by_slot: dict[str, list] = {}
+        for gear_def in GEAR_REGISTRY.values():
+            gear_by_slot.setdefault(gear_def.slot, []).append(gear_def)
+        for slot_items in gear_by_slot.values():
+            slot_items.sort(
+                key=lambda g: (
+                    _RARITY_SORT_ORDER.get(g.rarity, 99),
+                    g.name,
+                )
+            )
+
+        for hero_idx, hero_name in enumerate(hero_names, start=1):
+            display_name = hero_name or "None"
+            group = QtWidgets.QGroupBox(f"Hero {hero_idx}: {display_name}")
+            form = QtWidgets.QFormLayout(group)
+            form.setFieldGrowthPolicy(
+                QtWidgets.QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
+            )
+            hero_active = display_name not in {"", "None"}
+            self._hero_enabled[hero_idx] = hero_active
+
+            for slot_key, slot_label in GEAR_SLOT_ORDER:
+                combo = QtWidgets.QComboBox()
+                combo.setEditable(True)
+                combo.setInsertPolicy(QtWidgets.QComboBox.InsertPolicy.NoInsert)
+                combo.addItem("None", "")
+                options = gear_by_slot.get(slot_key, [])
+                completer_items: list[str] = ["None"]
+                for gear_def in options:
+                    display = f"{gear_def.name} ({gear_def.rarity})"
+                    combo.addItem(display, gear_def.id)
+                    completer_items.append(display)
+                    tooltip_lines = [display]
+                    tooltip_lines.extend(gear_def.effect_descriptions())
+                    combo.setItemData(
+                        combo.count() - 1,
+                        "\n".join(tooltip_lines),
+                        QtCore.Qt.ItemDataRole.ToolTipRole,
+                    )
+                completer = QtWidgets.QCompleter(completer_items, combo)
+                completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+                completer.setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)
+                combo.setCompleter(completer)
+
+                current_id = normalized_current.get(hero_idx, {}).get(slot_key, "")
+                if current_id:
+                    idx = combo.findData(current_id)
+                    if idx >= 0:
+                        combo.setCurrentIndex(idx)
+                combo.setEnabled(hero_active)
+                form.addRow(f"{slot_label}:", combo)
+                self._slot_boxes[(hero_idx, slot_key)] = combo
+
+            layout.addWidget(group)
+
+        btn_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        btn_box.accepted.connect(self.accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+    def result(self) -> dict[int, dict[str, str]]:
+        selections: dict[int, dict[str, str]] = {}
+        for (hero_idx, slot_key), combo in self._slot_boxes.items():
+            if not self._hero_enabled.get(hero_idx, True):
+                continue
+            gear_id = combo.currentData()
+            if not isinstance(gear_id, str) or not gear_id:
+                continue
+            selections.setdefault(hero_idx, {})[slot_key] = gear_id
+        return selections
+
+
 class HeroEditDialog(QtWidgets.QDialog):
     """Dialog to edit or create a hero configuration."""
 
@@ -2017,13 +2124,13 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.gem_skills_btn = QtWidgets.QPushButton("Jewel Skills")
         self.bonus_stats_btn = QtWidgets.QPushButton("Bonus Stats")
 
-        # Gear and mount skills configuration is not yet available but the
-        # buttons are present for future expansion.
-        self.gear_btn.setEnabled(False)
+        # Mount skills configuration is not yet available but the
+        # button is present for future expansion.
         self.mount_skills_btn.setEnabled(False)
 
         self._bonus_stats = default_bonus_stats()
         self._gem_skills: dict[str, str] = {slot: "" for slot, _ in JEWEL_SLOTS}
+        self._hero_gear: dict[int, dict[str, str]] = {1: {}, 2: {}}
         self.gem_skills_btn.clicked.connect(self._open_gem_skills_dialog)
         self.bonus_stats_btn.clicked.connect(self._open_bonus_stats_dialog)
 
@@ -2045,6 +2152,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         self._update_bonus_stats_button()
         self._update_gem_skills_button()
+        self._update_gear_button()
 
         # --- Troop type icon ---
         self.unit_icon = QtWidgets.QLabel()
@@ -2208,6 +2316,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 self.custom_heroes[slot] = None
         self._hero_names[slot] = name
 
+        if name in {"None", ""} and self._hero_gear.get(slot):
+            self._hero_gear[slot] = {}
+        self._update_gear_button()
+
         img_label = self.hero1_img if slot == 1 else self.hero2_img
         img_label.set_image(None)
         img_label.setToolTip(name if name not in {"None", "Custom"} else "")
@@ -2314,6 +2426,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.custom_heroes[idx] = None
             self.hero_overrides[idx] = {}
             self._hero_names[idx] = "None"
+        self._hero_gear = {1: {}, 2: {}}
+        self._update_gear_button()
+        gear_map: dict[int, dict[str, str]] = {1: {}, 2: {}}
         for idx, hero_cfg in enumerate(cfg.get("heroes", []), start=1):
             if idx > 2:
                 break
@@ -2343,6 +2458,26 @@ class ArmyFrame(QtWidgets.QGroupBox):
             combo.setCurrentText(hero_name_display)
             combo.blockSignals(block)
             self._hero_selected(idx, hero_name_display)
+
+            raw_gear_cfg: dict[str, Any] = {}
+            if isinstance(hero_cfg, dict):
+                if isinstance(hero_cfg.get("gear_ids"), dict):
+                    raw_gear_cfg = dict(hero_cfg.get("gear_ids", {}))
+                elif isinstance(hero_cfg.get("gear"), dict):
+                    raw_gear_cfg = dict(hero_cfg.get("gear", {}))
+            normalized_slots: dict[str, str] = {}
+            for slot_key, raw_value in raw_gear_cfg.items():
+                slot_name = normalize_gear_slot(slot_key)
+                if not slot_name:
+                    continue
+                gear_def = resolve_gear(raw_value)
+                if not gear_def or gear_def.slot != slot_name:
+                    continue
+                normalized_slots[slot_name] = gear_def.id
+            if normalized_slots:
+                gear_map[idx] = normalized_slots
+        self._set_gear_config(gear_map)
+
         for idx, combo in enumerate(hero_combos, start=1):
             self._hero_selected(idx, combo.currentText())
 
@@ -2405,6 +2540,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
                         any_custom_plugin = True
                 if any_custom_plugin and plugin_counts:
                     cfg["plugin_star_counts"] = plugin_counts
+
+                gear_selection = self._hero_gear.get(idx, {})
+                if gear_selection:
+                    cfg["gear_ids"] = dict(gear_selection)
                 heroes_cfg.append(cfg)
 
         config = {
@@ -2543,6 +2682,65 @@ class ArmyFrame(QtWidgets.QGroupBox):
         if not entries:
             return 0, "No jewel skills selected."
         return count, "\n".join(entries)
+
+    def get_gear_config(self) -> dict[int, dict[str, str]]:
+        return {idx: dict(slots) for idx, slots in self._hero_gear.items() if slots}
+
+    def set_gear_config(self, gear_config: dict[int, dict[str, str]] | None) -> None:
+        self._set_gear_config(gear_config)
+
+    def _set_gear_config(self, gear_config: dict[int, dict[str, str]] | None) -> None:
+        normalized: dict[int, dict[str, str]] = {1: {}, 2: {}}
+        if gear_config:
+            for hero_idx, gear_map in gear_config.items():
+                if hero_idx not in normalized or not isinstance(gear_map, dict):
+                    continue
+                for slot_key, raw_value in gear_map.items():
+                    slot_name = normalize_gear_slot(slot_key)
+                    if not slot_name:
+                        continue
+                    gear_def = resolve_gear(raw_value)
+                    if not gear_def or gear_def.slot != slot_name:
+                        continue
+                    normalized[hero_idx][slot_name] = gear_def.id
+        self._hero_gear = normalized
+        self._update_gear_button()
+
+    def _update_gear_button(self) -> None:
+        if not hasattr(self, "gear_btn"):
+            return
+        count, summary = self._gear_summary()
+        if count:
+            self.gear_btn.setText(f"Gear ({count})")
+            self.gear_btn.setToolTip(summary)
+        else:
+            self.gear_btn.setText("Gear")
+            self.gear_btn.setToolTip("No gear equipped.")
+
+    def _gear_summary(self) -> tuple[int, str]:
+        entries: list[str] = []
+        total = 0
+        for hero_idx in (1, 2):
+            gear_map = self._hero_gear.get(hero_idx, {})
+            if not gear_map:
+                continue
+            hero_name = self._hero_names.get(hero_idx, f"Hero {hero_idx}")
+            hero_display = hero_name if hero_name not in {"", "None"} else f"Hero {hero_idx}"
+            parts: list[str] = []
+            for slot_key, slot_label in GEAR_SLOT_ORDER:
+                gear_id = gear_map.get(slot_key)
+                if not gear_id:
+                    continue
+                gear_def = GEAR_REGISTRY.get(gear_id) or resolve_gear(gear_id)
+                if not gear_def:
+                    continue
+                total += 1
+                parts.append(f"{slot_label}: {gear_def.name} ({gear_def.rarity})")
+            if parts:
+                entries.append(f"{hero_display}: {', '.join(parts)}")
+        if not entries:
+            return 0, "No gear equipped."
+        return total, "\n".join(entries)
 
 
 class ArmySetupDialog(QtWidgets.QDialog):
@@ -4621,6 +4819,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_dynamic_unrevivable_settings_changed(self) -> None:
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
 
+    def _open_gear_dialog(self, frame: ArmyFrame) -> None:
+        hero_names = [frame.hero1_combo.currentText(), frame.hero2_combo.currentText()]
+        dlg = GearSelectionDialog(hero_names, frame.get_gear_config(), self)
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            frame.set_gear_config(dlg.result())
+
     def _init_tabs(self) -> QtWidgets.QVBoxLayout:
         """Create the central widget and all tabs."""
         central = QtWidgets.QWidget()
@@ -4688,6 +4892,12 @@ class MainWindow(QtWidgets.QMainWindow):
         armies_row = QtWidgets.QHBoxLayout()
         self.army1_frame = ArmyFrame(1)
         self.army2_frame = ArmyFrame(2)
+        self.army1_frame.gear_btn.clicked.connect(
+            lambda: self._open_gear_dialog(self.army1_frame)
+        )
+        self.army2_frame.gear_btn.clicked.connect(
+            lambda: self._open_gear_dialog(self.army2_frame)
+        )
         armies_row.addWidget(self.army1_frame)
         armies_row.addWidget(self.army2_frame)
         setup_layout.addLayout(armies_row)

@@ -7252,7 +7252,7 @@ class MainWindow(QtWidgets.QMainWindow):
         }}
         .gear-grid {{
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
             gap: 12px;
         }}
         .gear-slot {{
@@ -7277,9 +7277,9 @@ class MainWindow(QtWidgets.QMainWindow):
         }}
         .gear-slot .gear-icon {{
             position: absolute;
-            inset: 18%;
-            width: 64%;
-            height: 64%;
+            inset: 27.5%;
+            width: 45%;
+            height: 45%;
             object-fit: contain;
             filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
         }}

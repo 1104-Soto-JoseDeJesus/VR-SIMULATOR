@@ -77,10 +77,31 @@ def ensure_setups_dir():
         os.makedirs(SETUPS_DIR)
 
 
-def ensure_histogram_dir():
-    """Ensures the histogram output directory exists."""
-    if not os.path.exists(HISTOGRAM_DIR):
-        os.makedirs(HISTOGRAM_DIR)
+def ensure_histogram_dir(directory: str | None = None) -> str:
+    """Ensure the histogram output directory ``directory`` exists.
+
+    Parameters
+    ----------
+    directory:
+        Optional path overriding the default histogram destination.  When
+        omitted, histograms are written alongside the package's resources so
+        that both the CLI and GUI share the same output location.
+
+    Returns
+    -------
+    str
+        Absolute path to the histogram directory that should be used for
+        subsequent figure exports.
+    """
+
+    if directory is None:
+        base_dir = os.path.dirname(__file__)
+        directory = os.path.join(base_dir, HISTOGRAM_DIR)
+    if not os.path.isabs(directory):
+        directory = os.path.abspath(directory)
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+    return directory
 
 
 def _smooth_counts(counts: np.ndarray, sigma: float = 1.0) -> np.ndarray:
@@ -305,6 +326,7 @@ def run_additional_simulations(
     num_workers: int = 1,
     progress_callback: Optional[Callable[[int, int], None]] = None,
     target_outcome: Optional[Dict[str, int]] = None,
+    histogram_dir: str | None = None,
 ) -> tuple[float, Optional[Dict[str, Any]]]:
     """Runs extra simulations and computes summary statistics.
 
@@ -423,8 +445,9 @@ def run_additional_simulations(
             "dynamic_settings": dict(dynamic_settings_payload),
         }
 
+    hist_dir: str | None = None
     if generate_histograms:
-        ensure_histogram_dir()
+        hist_dir = ensure_histogram_dir(histogram_dir)
 
         avg_rounds = sum(rounds_taken) / len(rounds_taken) if rounds_taken else 0
 
@@ -461,7 +484,7 @@ def run_additional_simulations(
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             fig.tight_layout()
             fig.savefig(
-                os.path.join(HISTOGRAM_DIR, "own_remaining_troops.png"),
+                os.path.join(hist_dir, "own_remaining_troops.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
                 facecolor=fig.get_facecolor(),
@@ -501,7 +524,7 @@ def run_additional_simulations(
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             fig.tight_layout()
             fig.savefig(
-                os.path.join(HISTOGRAM_DIR, "enemy_remaining_troops.png"),
+                os.path.join(hist_dir, "enemy_remaining_troops.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
                 facecolor=fig.get_facecolor(),
@@ -536,7 +559,7 @@ def run_additional_simulations(
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             fig.tight_layout()
             fig.savefig(
-                os.path.join(HISTOGRAM_DIR, "rounds_to_battle_end.png"),
+                os.path.join(hist_dir, "rounds_to_battle_end.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
                 facecolor=fig.get_facecolor(),
@@ -572,7 +595,7 @@ def run_additional_simulations(
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             fig.tight_layout()
             fig.savefig(
-                os.path.join(HISTOGRAM_DIR, "troop_difference.png"),
+                os.path.join(hist_dir, "troop_difference.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
                 facecolor=fig.get_facecolor(),
@@ -599,7 +622,7 @@ def run_additional_simulations(
             ax.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             fig.tight_layout()
             fig.savefig(
-                os.path.join(HISTOGRAM_DIR, "diff_vs_rounds.png"),
+                os.path.join(hist_dir, "diff_vs_rounds.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
                 facecolor=fig.get_facecolor(),
@@ -626,7 +649,7 @@ def run_additional_simulations(
             ax.xaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             fig.tight_layout()
             fig.savefig(
-                os.path.join(HISTOGRAM_DIR, "rounds_cdf.png"),
+                os.path.join(hist_dir, "rounds_cdf.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
                 facecolor=fig.get_facecolor(),
@@ -661,7 +684,7 @@ def run_additional_simulations(
                 axis.yaxis.set_major_locator(MaxNLocator(nbins=HISTOGRAM_TICK_COUNT))
             fig.tight_layout()
             fig.savefig(
-                os.path.join(HISTOGRAM_DIR, "rolling_stats.png"),
+                os.path.join(hist_dir, "rolling_stats.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
                 facecolor=fig.get_facecolor(),
@@ -694,7 +717,7 @@ def run_additional_simulations(
             ax.axis("equal")
             fig.tight_layout()
             fig.savefig(
-                os.path.join(HISTOGRAM_DIR, "victory_distribution.png"),
+                os.path.join(hist_dir, "victory_distribution.png"),
                 dpi=HISTOGRAM_DPI,
                 bbox_inches="tight",
                 facecolor=fig.get_facecolor(),
@@ -757,7 +780,7 @@ def run_additional_simulations(
                 ax.axis("equal")
                 fig.tight_layout()
                 fig.savefig(
-                    os.path.join(HISTOGRAM_DIR, "unrevivable_victory_distribution.png"),
+                    os.path.join(hist_dir, "unrevivable_victory_distribution.png"),
                     dpi=HISTOGRAM_DPI,
                     bbox_inches="tight",
                     facecolor=fig.get_facecolor(),

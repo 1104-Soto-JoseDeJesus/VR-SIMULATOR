@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import random
 import copy
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 import threading
 import math
 import json
@@ -18,6 +18,7 @@ import base64
 import mimetypes
 import difflib
 import io
+import tempfile
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
@@ -56,7 +57,7 @@ from vr_game_sim.metadata_loader import get_skill_description
 from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
 from vr_game_sim.arena_engine import ArenaEngine
 from vr_game_sim.navmesh import NavMesh
-from itertools import zip_longest
+from itertools import zip_longest, combinations
 
 from vr_game_sim.gui.arena_stats import ArenaStatsHeader, ArenaStatsRow
 
@@ -2827,6 +2828,117 @@ class ArmySetupDialog(QtWidgets.QDialog):
         return cfg
 
 
+class MultiSimDialog(QtWidgets.QDialog):
+    """Collect configurations for multi-army simulations."""
+
+    MIN_ARMIES = 3
+    MAX_ARMIES = 5
+
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget | None = None,
+        *,
+        initial_configs: list[dict[str, Any]] | None = None,
+        gear_callback: Callable[[ArmyFrame], None] | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Configure Multi-Sim Armies")
+        self._gear_callback = gear_callback
+        self._result_configs: list[dict[str, Any]] | None = None
+        self.frames: list[ArmyFrame] = []
+
+        layout = QtWidgets.QVBoxLayout(self)
+        info_label = QtWidgets.QLabel(
+            "Select between three and five armies to run a multi-simulation."
+        )
+        info_label.setWordWrap(True)
+        layout.addWidget(info_label)
+
+        self._frame_container = QtWidgets.QWidget()
+        self._frame_layout = QtWidgets.QVBoxLayout(self._frame_container)
+        self._frame_layout.setContentsMargins(0, 0, 0, 0)
+        self._frame_layout.setSpacing(12)
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self._frame_container)
+        layout.addWidget(scroll)
+
+        controls = QtWidgets.QHBoxLayout()
+        self.add_btn = QtWidgets.QPushButton("Add Army")
+        self.add_btn.clicked.connect(self._add_frame)
+        controls.addWidget(self.add_btn)
+        self.remove_btn = QtWidgets.QPushButton("Remove Army")
+        self.remove_btn.clicked.connect(self._remove_frame)
+        controls.addWidget(self.remove_btn)
+        controls.addStretch()
+        layout.addLayout(controls)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._handle_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        configs = list(initial_configs or [])
+        configs = configs[: self.MAX_ARMIES]
+        for cfg in configs:
+            self._add_frame(cfg)
+        while len(self.frames) < self.MIN_ARMIES:
+            self._add_frame()
+        self._update_controls()
+
+    def _add_frame(self, config: dict[str, Any] | None = None) -> None:
+        if len(self.frames) >= self.MAX_ARMIES:
+            return
+        frame = ArmyFrame(len(self.frames) + 1)
+        if config:
+            frame.populate_from_config(config)
+        if self._gear_callback is not None:
+            frame.gear_btn.clicked.connect(partial(self._gear_callback, frame))
+        self.frames.append(frame)
+        self._frame_layout.addWidget(frame)
+        self._relabel_frames()
+        self._update_controls()
+
+    def _remove_frame(self) -> None:
+        if len(self.frames) <= self.MIN_ARMIES:
+            return
+        frame = self.frames.pop()
+        frame.setParent(None)
+        frame.deleteLater()
+        self._relabel_frames()
+        self._update_controls()
+
+    def _relabel_frames(self) -> None:
+        for idx, frame in enumerate(self.frames, start=1):
+            frame.setTitle(f"Army {idx}")
+            frame.index = idx
+
+    def _update_controls(self) -> None:
+        self.add_btn.setEnabled(len(self.frames) < self.MAX_ARMIES)
+        self.remove_btn.setEnabled(len(self.frames) > self.MIN_ARMIES)
+
+    def _handle_accept(self) -> None:
+        if not (self.MIN_ARMIES <= len(self.frames) <= self.MAX_ARMIES):
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Invalid Army Count",
+                f"Multi-sim requires between {self.MIN_ARMIES} and {self.MAX_ARMIES} armies.",
+            )
+            return
+        configs = [frame.build_config() for frame in self.frames]
+        self._result_configs = configs
+        self.accept()
+
+    def result_configs(self) -> list[dict[str, Any]] | None:
+        if self.result() != QtWidgets.QDialog.DialogCode.Accepted:
+            return None
+        return self._result_configs
+
+
 class ArmyIcon(QtWidgets.QGraphicsItem):
     """Graphics item representing an army with portraits, health and rage bars."""
 
@@ -3627,6 +3739,15 @@ def build_skill_summaries(armies: list[Army], configs: list[dict]) -> list[dict[
     return summaries
 
 
+def multi_sim_pair_indices(configs: Sequence[Any]) -> list[tuple[int, int]]:
+    """Return index pairs for the provided ``configs`` sequence."""
+
+    count = len(configs)
+    if count < 2:
+        return []
+    return list(combinations(range(count), 2))
+
+
 class SimulationWorker(QtCore.QThread):
     progress_update = QtCore.pyqtSignal(int, int)
     finished_text = QtCore.pyqtSignal(str, object, object)
@@ -3726,6 +3847,151 @@ class SimulationWorker(QtCore.QThread):
         except RuntimeError as exc:  # pragma: no cover - GUI feedback
             if str(exc) == "cancelled":
                 self.finished_text.emit("Simulation cancelled.", [], [])
+            else:
+                self.error.emit(str(exc))
+        except Exception as exc:  # pragma: no cover - GUI feedback
+            self.error.emit(str(exc))
+
+
+class MultiSimulationWorker(QtCore.QThread):
+    progress_update = QtCore.pyqtSignal(int, int)
+    finished_multi = QtCore.pyqtSignal(dict)
+    error = QtCore.pyqtSignal(str)
+
+    def __init__(
+        self,
+        configs: list[dict[str, Any]],
+        runs: int,
+        num_workers: int,
+        *,
+        dynamic_settings: dict[str, float] | None = None,
+    ) -> None:
+        super().__init__()
+        self.configs = [copy.deepcopy(cfg) for cfg in configs]
+        self.runs = runs
+        self.num_workers = num_workers
+        self.dynamic_settings = dict(dynamic_settings) if dynamic_settings else None
+        self._cancelled = threading.Event()
+        self.histogram_root: str | None = None
+
+    def cancel(self) -> None:
+        self._cancelled.set()
+
+    def run(self) -> None:
+        try:
+            pairs = multi_sim_pair_indices(self.configs)
+            if not pairs:
+                raise RuntimeError("Multi-sim requires at least two armies")
+            runs_per_pair = max(self.runs, 1)
+            total_steps = max(len(pairs) * runs_per_pair, 1)
+            base_dir = tempfile.mkdtemp(prefix="vr_multi_hist_")
+            self.histogram_root = base_dir
+            results: dict[str, dict[str, Any]] = {}
+
+            for pair_idx, (left_idx, right_idx) in enumerate(pairs):
+                if self._cancelled.is_set():
+                    raise RuntimeError("cancelled")
+
+                pair_dir = os.path.join(base_dir, f"{left_idx}_{right_idx}")
+                os.makedirs(pair_dir, exist_ok=True)
+
+                def progress_cb(done: int, total: int) -> None:
+                    global_done = pair_idx * runs_per_pair + min(done, runs_per_pair)
+                    self.progress_update.emit(global_done, total_steps)
+                    if self._cancelled.is_set():
+                        raise RuntimeError("cancelled")
+
+                if self.dynamic_settings is not None:
+                    dynamic_unrevivable_config.apply_session_settings(
+                        self.dynamic_settings
+                    )
+
+                win_rate, best_match = run_additional_simulations(
+                    [self.configs[left_idx], self.configs[right_idx]],
+                    runs=self.runs,
+                    verbose=False,
+                    num_workers=self.num_workers,
+                    progress_callback=progress_cb,
+                    histogram_dir=pair_dir,
+                )
+                if self._cancelled.is_set():
+                    raise RuntimeError("cancelled")
+
+                seed = best_match.get("seed") if isinstance(best_match, dict) else None
+                if seed is not None:
+                    random.seed(int(seed))
+
+                active_settings = None
+                if isinstance(best_match, dict):
+                    match_settings = best_match.get("dynamic_settings")
+                    if isinstance(match_settings, dict):
+                        active_settings = dict(match_settings)
+                if active_settings is None and self.dynamic_settings is not None:
+                    active_settings = dict(self.dynamic_settings)
+                if active_settings is not None:
+                    dynamic_unrevivable_config.apply_session_settings(active_settings)
+
+                pair_configs = [
+                    copy.deepcopy(self.configs[left_idx]),
+                    copy.deepcopy(self.configs[right_idx]),
+                ]
+                armies = create_armies_from_data(pair_configs)
+                report_builder = ReportBuilder(use_color=False)
+                sim = GameSimulator(armies[0], armies[1], report_builder, track_stats=True)
+                report_text = sim.simulate_battle()
+                rounds = report_builder.get_rounds()
+                summary = build_skill_summaries(armies, pair_configs)
+                sample_stats = {
+                    "round_count": int(sim.round),
+                    "army_histories": [
+                        {
+                            "name": army.name,
+                            "troops": [
+                                int(round(float(val))) for val in army.troop_count_history
+                            ],
+                            "unrevivable": [
+                                int(round(float(val))) for val in army.unrevivable_history
+                            ],
+                        }
+                        for army in armies
+                    ],
+                }
+
+                hist_files = [
+                    fname
+                    for fname in sorted(os.listdir(pair_dir))
+                    if fname.lower().endswith(".png")
+                ]
+
+                pair_key = f"{left_idx}-{right_idx}"
+                results[pair_key] = {
+                    "indices": [left_idx, right_idx],
+                    "win_rate": float(win_rate),
+                    "runs": int(self.runs),
+                    "best_match": dict(best_match) if isinstance(best_match, dict) else None,
+                    "summary": summary,
+                    "rounds": rounds,
+                    "report_text": report_text,
+                    "sample_battle": sample_stats,
+                    "histograms": {"directory": pair_dir, "files": hist_files},
+                }
+
+                self.progress_update.emit((pair_idx + 1) * runs_per_pair, total_steps)
+
+            payload = {
+                "armies": [copy.deepcopy(cfg) for cfg in self.configs],
+                "pairs": results,
+                "histogram_root": base_dir,
+                "generated_at": time.time(),
+                "army_names": [
+                    cfg.get("army_name", f"Army {idx + 1}")
+                    for idx, cfg in enumerate(self.configs)
+                ],
+            }
+            self.finished_multi.emit(payload)
+        except RuntimeError as exc:  # pragma: no cover - GUI feedback
+            if str(exc) == "cancelled":
+                self.finished_multi.emit({"cancelled": True})
             else:
                 self.error.emit(str(exc))
         except Exception as exc:  # pragma: no cover - GUI feedback
@@ -4682,13 +4948,18 @@ def display_histograms(
     scroll: QtWidgets.QScrollArea,
     army1_name: str = "Army 1",
     army2_name: str = "Army 2",
+    *,
+    image_paths: list[str] | None = None,
+    base_dir: str | None = None,
 ) -> None:
     """Render histogram images into the scroll area.
 
     A new widget is created each time to avoid layout re-parenting issues that
     previously caused crashes on some systems.  Images are scaled so that a
     2x2 grid fits within the available screen without clipping and the entire
-    layout is centered within the scroll area."""
+    layout is centered within the scroll area.  When ``image_paths`` is
+    provided, those files are displayed instead of the default histogram set
+    generated in-place by the simulator."""
 
     old_widget = scroll.takeWidget()
     if old_widget is not None:
@@ -4726,11 +4997,22 @@ def display_histograms(
     max_width = min(scroll_width - 40 if scroll_width > 40 else 300, screen_geom.width() // 2)
     max_height = screen_geom.height() // 2
     row = col = 0
-    base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
-    for img_name in image_files:
-        path = os.path.join(base_hist_dir, img_name)
-        if not os.path.exists(path):
-            continue
+    if image_paths is None:
+        base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+        entries = [
+            (fname, os.path.join(base_hist_dir, fname)) for fname in image_files
+        ]
+    else:
+        entries = []
+        for entry in image_paths:
+            resolved = entry
+            if base_dir and not os.path.isabs(resolved):
+                resolved = os.path.join(base_dir, resolved)
+            resolved = os.path.abspath(resolved)
+            if os.path.exists(resolved):
+                entries.append((os.path.basename(resolved), resolved))
+
+    for img_name, path in entries:
         try:
             # Use a context manager so file handles are closed immediately.
             # Leaving images open prevented them from being overwritten on
@@ -4812,6 +5094,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pdf_layout = load_pdf_layout()
         self._last_setup_data: list[dict] | None = None
         self._last_simulation_payload: dict[str, Any] | None = None
+        self._last_multi_sim_payload: dict[str, Any] | None = None
+        self._pending_multi_sim_configs: list[dict[str, Any]] | None = None
+        self._multi_histogram_dirs: list[str] = []
+        self._multi_pair_keys: list[str] = []
+        self._current_multi_pair_key: str | None = None
 
     def open_star_overlay_tuner(self) -> None:
         """Open the star overlay debug dialog."""
@@ -4838,6 +5125,37 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg = GearSelectionDialog(hero_names, frame.get_gear_config(), self)
         if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             frame.set_gear_config(dlg.result())
+
+    def open_multi_sim_dialog(self) -> None:
+        """Prompt the user to configure armies for a multi-simulation run."""
+
+        initial = [
+            self.army1_frame.build_config(),
+            self.army2_frame.build_config(),
+        ]
+        dlg = MultiSimDialog(
+            self,
+            initial_configs=initial,
+            gear_callback=self._open_gear_dialog,
+        )
+        if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return
+        configs = dlg.result_configs() or []
+        if not (
+            MultiSimDialog.MIN_ARMIES
+            <= len(configs)
+            <= MultiSimDialog.MAX_ARMIES
+        ):
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Invalid Selection",
+                "Multi-sim runs require between three and five armies.",
+            )
+            return
+        self._pending_multi_sim_configs = [copy.deepcopy(cfg) for cfg in configs]
+        self.status.setText(
+            f"Multi-sim queued with {len(configs)} armies. Press Run Simulation to start."
+        )
 
     def _init_tabs(self) -> QtWidgets.QVBoxLayout:
         """Create the central widget and all tabs."""
@@ -4878,6 +5196,15 @@ class MainWindow(QtWidgets.QMainWindow):
         duplicate_btn.setMenu(dup_menu)
         duplicate_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
         controls.addWidget(duplicate_btn)
+        multi_btn = QtWidgets.QToolButton()
+        multi_btn.setText("Multi-sim")
+        multi_icon_path = os.path.join(
+            os.path.dirname(__file__), "Stat Icons", "Troop_Count.png"
+        )
+        if os.path.exists(multi_icon_path):
+            multi_btn.setIcon(QtGui.QIcon(multi_icon_path))
+        multi_btn.clicked.connect(self.open_multi_sim_dialog)
+        controls.addWidget(multi_btn)
         debug_btn = QtWidgets.QToolButton()
         debug_btn.setText("Debug")
         dbg_menu = QtWidgets.QMenu(debug_btn)
@@ -5148,6 +5475,12 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         export_pdf_action = QtGui.QAction("Export PDF", self)
         export_pdf_action.triggered.connect(self.export_pdf)
+        self.export_multi_html_action = QtGui.QAction(
+            "Export Multi-Sim HTML", self
+        )
+        self.export_multi_html_action.triggered.connect(
+            self.export_multi_summary_html
+        )
         for act in (
             export_report_action,
             export_fig_action,
@@ -5155,15 +5488,34 @@ class MainWindow(QtWidgets.QMainWindow):
             export_html_action,
             export_html_sample_action,
             export_pdf_action,
+            self.export_multi_html_action,
         ):
             self.addAction(act)
             export_menu.addAction(act)
+        self.export_multi_html_action.setEnabled(False)
+        self._single_export_actions = [
+            export_report_action,
+            export_fig_action,
+            export_summary_action,
+            export_html_action,
+            export_html_sample_action,
+            export_pdf_action,
+        ]
         export_btn.setMenu(export_menu)
         export_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
         fig_controls.addWidget(export_btn)
         clear_fig_btn = QtWidgets.QPushButton("Clear Output")
         clear_fig_btn.clicked.connect(self._clear_figures)
         fig_controls.addWidget(clear_fig_btn)
+        self.multi_pair_label = QtWidgets.QLabel("Pair:")
+        self.multi_pair_label.setVisible(False)
+        fig_controls.addWidget(self.multi_pair_label)
+        self.multi_pair_combo = QtWidgets.QComboBox()
+        self.multi_pair_combo.setVisible(False)
+        self.multi_pair_combo.currentIndexChanged.connect(
+            self._on_multi_pair_selected
+        )
+        fig_controls.addWidget(self.multi_pair_combo)
         fig_controls.addStretch()
         fig_layout.addLayout(fig_controls)
 
@@ -5343,6 +5695,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hist_container = QtWidgets.QWidget()
         self.hist_scroll.setWidget(self.hist_container)
         self._set_skill_breakdown_message(self._skill_breakdown_default_message)
+        self._reset_multi_sim_ui()
 
     def _collect_histogram_images(self) -> list[str]:
         base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
@@ -5355,6 +5708,44 @@ class MainWindow(QtWidgets.QMainWindow):
                 if os.path.isfile(full):
                     paths.append(full)
         return paths
+
+    def _cleanup_multi_histograms(self) -> None:
+        for path in list(self._multi_histogram_dirs):
+            if not path:
+                continue
+            try:
+                shutil.rmtree(path, ignore_errors=True)
+            except Exception:
+                pass
+        self._multi_histogram_dirs = []
+
+    def _reset_multi_sim_ui(self) -> None:
+        self._multi_pair_keys = []
+        self._current_multi_pair_key = None
+        if hasattr(self, "multi_pair_combo"):
+            self.multi_pair_combo.blockSignals(True)
+            self.multi_pair_combo.clear()
+            self.multi_pair_combo.blockSignals(False)
+            self.multi_pair_combo.setVisible(False)
+        if hasattr(self, "multi_pair_label"):
+            self.multi_pair_label.setVisible(False)
+
+    def _refresh_export_actions(self) -> None:
+        has_multi = bool(self._last_multi_sim_payload)
+        for act in getattr(self, "_single_export_actions", []):
+            act.setEnabled(not has_multi)
+        if hasattr(self, "export_multi_html_action"):
+            self.export_multi_html_action.setEnabled(has_multi)
+
+    def _ensure_single_sim_export_available(self) -> bool:
+        if self._last_multi_sim_payload:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Multi-sim Active",
+                "Single battle exports are disabled while multi-sim results are loaded.",
+            )
+            return False
+        return True
 
     def _clear_skill_breakdown_layout(self) -> None:
         """Remove all widgets from the skill breakdown layout."""
@@ -5627,6 +6018,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.opts_widget.setVisible(visible)
 
     def export_report(self) -> None:
+        if not self._ensure_single_sim_export_available():
+            return
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
             "Export Report",
@@ -5645,6 +6038,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 )
 
     def export_figures(self) -> None:
+        if not self._ensure_single_sim_export_available():
+            return
         image_files = [
             "own_remaining_troops.png",
             "enemy_remaining_troops.png",
@@ -5905,6 +6300,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def export_summary_image(self) -> None:
         """Combine preview and histogram images into a single PNG."""
+        if not self._ensure_single_sim_export_available():
+            return
         image_files = [
             "own_remaining_troops.png",
             "enemy_remaining_troops.png",
@@ -8296,7 +8693,441 @@ class MainWindow(QtWidgets.QMainWindow):
         self.last_setup_dir = os.path.dirname(save_path)
         self.status.setText(f"HTML summary exported to {os.path.basename(save_path)}")
 
+    def _export_multi_summary_html(self, payload: dict[str, Any]) -> None:
+        army_names = payload.get("army_names") or [
+            cfg.get("army_name", f"Army {idx + 1}")
+            for idx, cfg in enumerate(payload.get("armies", []))
+        ]
+        first_name = army_names[0] if army_names else "Army 1"
+        second_name = army_names[1] if len(army_names) > 1 else "Army 2"
+        basename = _default_export_basename(first_name, second_name)
+        default_path = os.path.join(
+            self.last_setup_dir,
+            f"{basename}_multi_sim_overall.html",
+        )
+        save_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Export Multi-Sim HTML",
+            default_path,
+            "HTML Files (*.html)",
+        )
+        if not save_path:
+            return
+
+        default_hist_order = [
+            "own_remaining_troops.png",
+            "enemy_remaining_troops.png",
+            "rounds_to_battle_end.png",
+            "victory_distribution.png",
+            "unrevivable_victory_distribution.png",
+            "troop_difference.png",
+            "diff_vs_rounds.png",
+            "rounds_cdf.png",
+            "rolling_stats.png",
+            "damage_accumulated_army1.png",
+            "damage_accumulated_army2.png",
+            "heal_accumulated_army1.png",
+            "heal_accumulated_army2.png",
+            "shield_accumulated_army1.png",
+            "shield_accumulated_army2.png",
+            "rage_per_round_army1.png",
+            "rage_per_round_army2.png",
+        ]
+
+        hist_seen: list[str] = []
+        pairs = payload.get("pairs", {}) or {}
+        for data in pairs.values():
+            hist_info = data.get("histograms") or {}
+            for fname in hist_info.get("files") or []:
+                if fname not in hist_seen:
+                    hist_seen.append(fname)
+        image_order = [
+            name for name in default_hist_order if name in hist_seen
+        ] + [name for name in hist_seen if name not in default_hist_order]
+
+        dataset: dict[str, Any] = {
+            "armies": [],
+            "pairs": [],
+            "image_order": image_order,
+        }
+
+        for idx, cfg in enumerate(payload.get("armies", [])):
+            name = army_names[idx] if idx < len(army_names) else f"Army {idx + 1}"
+            dataset["armies"].append({
+                "index": idx,
+                "name": name,
+                "config": cfg,
+            })
+
+        for key, data in pairs.items():
+            indices = data.get("indices") or []
+            hist_info = data.get("histograms") or {}
+            hist_dir = hist_info.get("directory")
+            encoded_hist: dict[str, str] = {}
+            for fname in hist_info.get("files") or []:
+                path = os.path.join(hist_dir, fname) if hist_dir else fname
+                if not path or not os.path.exists(path):
+                    continue
+                try:
+                    with open(path, "rb") as fh:
+                        encoded_hist[fname] = (
+                            "data:image/png;base64,"
+                            + base64.b64encode(fh.read()).decode("ascii")
+                        )
+                except OSError:
+                    continue
+            dataset["pairs"].append({
+                "key": str(key),
+                "indices": indices,
+                "win_rate": data.get("win_rate", 0.0),
+                "runs": int(data.get("runs", 0)),
+                "best_match": data.get("best_match"),
+                "summary": data.get("summary"),
+                "sample_battle": data.get("sample_battle"),
+                "histograms": encoded_hist,
+            })
+
+        icon_path = os.path.join(
+            os.path.dirname(__file__), "Stat Icons", "Troop_Count.png"
+        )
+        icon_data = ""
+        if os.path.exists(icon_path):
+            try:
+                with open(icon_path, "rb") as fh:
+                    icon_data = (
+                        "data:image/png;base64,"
+                        + base64.b64encode(fh.read()).decode("ascii")
+                    )
+            except OSError:
+                icon_data = ""
+
+        dataset_json = json.dumps(dataset, ensure_ascii=False)
+
+        html_output = f"""<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+    <meta charset=\"utf-8\">
+    <title>Multi-Sim Overall Performance</title>
+    <style>
+        :root {{
+            color-scheme: dark;
+            --bg: #0c0f17;
+            --panel: rgba(255, 255, 255, 0.04);
+            --panel-alt: rgba(255, 255, 255, 0.065);
+            --text: rgba(255, 255, 255, 0.92);
+            --muted: rgba(255, 255, 255, 0.65);
+            --accent-a: #2ecc71;
+            --accent-b: #e74c3c;
+            --border: rgba(255, 255, 255, 0.08);
+            --card-radius: 24px;
+        }}
+        body {{
+            margin: 0;
+            font-family: "Inter", "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #1b2438, #0c0f17);
+            color: var(--text);
+            min-height: 100vh;
+        }}
+        main {{
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 24px 64px;
+            display: grid;
+            gap: 28px;
+        }}
+        .header {{
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }}
+        .header h1 {{
+            font-size: 2.6rem;
+            margin: 0;
+        }}
+        .header p {{
+            margin: 0;
+            color: var(--muted);
+        }}
+        .victory-card {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 24px;
+        }}
+        .victory-panel {{
+            background: var(--panel);
+            border-radius: var(--card-radius);
+            border: 1px solid var(--border);
+            padding: 24px;
+            display: grid;
+            gap: 18px;
+            justify-items: center;
+            text-align: center;
+        }}
+        .donut {{
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: conic-gradient(from 180deg, var(--accent-a) var(--stop), var(--accent-b) var(--stop));
+            position: relative;
+        }}
+        .donut::after {{
+            content: '';
+            position: absolute;
+            inset: 36px;
+            background: var(--panel);
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }}
+        .victory-summary {{
+            margin: 0;
+            font-size: 1rem;
+            color: var(--muted);
+        }}
+        .graph-panel {{
+            background: var(--panel);
+            border-radius: var(--card-radius);
+            border: 1px solid var(--border);
+            padding: 24px;
+        }}
+        .figure-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 18px;
+        }}
+        figure {{
+            margin: 0;
+            background: var(--panel-alt);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 18px;
+            display: grid;
+            gap: 12px;
+        }}
+        figure img {{
+            width: 100%;
+            border-radius: 12px;
+            background: #05070c;
+        }}
+        figure figcaption {{
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }}
+        .pair-details {{
+            margin-top: 12px;
+            color: var(--muted);
+            text-align: center;
+        }}
+        .replace-wrapper {{
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+        }}
+        .replace-btn {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.85rem;
+        }}
+        .replace-btn img {{
+            width: 18px;
+            height: 18px;
+        }}
+        .replace-select {{
+            display: none;
+            position: absolute;
+            top: 110%;
+            left: 0;
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 8px;
+            min-width: 160px;
+            z-index: 10;
+        }}
+        .replace-wrapper.open .replace-select {{
+            display: block;
+        }}
+        @media (max-width: 720px) {{
+            .donut {{ width: 180px; height: 180px; }}
+        }}
+    </style>
+</head>
+<body>
+<main>
+    <header class=\"header\">
+        <h1>Multi-Sim Overall Performance</h1>
+        <p>Review pairwise battle outcomes and switch armies on the fly.</p>
+    </header>
+    <section class=\"victory-card\">
+        <div class=\"victory-panel\" id=\"left-panel\">
+            <div class=\"replace-wrapper\" data-slot=\"left\">
+                <button class=\"replace-btn\" type=\"button\"><img alt=\"Replace\" src=\"{icon_data}\">Replace army</button>
+                <select class=\"replace-select\" data-slot=\"left\"></select>
+            </div>
+            <h3 id=\"left-name\"></h3>
+            <div class=\"donut\" id=\"left-donut\"></div>
+            <p class=\"victory-summary\" id=\"left-summary\"></p>
+        </div>
+        <div class=\"victory-panel\" id=\"right-panel\">
+            <div class=\"replace-wrapper\" data-slot=\"right\">
+                <button class=\"replace-btn\" type=\"button\"><img alt=\"Replace\" src=\"{icon_data}\">Replace army</button>
+                <select class=\"replace-select\" data-slot=\"right\"></select>
+            </div>
+            <h3 id=\"right-name\"></h3>
+            <div class=\"donut\" id=\"right-donut\"></div>
+            <p class=\"victory-summary\" id=\"right-summary\"></p>
+        </div>
+    </section>
+    <section class=\"graph-panel\">
+        <h2 style=\"margin-top:0;\">Battle Figures</h2>
+        <div class=\"figure-grid\" id=\"hist-container\">
+            {''.join(f'<figure><img id="hist-{idx}" alt=""><figcaption id="hist-caption-{idx}"></figcaption></figure>' for idx, _ in enumerate(image_order))}
+        </div>
+        <p class=\"pair-details\" id=\"pair-details\"></p>
+    </section>
+</main>
+<script>
+const MULTI_DATA = {dataset_json};
+const ICON_SRC = "{icon_data}";
+const imageOrder = MULTI_DATA.image_order || [];
+const pairs = new Map();
+for (const entry of MULTI_DATA.pairs) {{
+    const [a, b] = (entry.indices || []).slice(0, 2);
+    const key = [Math.min(a, b), Math.max(a, b)].join('-');
+    pairs.set(key, entry);
+}}
+let state = {{ left: (MULTI_DATA.pairs[0]?.indices?.[0] ?? 0), right: (MULTI_DATA.pairs[0]?.indices?.[1] ?? 1) }};
+const selects = document.querySelectorAll('.replace-select');
+selects.forEach(select => {{
+    MULTI_DATA.armies.forEach(army => {{
+        const option = document.createElement('option');
+        option.value = army.index;
+        option.textContent = army.name;
+        select.appendChild(option);
+    }});
+}});
+
+function keyFor(a, b) {{
+    return [Math.min(a, b), Math.max(a, b)].join('-');
+}}
+
+function ensureDistinct() {{
+    if (state.left === state.right) {{
+        state.right = (state.right + 1) % MULTI_DATA.armies.length;
+    }}
+}}
+
+function render() {{
+    ensureDistinct();
+    const pair = pairs.get(keyFor(state.left, state.right));
+    if (!pair) {{
+        return;
+    }}
+    const leftArmy = MULTI_DATA.armies[state.left] || {{ name: 'Army ' + (state.left + 1) }};
+    const rightArmy = MULTI_DATA.armies[state.right] || {{ name: 'Army ' + (state.right + 1) }};
+    document.getElementById('left-name').textContent = leftArmy.name;
+    document.getElementById('right-name').textContent = rightArmy.name;
+    const winRate = Number(pair.win_rate) || 0;
+    const clampedWin = Math.max(0, Math.min(1, winRate));
+    document.getElementById('left-donut').style.setProperty('--stop', (clampedWin * 100) + '%');
+    document.getElementById('right-donut').style.setProperty('--stop', ((1 - clampedWin) * 100) + '%');
+    document.getElementById('left-summary').textContent = (clampedWin * 100).toFixed(1) + '% win rate';
+    document.getElementById('right-summary').textContent = ((1 - clampedWin) * 100).toFixed(1) + '% win rate';
+    const best = pair.best_match || {{}};
+    const seed = best.seed !== undefined ? best.seed : 'n/a';
+    document.getElementById('pair-details').textContent = 'Runs: ' + (pair.runs || 0) + ' · Sample seed: ' + seed;
+    imageOrder.forEach((name, idx) => {{
+        const img = document.getElementById('hist-' + idx);
+        const caption = document.getElementById('hist-caption-' + idx);
+        if (!img || !caption) return;
+        const src = pair.histograms ? pair.histograms[name] : null;
+        if (src) {{
+            img.src = src;
+            img.alt = name;
+            caption.textContent = name.replace(/_/g, ' ').replace(/\.png$/i, '').replace(/\b\w/g, c => c.toUpperCase());
+            img.parentElement.style.display = '';
+        }} else {{
+            img.parentElement.style.display = 'none';
+        }}
+    }});
+    selects.forEach(select => {{
+        const slot = select.dataset.slot;
+        select.value = String(slot === 'left' ? state.left : state.right);
+    }});
+}}
+
+document.querySelectorAll('.replace-btn').forEach(btn => {{
+    btn.addEventListener('click', () => {{
+        const wrapper = btn.closest('.replace-wrapper');
+        wrapper.classList.toggle('open');
+        const select = wrapper.querySelector('select');
+        if (select) {{
+            select.focus();
+        }}
+    }});
+}});
+
+selects.forEach(select => {{
+    select.addEventListener('change', event => {{
+        const slot = event.target.dataset.slot;
+        const value = Number(event.target.value);
+        if (Number.isNaN(value)) return;
+        if (slot === 'left') {{
+            state.left = value;
+        }} else {{
+            state.right = value;
+        }}
+        event.target.closest('.replace-wrapper').classList.remove('open');
+        render();
+    }});
+    select.addEventListener('blur', event => {{
+        const wrapper = event.target.closest('.replace-wrapper');
+        if (wrapper) {{
+            wrapper.classList.remove('open');
+        }}
+    }});
+}});
+
+if (ICON_SRC) {{
+    document.querySelectorAll('.replace-btn img').forEach(img => {{
+        img.src = ICON_SRC;
+    }});
+}}
+
+render();
+</script>
+</body>
+</html>
+"""
+
+        try:
+            with open(save_path, "w", encoding="utf-8") as fh:
+                fh.write(html_output)
+        except OSError as exc:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to write export files: {exc}",
+            )
+            return
+
+        self.last_setup_dir = os.path.dirname(save_path)
+        self.status.setText(
+            f"Multi-sim HTML exported to {os.path.basename(save_path)}"
+        )
+
     def export_summary_html(self) -> None:
+        if not self._ensure_single_sim_export_available():
+            return
         self._export_summary_html(
             include_sample_details=False,
             dialog_title="Export Overall Performance HTML",
@@ -8304,6 +9135,8 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
     def export_summary_with_sample_html(self) -> None:
+        if not self._ensure_single_sim_export_available():
+            return
         self._export_summary_html(
             include_sample_details=True,
             dialog_title="Export Overall Performance & Sample Battle HTML",
@@ -8311,6 +9144,8 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
     def export_pdf(self) -> None:
+        if not self._ensure_single_sim_export_available():
+            return
         """Export a multi-page PDF using the configured layout."""
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
@@ -8349,7 +9184,157 @@ class MainWindow(QtWidgets.QMainWindow):
         painter.end()
         self.status.setText(f"PDF exported to {os.path.basename(file_path)}")
 
+    def export_multi_summary_html(self) -> None:
+        payload = self._last_multi_sim_payload
+        if not payload:
+            QtWidgets.QMessageBox.information(
+                self,
+                "No Multi-Sim Data",
+                "Run a multi-sim session before exporting the combined report.",
+            )
+            return
+        self._export_multi_summary_html(payload)
+
     # --- Simulation handling --------------------------------------------
+    def _start_multi_sim(self, configs: list[dict[str, Any]]) -> None:
+        runs = self.runs_spin.value()
+        workers = self.workers_spin.value()
+        pair_count = len(multi_sim_pair_indices(configs))
+        runs_per_pair = max(runs, 1)
+        total_steps = max(pair_count * runs_per_pair, 1)
+        self._cleanup_multi_histograms()
+        self._reset_multi_sim_ui()
+        self._last_multi_sim_payload = None
+        self._last_simulation_payload = None
+        self._refresh_export_actions()
+        self.status.setText("Running multi-simulation…")
+        self._set_skill_breakdown_message(
+            "Multi-sim aggregates results across multiple pairings."
+        )
+        self.progress.setRange(0, total_steps)
+        self.progress.setValue(0)
+        self.run_btn.setText("Cancel")
+        self.run_btn.setEnabled(True)
+        self.worker = MultiSimulationWorker(
+            configs,
+            runs,
+            workers,
+            dynamic_settings=self._dynamic_unrevivable_settings,
+        )
+        self.worker.progress_update.connect(
+            lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
+        )
+        self.worker.finished_multi.connect(self._multi_sim_finished)
+        self.worker.error.connect(self._sim_error)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.worker.start()
+
+    def _multi_sim_finished(self, payload: dict[str, Any]) -> None:
+        if payload.get("cancelled"):
+            self.status.setText("Multi-simulation cancelled.")
+            self.progress.setValue(0)
+            self.run_btn.setText("Run Simulation")
+            self.run_btn.setEnabled(True)
+            self.worker = None
+            return
+
+        self._last_multi_sim_payload = payload
+        self._last_simulation_payload = None
+        self._pending_multi_sim_configs = None
+        hist_root = payload.get("histogram_root")
+        self._multi_histogram_dirs = [hist_root] if hist_root else []
+        self._apply_multi_sim_results(payload)
+        self.status.setText("Multi-simulation complete.")
+        self.progress.setValue(0)
+        self.run_btn.setText("Run Simulation")
+        self.run_btn.setEnabled(True)
+        self.worker = None
+        self._refresh_export_actions()
+
+    def _apply_multi_sim_results(self, payload: dict[str, Any]) -> None:
+        pairs = payload.get("pairs", {}) or {}
+        army_names = payload.get("army_names") or [
+            cfg.get("army_name", f"Army {idx + 1}")
+            for idx, cfg in enumerate(payload.get("armies", []))
+        ]
+        if not pairs:
+            self._reset_multi_sim_ui()
+            self._set_skill_breakdown_message(
+                "No pairings were produced by the multi-simulation run."
+            )
+            self.output_text.setPlainText("No pairings available.")
+            self.output_tree.clear()
+            return
+
+        ordered = []
+        for key, data in pairs.items():
+            indices = data.get("indices")
+            if not isinstance(indices, (list, tuple)) or len(indices) != 2:
+                continue
+            ordered.append((tuple(indices), str(key)))
+        ordered.sort()
+        self._multi_pair_keys = [key for _, key in ordered]
+
+        self.multi_pair_label.setVisible(True)
+        self.multi_pair_combo.blockSignals(True)
+        self.multi_pair_combo.clear()
+        for indices, key in ordered:
+            idx_a, idx_b = indices
+            name_a = army_names[idx_a] if idx_a < len(army_names) else f"Army {idx_a + 1}"
+            name_b = army_names[idx_b] if idx_b < len(army_names) else f"Army {idx_b + 1}"
+            self.multi_pair_combo.addItem(f"{name_a} vs {name_b}", key)
+        self.multi_pair_combo.blockSignals(False)
+        self.multi_pair_combo.setVisible(True)
+        self.multi_pair_combo.setCurrentIndex(0)
+        first_key = self.multi_pair_combo.currentData()
+        if first_key:
+            self._display_multi_pair(str(first_key))
+
+    def _display_multi_pair(self, pair_key: str) -> None:
+        payload = self._last_multi_sim_payload or {}
+        pair = (payload.get("pairs") or {}).get(pair_key)
+        if not isinstance(pair, dict):
+            return
+        indices = pair.get("indices", [0, 1])
+        army_names = payload.get("army_names") or [
+            cfg.get("army_name", f"Army {idx + 1}")
+            for idx, cfg in enumerate(payload.get("armies", []))
+        ]
+        idx_a, idx_b = (indices + [0, 1])[:2]
+        name_a = army_names[idx_a] if idx_a < len(army_names) else f"Army {idx_a + 1}"
+        name_b = army_names[idx_b] if idx_b < len(army_names) else f"Army {idx_b + 1}"
+        hist_info = pair.get("histograms") or {}
+        display_histograms(
+            self.hist_scroll,
+            name_a,
+            name_b,
+            image_paths=hist_info.get("files") or [],
+            base_dir=hist_info.get("directory"),
+        )
+        summary_lines = [
+            f"Win rate for {name_a}: {float(pair.get('win_rate', 0.0)) * 100:.1f}%",
+            f"Runs: {int(pair.get('runs', self.runs_spin.value()))}",
+        ]
+        best_match = pair.get("best_match")
+        if isinstance(best_match, dict) and best_match.get("seed") is not None:
+            summary_lines.append(f"Sample seed: {best_match.get('seed')}")
+        self.output_text.setPlainText("\n".join(summary_lines))
+        rounds = pair.get("rounds")
+        if isinstance(rounds, list):
+            self._populate_round_tree(rounds)
+        else:
+            self.output_tree.clear()
+        self._set_skill_breakdown_message(
+            "Skill breakdowns are unavailable for multi-sim aggregate runs."
+        )
+        self._current_multi_pair_key = pair_key
+
+    def _on_multi_pair_selected(self, index: int) -> None:
+        key = self.multi_pair_combo.itemData(index)
+        if not key:
+            return
+        self._display_multi_pair(str(key))
+
     def run_simulation(self) -> None:
         worker = getattr(self, "worker", None)
         if worker:
@@ -8362,9 +9347,25 @@ class MainWindow(QtWidgets.QMainWindow):
             except RuntimeError:
                 self.worker = None
 
+        if self._pending_multi_sim_configs:
+            configs = [copy.deepcopy(cfg) for cfg in self._pending_multi_sim_configs]
+            self._pending_multi_sim_configs = None
+            if len(configs) < MultiSimDialog.MIN_ARMIES:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "Invalid Selection",
+                    "At least three armies are required for multi-sim runs.",
+                )
+                return
+            self._start_multi_sim(configs)
+            return
+
+        self._reset_multi_sim_ui()
         setup_data = [self.army1_frame.build_config(), self.army2_frame.build_config()]
         self._last_setup_data = [copy.deepcopy(cfg) for cfg in setup_data]
         self._last_simulation_payload = None
+        self._last_multi_sim_payload = None
+        self._refresh_export_actions()
         runs = self.runs_spin.value()
         workers = self.workers_spin.value()
         self.status.setText("Running simulation...")
@@ -8434,6 +9435,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def _sim_finished(
         self, text: str, rounds: list[dict], summary: list[dict] | None
     ) -> None:
+        self._reset_multi_sim_ui()
         self.output_text.setPlainText(text)
         self._populate_round_tree(rounds)
         display_histograms(
@@ -8477,6 +9479,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if isinstance(sample_stats, dict):
                 export_payload["sample_battle"] = copy.deepcopy(sample_stats)
         self._last_simulation_payload = export_payload
+        self._last_multi_sim_payload = None
+        self._refresh_export_actions()
         self.progress.setValue(0)
         self.status.setText("Ready")
         self.run_btn.setEnabled(True)

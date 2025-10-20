@@ -50,6 +50,17 @@ interactive web report. It includes hoverable skill tooltips sourced from the
 in-game descriptions, jewel loadouts, troop modifiers, bonus stat overlays and
 a modern victory distribution chart that mirrors the simulation results.
 
+### Multi-sim workflow
+
+Select **Multi-sim** on the Army Setup tab to queue three to five armies for a
+round-robin evaluation. After confirming the dialog, run the simulation as
+usual—the progress bar scales to reflect every pairing and run. When the
+analysis completes, the Figures tab exposes a pairing selector so you can swap
+between stored histogram sets without rerunning battles. Multi-sim exports are
+separate from the single duel actions; use **Export Multi-Sim HTML** to produce
+an interactive report that mirrors the overall performance layout and includes
+per-pair charts plus in-browser army swapping controls.
+
 ### Jewel skills
 
 Press **Jewel Skills** on an army frame to assign socketed abilities. Each of the

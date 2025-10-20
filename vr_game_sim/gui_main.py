@@ -3649,6 +3649,7 @@ class SimulationWorker(QtCore.QThread):
         self.dynamic_settings = dict(dynamic_settings) if dynamic_settings else None
         self.win_rate: float | None = None
         self.best_match: dict[str, Any] | None = None
+        self.sample_battle_stats: dict[str, Any] | None = None
 
     def cancel(self) -> None:
         """Request the simulation to stop."""
@@ -3701,6 +3702,19 @@ class SimulationWorker(QtCore.QThread):
             report_text = sim.simulate_battle()
             rounds = report_builder.get_rounds()
             summary = build_skill_summaries(armies, self.setup_data)
+            self.sample_battle_stats = {
+                "round_count": int(sim.round),
+                "army_histories": [
+                    {
+                        "name": army.name,
+                        "troops": [int(round(float(val))) for val in army.troop_count_history],
+                        "unrevivable": [
+                            int(round(float(val))) for val in army.unrevivable_history
+                        ],
+                    }
+                    for army in armies
+                ],
+            }
             if self._cancelled.is_set():
                 raise RuntimeError("cancelled")
 
@@ -5120,9 +5134,18 @@ class MainWindow(QtWidgets.QMainWindow):
         export_summary_action = QtGui.QAction("Export Summary Image", self)
         export_summary_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+E"))
         export_summary_action.triggered.connect(self.export_summary_image)
-        export_html_action = QtGui.QAction("Export Summary HTML", self)
+        export_html_action = QtGui.QAction("Export Overall Performance HTML", self)
         export_html_action.setShortcut(QtGui.QKeySequence("Ctrl+Alt+E"))
         export_html_action.triggered.connect(self.export_summary_html)
+        export_html_sample_action = QtGui.QAction(
+            "Export Overall Performance & Sample Battle HTML", self
+        )
+        export_html_sample_action.setShortcut(
+            QtGui.QKeySequence("Ctrl+Alt+Shift+E")
+        )
+        export_html_sample_action.triggered.connect(
+            self.export_summary_with_sample_html
+        )
         export_pdf_action = QtGui.QAction("Export PDF", self)
         export_pdf_action.triggered.connect(self.export_pdf)
         for act in (
@@ -5130,6 +5153,7 @@ class MainWindow(QtWidgets.QMainWindow):
             export_fig_action,
             export_summary_action,
             export_html_action,
+            export_html_sample_action,
             export_pdf_action,
         ):
             self.addAction(act)
@@ -6104,7 +6128,13 @@ class MainWindow(QtWidgets.QMainWindow):
             final_pix.save(save_path, "PNG")
             self.last_setup_dir = os.path.dirname(save_path)
 
-    def export_summary_html(self) -> None:
+    def _export_summary_html(
+        self,
+        *,
+        include_sample_details: bool,
+        dialog_title: str,
+        filename_suffix: str,
+    ) -> None:
         """Export the latest battle summary as an interactive HTML bundle."""
 
         payload = self._last_simulation_payload
@@ -6123,13 +6153,12 @@ class MainWindow(QtWidgets.QMainWindow):
         ]
         army_one_name = army_names[0] if army_names else "Army 1"
         army_two_name = army_names[1] if len(army_names) > 1 else "Army 2"
-        default_name = (
-            f"{_default_export_basename(army_one_name, army_two_name, timestamp)}.html"
-        )
+        base_name = _default_export_basename(army_one_name, army_two_name, timestamp)
+        default_name = f"{base_name}_{filename_suffix}.html"
         initial_path = os.path.join(self.last_setup_dir, default_name)
         save_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
-            "Export Summary HTML",
+            dialog_title,
             initial_path,
             "HTML Files (*.html)",
         )
@@ -6466,9 +6495,66 @@ class MainWindow(QtWidgets.QMainWindow):
         army_one_wins = int(round((army_one_pct / 100.0) * runs)) if runs else 0
         army_two_wins = runs - army_one_wins
 
+        best_match_data = payload.get("best_match")
+        if not isinstance(best_match_data, dict):
+            best_match_data = None
+
+        sample_data_raw: dict[str, Any] = {}
+        if include_sample_details:
+            raw_sample = payload.get("sample_battle")
+            if isinstance(raw_sample, dict):
+                sample_data_raw = raw_sample
+        round_details = payload.get("rounds") if include_sample_details else None
+        if not isinstance(round_details, list):
+            round_details = []
+
+        sample_histories: list[dict[str, Any]] = []
+        if include_sample_details and sample_data_raw:
+            raw_histories = sample_data_raw.get("army_histories")
+            if isinstance(raw_histories, list):
+                for idx, history in enumerate(raw_histories):
+                    if not isinstance(history, dict):
+                        continue
+                    raw_troops = history.get("troops")
+                    raw_unrevivable = history.get("unrevivable")
+                    troops: list[int] = []
+                    if isinstance(raw_troops, list):
+                        for value in raw_troops:
+                            try:
+                                troops.append(int(round(float(value))))
+                            except (TypeError, ValueError):
+                                troops.append(0)
+                    unrevivable: list[int] = []
+                    if isinstance(raw_unrevivable, list):
+                        for value in raw_unrevivable:
+                            try:
+                                unrevivable.append(int(round(float(value))))
+                            except (TypeError, ValueError):
+                                unrevivable.append(0)
+                    label = history.get("name")
+                    if not isinstance(label, str) or not label.strip():
+                        label = (
+                            army_names[idx]
+                            if idx < len(army_names)
+                            else f"Army {idx + 1}"
+                        )
+                    sample_histories.append(
+                        {
+                            "name": label,
+                            "troops": troops,
+                            "unrevivable": unrevivable,
+                        }
+                    )
+
         def fmt_percent(value: float, invert: bool = False) -> str:
             percent = -value * 100 if invert else value * 100
             return f"{percent:+.1f}%"
+
+        def fmt_int(value: Any) -> str:
+            try:
+                return f"{int(round(float(value))):,}"
+            except (TypeError, ValueError):
+                return "0"
 
         def normalize_metadata_text(value: Any) -> str:
             """Coerce summary metadata into a clean string for HTML rendering."""
@@ -6522,6 +6608,22 @@ class MainWindow(QtWidgets.QMainWindow):
             return name, tooltip, skill_def if isinstance(skill_def, dict) else None
 
         armies_html: list[str] = []
+        sample_army_blocks: list[str] = []
+        skill_columns: list[tuple[str, str]] = [
+            ("casts", "Casts"),
+            ("kills", "Kills"),
+            ("heals", "Heals"),
+            ("shielded", "Shielded"),
+            ("damage_reduced", "Damage Reduced"),
+            ("rage", "Rage"),
+            ("rage_reduced", "Rage Reduced"),
+            ("boosted_kills", "Boosted Kills"),
+            ("boosted_heals", "Boosted Heals"),
+            ("boosted_shielded", "Boosted Shielded"),
+            ("boosted_rage", "Boosted Rage"),
+            ("boosted_rage_reduced", "Boosted Rage Reduced"),
+            ("boosted_damage_reduced", "Boosted Damage Reduced"),
+        ]
         for idx, summary_entry in enumerate(summary_data):
             cfg = setup[idx] if idx < len(setup) else {}
             army_name = cfg.get("army_name") or (
@@ -6543,43 +6645,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 }
                 for entry in iter_bonus_stat_entries(bonus_stats)
             ]
-            bonus_data_attr = html.escape(json.dumps(bonus_entries, ensure_ascii=False))
-            bonus_button_label = "Bonus Stats"
-            if bonus_entries:
-                bonus_button_label = f"Bonus Stats ({len(bonus_entries)})"
-
-            bonus_button_markup = ""
-            if bonus_icon:
-                bonus_button_markup = (
-                    "<button class=\"bonus-button\" data-bonus='"
-                    + bonus_data_attr
-                    + "'>"
-                    + (
-                        f"<img src=\"{bonus_icon}\" alt=\"Bonus stats\">"
-                        if bonus_icon
-                        else ""
-                    )
-                    + f"<span>{html.escape(bonus_button_label)}</span></button>"
-                )
-
-            if bonus_entries:
-                fallback_items = "".join(
-                    (
-                        "<li>"
-                        + f"<span>{html.escape(entry['label'])}</span>"
-                        + f"<strong>{html.escape(entry['value'])}</strong>"
-                        + "</li>"
-                    )
-                    for entry in bonus_entries
-                )
-            else:
-                fallback_items = (
-                    "<li class=\"empty-state\">No bonus stats configured.</li>"
-                )
-            bonus_fallback_markup = (
-                "<ul class=\"bonus-fallback\">" + fallback_items + "</ul>"
-            )
-
             stats_html = []
             for key, label in (("attack", "Attack"), ("defense", "Defense"), ("health", "Health")):
                 icon = stat_icons.get(key) or ""
@@ -6654,6 +6719,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 summary_entry.get("portrait2"),
             ]
             hero_cards: list[str] = []
+            gear_bonus_entries: list[dict[str, str]] = []
             hero_count = max(len(hero_names), len(heroes_cfg))
             for hero_idx in range(hero_count):
                 hero_cfg = heroes_cfg[hero_idx] if hero_idx < len(heroes_cfg) else {}
@@ -6840,10 +6906,19 @@ class MainWindow(QtWidgets.QMainWindow):
                         display_name = f"{gear_def.name} ({gear_def.rarity})"
                         safe_display_name = html.escape(display_name)
                         rarity_text = html.escape(gear_def.rarity)
+                        effect_descs = list(gear_def.effect_descriptions())
                         effect_items = "".join(
-                            f"<li>{html.escape(desc)}</li>"
-                            for desc in gear_def.effect_descriptions()
+                            f"<li>{html.escape(desc)}</li>" for desc in effect_descs
                         )
+                        hero_label_text = normalize_metadata_text(raw_name) or raw_name
+                        for desc in effect_descs:
+                            short_desc = desc.split("(")[0].strip() or desc
+                            gear_bonus_entries.append(
+                                {
+                                    "label": f"{gear_def.name} • {hero_label_text}",
+                                    "value": short_desc,
+                                }
+                            )
                         effects_markup = (
                             f"<ul class=\"gear-effects\">{effect_items}</ul>"
                             if effect_items
@@ -6922,6 +6997,144 @@ class MainWindow(QtWidgets.QMainWindow):
             if not hero_cards:
                 hero_cards.append("<p class=\"empty-state\">No heroes configured.</p>")
 
+            for entry in gear_bonus_entries:
+                label_text = normalize_metadata_text(entry.get("label"))
+                if not label_text:
+                    label_text = str(entry.get("label", "Gear Bonus"))
+                value_text = normalize_metadata_text(entry.get("value"))
+                if not value_text:
+                    value_text = str(entry.get("value", ""))
+                bonus_entries.append({"label": label_text, "value": value_text})
+
+            bonus_button_label = "Bonus Stats"
+            if bonus_entries:
+                bonus_button_label = f"Bonus Stats ({len(bonus_entries)})"
+
+            bonus_data_attr = html.escape(json.dumps(bonus_entries, ensure_ascii=False))
+            bonus_button_markup = ""
+            if bonus_icon:
+                bonus_button_markup = (
+                    "<button class=\"bonus-button\" data-bonus='"
+                    + bonus_data_attr
+                    + "'>"
+                    + (
+                        f"<img src=\"{bonus_icon}\" alt=\"Bonus stats\">"
+                        if bonus_icon
+                        else ""
+                    )
+                    + f"<span>{html.escape(bonus_button_label)}</span></button>"
+                )
+
+            if bonus_entries:
+                fallback_items = "".join(
+                    (
+                        "<li>"
+                        + f"<span>{html.escape(entry['label'])}</span>"
+                        + f"<strong>{html.escape(str(entry['value']))}</strong>"
+                        + "</li>"
+                    )
+                    for entry in bonus_entries
+                )
+            else:
+                fallback_items = "<li class=\"empty-state\">No bonus stats configured.</li>"
+            bonus_fallback_markup = (
+                "<ul class=\"bonus-fallback\">" + fallback_items + "</ul>"
+            )
+
+            if include_sample_details:
+                history = sample_histories[idx] if idx < len(sample_histories) else {}
+                unrevivable_series = history.get("unrevivable") if isinstance(history, dict) else None
+                unrevivable_final = None
+                if isinstance(unrevivable_series, list) and unrevivable_series:
+                    last_val = unrevivable_series[-1]
+                    try:
+                        unrevivable_final = float(last_val)
+                    except (TypeError, ValueError):
+                        unrevivable_final = None
+                if unrevivable_final is None and best_match_data:
+                    key = "army1_unrevivable" if idx == 0 else "army2_unrevivable"
+                    value = best_match_data.get(key)
+                    if isinstance(value, (int, float)):
+                        unrevivable_final = float(value)
+                metrics_markup = "<div class=\"metric-list\">" + "".join(
+                    (
+                        "<div><span>{label}</span><strong>{value}</strong></div>".format(
+                            label=html.escape(label), value=fmt_int(val)
+                        )
+                    )
+                    for label, val in [
+                        ("Initial Troops", summary_entry.get("initial")),
+                        ("Remaining Troops", summary_entry.get("remaining")),
+                        ("Heavily Wounded", unrevivable_final),
+                        ("Healed Troops", summary_entry.get("healed")),
+                        ("Total Kills", summary_entry.get("kills")),
+                    ]
+                ) + "</div>"
+
+                hero_skill_sections: list[str] = []
+                for hero_idx, hero_skills in enumerate(hero_skill_lists):
+                    hero_label = (
+                        hero_names[hero_idx]
+                        if hero_idx < len(hero_names)
+                        else f"Hero {hero_idx + 1}"
+                    )
+                    if not hero_skills:
+                        hero_skill_sections.append(
+                            "<div class=\"skill-hero\"><h4>"
+                            + html.escape(hero_label)
+                            + "</h4><p class=\"empty-state\">No skill data available.</p></div>"
+                        )
+                        continue
+                    rows: list[str] = []
+                    for entry in hero_skills:
+                        if not isinstance(entry, dict):
+                            continue
+                        skill_name = (
+                            normalize_metadata_text(entry.get("name"))
+                            or normalize_metadata_text(entry.get("id"))
+                            or "Skill"
+                        )
+                        row_cells = [f"<td>{html.escape(skill_name)}</td>"]
+                        for key, _ in skill_columns:
+                            value = entry.get(key)
+                            if key == "casts" and not isinstance(value, (int, float)):
+                                text = str(value).strip()
+                                display = html.escape(text if text else "—")
+                            else:
+                                display = fmt_int(value)
+                            row_cells.append(f"<td>{display}</td>")
+                        rows.append("<tr>" + "".join(row_cells) + "</tr>")
+                    if rows:
+                        body_markup = "<tbody>" + "".join(rows) + "</tbody>"
+                    else:
+                        span = len(skill_columns) + 1
+                        body_markup = (
+                            f"<tbody><tr><td colspan=\"{span}\" class=\"empty-state\">No skill data available.</td></tr></tbody>"
+                        )
+                    header_cells = "<tr><th>Skill</th>" + "".join(
+                        f"<th>{label}</th>" for _, label in skill_columns
+                    ) + "</tr>"
+                    hero_skill_sections.append(
+                        "<div class=\"skill-hero\">"
+                        + f"<h4>{html.escape(hero_label)}</h4>"
+                        + "<div class=\"skill-table-wrapper\">"
+                        + "<table class=\"skill-table\">"
+                        + f"<thead>{header_cells}</thead>"
+                        + body_markup
+                        + "</table></div></div>"
+                    )
+
+                skill_block = (
+                    "<div class=\"skill-breakdowns\">" + "".join(hero_skill_sections) + "</div>"
+                )
+                sample_army_blocks.append(
+                    "<div class=\"sample-army-card\">"
+                    + f"<h3>{html.escape(army_name)}</h3>"
+                    + metrics_markup
+                    + skill_block
+                    + "</div>"
+                )
+
             armies_html.append(
                 "<section class=\"army-card\">"
                 + "<header class=\"army-header\">"
@@ -6972,31 +7185,177 @@ class MainWindow(QtWidgets.QMainWindow):
                 + "</div>"
             )
 
+        def build_troop_history_panel() -> str:
+            if not include_sample_details:
+                return ""
+            if not sample_histories:
+                return (
+                    "<div class=\"troop-history\">"
+                    + "<h3>Remaining Troops Over Time</h3>"
+                    + "<p class=\"graph-fallback\">History unavailable.</p>"
+                    + "</div>"
+                )
+            max_points = max((len(hist.get("troops", [])) for hist in sample_histories), default=0)
+            if max_points <= 1:
+                return (
+                    "<div class=\"troop-history\">"
+                    + "<h3>Remaining Troops Over Time</h3>"
+                    + "<p class=\"graph-fallback\">History unavailable.</p>"
+                    + "</div>"
+                )
+            max_value = max(
+                (
+                    max(
+                        (val for val in hist.get("troops", []) if isinstance(val, (int, float))),
+                        default=0,
+                    )
+                    for hist in sample_histories
+                ),
+                default=0,
+            )
+            if max_value <= 0:
+                max_value = 1
+            width = 720
+            height = 260
+            pad_x = 56
+            pad_y = 36
+            x_step = (width - 2 * pad_x) / (max_points - 1)
+            y_scale = (height - 2 * pad_y) / max_value if max_value else 1
+            color_cycle = ["var(--accent-a)", "var(--accent-b)", "#3498db", "#9b59b6"]
+            polylines: list[str] = []
+            for idx, history in enumerate(sample_histories):
+                troops = history.get("troops", []) or []
+                if not troops:
+                    continue
+                points: list[str] = []
+                last_val = troops[0]
+                for point_idx in range(max_points):
+                    if point_idx < len(troops):
+                        last_val = troops[point_idx]
+                    x = pad_x + point_idx * x_step
+                    y_val = max(0.0, float(last_val))
+                    y = height - pad_y - y_val * y_scale
+                    points.append(f"{x:.2f},{y:.2f}")
+                color = color_cycle[idx % len(color_cycle)]
+                polylines.append(
+                    f"<polyline class=\"chart-line\" fill=\"none\" stroke=\"{color}\" stroke-width=\"2.5\" points=\"{' '.join(points)}\"/>"
+                )
+            axis_markup = (
+                f"<line class=\"chart-axis\" x1=\"{pad_x}\" y1=\"{height - pad_y}\" x2=\"{width - pad_x}\" y2=\"{height - pad_y}\"/>"
+                + f"<line class=\"chart-axis\" x1=\"{pad_x}\" y1=\"{pad_y}\" x2=\"{pad_x}\" y2=\"{height - pad_y}\"/>"
+            )
+            round_count = max_points - 1
+            label_markup = (
+                f"<text class=\"chart-label\" x=\"{pad_x}\" y=\"{height - pad_y + 24}\">Round 0</text>"
+                + f"<text class=\"chart-label\" x=\"{width - pad_x}\" y=\"{height - pad_y + 24}\" text-anchor=\"end\">Round {round_count}</text>"
+                + f"<text class=\"chart-label\" x=\"{pad_x}\" y=\"{pad_y - 12}\" text-anchor=\"start\">{fmt_int(max_value)} troops</text>"
+            )
+            svg_markup = (
+                f"<svg class=\"troop-chart-svg\" viewBox=\"0 0 {width} {height}\" role=\"img\" aria-label=\"Troop counts over {round_count} rounds\">"
+                + axis_markup
+                + "".join(polylines)
+                + label_markup
+                + "</svg>"
+            )
+            legend_items = []
+            swatch_classes = ["swatch-a", "swatch-b", "swatch-c", "swatch-d"]
+            for idx, history in enumerate(sample_histories):
+                name = html.escape(str(history.get("name", f"Army {idx + 1}")))
+                legend_items.append(
+                    f"<div class=\"legend-item\"><span class=\"swatch {swatch_classes[idx % len(swatch_classes)]}\"></span><span>{name}</span></div>"
+                )
+            legend_markup = "<div class=\"legend chart-legend\">" + "".join(legend_items) + "</div>"
+            return (
+                "<div class=\"troop-history\">"
+                + "<h3>Remaining Troops Over Time</h3>"
+                + "<div class=\"troop-chart-wrapper\">"
+                + svg_markup
+                + legend_markup
+                + "</div></div>"
+            )
+
         donut_style = f"--stop:{army_one_pct:.2f}%;"
         army_one_label = html.escape(army_one_name)
         army_two_label = html.escape(army_two_name)
-        victory_markup = (
-            "<section class=\"card victory-card\">"
-            + "<h2>Battle Overview</h2>"
-            + "<div class=\"victory-grid\">"
-            + build_troops_panel(f"{army_one_name} Troops Remaining", own_troops_uri)
-            + "<div class=\"victory-panel victory-summary\">"
-            + f"<div class=\"donut\" style=\"{donut_style}\" aria-hidden=\"true\">"
-            + "<div class=\"donut-inner\"></div></div>"
-            + "<div class=\"legend\">"
-            + f"<div class=\"legend-item\"><span class=\"swatch swatch-a\"></span><span>{army_one_label} ({army_one_pct:.1f}% • {army_one_wins} wins)</span></div>"
-            + f"<div class=\"legend-item\"><span class=\"swatch swatch-b\"></span><span>{army_two_label} ({army_two_pct:.1f}% • {army_two_wins} wins)</span></div>"
-            + "</div></div>"
-            + build_troops_panel(f"{army_two_name} Troops Remaining", enemy_troops_uri)
-            + "</div></section>"
-        )
+        victory_sections = [
+            "<section class=\"card victory-card\">",
+            "<h2>Battle Overview</h2>",
+            "<div class=\"victory-grid\">",
+            build_troops_panel(f"{army_one_name} Troops Remaining", own_troops_uri),
+            "<div class=\"victory-panel victory-summary\">",
+            f"<div class=\"donut\" style=\"{donut_style}\" aria-hidden=\"true\">",
+            "<div class=\"donut-inner\"></div></div>",
+            "<div class=\"legend\">",
+            f"<div class=\"legend-item\"><span class=\"swatch swatch-a\"></span><span>{army_one_label} ({army_one_pct:.1f}% • {army_one_wins} wins)</span></div>",
+            f"<div class=\"legend-item\"><span class=\"swatch swatch-b\"></span><span>{army_two_label} ({army_two_pct:.1f}% • {army_two_wins} wins)</span></div>",
+            "</div></div>",
+            build_troops_panel(f"{army_two_name} Troops Remaining", enemy_troops_uri),
+            "</div>",
+        ]
+        troop_history_markup = build_troop_history_panel()
+        if troop_history_markup:
+            victory_sections.append(troop_history_markup)
+        victory_sections.append("</section>")
+        victory_markup = "".join(victory_sections)
+
+        sample_markup = ""
+        if include_sample_details:
+            battle_rounds = 0
+            round_count_raw = sample_data_raw.get("round_count") if isinstance(sample_data_raw, dict) else None
+            if isinstance(round_count_raw, (int, float)):
+                try:
+                    battle_rounds = int(round(float(round_count_raw)))
+                except (TypeError, ValueError):
+                    battle_rounds = 0
+            if battle_rounds <= 0:
+                battle_rounds = len(round_details)
+            sample_seed = None
+            if best_match_data and "seed" in best_match_data:
+                sample_seed = best_match_data.get("seed")
+            sample_winner = None
+            if best_match_data and isinstance(best_match_data.get("winner"), int):
+                winner_idx = int(best_match_data.get("winner", 0)) - 1
+                if 0 <= winner_idx < len(army_names):
+                    sample_winner = army_names[winner_idx]
+            summary_items: list[tuple[str, str]] = []
+            if battle_rounds:
+                summary_items.append(("Battle Length", f"{battle_rounds} rounds"))
+            if sample_seed not in (None, ""):
+                summary_items.append(("Sample Seed", str(sample_seed)))
+            if sample_winner:
+                summary_items.append(("Sample Winner", sample_winner))
+            if sample_army_blocks:
+                army_block_markup = (
+                    "<div class=\"sample-army-grid\">" + "".join(sample_army_blocks) + "</div>"
+                )
+            else:
+                army_block_markup = (
+                    "<div class=\"sample-army-grid\"><p class=\"empty-state\">No sample data available.</p></div>"
+                )
+            summary_markup = ""
+            if summary_items:
+                summary_markup = (
+                    "<div class=\"sample-summary\"><ul class=\"sample-summary-metrics\">"
+                    + "".join(
+                        f"<li><span>{html.escape(label)}</span><strong>{html.escape(value)}</strong></li>"
+                        for label, value in summary_items
+                    )
+                    + "</ul></div>"
+                )
+            sample_markup = (
+                "<section class=\"card sample-card\">"
+                + "<h2>Sample Battle Details</h2>"
+                + summary_markup
+                + army_block_markup
+                + "</section>"
+            )
 
         html_output = f"""<!DOCTYPE html>
 <html lang=\"en\">
 <head>
     <meta charset=\"utf-8\">
     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
-    <title>Battle Summary - {html.escape(army_names[0] if army_names else 'Army 1')} vs {html.escape(army_names[1] if len(army_names) > 1 else 'Army 2')}</title>
+    <title>{'Overall Performance &amp; Sample Battle' if include_sample_details else 'Overall Performance'} - {html.escape(army_names[0] if army_names else 'Army 1')} vs {html.escape(army_names[1] if len(army_names) > 1 else 'Army 2')}</title>
     <style>
         :root {{
             --bg: #080b16;
@@ -7085,6 +7444,39 @@ class MainWindow(QtWidgets.QMainWindow):
         .graph-panel {{
             width: 100%;
         }}
+        .troop-history {{
+            background: var(--panel-alt);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: -4px;
+            display: grid;
+            gap: 16px;
+        }}
+        .troop-chart-wrapper {{
+            width: 100%;
+            overflow: hidden;
+        }}
+        .troop-chart-svg {{
+            width: 100%;
+            height: auto;
+            display: block;
+        }}
+        .chart-axis {{
+            stroke: rgba(255, 255, 255, 0.25);
+            stroke-width: 1.5;
+        }}
+        .chart-line {{
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }}
+        .chart-label {{
+            fill: var(--muted);
+            font-size: 0.75rem;
+        }}
+        .chart-legend {{
+            justify-content: center;
+        }}
         .victory-summary {{
             justify-content: center;
         }}
@@ -7136,11 +7528,79 @@ class MainWindow(QtWidgets.QMainWindow):
         }}
         .swatch-a {{ background: var(--accent-a); }}
         .swatch-b {{ background: var(--accent-b); }}
+        .swatch-c {{ background: #3498db; }}
+        .swatch-d {{ background: #9b59b6; }}
         .army-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
             gap: 24px;
             align-items: start;
+        }}
+        .sample-card {{
+            display: grid;
+            gap: 24px;
+        }}
+        .sample-summary {{
+            display: flex;
+            justify-content: center;
+        }}
+        .sample-summary-metrics {{
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+        }}
+        .sample-summary-metrics li {{
+            display: flex;
+            gap: 10px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            background: var(--panel-alt);
+            border: 1px solid var(--border);
+            align-items: center;
+        }}
+        .sample-summary-metrics span {{
+            color: var(--muted);
+        }}
+        .sample-summary-metrics strong {{
+            font-weight: 600;
+        }}
+        .sample-army-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+            gap: 24px;
+            align-items: start;
+        }}
+        .sample-army-card {{
+            background: var(--panel-alt);
+            border-radius: var(--card-radius);
+            border: 1px solid var(--border);
+            padding: 24px;
+            display: grid;
+            gap: 18px;
+        }}
+        .metric-list {{
+            margin: 0;
+            display: grid;
+            gap: 10px;
+        }}
+        .metric-list div {{
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 12px;
+        }}
+        .metric-list span {{
+            color: var(--muted);
+            font-weight: 500;
+        }}
+        .metric-list strong {{
+            font-weight: 600;
         }}
         .army-card {{
             background: var(--panel);
@@ -7149,6 +7609,36 @@ class MainWindow(QtWidgets.QMainWindow):
             border: 1px solid var(--border);
             display: grid;
             gap: 24px;
+        }}
+        .skill-breakdowns {{
+            display: grid;
+            gap: 16px;
+        }}
+        .skill-hero {{
+            display: grid;
+            gap: 10px;
+        }}
+        .skill-table-wrapper {{
+            overflow-x: auto;
+        }}
+        .skill-table {{
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 560px;
+        }}
+        .skill-table th,
+        .skill-table td {{
+            border: 1px solid var(--border);
+            padding: 6px 10px;
+            text-align: right;
+        }}
+        .skill-table th:first-child,
+        .skill-table td:first-child {{
+            text-align: left;
+        }}
+        .skill-table th {{
+            background: rgba(255, 255, 255, 0.04);
+            font-size: 0.85rem;
         }}
         .army-header {{
             display: flex;
@@ -7627,11 +8117,12 @@ class MainWindow(QtWidgets.QMainWindow):
 <body>
     <main>
         <header class=\"header\">
-            <h1>Battle Summary</h1>
+            <h1>{'Overall Performance &amp; Sample Battle' if include_sample_details else 'Overall Performance'}</h1>
             <p>Generated {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))}</p>
         </header>
         {victory_markup}
         {armies_markup}
+        {sample_markup}
     </main>
     <div class=\"modal\" id=\"bonus-modal\">
         <div class=\"modal-backdrop\"></div>
@@ -7805,6 +8296,20 @@ class MainWindow(QtWidgets.QMainWindow):
         self.last_setup_dir = os.path.dirname(save_path)
         self.status.setText(f"HTML summary exported to {os.path.basename(save_path)}")
 
+    def export_summary_html(self) -> None:
+        self._export_summary_html(
+            include_sample_details=False,
+            dialog_title="Export Overall Performance HTML",
+            filename_suffix="overall_performance",
+        )
+
+    def export_summary_with_sample_html(self) -> None:
+        self._export_summary_html(
+            include_sample_details=True,
+            dialog_title="Export Overall Performance & Sample Battle HTML",
+            filename_suffix="overall_performance_sample",
+        )
+
     def export_pdf(self) -> None:
         """Export a multi-page PDF using the configured layout."""
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -7948,6 +8453,7 @@ class MainWindow(QtWidgets.QMainWindow):
         win_rate = getattr(worker, "win_rate", None) if worker else None
         runs = getattr(worker, "runs", self.runs_spin.value())
         best_match = getattr(worker, "best_match", None) if worker else None
+        sample_stats = getattr(worker, "sample_battle_stats", None) if worker else None
         setup_data = self._last_setup_data or [
             self.army1_frame.build_config(),
             self.army2_frame.build_config(),
@@ -7968,6 +8474,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.army2_frame.name_edit.text() or "Army 2",
                 ],
             }
+            if isinstance(sample_stats, dict):
+                export_payload["sample_battle"] = copy.deepcopy(sample_stats)
         self._last_simulation_payload = export_payload
         self.progress.setValue(0)
         self.status.setText("Ready")

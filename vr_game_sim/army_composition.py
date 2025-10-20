@@ -136,6 +136,8 @@ class Army:
     shield_received_history: List[float] = field(init=False, default_factory=list)
     rage_gained_history: List[float] = field(init=False, default_factory=list)
     kills_dealt_history: List[float] = field(init=False, default_factory=list)
+    troop_count_history: List[float] = field(init=False, default_factory=list)
+    unrevivable_history: List[float] = field(init=False, default_factory=list)
     troops_healed_total: float = field(init=False, default=0.0)
     shield_hp_gained_this_round: float = field(init=False, default=0.0)
     rage_added_this_round: float = field(init=False, default=0.0)
@@ -1519,6 +1521,8 @@ class Army:
         self.shield_received_history = []
         self.rage_gained_history = []
         self.kills_dealt_history = []
+        self.troop_count_history = [self.current_troop_count]
+        self.unrevivable_history = [self.unrevivable_troops]
         self.troops_healed_total = 0.0
         self.shield_hp_gained_this_round = 0.0
         self.rage_added_this_round = 0.0

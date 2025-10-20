@@ -2072,18 +2072,10 @@ def handle_plugin_hale_of_thorns(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_id = skill_def["id"]
 
-    is_h1 = (
-        triggering_army.heroes
-        and len(triggering_army.heroes) > 0
-        and skill_id in [s["id"] for s in triggering_army.heroes[0].skills]
-    )
-    if not is_h1:
-        return False, []
-
     gen_data = {
         "effect_type": EffectType.STAT_MOD,
         "name": EFFECT_NAME_HALE_OF_THORNS_GENERAL_REDUCTION,
-        "stat_to_mod": StatType.GENERAL_DAMAGE_MODIFIER,
+        "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
         "magnitude": -0.15,
         "duration": -1,
         "activate_next_round": False,

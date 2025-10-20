@@ -523,12 +523,20 @@ class BattlefieldEngine:
                     # Reapply passive skills without resetting troop counts.
                     # Remove existing passive skill trigger counts so they
                     # apply their effects again for this idle army.
-                    passive_ids = {
-                        skill_def.get("id")
-                        for hero in army.heroes
-                        for skill_def in hero.skills
-                        if skill_def.get("trigger") == SkillTriggerType.PASSIVE
-                    }
+                    passive_ids: set[str] = set()
+                    for hero in army.heroes:
+                        if not hero:
+                            continue
+                        for skill_def in hero.skills:
+                            if skill_def.get("trigger") == SkillTriggerType.PASSIVE:
+                                skill_id = skill_def.get("id")
+                                if skill_id:
+                                    passive_ids.add(skill_id)
+                    for skill_def in army.gem_skills:
+                        if skill_def.get("trigger") == SkillTriggerType.PASSIVE:
+                            skill_id = skill_def.get("id")
+                            if skill_id:
+                                passive_ids.add(skill_id)
                     prev_counts: Dict[str, int] = {}
                     for sid in passive_ids:
                         prev_counts[sid] = army.skill_trigger_counts.pop(sid, 0)

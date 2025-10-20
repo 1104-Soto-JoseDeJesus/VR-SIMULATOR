@@ -31,6 +31,12 @@ from matplotlib import pyplot as plt
 from vr_game_sim.hero_definition import HERO_PRESETS
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.army_composition import Army, normalize_gem_skill_id
+from vr_game_sim.gear_definitions import (
+    GEAR_SLOT_ORDER,
+    RARITY_BACKGROUNDS,
+    normalize_gear_slot,
+    resolve_gear,
+)
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.report_builder import ReportBuilder
 from vr_game_sim.battlefield_report_builder import BattlefieldReportBuilder
@@ -6219,10 +6225,10 @@ class MainWindow(QtWidgets.QMainWindow):
             os.path.join(base_dir, "Stat Icons", "Additional_stats_Icon.png"),
             "icons/bonus_stats.png",
         )
-        gear_placeholder = ensure_asset(
-            os.path.join(base_dir, "Gear Icons", "none.png"),
-            "gear/placeholder.png",
-        )
+        gear_background_lookup: dict[str, str | None] = {}
+        for rarity, bg_path in RARITY_BACKGROUNDS.items():
+            if bg_path and os.path.exists(bg_path):
+                gear_background_lookup[rarity] = ensure_asset(bg_path)
         mount_placeholder = ensure_asset(
             os.path.join(base_dir, "MountSkillsIcons", "none.png"),
             "mounts/placeholder.png",
@@ -6595,19 +6601,88 @@ class MainWindow(QtWidgets.QMainWindow):
                     )
                     + "</div>"
                 )
-                gear_slots = "".join(
-                    (
-                        f"<img src=\"{gear_placeholder}\" alt=\"Gear placeholder\">"
-                        if gear_placeholder
-                        else "<div class=\"placeholder-empty\"></div>"
+                raw_gear_cfg: dict[str, Any] = {}
+                if isinstance(hero_cfg, dict):
+                    if isinstance(hero_cfg.get("gear"), dict):
+                        raw_gear_cfg = dict(hero_cfg.get("gear", {}))
+                    elif isinstance(hero_cfg.get("gear_ids"), dict):
+                        raw_gear_cfg = dict(hero_cfg.get("gear_ids", {}))
+                normalized_gear_cfg: dict[str, Any] = {}
+                for slot_key, raw_value in raw_gear_cfg.items():
+                    slot_name = normalize_gear_slot(slot_key)
+                    if slot_name:
+                        normalized_gear_cfg[slot_name] = raw_value
+
+                gear_tiles: list[str] = []
+                for slot_key, slot_label in GEAR_SLOT_ORDER:
+                    slot_label_display = html.escape(slot_label)
+                    raw_value = normalized_gear_cfg.get(slot_key)
+                    gear_def = resolve_gear(raw_value) if raw_value else None
+                    background_uri = (
+                        gear_background_lookup.get(gear_def.rarity)
+                        if gear_def and gear_def.rarity in gear_background_lookup
+                        else None
                     )
-                    for _ in range(4)
-                )
+                    icon_uri = None
+                    if gear_def and os.path.exists(gear_def.icon_path):
+                        icon_uri = ensure_asset(gear_def.icon_path)
+                    if gear_def:
+                        display_name = f"{gear_def.name} ({gear_def.rarity})"
+                        safe_display_name = html.escape(display_name)
+                        rarity_text = html.escape(gear_def.rarity)
+                        effect_items = "".join(
+                            f"<li>{html.escape(desc)}</li>"
+                            for desc in gear_def.effect_descriptions()
+                        )
+                        effects_markup = (
+                            f"<ul class=\"gear-effects\">{effect_items}</ul>"
+                            if effect_items
+                            else ""
+                        )
+                        tooltip_markup = (
+                            f"<strong>{safe_display_name}</strong>"
+                            + f"<p class=\"gear-meta\">Slot: {slot_label_display} • Rarity: {rarity_text}</p>"
+                            + effects_markup
+                            + "<p class=\"gear-tooltip-note\">Effects are permanent and additive.</p>"
+                        )
+                        tile_markup = (
+                            "<div class=\"gear-slot tooltip\" tabindex=\"0\">"
+                            + (
+                                f"<img src=\"{background_uri}\" alt=\"\" class=\"gear-bg\">"
+                                if background_uri
+                                else ""
+                            )
+                            + (
+                                f"<img src=\"{icon_uri}\" alt=\"{safe_display_name}\" class=\"gear-icon\">"
+                                if icon_uri
+                                else ""
+                            )
+                            + f"<span class=\"gear-slot-label\">{slot_label_display}</span>"
+                            + f"<span class=\"tooltip-content\">{tooltip_markup}</span>"
+                            + "</div>"
+                        )
+                    else:
+                        fallback_text = (
+                            html.escape(str(raw_value))
+                            if raw_value not in (None, "")
+                            else "None"
+                        )
+                        tile_markup = (
+                            "<div class=\"gear-slot empty\">"
+                            + f"<span class=\"gear-slot-label\">{slot_label_display}</span>"
+                            + f"<span class=\"gear-empty-text\">{fallback_text}</span>"
+                            + "</div>"
+                        )
+                    gear_tiles.append(tile_markup)
+
                 hero_sections.append(
-                    "<div class=\"hero-section\"><h5>Gear (Coming Soon)</h5>"
-                    + "<div class=\"placeholder-grid\">"
-                    + gear_slots
-                    + "</div></div>"
+                    "<div class=\"hero-section\"><h5>Gear</h5>"
+                    + (
+                        "<div class=\"gear-grid\">" + "".join(gear_tiles) + "</div>"
+                        if gear_tiles
+                        else "<p class=\"empty-state\">No gear equipped.</p>"
+                    )
+                    + "</div>"
                 )
                 mount_slots = "".join(
                     (
@@ -6965,26 +7040,78 @@ class MainWindow(QtWidgets.QMainWindow):
             color: var(--muted);
             font-size: 0.85rem;
         }}
-        .placeholder-grid {{
+        .gear-grid {{
             display: grid;
-            grid-template-columns: repeat(4, minmax(40px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
             gap: 12px;
         }}
-        .placeholder-grid img {{
-            width: 60px;
-            height: 60px;
-            object-fit: contain;
-            background: var(--panel-alt);
-            border-radius: 14px;
+        .gear-slot {{
+            position: relative;
             border: 1px solid var(--border);
-            padding: 8px;
+            border-radius: 16px;
+            background: var(--panel-alt);
+            aspect-ratio: 1 / 1;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
         }}
-        .placeholder-grid .placeholder-empty {{
-            width: 60px;
-            height: 60px;
-            background: var(--panel-alt);
-            border-radius: 14px;
-            border: 1px solid var(--border);
+        .gear-slot .gear-bg {{
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.9;
+        }}
+        .gear-slot .gear-icon {{
+            position: absolute;
+            inset: 18%;
+            width: 64%;
+            height: 64%;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
+        }}
+        .gear-slot .gear-slot-label {{
+            position: absolute;
+            top: 6px;
+            left: 8px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(8, 11, 22, 0.7);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+        }}
+        .gear-slot .gear-empty-text {{
+            z-index: 1;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }}
+        .gear-slot.empty {{
+            background: rgba(255, 255, 255, 0.02);
+        }}
+        .gear-slot .tooltip-content {{
+            max-width: 260px;
+        }}
+        .gear-meta {{
+            margin: 6px 0 0;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }}
+        .gear-effects {{
+            margin: 10px 0 0;
+            padding-left: 18px;
+        }}
+        .gear-effects li {{
+            margin-bottom: 4px;
+        }}
+        .gear-tooltip-note {{
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: var(--muted);
         }}
         .mount-grid {{
             display: flex;

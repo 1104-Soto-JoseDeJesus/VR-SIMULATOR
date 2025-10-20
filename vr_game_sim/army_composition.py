@@ -1542,6 +1542,7 @@ class Army:
 
         self._identify_hero_rage_skills()
         self._apply_bonus_stats()
+        self._apply_gear_effects()
 
     def _apply_bonus_stats(self) -> None:
         if not self.bonus_stats_config:
@@ -1702,6 +1703,39 @@ class Army:
             StatType.COMMAND_SKILL_DAMAGE_MODIFIER,
             "Command Skill Damage Boost",
         )
+
+    def _apply_gear_effects(self) -> None:
+        if not self.heroes:
+            return
+
+        for hero in self.heroes:
+            if not hero or not getattr(hero, "gear_items", None):
+                continue
+            for gear_def in hero.gear_items.values():
+                for gear_effect in gear_def.effects:
+                    magnitude = float(gear_effect.magnitude)
+                    if abs(magnitude) <= 1e-9:
+                        continue
+                    effect = EffectInstance(
+                        uuid.uuid4(),
+                        f"gear::{gear_def.id}",
+                        EffectType.STAT_MOD,
+                        -1,
+                        magnitude,
+                        {
+                            "stat_to_mod": gear_effect.stat,
+                            "is_dispellable": False,
+                            "manual_bonus_stat": True,
+                            "gear_id": gear_def.id,
+                            "gear_name": gear_def.name,
+                            "gear_rarity": gear_def.rarity,
+                            "gear_slot": gear_def.slot,
+                            "gear_owner": hero.name,
+                        },
+                        name=f"{gear_def.name} ({gear_def.rarity}) [{hero.name}]",
+                        applied_this_round=False,
+                    )
+                    self.active_effects.append(effect)
 
     def __repr__(self):
         hero_names = [h.name for h in self.heroes if h] if self.heroes else []

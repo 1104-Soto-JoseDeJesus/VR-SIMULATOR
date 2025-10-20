@@ -198,12 +198,18 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
                 if overrides
                 else SKILL_REGISTRY_GLOBAL
             )
+            gear_cfg: Dict[str, Any] | None = None
+            if isinstance(hero_conf.get("gear"), dict):
+                gear_cfg = copy.deepcopy(hero_conf.get("gear"))
+            elif isinstance(hero_conf.get("gear_ids"), dict):
+                gear_cfg = copy.deepcopy(hero_conf.get("gear_ids"))
             hero = Hero(
                 name=hero_conf["hero_name_or_preset"],
                 talent_ids=hero_conf["talent_ids"],
                 base_skill_ids=hero_conf["base_skill_ids"],
                 plugin_skill_ids=hero_conf["plugin_skill_ids"],
                 skill_registry=registry,
+                gear_config=gear_cfg,
             )
             heroes_list.append(hero)
 

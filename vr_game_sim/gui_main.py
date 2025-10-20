@@ -6812,7 +6812,7 @@ class MainWindow(QtWidgets.QMainWindow):
             width: 220px;
             height: 220px;
             border-radius: 50%;
-            background: conic-gradient(var(--accent-a) var(--stop), var(--accent-b) var(--stop));
+            background: conic-gradient(from 180deg, var(--accent-a) var(--stop), var(--accent-b) var(--stop));
             position: relative;
             overflow: hidden;
         }}

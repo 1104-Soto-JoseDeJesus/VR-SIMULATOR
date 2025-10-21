@@ -303,10 +303,10 @@ def handle_plugin_poison_arrow(
         poison_data = {
             "effect_type": EffectType.DAMAGE_OVER_TIME,
             "name": EFFECT_NAME_POISON_ARROW_POISON,
-            "magnitude": poison_factor,
+            "dot_type": DoTType.POISON,
+            "status_effect_factor": poison_factor,
             "duration": poison_duration,
             "activate_next_round": True,
-            "config": {"dot_type": DoTType.POISON},
         }
         created_poison = opponent_army._create_and_add_single_effect(
             poison_data, skill_def["id"], triggering_army, opponent_army, triggering_army

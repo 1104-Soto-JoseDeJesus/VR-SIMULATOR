@@ -1,6 +1,7 @@
 import os
 import random
 import re
+import time
 
 import pytest
 
@@ -16,6 +17,8 @@ from vr_game_sim.enums import (
 )
 from vr_game_sim.hero_definition import Hero
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
+from vr_game_sim.main import create_armies_from_data
+from vr_game_sim.report_builder import ReportBuilder
 
 
 def _make_skill_def() -> dict:
@@ -618,4 +621,100 @@ def test_sample_battle_log_rendering(tmp_path, monkeypatch):
     assert "[Our party](198,362) launched a basic attack on [Enemy]. [Enemy] lost 1,964 units." in text_only
     assert "[Verdandi](198,362) cast [Targeted Strike]! [Enemy] lost 5,290 units" in text_only
     assert 'data-log-expand' in html_content
+    window.close()
+
+
+def test_simulation_export_includes_generated_battle_log(tmp_path, monkeypatch):
+    gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    try:
+        from PyQt6 import QtWidgets
+    except ImportError:
+        pytest.skip("PyQt6 not available")
+
+    _app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    setup_entries = [
+        {
+            "army_name": "Blue Team",
+            "unit_type": "pikemen",
+            "tier": 5,
+            "count": 120,
+            "atk_mod": 0.0,
+            "def_mod": 0.0,
+            "hp_mod": 0.0,
+            "bonus_stats": {},
+            "heroes": [],
+            "gem_skills": {},
+        },
+        {
+            "army_name": "Red Team",
+            "unit_type": "archers",
+            "tier": 5,
+            "count": 120,
+            "atk_mod": 0.0,
+            "def_mod": 0.0,
+            "hp_mod": 0.0,
+            "bonus_stats": {},
+            "heroes": [],
+            "gem_skills": {},
+        },
+    ]
+
+    armies = create_armies_from_data(setup_entries)
+    report_builder = ReportBuilder(use_color=False)
+    sim = GameSimulator(armies[0], armies[1], report_builder, track_stats=True)
+    report_text = sim.simulate_battle()
+    rounds = report_builder.get_rounds()
+    army_histories = [
+        {
+            "name": army.name,
+            "troops": [int(round(float(val))) for val in army.troop_count_history],
+            "unrevivable": [int(round(float(val))) for val in army.unrevivable_history],
+        }
+        for army in armies
+    ]
+    battle_log_rounds = gui_main.build_battle_log_rounds(rounds, army_histories)
+    assert battle_log_rounds, "Expected generated battle log rounds"
+
+    sample_stats = {
+        "round_count": int(sim.round),
+        "army_histories": army_histories,
+        "battle_log_rounds": battle_log_rounds,
+    }
+
+    payload = {
+        "report_text": report_text,
+        "rounds": rounds,
+        "summary": gui_main.build_skill_summaries(armies, setup_entries),
+        "win_rate": 1.0,
+        "runs": 1,
+        "best_match": None,
+        "setup": setup_entries,
+        "histograms": {},
+        "generated_at": time.time(),
+        "army_names": [army.name for army in armies],
+        "sample_battle": sample_stats,
+        "battle_log_rounds": battle_log_rounds,
+    }
+
+    window = gui_main.MainWindow()
+    window._last_simulation_payload = payload
+
+    save_path = tmp_path / "auto_sample_battle_log.html"
+    monkeypatch.setattr(
+        gui_main.QtWidgets.QFileDialog,
+        "getSaveFileName",
+        lambda *args, **kwargs: (str(save_path), "HTML Files (*.html)"),
+    )
+    monkeypatch.setattr(gui_main.QtWidgets.QMessageBox, "warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gui_main.QtWidgets.QMessageBox, "critical", lambda *args, **kwargs: None)
+
+    window.export_summary_with_sample_html()
+
+    assert save_path.exists()
+    html_content = save_path.read_text(encoding="utf-8")
+    assert "Battle Log" in html_content
+    assert '<article class="battle-log-round"' in html_content
+    assert "launched a basic attack" in html_content
     window.close()

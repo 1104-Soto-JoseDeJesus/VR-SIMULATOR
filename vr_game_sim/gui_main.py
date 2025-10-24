@@ -311,12 +311,6 @@ def build_battle_log_rounds(
             return None
         return troops[round_idx]
 
-    def losses_this_round(idx: int, round_idx: int) -> int | None:
-        troops = normalized_histories[idx]["troops"]
-        if round_idx <= 0 or round_idx >= len(troops):
-            return None
-        return troops[round_idx] - troops[round_idx - 1]
-
     def convert_combat_action(action: dict[str, Any], round_idx: int) -> dict[str, Any] | None:
         attacker_name = str(action.get("attacker_name") or "").strip()
         defender_name = str(action.get("defender_name") or "").strip()
@@ -430,12 +424,31 @@ def build_battle_log_rounds(
                         event["description"] = effect_desc
                     events.append(event)
 
+        blue_start = troops_after(0, round_idx - 1)
+        blue_end = troops_after(0, round_idx)
+        red_start = troops_after(1, round_idx - 1)
+        red_end = troops_after(1, round_idx)
+
+        blue_delta = None
+        if blue_start is not None and blue_end is not None:
+            blue_delta = blue_end - blue_start
+
+        red_delta = None
+        if red_start is not None and red_end is not None:
+            red_delta = red_end - red_start
+
         round_record = {
             "round": round_idx,
-            "blue_troops_after": troops_after(0, round_idx),
-            "red_troops_after": troops_after(1, round_idx),
-            "blue_losses": losses_this_round(0, round_idx),
-            "red_losses": losses_this_round(1, round_idx),
+            "blue_troops_start": blue_start,
+            "blue_troops_end": blue_end,
+            "red_troops_start": red_start,
+            "red_troops_end": red_end,
+            "blue_delta": blue_delta,
+            "red_delta": red_delta,
+            "blue_troops_after": blue_end,
+            "red_troops_after": red_end,
+            "blue_losses": blue_delta,
+            "red_losses": red_delta,
             "events": events,
         }
         battle_rounds.append(round_record)
@@ -464,6 +477,7 @@ def build_battle_log_markup(
         "rage_reduced",
         "ongoing_buff",
         "flanked",
+        "delayed_effect",
         "generic",
     }
     event_type_aliases = {
@@ -478,6 +492,9 @@ def build_battle_log_markup(
         "periodic_gain": "ongoing_buff",
         "rage_gain": "ongoing_buff",
         "flank": "flanked",
+        "dot": "delayed_effect",
+        "damage_over_time": "delayed_effect",
+        "delayed": "delayed_effect",
         "skill_generic": "generic",
     }
     banned_terms = [
@@ -490,6 +507,12 @@ def build_battle_log_markup(
         "contributor",
         "contribution",
         "damage contribution",
+        "committed",
+        "commit",
+        "factor",
+        "starting next round)",
+        "diagnostic",
+        "analytics",
     ]
 
     def coerce_int(value: Any) -> int | None:
@@ -498,13 +521,40 @@ def build_battle_log_markup(
         except (TypeError, ValueError):
             return None
 
+    NAME_CANONICAL_MAP = {
+        "our party": "Our party",
+        "your squad": "Your Squad",
+        "enemy": "Enemy",
+        "our squad": "Our Squad",
+        "blue team": "Blue Team",
+        "red team": "Red Team",
+    }
+
+    def canonicalize_name_token(text: str) -> str:
+        raw = str(text or "").strip()
+        if not raw:
+            return ""
+        stripped = raw.strip("[] ")
+        stripped = re.sub(r"\s*/\s*", "/", stripped)
+        lower = stripped.casefold()
+        mapped = NAME_CANONICAL_MAP.get(lower, stripped)
+        if "/" in mapped:
+            parts = [part.strip() for part in mapped.split("/") if part.strip()]
+            normalized_parts = []
+            for part in parts:
+                lower_part = part.casefold()
+                normalized_parts.append(NAME_CANONICAL_MAP.get(lower_part, part))
+            if normalized_parts:
+                mapped = "/".join(sorted(normalized_parts, key=lambda item: item.casefold()))
+        return mapped
+
     def ensure_brackets(text: str) -> str:
         if not text:
             return text
-        stripped = text.strip()
-        if stripped.startswith("[") and stripped.endswith("]"):
-            return stripped
-        return f"[{stripped}]"
+        canonical = canonicalize_name_token(text)
+        if not canonical:
+            return canonical
+        return f"[{canonical}]"
 
     def wrap_token(text: str, token_type: str | None = None) -> str:
         classes = ["battle-log-token"]
@@ -529,15 +579,15 @@ def build_battle_log_markup(
         formatted = f"{number:,}"
         return wrap_token(formatted, "number")
 
-    def format_loss(value: Any) -> str:
+    def format_delta(value: Any) -> str:
         number = coerce_int(value)
         if number is None:
-            number = 0
+            return "—"
         if number > 0:
-            number = -abs(number)
-        if number == 0:
-            return "0"
-        return f"{number:,}"
+            return f"+{number:,}"
+        if number < 0:
+            return f"-{abs(number):,}"
+        return "-0"
 
     def format_percent(value: Any) -> str:
         numeric: float | None
@@ -562,6 +612,29 @@ def build_battle_log_markup(
         if number <= 0:
             return None
         return number
+
+    def non_negative_int(value: Any) -> int | None:
+        number = coerce_int(value)
+        if number is None or number < 0:
+            return None
+        return number
+
+    def positive_float(value: Any) -> float | None:
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+        else:
+            try:
+                numeric = float(str(value).replace(",", ""))
+            except (TypeError, ValueError):
+                return None
+        if numeric <= 0:
+            return None
+        return numeric
+
+    def normalize_percent_value(value: float) -> float:
+        if abs(value) <= 1:
+            return value * 100
+        return value
 
     def normalize_actor(data: Any, default_alignment: str | None = None) -> dict[str, Any]:
         label = ""
@@ -619,11 +692,6 @@ def build_battle_log_markup(
             hero = normalize_actor(event.get("hero") or event.get("source"), "hero")
             skill = event.get("skill") or event.get("ability")
             target = normalize_actor(event.get("target"), "ally")
-            rage = (
-                event.get("rage_per_second")
-                or event.get("rage")
-                or event.get("gain")
-            )
             remaining = (
                 event.get("rounds_remaining")
                 or event.get("duration_rounds")
@@ -631,14 +699,48 @@ def build_battle_log_markup(
             )
             if not hero.get("label") or skill is None or not target.get("label"):
                 return ""
-            rage_value = positive_int(rage)
             remaining_value = positive_int(remaining)
-            if rage_value is None or remaining_value is None:
+            if remaining_value is None:
                 return ""
+
+            rage_fields = [
+                event.get("rage_per_second"),
+                event.get("rage"),
+                event.get("gain"),
+            ]
+            rage_value: int | None = None
+            for candidate in rage_fields:
+                rage_value = positive_int(candidate)
+                if rage_value is not None:
+                    break
+
+            if rage_value is not None:
+                return (
+                    f"Due to {render_actor(hero)}'s {render_skill(skill)} skill effect, "
+                    f"{render_actor(target, include_troops=True)} gains {wrap_number(rage_value)} Rage every second,  "
+                    f"{wrap_number(remaining_value)} rounds remaining"
+                )
+
+            reduction_fields = [
+                event.get("damage_reduction_percent"),
+                event.get("damage_reduction"),
+                event.get("percent_reduction"),
+                event.get("reduction_percent"),
+            ]
+            reduction_value: float | None = None
+            for candidate in reduction_fields:
+                numeric = positive_float(candidate)
+                if numeric is not None:
+                    reduction_value = normalize_percent_value(numeric)
+                    break
+
+            if reduction_value is None:
+                return ""
+
             return (
                 f"Due to {render_actor(hero)}'s {render_skill(skill)} skill effect, "
-                f"{render_actor(target, include_troops=True)} gains {wrap_number(rage_value)} Rage every second,  "
-                f"{wrap_number(remaining_value)} rounds remaining"
+                f"{render_actor(target, include_troops=True)} reduces damage taken by "
+                f"{wrap_token(format_percent(reduction_value), 'number')} for {wrap_number(remaining_value)} rounds."
             )
 
         def render_flanked() -> str:
@@ -672,13 +774,54 @@ def build_battle_log_markup(
         def render_counterattack() -> str:
             attacker = normalize_actor(event.get("attacker") or event.get("source"), "enemy")
             target = normalize_actor(event.get("target") or event.get("defender"), "ally")
-            units = event.get("units") or event.get("damage")
-            units_value = positive_int(units)
-            if not attacker.get("label") or not target.get("label") or units_value is None:
+            if not attacker.get("label") or not target.get("label"):
                 return ""
+            units_raw = event.get("units") or event.get("damage")
+            units_value = positive_int(units_raw)
+            if units_value is not None:
+                return (
+                    f"{render_actor(attacker)} launched a counterattack. "
+                    f"{render_actor(target)} lost {wrap_number(units_value)} units."
+                )
+
+            units_non_negative = non_negative_int(units_raw)
+            if units_non_negative != 0:
+                return ""
+
+            absorbed_fields = [
+                event.get("shield_absorbed"),
+                event.get("absorbed"),
+                event.get("shield_absorbed_hp"),
+                event.get("absorbed_damage"),
+            ]
+            absorbed_value: int | None = None
+            for candidate in absorbed_fields:
+                absorbed_value = positive_int(candidate)
+                if absorbed_value is not None:
+                    break
+            if absorbed_value is None:
+                return ""
+
+            reduction_fields = [
+                event.get("shield_loss_reduction_percent"),
+                event.get("shield_reduction_percent"),
+                event.get("loss_reduction_percent"),
+            ]
+            reduction_value: float | None = None
+            for candidate in reduction_fields:
+                numeric = positive_float(candidate)
+                if numeric is not None:
+                    reduction_value = normalize_percent_value(numeric)
+                    break
+            if reduction_value is None:
+                reduction_value = 100.0
+
+            shield_actor = normalize_actor({"label": "Your Squad", "alignment": "ally"}, "ally")
             return (
                 f"{render_actor(attacker)} launched a counterattack. "
-                f"{render_actor(target)} lost {wrap_number(units_value)} units."
+                f"{render_actor(target)} lost {wrap_number(units_non_negative or 0)} units. "
+                f"({render_actor(shield_actor)} was protected by a shield, absorbing {wrap_number(absorbed_value)} points of damage "
+                f"and reducing {wrap_token(format_percent(reduction_value), 'number')}'s unit losses)"
             )
 
         def render_skill_damage() -> str:
@@ -706,10 +849,10 @@ def build_battle_log_markup(
             shield_value = positive_int(shield_amount)
             if not hero.get("label") or skill is None or shield_value is None:
                 return ""
-            target = normalize_actor(event.get("target") or event.get("beneficiary") or "[Our party]", "ally")
+            target = normalize_actor(event.get("target") or event.get("beneficiary") or "Your Squad", "ally")
             return (
                 f"{render_actor(hero, include_troops=True)} cast {render_skill(skill)}! "
-                f"{render_actor(target)} gained a shield of {wrap_number(shield_value)}"
+                f"Grants a Shield ({wrap_number(shield_value)} Shield) to {render_actor(target)}, Effective from the next round."
             )
 
         def render_skill_heal() -> str:
@@ -719,7 +862,7 @@ def build_battle_log_markup(
             heal_value = positive_int(heal_amount)
             if not hero.get("label") or skill is None or heal_value is None:
                 return ""
-            target = normalize_actor(event.get("target") or event.get("beneficiary") or "[Our party]", "ally")
+            target = normalize_actor(event.get("target") or event.get("beneficiary") or "Your Squad", "ally")
             return (
                 f"{render_actor(hero, include_troops=True)} cast {render_skill(skill)}! "
                 f"{render_actor(target)} recovered {wrap_number(heal_value)} units"
@@ -727,49 +870,121 @@ def build_battle_log_markup(
 
         def render_rage_reduced() -> str:
             hero = normalize_actor(event.get("hero") or event.get("caster"), "hero")
-            target = normalize_actor(event.get("target") or event.get("enemy") or "[Enemy]", "enemy")
+            skill = event.get("skill") or event.get("ability")
+            target = normalize_actor(event.get("target") or event.get("enemy") or "Enemy", "enemy")
             amount = event.get("rage_reduced") or event.get("rage") or event.get("amount")
             amount_value = positive_int(amount)
-            if not hero.get("label") or not target.get("label") or amount_value is None:
+            if (
+                not hero.get("label")
+                or skill is None
+                or not target.get("label")
+                or amount_value is None
+            ):
                 return ""
             return (
-                f"{render_actor(hero, include_troops=True)} reduced {render_actor(target)}'s Rage by {wrap_number(amount_value)}"
+                f"Due to {render_actor(hero)}'s {render_skill(skill)} skill effect, "
+                f"{render_actor(target, include_troops=True)} loses {wrap_number(amount_value)} Rage every second, "
+                "Failed to enter the next round"
+            )
+
+        def render_delayed_effect(source_event: dict[str, Any] | None = None) -> str:
+            payload = source_event if source_event is not None else event
+            effect_name = (
+                payload.get("effect_name")
+                or payload.get("effect")
+                or payload.get("status")
+                or ""
+            )
+            description = payload.get("description") or payload.get("detail") or ""
+            if not effect_name and description:
+                match = re.search(r"Inflicts\s+['\"]?([^'\"()]+)['\"]?", str(description))
+                if match:
+                    effect_name = match.group(1)
+            effect_name = str(effect_name).strip().strip("'\"")
+            if not effect_name:
+                return ""
+
+            target = normalize_actor(
+                payload.get("target")
+                or payload.get("enemy")
+                or payload.get("defender")
+                or "Enemy",
+                "enemy",
+            )
+            if not target.get("label"):
+                return ""
+
+            damage_candidates = [
+                payload.get("damage"),
+                payload.get("damage_total"),
+                payload.get("damage_amount"),
+                payload.get("damage_value"),
+                payload.get("damage_hp"),
+                payload.get("damage_points"),
+                payload.get("damage_per_tick"),
+                payload.get("damage_per_round"),
+            ]
+            damage_value: int | None = None
+            for candidate in damage_candidates:
+                damage_value = positive_int(candidate)
+                if damage_value is not None:
+                    break
+            if damage_value is None and description:
+                match = re.search(
+                    r"([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:damage|points)",
+                    str(description),
+                    re.IGNORECASE,
+                )
+                if match:
+                    try:
+                        damage_value = positive_int(float(match.group(1).replace(",", "")))
+                    except (TypeError, ValueError):
+                        damage_value = None
+            if damage_value is None and description:
+                match = re.search(
+                    r"([0-9][0-9,]*(?:\.[0-9]+)?)\s*factor",
+                    str(description),
+                    re.IGNORECASE,
+                )
+                if match:
+                    try:
+                        damage_value = positive_int(float(match.group(1).replace(",", "")))
+                    except (TypeError, ValueError):
+                        damage_value = None
+            if damage_value is None:
+                return ""
+
+            effect_label = html.escape(effect_name)
+            return (
+                f"Inflicts {effect_label} ({wrap_number(damage_value)} Damage) to {render_actor(target)}, "
+                "Effective from the next round."
             )
 
         def render_generic() -> str:
             if event.get("text"):
                 text = str(event.get("text"))
                 lowered = text.lower()
-                if any(term in lowered for term in banned_terms):
+                if any(term in lowered for term in banned_terms) or "triggered" in lowered:
                     return ""
                 return html.escape(text)
             hero = normalize_actor(event.get("hero") or event.get("caster"), "hero")
             skill = event.get("skill") or event.get("ability")
-            description = event.get("description") or event.get("detail")
-            if hero.get("label"):
-                parts = [f"{render_actor(hero, include_troops=True)}"]
-                if skill is not None:
-                    parts.append(f"used {render_skill(skill)}")
-                text = " ".join(parts)
-                if description:
-                    text += f" — {html.escape(str(description))}"
-                lowered = html.unescape(text).lower()
+            description_raw = event.get("description") or event.get("detail")
+            if description_raw:
+                description = str(description_raw).strip()
+                lowered = description.lower()
+                if lowered in {"triggered", "triggered."}:
+                    return ""
                 if any(term in lowered for term in banned_terms):
                     return ""
-                return text
-            if skill is not None:
-                text = render_skill(skill)
-                if description:
-                    text += f" — {html.escape(str(description))}"
-                lowered = html.unescape(text).lower()
-                if any(term in lowered for term in banned_terms):
-                    return ""
-                return text
-            if description:
-                lowered = str(description).lower()
-                if any(term in lowered for term in banned_terms):
-                    return ""
-                return html.escape(str(description))
+                if "inflicts" in lowered:
+                    alt_line = render_delayed_effect({**event, "description": description_raw})
+                    if alt_line:
+                        return alt_line
+            if hero.get("label") and skill is not None:
+                return f"{render_actor(hero, include_troops=True)} used {render_skill(skill)}"
+            if description_raw:
+                return ""
             return ""
 
         if canonical_type == "ongoing_buff":
@@ -788,6 +1003,8 @@ def build_battle_log_markup(
             return render_skill_heal()
         if canonical_type == "rage_reduced":
             return render_rage_reduced()
+        if canonical_type == "delayed_effect":
+            return render_delayed_effect()
         if canonical_type == "generic":
             return render_generic()
         return ""
@@ -815,27 +1032,43 @@ def build_battle_log_markup(
             or source.get("blue_troops")
             or source.get("blue_remaining")
         )
+        blue_troops_start = coerce_int(
+            source.get("blue_troops_start")
+            or source.get("blue_start")
+            or source.get("blue_begin")
+        )
         red_troops_after = coerce_int(
             source.get("red_troops_after")
             or source.get("red_troops")
             or source.get("red_remaining")
         )
+        red_troops_start = coerce_int(
+            source.get("red_troops_start")
+            or source.get("red_start")
+            or source.get("red_begin")
+        )
         blue_losses = coerce_int(
             source.get("blue_losses_this_round")
             or source.get("blue_losses")
             or source.get("blue_loss")
+            or source.get("blue_delta")
         )
         red_losses = coerce_int(
             source.get("red_losses_this_round")
             or source.get("red_losses")
             or source.get("red_loss")
+            or source.get("red_delta")
         )
         return {
             "round": round_idx,
+            "blue_troops_start": blue_troops_start,
             "blue_troops_after": blue_troops_after,
+            "red_troops_start": red_troops_start,
             "red_troops_after": red_troops_after,
             "blue_losses": blue_losses,
             "red_losses": red_losses,
+            "blue_delta": blue_losses,
+            "red_delta": red_losses,
             "events": [event for event in events if isinstance(event, dict)],
         }
 
@@ -873,18 +1106,26 @@ def build_battle_log_markup(
     rounds_markup: list[str] = []
     for round_data in normalized_rounds:
         round_label = f"Round {round_data['round']}"
+        blue_start_value = round_data.get("blue_troops_start")
+        if blue_start_value is None:
+            blue_start_value = round_data.get("blue_troops_after")
+        red_start_value = round_data.get("red_troops_start")
+        if red_start_value is None:
+            red_start_value = round_data.get("red_troops_after")
         blue_troops_text = (
-            f"{round_data['blue_troops_after']:,}"
-            if round_data.get("blue_troops_after") is not None
+            f"{blue_start_value:,}"
+            if blue_start_value is not None
             else "—"
         )
         red_troops_text = (
-            f"{round_data['red_troops_after']:,}"
-            if round_data.get("red_troops_after") is not None
+            f"{red_start_value:,}"
+            if red_start_value is not None
             else "—"
         )
-        blue_loss_text = format_loss(round_data.get("blue_losses"))
-        red_loss_text = format_loss(round_data.get("red_losses"))
+        blue_delta_value = round_data.get("blue_delta", round_data.get("blue_losses"))
+        red_delta_value = round_data.get("red_delta", round_data.get("red_losses"))
+        blue_loss_text = format_delta(blue_delta_value)
+        red_loss_text = format_delta(red_delta_value)
         header = (
             "<button class=\"battle-log-round-header\" type=\"button\" aria-expanded=\"false\">"
             "<div class=\"battle-log-round-grid\">"
@@ -901,7 +1142,15 @@ def build_battle_log_markup(
             "</button>"
         )
         event_lines = [render_event(evt) for evt in round_data.get("events", [])]
-        event_lines = [line for line in event_lines if line]
+        filtered_lines: list[str] = []
+        for line in event_lines:
+            if not line:
+                continue
+            lowered = html.unescape(line).lower()
+            if any(term in lowered for term in banned_terms):
+                continue
+            filtered_lines.append(line)
+        event_lines = filtered_lines
         if event_lines:
             body_inner = (
                 "<ul class=\"battle-log-lines\">"

@@ -7440,6 +7440,11 @@ class MainWindow(QtWidgets.QMainWindow):
                     f"<div class=\"legend-item\"><span class=\"swatch {swatch_classes[idx % len(swatch_classes)]}\"></span><span>{name}</span></div>"
                 )
             legend_markup = "<div class=\"legend chart-legend\">" + "".join(legend_items) + "</div>"
+            inspect_button_markup = (
+                "<button type=\"button\" class=\"troop-inspect-btn\" data-role=\"troop-inspect\" aria-pressed=\"false\">"
+                + "Inspect"
+                + "</button>"
+            )
             search_markup = (
                 "<form class=\"troop-search\" data-role=\"troop-search\" autocomplete=\"off\">"
                 + f"<label>Round <input type=\"number\" name=\"round\" min=\"0\" max=\"{round_count}\" value=\"{round_count}\"></label>"
@@ -7459,6 +7464,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 + data_markup
                 + "<div class=\"troop-chart-wrapper\">"
                 + "<div class=\"troop-history-controls\">"
+                + inspect_button_markup
                 + search_markup
                 + "</div>"
                 + chart_shell
@@ -7648,13 +7654,16 @@ class MainWindow(QtWidgets.QMainWindow):
         .troop-chart-wrapper {{
             position: relative;
             width: 100%;
-            overflow: hidden;
+            overflow: visible;
             display: grid;
             gap: 12px;
         }}
         .troop-history-controls {{
             display: flex;
             justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }}
         .troop-search {{
             display: inline-flex;
@@ -7692,10 +7701,31 @@ class MainWindow(QtWidgets.QMainWindow):
         .troop-search button:hover {{
             background: #27ae60;
         }}
+        .troop-inspect-btn {{
+            padding: 6px 16px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text);
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        }}
+        .troop-inspect-btn:hover {{
+            background: rgba(255, 255, 255, 0.14);
+        }}
+        .troop-inspect-btn.is-active {{
+            background: var(--accent-a);
+            border-color: transparent;
+            color: #04060f;
+        }}
         .troop-chart-shell {{
             position: relative;
             width: 100%;
             outline: none;
+            cursor: default;
+        }}
+        .troop-chart-shell.is-inspecting {{
             cursor: crosshair;
         }}
         .troop-chart-shell:focus-visible {{
@@ -8725,6 +8755,7 @@ class MainWindow(QtWidgets.QMainWindow):
             const tooltipContent = tooltip ? tooltip.querySelector('.troop-tooltip-content') : null;
             const searchForm = root.querySelector('.troop-search');
             const searchInput = searchForm ? searchForm.querySelector('input[name="round"]') : null;
+            const inspectButton = root.querySelector('[data-role="troop-inspect"]');
             const viewBox = payload.view_box || {{}};
             const padding = payload.padding || {{}};
             const viewWidth = Number(viewBox.width) || 0;
@@ -8857,13 +8888,35 @@ class MainWindow(QtWidgets.QMainWindow):
             if (searchInput) {{
                 searchInput.value = String(currentRound);
             }}
+            let inspectEnabled = false;
+            const refreshRoundDisplay = () => {{
+                if (inspectEnabled) {{
+                    positionMarker(currentRound);
+                    updateTooltip(currentRound);
+                }} else {{
+                    if (marker) {{
+                        marker.hidden = true;
+                    }}
+                    if (tooltip) {{
+                        tooltip.hidden = true;
+                    }}
+                }}
+            }};
+            const setInspectEnabled = (enabled) => {{
+                inspectEnabled = enabled;
+                if (inspectButton) {{
+                    inspectButton.classList.toggle('is-active', inspectEnabled);
+                    inspectButton.setAttribute('aria-pressed', inspectEnabled ? 'true' : 'false');
+                }}
+                shell.classList.toggle('is-inspecting', inspectEnabled);
+                refreshRoundDisplay();
+            }};
             const showRound = (round) => {{
                 currentRound = clampRound(round);
-                positionMarker(currentRound);
-                updateTooltip(currentRound);
                 if (searchInput) {{
                     searchInput.value = String(Math.min(currentRound, roundCount));
                 }}
+                refreshRoundDisplay();
             }};
             const getRoundFromPointer = (clientX) => {{
                 const rect = shell.getBoundingClientRect();
@@ -8876,18 +8929,30 @@ class MainWindow(QtWidgets.QMainWindow):
                 return clampRound(raw);
             }};
             shell.addEventListener('pointermove', (event) => {{
+                if (!inspectEnabled) {{
+                    return;
+                }}
                 if (event.pointerType === 'mouse' || event.pressure > 0 || event.buttons > 0) {{
                     showRound(getRoundFromPointer(event.clientX));
                 }}
             }});
             shell.addEventListener('pointerdown', (event) => {{
                 shell.focus({{ preventScroll: true }});
+                if (!inspectEnabled) {{
+                    return;
+                }}
                 showRound(getRoundFromPointer(event.clientX));
             }});
             shell.addEventListener('pointerup', (event) => {{
+                if (!inspectEnabled) {{
+                    return;
+                }}
                 showRound(getRoundFromPointer(event.clientX));
             }});
             shell.addEventListener('keydown', (event) => {{
+                if (!inspectEnabled) {{
+                    return;
+                }}
                 if (event.key === 'ArrowLeft') {{
                     event.preventDefault();
                     showRound(currentRound - 1);
@@ -8924,11 +8989,23 @@ class MainWindow(QtWidgets.QMainWindow):
                     }}
                 }});
             }}
+            if (inspectButton) {{
+                inspectButton.addEventListener('click', () => {{
+                    const nextState = !inspectEnabled;
+                    setInspectEnabled(nextState);
+                    if (nextState) {{
+                        shell.focus({{ preventScroll: true }});
+                    }}
+                }});
+            }}
             window.addEventListener('resize', () => {{
+                if (!inspectEnabled) {{
+                    return;
+                }}
                 positionMarker(currentRound);
                 updateTooltip(currentRound);
             }});
-            showRound(currentRound);
+            setInspectEnabled(false);
         }};
         initTroopHistory();
     </script>

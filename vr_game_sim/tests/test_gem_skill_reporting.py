@@ -332,3 +332,131 @@ def test_export_summary_handles_list_gem_skill(tmp_path, monkeypatch):
     assert expected_badge_snippet in html_content
     assert html_content.count("hero-badge") == 1
     window.close()
+
+
+def test_export_summary_with_sample_sections(tmp_path, monkeypatch):
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
+
+    try:
+        from PyQt6 import QtWidgets
+    except ImportError:
+        pytest.skip("PyQt6 is required for this test")
+
+    _app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    def _make_skill(skill_id: str, name: str, base: int) -> dict:
+        return {
+            "id": skill_id,
+            "name": name,
+            "casts": base,
+            "kills": base + 1,
+            "heals": base + 2,
+            "shielded": base + 3,
+            "damage_reduced": base + 4,
+            "rage": base + 5,
+            "rage_reduced": base + 6,
+            "boosted_kills": base + 7,
+            "boosted_heals": base + 8,
+            "boosted_shielded": base + 9,
+            "boosted_rage": base + 10,
+            "boosted_rage_reduced": base + 11,
+            "boosted_damage_reduced": base + 12,
+        }
+
+    summary_entries = [
+        {
+            "initial": 100,
+            "remaining": 80,
+            "healed": 20,
+            "kills": 30,
+            "hero_names": ["HeroOne", "HeroTwo"],
+            "skills": [
+                [_make_skill("skill_a", "Skill A", 1)],
+                [_make_skill("skill_b", "Skill B", 2)],
+            ],
+        },
+        {
+            "initial": 120,
+            "remaining": 60,
+            "healed": 40,
+            "kills": 50,
+            "hero_names": ["HeroThree", "HeroFour"],
+            "skills": [
+                [_make_skill("skill_c", "Skill C", 3)],
+                [_make_skill("skill_d", "Skill D", 4)],
+            ],
+        },
+    ]
+
+    setup_entries = [
+        {
+            "army_name": "ExportArmy",
+            "unit_type": "infantry",
+            "tier": 5,
+            "count": 100,
+            "atk_mod": 0.0,
+            "def_mod": 0.0,
+            "hp_mod": 0.0,
+            "bonus_stats": {},
+            "heroes": [
+                {"hero_name_or_preset": "HeroOne"},
+                {"hero_name_or_preset": "HeroTwo"},
+            ],
+            "gem_skills": {},
+        },
+        {
+            "army_name": "Opponent",
+            "unit_type": "archers",
+            "tier": 4,
+            "count": 95,
+            "atk_mod": 0.1,
+            "def_mod": 0.0,
+            "hp_mod": -0.05,
+            "bonus_stats": {},
+            "heroes": [
+                {"hero_name_or_preset": "HeroThree"},
+                {"hero_name_or_preset": "HeroFour"},
+            ],
+            "gem_skills": {},
+        },
+    ]
+
+    payload = {
+        "setup": setup_entries,
+        "army_names": ["ExportArmy", "Opponent"],
+        "summary": summary_entries,
+        "win_rate": 0.6,
+        "runs": 10,
+        "sample_battle": {
+            "seed": 12345,
+            "winner": "ExportArmy",
+            "army_histories": [
+                {"troops": [100, 90, 80], "unrevivable": [0, 5, 10]},
+                {"troops": [95, 70, 60], "unrevivable": [0, 7, 15]},
+            ],
+        },
+        "rounds": [],
+    }
+
+    window = gui_main.MainWindow()
+    window._last_simulation_payload = payload
+
+    save_path = tmp_path / "summary_with_sample.html"
+
+    monkeypatch.setattr(
+        gui_main.QtWidgets.QFileDialog,
+        "getSaveFileName",
+        lambda *args, **kwargs: (str(save_path), "HTML Files (*.html)"),
+    )
+    monkeypatch.setattr(gui_main.QtWidgets.QMessageBox, "warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gui_main.QtWidgets.QMessageBox, "critical", lambda *args, **kwargs: None)
+
+    window.export_summary_with_sample_html()
+
+    assert save_path.exists()
+    html_content = save_path.read_text(encoding="utf-8")
+    expected_hero_sections = sum(len(entry["skills"]) for entry in summary_entries)
+    assert html_content.count('<div class="skill-hero">') == expected_hero_sections
+    assert html_content.count('<div class="sample-army-card">') == len(summary_entries)
+    window.close()

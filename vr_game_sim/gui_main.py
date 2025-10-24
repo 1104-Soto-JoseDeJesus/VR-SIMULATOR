@@ -7164,49 +7164,49 @@ class MainWindow(QtWidgets.QMainWindow):
                             ):
                                 metric_maxima[meta["key"]] = numeric_value
 
-                        def build_metric_items(
-                            entry_dict: dict[str, Any],
-                            metas: list[dict[str, Any]],
-                        ) -> str:
-                            items: list[str] = []
-                            for meta in metas:
-                                key = meta["key"]
-                                label = meta.get("label") or key.title()
-                                icon_path = meta.get("icon")
-                                raw_value = entry_dict.get(key)
-                                numeric_value = coerce_numeric(raw_value)
-                                is_zero_like = False
-                                if numeric_value is not None:
-                                    is_zero_like = abs(numeric_value) <= 1e-9
-                                else:
-                                    if raw_value is None:
+                    def build_metric_items(
+                        entry_dict: dict[str, Any],
+                        metas: list[dict[str, Any]],
+                    ) -> str:
+                        items: list[str] = []
+                        for meta in metas:
+                            key = meta["key"]
+                            label = meta.get("label") or key.title()
+                            icon_path = meta.get("icon")
+                            raw_value = entry_dict.get(key)
+                            numeric_value = coerce_numeric(raw_value)
+                            is_zero_like = False
+                            if numeric_value is not None:
+                                is_zero_like = abs(numeric_value) <= 1e-9
+                            else:
+                                if raw_value is None:
+                                    is_zero_like = True
+                                elif isinstance(raw_value, str):
+                                    stripped = raw_value.strip()
+                                    if not stripped:
                                         is_zero_like = True
-                                    elif isinstance(raw_value, str):
-                                        stripped = raw_value.strip()
-                                        if not stripped:
+                                    else:
+                                        normalized = stripped.replace(",", "")
+                                        if normalized.endswith("%"):
+                                            normalized = normalized[:-1].strip()
+                                        if not normalized:
                                             is_zero_like = True
                                         else:
-                                            normalized = stripped.replace(",", "")
-                                            if normalized.endswith("%"):
-                                                normalized = normalized[:-1].strip()
-                                            if not normalized:
-                                                is_zero_like = True
-                                            else:
-                                                try:
-                                                    is_zero_like = (
-                                                        abs(float(normalized)) <= 1e-9
-                                                    )
-                                                except ValueError:
-                                                    is_zero_like = False
-                                    elif isinstance(raw_value, (int, float)):
-                                        is_zero_like = abs(float(raw_value)) <= 1e-9
-                                if is_zero_like:
-                                    continue
-                                if key == "casts" and not isinstance(raw_value, (int, float)):
-                                    text = str(raw_value).strip() if raw_value is not None else ""
-                                    display_text = text if text else "—"
-                                else:
-                                    display_text = fmt_int(raw_value)
+                                            try:
+                                                is_zero_like = (
+                                                    abs(float(normalized)) <= 1e-9
+                                                )
+                                            except ValueError:
+                                                is_zero_like = False
+                                elif isinstance(raw_value, (int, float)):
+                                    is_zero_like = abs(float(raw_value)) <= 1e-9
+                            if is_zero_like:
+                                continue
+                            if key == "casts" and not isinstance(raw_value, (int, float)):
+                                text = str(raw_value).strip() if raw_value is not None else ""
+                                display_text = text if text else "—"
+                            else:
+                                display_text = fmt_int(raw_value)
                             max_value = metric_maxima.get(key, 0.0)
                             fill = 0.0
                             if numeric_value is not None and max_value > 0:

@@ -6556,6 +6556,22 @@ class MainWindow(QtWidgets.QMainWindow):
             except (TypeError, ValueError):
                 return "0"
 
+        def coerce_numeric(value: Any) -> float | None:
+            if isinstance(value, (int, float)):
+                return float(value)
+            if isinstance(value, str):
+                stripped = value.replace(",", "").strip()
+                if not stripped:
+                    return None
+                try:
+                    return float(stripped)
+                except ValueError:
+                    return None
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
         def normalize_metadata_text(value: Any) -> str:
             """Coerce summary metadata into a clean string for HTML rendering."""
 
@@ -6609,20 +6625,60 @@ class MainWindow(QtWidgets.QMainWindow):
 
         armies_html: list[str] = []
         sample_army_blocks: list[str] = []
-        skill_columns: list[tuple[str, str]] = [
-            ("casts", "Casts"),
-            ("kills", "Kills"),
-            ("heals", "Heals"),
-            ("shielded", "Shielded"),
-            ("damage_reduced", "Damage Reduced"),
-            ("rage", "Rage"),
-            ("rage_reduced", "Rage Reduced"),
-            ("boosted_kills", "Boosted Kills"),
-            ("boosted_heals", "Boosted Heals"),
-            ("boosted_shielded", "Boosted Shielded"),
-            ("boosted_rage", "Boosted Rage"),
-            ("boosted_rage_reduced", "Boosted Rage Reduced"),
-            ("boosted_damage_reduced", "Boosted Damage Reduced"),
+        skill_columns: list[dict[str, Any]] = [
+            {"key": "casts", "label": "Casts", "is_boosted": False, "icon": None},
+            {"key": "kills", "label": "Kills", "is_boosted": False, "icon": None},
+            {"key": "heals", "label": "Heals", "is_boosted": False, "icon": None},
+            {"key": "shielded", "label": "Shielded", "is_boosted": False, "icon": None},
+            {
+                "key": "damage_reduced",
+                "label": "Damage Reduced",
+                "is_boosted": False,
+                "icon": None,
+            },
+            {"key": "rage", "label": "Rage", "is_boosted": False, "icon": None},
+            {
+                "key": "rage_reduced",
+                "label": "Rage Reduced",
+                "is_boosted": False,
+                "icon": None,
+            },
+            {
+                "key": "boosted_kills",
+                "label": "Boosted Kills",
+                "is_boosted": True,
+                "icon": None,
+            },
+            {
+                "key": "boosted_heals",
+                "label": "Boosted Heals",
+                "is_boosted": True,
+                "icon": None,
+            },
+            {
+                "key": "boosted_shielded",
+                "label": "Boosted Shielded",
+                "is_boosted": True,
+                "icon": None,
+            },
+            {
+                "key": "boosted_rage",
+                "label": "Boosted Rage",
+                "is_boosted": True,
+                "icon": None,
+            },
+            {
+                "key": "boosted_rage_reduced",
+                "label": "Boosted Rage Reduced",
+                "is_boosted": True,
+                "icon": None,
+            },
+            {
+                "key": "boosted_damage_reduced",
+                "label": "Boosted Damage Reduced",
+                "is_boosted": True,
+                "icon": None,
+            },
         ]
         for idx, summary_entry in enumerate(summary_data):
             cfg = setup[idx] if idx < len(setup) else {}
@@ -7072,56 +7128,128 @@ class MainWindow(QtWidgets.QMainWindow):
                 ) + "</div>"
 
                 hero_skill_sections: list[str] = []
+                core_metric_meta = [
+                    column for column in skill_columns if not column.get("is_boosted")
+                ]
+                boosted_metric_meta = [
+                    column for column in skill_columns if column.get("is_boosted")
+                ]
                 for hero_idx, hero_skills in enumerate(hero_skill_lists):
                     hero_label = (
                         hero_names[hero_idx]
                         if hero_idx < len(hero_names)
                         else f"Hero {hero_idx + 1}"
                     )
-                    if not hero_skills:
+                    valid_entries = [
+                        entry for entry in (hero_skills or []) if isinstance(entry, dict)
+                    ]
+                    if not valid_entries:
                         hero_skill_sections.append(
-                            "<div class=\"skill-hero\"><h4>"
-                            + html.escape(hero_label)
-                            + "</h4><p class=\"empty-state\">No skill data available.</p></div>"
+                            "<div class=\"skill-hero\">"
+                            + f"<h4>{html.escape(hero_label)}</h4>"
+                            + "<p class=\"empty-state\">No skill data available.</p>"
+                            + "</div>"
                         )
                         continue
-                    rows: list[str] = []
-                    for entry in hero_skills:
-                        if not isinstance(entry, dict):
-                            continue
+
+                    metric_maxima: dict[str, float] = {
+                        meta["key"]: 0.0 for meta in skill_columns
+                    }
+                    for entry in valid_entries:
+                        for meta in skill_columns:
+                            numeric_value = coerce_numeric(entry.get(meta["key"]))
+                            if (
+                                numeric_value is not None
+                                and numeric_value > metric_maxima[meta["key"]]
+                            ):
+                                metric_maxima[meta["key"]] = numeric_value
+
+                    def build_metric_items(
+                        entry_dict: dict[str, Any],
+                        metas: list[dict[str, Any]],
+                    ) -> str:
+                        items: list[str] = []
+                        for meta in metas:
+                            key = meta["key"]
+                            label = meta.get("label") or key.title()
+                            icon_path = meta.get("icon")
+                            raw_value = entry_dict.get(key)
+                            numeric_value = coerce_numeric(raw_value)
+                            if key == "casts" and not isinstance(raw_value, (int, float)):
+                                text = str(raw_value).strip() if raw_value is not None else ""
+                                display_text = text if text else "—"
+                            else:
+                                display_text = fmt_int(raw_value)
+                            max_value = metric_maxima.get(key, 0.0)
+                            fill = 0.0
+                            if numeric_value is not None and max_value > 0:
+                                ratio = max(0.0, min(1.0, numeric_value / max_value))
+                                fill = ratio
+                            parts = ["<div class=\"skill-metric\">"]
+                            header_bits: list[str] = ["<div class=\"metric-header\">"]
+                            if icon_path:
+                                header_bits.append(
+                                    "<img src=\"{src}\" alt=\"{alt}\" class=\"metric-icon\" loading=\"lazy\">".format(
+                                        src=html.escape(str(icon_path)),
+                                        alt=html.escape(label),
+                                    )
+                                )
+                            header_bits.append(
+                                f"<span class=\"metric-label\">{html.escape(label)}</span>"
+                            )
+                            header_bits.append("</div>")
+                            parts.append("".join(header_bits))
+                            parts.append(
+                                f"<span class=\"metric-value\">{html.escape(display_text)}</span>"
+                            )
+                            parts.append(
+                                f"<span class=\"metric-bar\" style=\"--fill:{fill:.4f};\"></span>"
+                            )
+                            parts.append("</div>")
+                            items.append("".join(parts))
+                        return "".join(items)
+
+                    skill_cards: list[str] = []
+                    for entry in valid_entries:
                         skill_name = (
                             normalize_metadata_text(entry.get("name"))
                             or normalize_metadata_text(entry.get("id"))
                             or "Skill"
                         )
-                        row_cells = [f"<td>{html.escape(skill_name)}</td>"]
-                        for key, _ in skill_columns:
-                            value = entry.get(key)
-                            if key == "casts" and not isinstance(value, (int, float)):
-                                text = str(value).strip()
-                                display = html.escape(text if text else "—")
-                            else:
-                                display = fmt_int(value)
-                            row_cells.append(f"<td>{display}</td>")
-                        rows.append("<tr>" + "".join(row_cells) + "</tr>")
-                    if rows:
-                        body_markup = "<tbody>" + "".join(rows) + "</tbody>"
-                    else:
-                        span = len(skill_columns) + 1
-                        body_markup = (
-                            f"<tbody><tr><td colspan=\"{span}\" class=\"empty-state\">No skill data available.</td></tr></tbody>"
+                        core_metrics_markup = build_metric_items(entry, core_metric_meta)
+                        boosted_metrics_markup = (
+                            build_metric_items(entry, boosted_metric_meta)
+                            if boosted_metric_meta
+                            else ""
                         )
-                    header_cells = "<tr><th>Skill</th>" + "".join(
-                        f"<th>{label}</th>" for _, label in skill_columns
-                    ) + "</tr>"
+                        card_parts = [
+                            "<div class=\"skill-card\">",
+                            "<header class=\"skill-card-header\">",
+                            f"<h5 class=\"skill-card-title\">{html.escape(skill_name)}</h5>",
+                            "</header>",
+                            "<div class=\"skill-metric-grid\">",
+                            core_metrics_markup or "<p class=\"empty-state\">No metrics available.</p>",
+                            "</div>",
+                        ]
+                        if boosted_metrics_markup:
+                            card_parts.append(
+                                "<details class=\"skill-boosted\">"
+                                + "<summary>Boosted Metrics</summary>"
+                                + "<div class=\"skill-metric-grid\">"
+                                + boosted_metrics_markup
+                                + "</div>"
+                                + "</details>"
+                            )
+                        card_parts.append("</div>")
+                        skill_cards.append("".join(card_parts))
+
                     hero_skill_sections.append(
                         "<div class=\"skill-hero\">"
                         + f"<h4>{html.escape(hero_label)}</h4>"
-                        + "<div class=\"skill-table-wrapper\">"
-                        + "<table class=\"skill-table\">"
-                        + f"<thead>{header_cells}</thead>"
-                        + body_markup
-                        + "</table></div></div>"
+                        + "<div class=\"skill-card-list\">"
+                        + "".join(skill_cards)
+                        + "</div>"
+                        + "</div>"
                     )
 
                 skill_block = (
@@ -7616,29 +7744,122 @@ class MainWindow(QtWidgets.QMainWindow):
         }}
         .skill-hero {{
             display: grid;
-            gap: 10px;
+            gap: 14px;
         }}
-        .skill-table-wrapper {{
-            overflow-x: auto;
+        .skill-card-list {{
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         }}
-        .skill-table {{
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 560px;
+        .skill-card {{
+            background: linear-gradient(140deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--card-radius);
+            padding: 18px;
+            box-shadow: 0 12px 32px rgba(12, 16, 22, 0.35);
+            display: grid;
+            gap: 16px;
+            transition: box-shadow 0.3s ease, transform 0.3s ease;
         }}
-        .skill-table th,
-        .skill-table td {{
-            border: 1px solid var(--border);
-            padding: 6px 10px;
-            text-align: right;
+        .skill-card:hover {{
+            box-shadow: 0 16px 36px rgba(12, 16, 22, 0.42);
+            transform: translateY(-2px);
         }}
-        .skill-table th:first-child,
-        .skill-table td:first-child {{
-            text-align: left;
+        .skill-card-header {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
         }}
-        .skill-table th {{
+        .skill-card-title {{
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }}
+        .skill-metric-grid {{
+            display: grid;
+            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }}
+        .skill-metric {{
+            position: relative;
+            display: grid;
+            gap: 6px;
             background: rgba(255, 255, 255, 0.04);
-            font-size: 0.85rem;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 12px 14px 16px;
+        }}
+        .skill-metric:hover {{
+            border-color: rgba(255, 255, 255, 0.16);
+        }}
+        .metric-icon {{
+            width: 18px;
+            height: 18px;
+            object-fit: contain;
+            opacity: 0.85;
+        }}
+        .metric-header {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        .metric-label {{
+            color: var(--muted);
+            font-size: 0.82rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }}
+        .metric-value {{
+            font-weight: 600;
+            font-size: 1.05rem;
+        }}
+        .skill-metric .metric-bar {{
+            position: relative;
+            display: block;
+            height: 4px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+        }}
+        .skill-metric .metric-bar::after {{
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
+            transform: scaleX(var(--fill, 0));
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }}
+        .skill-boosted {{
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 14px;
+        }}
+        .skill-boosted > summary {{
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            color: var(--accent-a);
+            list-style: none;
+        }}
+        .skill-boosted > summary::-webkit-details-marker {{
+            display: none;
+        }}
+        .skill-boosted > summary::after {{
+            content: "▾";
+            font-size: 0.75rem;
+            transition: transform 0.2s ease;
+        }}
+        .skill-boosted[open] > summary::after {{
+            transform: rotate(180deg);
+        }}
+        .skill-boosted .skill-metric-grid {{
+            margin-top: 12px;
         }}
         .army-header {{
             display: flex;

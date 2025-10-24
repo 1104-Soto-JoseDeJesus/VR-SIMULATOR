@@ -323,7 +323,8 @@ def build_battle_log_rounds(
         if not attacker_name or not defender_name:
             return None
         action_type_raw = str(action.get("action_type") or "").strip().lower()
-        if "counter" in action_type_raw:
+        is_counter = bool(action.get("is_counter"))
+        if is_counter:
             event_type = "counterattack"
         elif "basic" in action_type_raw:
             event_type = "basic_attack"
@@ -454,6 +455,43 @@ def build_battle_log_markup(
     if not isinstance(rounds_raw, list) or not rounds_raw:
         return ""
 
+    allowed_event_types = {
+        "basic_attack",
+        "counterattack",
+        "skill_damage",
+        "skill_shield",
+        "skill_heal",
+        "rage_reduced",
+        "ongoing_buff",
+        "flanked",
+        "generic",
+    }
+    event_type_aliases = {
+        "basic": "basic_attack",
+        "counter_attack": "counterattack",
+        "skill_attack": "skill_damage",
+        "skill_damage_cast": "skill_damage",
+        "shield": "skill_shield",
+        "heal": "skill_heal",
+        "rage_down": "rage_reduced",
+        "rage_reduce": "rage_reduced",
+        "periodic_gain": "ongoing_buff",
+        "rage_gain": "ongoing_buff",
+        "flank": "flanked",
+        "skill_generic": "generic",
+    }
+    banned_terms = [
+        "unrevivable",
+        "unrevivable ratio",
+        "commit damage",
+        "damage commit",
+        "damage commitment",
+        "contributors",
+        "contributor",
+        "contribution",
+        "damage contribution",
+    ]
+
     def coerce_int(value: Any) -> int | None:
         try:
             return int(round(float(value)))
@@ -517,6 +555,14 @@ def build_battle_log_markup(
             return f"{int(numeric)}%"
         return f"{numeric:.1f}%"
 
+    def positive_int(value: Any) -> int | None:
+        number = coerce_int(value)
+        if number is None:
+            return None
+        if number <= 0:
+            return None
+        return number
+
     def normalize_actor(data: Any, default_alignment: str | None = None) -> dict[str, Any]:
         label = ""
         alignment = default_alignment
@@ -532,6 +578,11 @@ def build_battle_log_markup(
             )
         elif isinstance(data, str):
             label = data
+        if not label:
+            if alignment == "ally":
+                label = "Our party"
+            elif alignment == "enemy":
+                label = "Enemy"
         if label:
             label = ensure_brackets(label)
         return {"label": label, "alignment": alignment, "troops_after": troops_after}
@@ -560,12 +611,19 @@ def build_battle_log_markup(
         if not event_type_raw:
             return ""
         event_type_raw = event_type_raw.replace("-", "_").replace(" ", "_")
+        canonical_type = event_type_aliases.get(event_type_raw, event_type_raw)
+        if canonical_type not in allowed_event_types:
+            return ""
 
         def render_ongoing_buff() -> str:
             hero = normalize_actor(event.get("hero") or event.get("source"), "hero")
             skill = event.get("skill") or event.get("ability")
             target = normalize_actor(event.get("target"), "ally")
-            rage = event.get("rage_per_second") or event.get("rage") or event.get("gain")
+            rage = (
+                event.get("rage_per_second")
+                or event.get("rage")
+                or event.get("gain")
+            )
             remaining = (
                 event.get("rounds_remaining")
                 or event.get("duration_rounds")
@@ -573,12 +631,14 @@ def build_battle_log_markup(
             )
             if not hero.get("label") or skill is None or not target.get("label"):
                 return ""
-            if rage is None or remaining is None:
+            rage_value = positive_int(rage)
+            remaining_value = positive_int(remaining)
+            if rage_value is None or remaining_value is None:
                 return ""
             return (
                 f"Due to {render_actor(hero)}'s {render_skill(skill)} skill effect, "
-                f"{render_actor(target, include_troops=True)} gains {wrap_number(rage)} Rage every second,  "
-                f"{wrap_number(remaining)} rounds remaining"
+                f"{render_actor(target, include_troops=True)} gains {wrap_number(rage_value)} Rage every second,  "
+                f"{wrap_number(remaining_value)} rounds remaining"
             )
 
         def render_flanked() -> str:
@@ -586,31 +646,39 @@ def build_battle_log_markup(
             percent = event.get("percent") or event.get("percentage")
             if not target.get("label") or percent is None:
                 return ""
+            try:
+                percent_value = float(str(percent).replace(",", ""))
+            except (TypeError, ValueError):
+                percent_value = None
+            if percent_value is None or percent_value <= 0:
+                return ""
             return (
                 f"{render_actor(target, include_troops=True)} has been flanked. "
-                f"DMG received is increased by {wrap_token(format_percent(percent), 'number')}!"
+                f"DMG received is increased by {wrap_token(format_percent(percent_value), 'number')}!"
             )
 
         def render_basic_attack() -> str:
             subject = normalize_actor(event.get("subject") or event.get("attacker"), "ally")
             target = normalize_actor(event.get("target") or event.get("defender"), "enemy")
             units = event.get("units") or event.get("damage")
-            if not subject.get("label") or not target.get("label") or units is None:
+            units_value = positive_int(units)
+            if not subject.get("label") or not target.get("label") or units_value is None:
                 return ""
             return (
                 f"{render_actor(subject, include_troops=True)} launched a basic attack on {render_actor(target)}. "
-                f"{render_actor(target)} lost {wrap_number(units)} units."
+                f"{render_actor(target)} lost {wrap_number(units_value)} units."
             )
 
         def render_counterattack() -> str:
             attacker = normalize_actor(event.get("attacker") or event.get("source"), "enemy")
             target = normalize_actor(event.get("target") or event.get("defender"), "ally")
             units = event.get("units") or event.get("damage")
-            if not attacker.get("label") or not target.get("label") or units is None:
+            units_value = positive_int(units)
+            if not attacker.get("label") or not target.get("label") or units_value is None:
                 return ""
             return (
                 f"{render_actor(attacker)} launched a counterattack. "
-                f"{render_actor(target)} lost {wrap_number(units)} units."
+                f"{render_actor(target)} lost {wrap_number(units_value)} units."
             )
 
         def render_skill_damage() -> str:
@@ -618,50 +686,63 @@ def build_battle_log_markup(
             target = normalize_actor(event.get("target") or event.get("enemy") or event.get("defender"), "enemy")
             skill = event.get("skill") or event.get("ability")
             units = event.get("units") or event.get("damage")
-            if not hero.get("label") or skill is None or not target.get("label") or units is None:
+            units_value = positive_int(units)
+            if (
+                not hero.get("label")
+                or skill is None
+                or not target.get("label")
+                or units_value is None
+            ):
                 return ""
             return (
                 f"{render_actor(hero, include_troops=True)} cast {render_skill(skill)}! "
-                f"{render_actor(target)} lost {wrap_number(units)} units"
+                f"{render_actor(target)} lost {wrap_number(units_value)} units"
             )
 
         def render_skill_shield() -> str:
             hero = normalize_actor(event.get("hero") or event.get("caster"), "hero")
             skill = event.get("skill") or event.get("ability")
             shield_amount = event.get("shield") or event.get("shield_amount")
-            if not hero.get("label") or skill is None or shield_amount is None:
+            shield_value = positive_int(shield_amount)
+            if not hero.get("label") or skill is None or shield_value is None:
                 return ""
             target = normalize_actor(event.get("target") or event.get("beneficiary") or "[Our party]", "ally")
             return (
                 f"{render_actor(hero, include_troops=True)} cast {render_skill(skill)}! "
-                f"{render_actor(target)} gained a shield of {wrap_number(shield_amount)}"
+                f"{render_actor(target)} gained a shield of {wrap_number(shield_value)}"
             )
 
         def render_skill_heal() -> str:
             hero = normalize_actor(event.get("hero") or event.get("caster"), "hero")
             skill = event.get("skill") or event.get("ability")
             heal_amount = event.get("heal") or event.get("healed") or event.get("recovery")
-            if not hero.get("label") or skill is None or heal_amount is None:
+            heal_value = positive_int(heal_amount)
+            if not hero.get("label") or skill is None or heal_value is None:
                 return ""
             target = normalize_actor(event.get("target") or event.get("beneficiary") or "[Our party]", "ally")
             return (
                 f"{render_actor(hero, include_troops=True)} cast {render_skill(skill)}! "
-                f"{render_actor(target)} recovered {wrap_number(heal_amount)} units"
+                f"{render_actor(target)} recovered {wrap_number(heal_value)} units"
             )
 
         def render_rage_reduced() -> str:
             hero = normalize_actor(event.get("hero") or event.get("caster"), "hero")
             target = normalize_actor(event.get("target") or event.get("enemy") or "[Enemy]", "enemy")
             amount = event.get("rage_reduced") or event.get("rage") or event.get("amount")
-            if not hero.get("label") or not target.get("label") or amount is None:
+            amount_value = positive_int(amount)
+            if not hero.get("label") or not target.get("label") or amount_value is None:
                 return ""
             return (
-                f"{render_actor(hero, include_troops=True)} reduced {render_actor(target)}'s Rage by {wrap_number(amount)}"
+                f"{render_actor(hero, include_troops=True)} reduced {render_actor(target)}'s Rage by {wrap_number(amount_value)}"
             )
 
         def render_generic() -> str:
             if event.get("text"):
-                return html.escape(str(event.get("text")))
+                text = str(event.get("text"))
+                lowered = text.lower()
+                if any(term in lowered for term in banned_terms):
+                    return ""
+                return html.escape(text)
             hero = normalize_actor(event.get("hero") or event.get("caster"), "hero")
             skill = event.get("skill") or event.get("ability")
             description = event.get("description") or event.get("detail")
@@ -672,33 +753,42 @@ def build_battle_log_markup(
                 text = " ".join(parts)
                 if description:
                     text += f" — {html.escape(str(description))}"
+                lowered = html.unescape(text).lower()
+                if any(term in lowered for term in banned_terms):
+                    return ""
                 return text
             if skill is not None:
                 text = render_skill(skill)
                 if description:
                     text += f" — {html.escape(str(description))}"
+                lowered = html.unescape(text).lower()
+                if any(term in lowered for term in banned_terms):
+                    return ""
                 return text
             if description:
+                lowered = str(description).lower()
+                if any(term in lowered for term in banned_terms):
+                    return ""
                 return html.escape(str(description))
             return ""
 
-        if event_type_raw in {"ongoing_buff", "periodic_gain", "rage_gain"}:
+        if canonical_type == "ongoing_buff":
             return render_ongoing_buff()
-        if event_type_raw in {"flanked", "flank"}:
+        if canonical_type == "flanked":
             return render_flanked()
-        if event_type_raw in {"basic_attack", "basic"}:
+        if canonical_type == "basic_attack":
             return render_basic_attack()
-        if event_type_raw in {"counterattack", "counter_attack"}:
+        if canonical_type == "counterattack":
             return render_counterattack()
-        if event_type_raw in {"skill_damage", "skill_attack", "skill_damage_cast"}:
+        if canonical_type == "skill_damage":
             return render_skill_damage()
-        if event_type_raw in {"skill_shield", "shield"}:
+        if canonical_type == "skill_shield":
             return render_skill_shield()
-        if event_type_raw in {"skill_heal", "heal"}:
+        if canonical_type == "skill_heal":
             return render_skill_heal()
-        if event_type_raw in {"rage_reduced", "rage_down", "rage_reduce"}:
+        if canonical_type == "rage_reduced":
             return render_rage_reduced()
-        if event_type_raw in {"generic", "skill_generic"}:
+        if canonical_type == "generic":
             return render_generic()
         return ""
 
@@ -8090,90 +8180,32 @@ class MainWindow(QtWidgets.QMainWindow):
 
         sample_markup = ""
         if include_sample_details:
-            battle_rounds = 0
-            round_count_raw = sample_data_raw.get("round_count") if isinstance(sample_data_raw, dict) else None
-            if isinstance(round_count_raw, (int, float)):
-                try:
-                    battle_rounds = int(round(float(round_count_raw)))
-                except (TypeError, ValueError):
-                    battle_rounds = 0
-            if battle_rounds <= 0:
-                battle_rounds = len(round_details)
             sample_seed = None
             if isinstance(sample_data_raw, dict) and sample_data_raw.get("seed") not in (None, ""):
                 sample_seed = sample_data_raw.get("seed")
             if sample_seed in (None, "") and best_match_data and "seed" in best_match_data:
                 sample_seed = best_match_data.get("seed")
-            sample_winner = None
-            if best_match_data and isinstance(best_match_data.get("winner"), int):
-                winner_idx = int(best_match_data.get("winner", 0)) - 1
-                if 0 <= winner_idx < len(army_names):
-                    sample_winner = army_names[winner_idx]
-            summary_items: list[tuple[str, str]] = []
-            if battle_rounds:
-                summary_items.append(("Battle Length", f"{battle_rounds} rounds"))
-            if sample_seed not in (None, ""):
-                summary_items.append(("Sample Seed", str(sample_seed)))
-            if sample_winner:
-                summary_items.append(("Sample Winner", sample_winner))
-            if sample_army_blocks:
-                army_block_markup = (
-                    "<div class=\"sample-army-grid\">" + "".join(sample_army_blocks) + "</div>"
-                )
-            else:
-                army_block_markup = (
-                    "<div class=\"sample-army-grid\"><p class=\"empty-state\">No sample data available.</p></div>"
-                )
-            summary_markup = ""
-            if summary_items:
-                summary_markup = (
-                    "<div class=\"sample-summary\"><ul class=\"sample-summary-metrics\">"
-                    + "".join(
-                        f"<li><span>{html.escape(label)}</span><strong>{html.escape(value)}</strong></li>"
-                        for label, value in summary_items
-                    )
-                    + "</ul></div>"
-                )
 
-            battle_log_round_candidates: list[dict[str, Any]] = []
+            def normalize_rounds(candidate: Any) -> list[dict[str, Any]]:
+                if isinstance(candidate, list):
+                    return [item for item in candidate if isinstance(item, dict)]
+                return []
 
-            def extend_battle_log(candidate: Any) -> None:
-                if not isinstance(candidate, list):
-                    return
-                for item in candidate:
-                    if isinstance(item, dict):
-                        battle_log_round_candidates.append(item)
-
-            if isinstance(sample_data_raw, dict):
-                extend_battle_log(sample_data_raw.get("battle_log_rounds"))
-                raw_battle_log = sample_data_raw.get("battle_log")
-                if isinstance(raw_battle_log, dict):
-                    extend_battle_log(raw_battle_log.get("rounds"))
-            if not battle_log_round_candidates and isinstance(payload.get("battle_log_rounds"), list):
-                extend_battle_log(payload.get("battle_log_rounds"))
-            if not battle_log_round_candidates:
-                raw_payload_log = payload.get("battle_log")
-                if isinstance(raw_payload_log, dict):
-                    extend_battle_log(raw_payload_log.get("rounds"))
+            battle_log_rounds: list[dict[str, Any]] = []
+            if isinstance(payload.get("battle_log_rounds"), list):
+                battle_log_rounds = normalize_rounds(payload.get("battle_log_rounds"))
+            if not battle_log_rounds and isinstance(sample_data_raw, dict):
+                battle_log_rounds = normalize_rounds(sample_data_raw.get("battle_log_rounds"))
 
             battle_log_markup = ""
-            if battle_log_round_candidates:
+            if battle_log_rounds:
                 battle_log_markup = build_battle_log_markup(
-                    battle_log_round_candidates,
+                    battle_log_rounds,
                     army_names,
                     timestamp,
                     sample_seed,
                 )
-
-            sample_markup = (
-                "<section class=\"card sample-card\">"
-                + "<h2>Sample Battle Details</h2>"
-                + summary_markup
-                + army_block_markup
-                + "</section>"
-            )
-            if battle_log_markup:
-                sample_markup += battle_log_markup
+            sample_markup = battle_log_markup
 
         html_output = f"""<!DOCTYPE html>
 <html lang=\"en\">

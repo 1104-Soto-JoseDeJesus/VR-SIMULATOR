@@ -259,6 +259,390 @@ def iter_bonus_stat_entries(stats: dict[str, Any]) -> list[dict[str, Any]]:
     return entries
 
 
+def build_battle_log_markup(
+    rounds_raw: list[Any],
+    army_names: list[str],
+    timestamp: float,
+    sample_seed: Any,
+) -> str:
+    """Return HTML markup for the sample battle log."""
+
+    if not isinstance(rounds_raw, list) or not rounds_raw:
+        return ""
+
+    def coerce_int(value: Any) -> int | None:
+        try:
+            return int(round(float(value)))
+        except (TypeError, ValueError):
+            return None
+
+    def ensure_brackets(text: str) -> str:
+        if not text:
+            return text
+        stripped = text.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            return stripped
+        return f"[{stripped}]"
+
+    def wrap_token(text: str, token_type: str | None = None) -> str:
+        classes = ["battle-log-token"]
+        mapping = {
+            "ally": "token-ally",
+            "enemy": "token-enemy",
+            "hero": "token-hero",
+            "skill": "token-skill",
+            "number": "token-number",
+        }
+        key = (token_type or "").strip().lower()
+        if key in mapping:
+            classes.append(mapping[key])
+        return f"<span class=\"{' '.join(classes)}\">{html.escape(text)}</span>"
+
+    def wrap_number(value: Any, signed: bool = False) -> str:
+        number = coerce_int(value)
+        if number is None:
+            number = 0
+        if not signed and number < 0:
+            number = abs(number)
+        formatted = f"{number:,}"
+        return wrap_token(formatted, "number")
+
+    def format_loss(value: Any) -> str:
+        number = coerce_int(value)
+        if number is None:
+            number = 0
+        if number > 0:
+            number = -abs(number)
+        if number == 0:
+            return "0"
+        return f"{number:,}"
+
+    def format_percent(value: Any) -> str:
+        numeric: float | None
+        if isinstance(value, (int, float)):
+            numeric = float(value)
+        else:
+            try:
+                numeric = float(str(value).replace(",", ""))
+            except (TypeError, ValueError):
+                numeric = None
+        if numeric is None:
+            numeric = 0.0
+        if abs(numeric - round(numeric)) < 1e-9:
+            numeric = float(int(round(numeric)))
+            return f"{int(numeric)}%"
+        return f"{numeric:.1f}%"
+
+    def normalize_actor(data: Any, default_alignment: str | None = None) -> dict[str, Any]:
+        label = ""
+        alignment = default_alignment
+        troops_after = None
+        if isinstance(data, dict):
+            label = data.get("label") or data.get("name") or ""
+            alignment = data.get("alignment") or data.get("type") or default_alignment
+            troops_after = coerce_int(
+                data.get("troops_after")
+                or data.get("troops")
+                or data.get("remaining")
+                or data.get("units")
+            )
+        elif isinstance(data, str):
+            label = data
+        if label:
+            label = ensure_brackets(label)
+        return {"label": label, "alignment": alignment, "troops_after": troops_after}
+
+    def render_actor(actor: dict[str, Any], include_troops: bool = False) -> str:
+        label = actor.get("label", "")
+        if not label:
+            return ""
+        alignment = actor.get("alignment")
+        troops_after = actor.get("troops_after") if include_troops else None
+        rendered = wrap_token(label, alignment)
+        if include_troops and troops_after is not None:
+            rendered += f"({wrap_number(troops_after)})"
+        return rendered
+
+    def render_skill(skill_data: Any) -> str:
+        if isinstance(skill_data, dict):
+            label = skill_data.get("label") or skill_data.get("name") or ""
+        else:
+            label = str(skill_data) if skill_data is not None else ""
+        label = ensure_brackets(label)
+        return wrap_token(label, "skill")
+
+    def render_event(event: dict[str, Any]) -> str:
+        event_type_raw = str(event.get("type") or "").strip().lower()
+        if not event_type_raw:
+            return ""
+        event_type_raw = event_type_raw.replace("-", "_").replace(" ", "_")
+
+        def render_ongoing_buff() -> str:
+            hero = normalize_actor(event.get("hero") or event.get("source"), "hero")
+            skill = event.get("skill") or event.get("ability")
+            target = normalize_actor(event.get("target"), "ally")
+            rage = event.get("rage_per_second") or event.get("rage") or event.get("gain")
+            remaining = (
+                event.get("rounds_remaining")
+                or event.get("duration_rounds")
+                or event.get("duration")
+            )
+            if not hero.get("label") or skill is None or not target.get("label"):
+                return ""
+            if rage is None or remaining is None:
+                return ""
+            return (
+                f"Due to {render_actor(hero)}'s {render_skill(skill)} skill effect, "
+                f"{render_actor(target, include_troops=True)} gains {wrap_number(rage)} Rage every second,  "
+                f"{wrap_number(remaining)} rounds remaining"
+            )
+
+        def render_flanked() -> str:
+            target = normalize_actor(event.get("target"), "enemy")
+            percent = event.get("percent") or event.get("percentage")
+            if not target.get("label") or percent is None:
+                return ""
+            return (
+                f"{render_actor(target, include_troops=True)} has been flanked. "
+                f"DMG received is increased by {wrap_token(format_percent(percent), 'number')}!"
+            )
+
+        def render_basic_attack() -> str:
+            subject = normalize_actor(event.get("subject") or event.get("attacker"), "ally")
+            target = normalize_actor(event.get("target") or event.get("defender"), "enemy")
+            units = event.get("units") or event.get("damage")
+            if not subject.get("label") or not target.get("label") or units is None:
+                return ""
+            return (
+                f"{render_actor(subject, include_troops=True)} launched a basic attack on {render_actor(target)}. "
+                f"{render_actor(target)} lost {wrap_number(units)} units."
+            )
+
+        def render_counterattack() -> str:
+            attacker = normalize_actor(event.get("attacker") or event.get("source"), "enemy")
+            target = normalize_actor(event.get("target") or event.get("defender"), "ally")
+            units = event.get("units") or event.get("damage")
+            if not attacker.get("label") or not target.get("label") or units is None:
+                return ""
+            return (
+                f"{render_actor(attacker)} launched a counterattack. "
+                f"{render_actor(target)} lost {wrap_number(units)} units."
+            )
+
+        def render_skill_damage() -> str:
+            hero = normalize_actor(event.get("hero") or event.get("caster"), "hero")
+            target = normalize_actor(event.get("target") or event.get("enemy") or event.get("defender"), "enemy")
+            skill = event.get("skill") or event.get("ability")
+            units = event.get("units") or event.get("damage")
+            if not hero.get("label") or skill is None or not target.get("label") or units is None:
+                return ""
+            return (
+                f"{render_actor(hero, include_troops=True)} cast {render_skill(skill)}! "
+                f"{render_actor(target)} lost {wrap_number(units)} units"
+            )
+
+        def render_skill_shield() -> str:
+            hero = normalize_actor(event.get("hero") or event.get("caster"), "hero")
+            skill = event.get("skill") or event.get("ability")
+            shield_amount = event.get("shield") or event.get("shield_amount")
+            if not hero.get("label") or skill is None or shield_amount is None:
+                return ""
+            target = normalize_actor(event.get("target") or event.get("beneficiary") or "[Our party]", "ally")
+            return (
+                f"{render_actor(hero, include_troops=True)} cast {render_skill(skill)}! "
+                f"{render_actor(target)} gained a shield of {wrap_number(shield_amount)}"
+            )
+
+        def render_skill_heal() -> str:
+            hero = normalize_actor(event.get("hero") or event.get("caster"), "hero")
+            skill = event.get("skill") or event.get("ability")
+            heal_amount = event.get("heal") or event.get("healed") or event.get("recovery")
+            if not hero.get("label") or skill is None or heal_amount is None:
+                return ""
+            target = normalize_actor(event.get("target") or event.get("beneficiary") or "[Our party]", "ally")
+            return (
+                f"{render_actor(hero, include_troops=True)} cast {render_skill(skill)}! "
+                f"{render_actor(target)} recovered {wrap_number(heal_amount)} units"
+            )
+
+        def render_rage_reduced() -> str:
+            hero = normalize_actor(event.get("hero") or event.get("caster"), "hero")
+            target = normalize_actor(event.get("target") or event.get("enemy") or "[Enemy]", "enemy")
+            amount = event.get("rage_reduced") or event.get("rage") or event.get("amount")
+            if not hero.get("label") or not target.get("label") or amount is None:
+                return ""
+            return (
+                f"{render_actor(hero, include_troops=True)} reduced {render_actor(target)}'s Rage by {wrap_number(amount)}"
+            )
+
+        def render_generic() -> str:
+            hero = normalize_actor(event.get("hero") or event.get("caster"), "hero")
+            skill = event.get("skill") or event.get("ability")
+            if not hero.get("label") or skill is None:
+                return ""
+            return f"{render_actor(hero, include_troops=True)} used {render_skill(skill)}"
+
+        if event_type_raw in {"ongoing_buff", "periodic_gain", "rage_gain"}:
+            return render_ongoing_buff()
+        if event_type_raw in {"flanked", "flank"}:
+            return render_flanked()
+        if event_type_raw in {"basic_attack", "basic"}:
+            return render_basic_attack()
+        if event_type_raw in {"counterattack", "counter_attack"}:
+            return render_counterattack()
+        if event_type_raw in {"skill_damage", "skill_attack", "skill_damage_cast"}:
+            return render_skill_damage()
+        if event_type_raw in {"skill_shield", "shield"}:
+            return render_skill_shield()
+        if event_type_raw in {"skill_heal", "heal"}:
+            return render_skill_heal()
+        if event_type_raw in {"rage_reduced", "rage_down", "rage_reduce"}:
+            return render_rage_reduced()
+        if event_type_raw in {"generic", "skill_generic"}:
+            return render_generic()
+        return ""
+
+    def normalize_round(entry: dict[str, Any]) -> dict[str, Any] | None:
+        source = entry
+        if "battle_log" in source and isinstance(source["battle_log"], dict):
+            merged = dict(source["battle_log"])
+            if "round" not in merged and "round" in source:
+                merged["round"] = source.get("round")
+            if "round" not in merged and "round_number" in source:
+                merged["round"] = source.get("round_number")
+            source = merged
+        if not isinstance(source, dict):
+            return None
+        round_number = source.get("round") or source.get("round_number")
+        round_idx = coerce_int(round_number)
+        if round_idx is None:
+            return None
+        events = source.get("events") or source.get("entries") or source.get("log")
+        if not isinstance(events, list):
+            events = []
+        blue_troops_after = coerce_int(
+            source.get("blue_troops_after")
+            or source.get("blue_troops")
+            or source.get("blue_remaining")
+        )
+        red_troops_after = coerce_int(
+            source.get("red_troops_after")
+            or source.get("red_troops")
+            or source.get("red_remaining")
+        )
+        blue_losses = coerce_int(
+            source.get("blue_losses_this_round")
+            or source.get("blue_losses")
+            or source.get("blue_loss")
+        )
+        red_losses = coerce_int(
+            source.get("red_losses_this_round")
+            or source.get("red_losses")
+            or source.get("red_loss")
+        )
+        return {
+            "round": round_idx,
+            "blue_troops_after": blue_troops_after,
+            "red_troops_after": red_troops_after,
+            "blue_losses": blue_losses,
+            "red_losses": red_losses,
+            "events": [event for event in events if isinstance(event, dict)],
+        }
+
+    normalized_rounds: list[dict[str, Any]] = []
+    for entry in rounds_raw:
+        if not isinstance(entry, dict):
+            continue
+        normalized = normalize_round(entry)
+        if normalized:
+            normalized_rounds.append(normalized)
+
+    if not normalized_rounds:
+        return ""
+
+    normalized_rounds.sort(key=lambda item: item["round"])
+
+    blue_label = army_names[0] if army_names else "Blue Team"
+    red_label = army_names[1] if len(army_names) > 1 else "Red Team"
+
+    time_label = time.strftime("%Y/%m/%d %H:%M:%S", time.localtime(timestamp))
+    meta_items = [
+        f"<span class=\"battle-log-meta-item\">{html.escape(time_label)}</span>"
+    ]
+    if sample_seed not in (None, ""):
+        meta_items.append(
+            f"<span class=\"battle-log-meta-item\">Seed {html.escape(str(sample_seed))}</span>"
+        )
+    meta_row = (
+        "<div class=\"battle-log-meta\">"
+        + "".join(meta_items)
+        + "<button class=\"battle-log-expand\" type=\"button\" data-log-expand data-state=\"collapsed\">Expand</button>"
+        + "</div>"
+    )
+
+    rounds_markup: list[str] = []
+    for round_data in normalized_rounds:
+        round_label = f"Round {round_data['round']}"
+        blue_troops_text = (
+            f"{round_data['blue_troops_after']:,}"
+            if round_data.get("blue_troops_after") is not None
+            else "—"
+        )
+        red_troops_text = (
+            f"{round_data['red_troops_after']:,}"
+            if round_data.get("red_troops_after") is not None
+            else "—"
+        )
+        blue_loss_text = format_loss(round_data.get("blue_losses"))
+        red_loss_text = format_loss(round_data.get("red_losses"))
+        header = (
+            "<button class=\"battle-log-round-header\" type=\"button\" aria-expanded=\"false\">"
+            "<div class=\"battle-log-round-grid\">"
+            f"<div class=\"round-col round-name\"><span>{html.escape(round_label)}</span></div>"
+            "<div class=\"round-col round-troops\">"
+            f"<div class=\"team-row is-blue\"><span class=\"team-name\">{html.escape(blue_label)}</span><span class=\"team-value\">{html.escape(blue_troops_text)}</span></div>"
+            f"<div class=\"team-row is-red\"><span class=\"team-name\">{html.escape(red_label)}</span><span class=\"team-value\">{html.escape(red_troops_text)}</span></div>"
+            "</div>"
+            "<div class=\"round-col round-results\">"
+            f"<div class=\"loss-row is-blue\"><span class=\"loss-value\">{html.escape(blue_loss_text)}</span></div>"
+            f"<div class=\"loss-row is-red\"><span class=\"loss-value\">{html.escape(red_loss_text)}</span></div>"
+            "</div>"
+            "</div>"
+            "</button>"
+        )
+        event_lines = [render_event(evt) for evt in round_data.get("events", [])]
+        event_lines = [line for line in event_lines if line]
+        if event_lines:
+            body_inner = (
+                "<ul class=\"battle-log-lines\">"
+                + "".join(
+                    f"<li class=\"battle-log-line\">{line}</li>" for line in event_lines
+                )
+                + "</ul>"
+            )
+        else:
+            body_inner = "<p class=\"battle-log-empty\">No events recorded.</p>"
+        body = f"<div class=\"battle-log-round-body\" hidden>{body_inner}</div>"
+        rounds_markup.append(
+            "<article class=\"battle-log-round\" data-round=\"{round_idx}\">".format(
+                round_idx=round_data["round"]
+            )
+            + header
+            + body
+            + "</article>"
+        )
+
+    return (
+        "<section class=\"card battle-log-card\">"
+        "<header class=\"battle-log-header\"><h2>Battle Log</h2></header>"
+        + meta_row
+        + "<div class=\"battle-log-rounds\">"
+        + "".join(rounds_markup)
+        + "</div>"
+        + "</section>"
+    )
+
+
 def get_pdf_layout_path() -> str:
     """Return path for persisted PDF layout configuration."""
     return os.path.join(os.path.dirname(__file__), "pdf_layout.json")
@@ -7508,7 +7892,9 @@ class MainWindow(QtWidgets.QMainWindow):
             if battle_rounds <= 0:
                 battle_rounds = len(round_details)
             sample_seed = None
-            if best_match_data and "seed" in best_match_data:
+            if isinstance(sample_data_raw, dict) and sample_data_raw.get("seed") not in (None, ""):
+                sample_seed = sample_data_raw.get("seed")
+            if sample_seed in (None, "") and best_match_data and "seed" in best_match_data:
                 sample_seed = best_match_data.get("seed")
             sample_winner = None
             if best_match_data and isinstance(best_match_data.get("winner"), int):
@@ -7540,6 +7926,37 @@ class MainWindow(QtWidgets.QMainWindow):
                     )
                     + "</ul></div>"
                 )
+
+            battle_log_round_candidates: list[dict[str, Any]] = []
+
+            def extend_battle_log(candidate: Any) -> None:
+                if not isinstance(candidate, list):
+                    return
+                for item in candidate:
+                    if isinstance(item, dict):
+                        battle_log_round_candidates.append(item)
+
+            if isinstance(sample_data_raw, dict):
+                extend_battle_log(sample_data_raw.get("battle_log_rounds"))
+                raw_battle_log = sample_data_raw.get("battle_log")
+                if isinstance(raw_battle_log, dict):
+                    extend_battle_log(raw_battle_log.get("rounds"))
+            if not battle_log_round_candidates and isinstance(payload.get("battle_log_rounds"), list):
+                extend_battle_log(payload.get("battle_log_rounds"))
+            if not battle_log_round_candidates:
+                raw_payload_log = payload.get("battle_log")
+                if isinstance(raw_payload_log, dict):
+                    extend_battle_log(raw_payload_log.get("rounds"))
+
+            battle_log_markup = ""
+            if battle_log_round_candidates:
+                battle_log_markup = build_battle_log_markup(
+                    battle_log_round_candidates,
+                    army_names,
+                    timestamp,
+                    sample_seed,
+                )
+
             sample_markup = (
                 "<section class=\"card sample-card\">"
                 + "<h2>Sample Battle Details</h2>"
@@ -7547,6 +7964,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 + army_block_markup
                 + "</section>"
             )
+            if battle_log_markup:
+                sample_markup += battle_log_markup
 
         html_output = f"""<!DOCTYPE html>
 <html lang=\"en\">
@@ -7937,6 +8356,204 @@ class MainWindow(QtWidgets.QMainWindow):
             padding: 24px;
             display: grid;
             gap: 18px;
+        }}
+        .battle-log-card {{
+            background: var(--panel);
+            border-radius: var(--card-radius);
+            border: 1px solid var(--border);
+            padding: 24px;
+            display: grid;
+            gap: 18px;
+        }}
+        .battle-log-header {{
+            display: flex;
+            justify-content: center;
+            text-transform: uppercase;
+            letter-spacing: 0.28em;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+        }}
+        .battle-log-header h2 {{
+            font-size: 1rem;
+            letter-spacing: 0.32em;
+            margin: 0;
+        }}
+        .battle-log-meta {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }}
+        .battle-log-meta-item {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+        }}
+        .battle-log-expand {{
+            margin-left: auto;
+            padding: 6px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            text-transform: uppercase;
+        }}
+        .battle-log-expand:hover {{
+            background: rgba(255, 255, 255, 0.12);
+        }}
+        .battle-log-rounds {{
+            display: grid;
+            gap: 12px;
+        }}
+        .battle-log-round {{
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+        }}
+        .battle-log-round-header {{
+            width: 100%;
+            background: rgba(12, 19, 33, 0.92);
+            border: none;
+            color: inherit;
+            padding: 18px 22px;
+            cursor: pointer;
+            text-align: left;
+            display: block;
+            position: relative;
+        }}
+        .battle-log-round-header:focus-visible {{
+            outline: 2px solid rgba(127, 209, 255, 0.8);
+            outline-offset: 2px;
+        }}
+        .battle-log-round-header::after {{
+            content: "";
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            width: 10px;
+            height: 10px;
+            border-right: 2px solid rgba(255, 255, 255, 0.5);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+            transform: translateY(-60%) rotate(45deg);
+            transition: transform 0.2s ease;
+        }}
+        .battle-log-round.is-open .battle-log-round-header::after {{
+            transform: translateY(-40%) rotate(-135deg);
+        }}
+        .battle-log-round-grid {{
+            display: grid;
+            grid-template-columns: minmax(120px, 0.8fr) minmax(200px, 1fr) minmax(120px, 0.6fr);
+            gap: 18px;
+            align-items: center;
+        }}
+        .round-col {{
+            display: grid;
+            gap: 6px;
+        }}
+        .round-name span {{
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }}
+        .team-row {{
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 0.9rem;
+            letter-spacing: 0.02em;
+        }}
+        .team-row.is-blue .team-name::before,
+        .team-row.is-red .team-name::before {{
+            content: "";
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            margin-right: 6px;
+        }}
+        .team-row.is-blue .team-name::before {{
+            background: #5bc0ff;
+        }}
+        .team-row.is-red .team-name::before {{
+            background: #ff6b6b;
+        }}
+        .team-name {{
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            display: flex;
+            align-items: center;
+        }}
+        .team-value {{
+            font-weight: 600;
+        }}
+        .round-results {{
+            text-align: right;
+        }}
+        .loss-row {{
+            display: flex;
+            justify-content: flex-end;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+        }}
+        .loss-row.is-blue .loss-value {{
+            color: #72d3ff;
+        }}
+        .loss-row.is-red .loss-value {{
+            color: #ff8a8a;
+        }}
+        .battle-log-round-body {{
+            padding: 18px 22px 22px;
+            background: rgba(8, 12, 24, 0.92);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }}
+        .battle-log-lines {{
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 8px;
+        }}
+        .battle-log-line {{
+            font-size: 0.95rem;
+            line-height: 1.5;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 10px 14px;
+        }}
+        .battle-log-token {{
+            font-weight: 600;
+        }}
+        .battle-log-token.token-ally {{
+            color: #7bd8ff;
+        }}
+        .battle-log-token.token-enemy {{
+            color: #ff9585;
+        }}
+        .battle-log-token.token-hero {{
+            color: #ffe07d;
+        }}
+        .battle-log-token.token-skill {{
+            color: #9fa9ff;
+        }}
+        .battle-log-token.token-number {{
+            color: #7ff1a9;
+        }}
+        .battle-log-empty {{
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--muted);
+            padding: 14px 0;
         }}
         .metric-list {{
             margin: 0;
@@ -8727,6 +9344,47 @@ class MainWindow(QtWidgets.QMainWindow):
                 );
             }}
         }}
+        const initBattleLog = () => {{
+            const rounds = Array.from(document.querySelectorAll('.battle-log-round'));
+            if (!rounds.length) {{
+                return;
+            }}
+            const expandToggle = document.querySelector('[data-log-expand]');
+            const setRoundState = (roundEl, open) => {{
+                if (!roundEl) {{
+                    return;
+                }}
+                const header = roundEl.querySelector('.battle-log-round-header');
+                const body = roundEl.querySelector('.battle-log-round-body');
+                if (!header || !body) {{
+                    return;
+                }}
+                header.setAttribute('aria-expanded', open ? 'true' : 'false');
+                body.hidden = !open;
+                roundEl.classList.toggle('is-open', open);
+            }};
+            rounds.forEach((roundEl) => {{
+                const header = roundEl.querySelector('.battle-log-round-header');
+                const body = roundEl.querySelector('.battle-log-round-body');
+                if (!header || !body) {{
+                    return;
+                }}
+                setRoundState(roundEl, false);
+                header.addEventListener('click', () => {{
+                    const isOpen = header.getAttribute('aria-expanded') === 'true';
+                    setRoundState(roundEl, !isOpen);
+                }});
+            }});
+            if (expandToggle) {{
+                expandToggle.addEventListener('click', () => {{
+                    const currentState = expandToggle.getAttribute('data-state') || 'collapsed';
+                    const shouldExpand = currentState !== 'expanded';
+                    rounds.forEach((roundEl) => setRoundState(roundEl, shouldExpand));
+                    expandToggle.setAttribute('data-state', shouldExpand ? 'expanded' : 'collapsed');
+                    expandToggle.textContent = shouldExpand ? 'Collapse' : 'Expand';
+                }});
+            }}
+        }};
         const initTroopHistory = () => {{
             const dataNode = document.getElementById('troop-history-data');
             if (!dataNode) {{
@@ -9007,6 +9665,7 @@ class MainWindow(QtWidgets.QMainWindow):
             }});
             setInspectEnabled(false);
         }};
+        initBattleLog();
         initTroopHistory();
     </script>
 </body>

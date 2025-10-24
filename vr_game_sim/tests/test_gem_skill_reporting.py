@@ -1,5 +1,6 @@
 import os
 import random
+import re
 
 import pytest
 
@@ -462,4 +463,159 @@ def test_export_summary_with_sample_sections(tmp_path, monkeypatch):
     assert '<script type="application/json" id="troop-history-data">' in html_content
     assert 'class="troop-search"' in html_content
     assert 'troop-tooltip-change' in html_content
+    window.close()
+
+
+
+def test_sample_battle_log_rendering(tmp_path, monkeypatch):
+    gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
+    setup_entries = [
+        {
+            "army_name": "Blue Team",
+            "unit_type": "pikemen",
+            "tier": 3,
+            "count": 200000,
+            "atk_mod": 0.1,
+            "def_mod": 0.05,
+            "hp_mod": 0.08,
+            "bonus_stats": {},
+            "heroes": [
+                {"hero_name_or_preset": "HeroOne"},
+                {"hero_name_or_preset": "HeroTwo"},
+            ],
+            "gem_skills": {},
+        },
+        {
+            "army_name": "Red Team",
+            "unit_type": "archers",
+            "tier": 3,
+            "count": 580000,
+            "atk_mod": 0.0,
+            "def_mod": 0.0,
+            "hp_mod": 0.0,
+            "bonus_stats": {},
+            "heroes": [
+                {"hero_name_or_preset": "HeroThree"},
+                {"hero_name_or_preset": "HeroFour"},
+            ],
+            "gem_skills": {},
+        },
+    ]
+    summary_entries = [
+        {
+            "initial": 200000,
+            "remaining": 198362,
+            "healed": 0,
+            "kills": 2500,
+            "skills": [[], []],
+        },
+        {
+            "initial": 580000,
+            "remaining": 579037,
+            "healed": 0,
+            "kills": 1500,
+            "skills": [[], []],
+        },
+    ]
+    battle_log_rounds = [
+        {
+            "round": 1,
+            "blue_troops_after": 199795,
+            "red_troops_after": 579037,
+            "blue_losses_this_round": -293,
+            "red_losses_this_round": -1969,
+            "events": [
+                {
+                    "type": "ongoing_buff",
+                    "hero": {"label": "Verdandi", "alignment": "hero"},
+                    "skill": {"label": "First Strike"},
+                    "target": {
+                        "label": "Your Squad",
+                        "alignment": "ally",
+                        "troops_after": 198362,
+                    },
+                    "rage_per_second": 75,
+                    "rounds_remaining": 25,
+                },
+                {
+                    "type": "flanked",
+                    "target": {
+                        "label": "Dark Raven",
+                        "alignment": "enemy",
+                        "troops_after": 535806,
+                    },
+                    "percent": 2,
+                },
+                {
+                    "type": "basic_attack",
+                    "subject": {
+                        "label": "Our party",
+                        "alignment": "ally",
+                        "troops_after": 198362,
+                    },
+                    "target": {"label": "Enemy", "alignment": "enemy"},
+                    "units": 1964,
+                },
+                {
+                    "type": "counterattack",
+                    "attacker": {"label": "Enemy", "alignment": "enemy"},
+                    "target": {"label": "Our party", "alignment": "ally"},
+                    "units": 276,
+                },
+                {
+                    "type": "skill_damage",
+                    "hero": {
+                        "label": "Verdandi",
+                        "alignment": "hero",
+                        "troops_after": 198362,
+                    },
+                    "skill": {"label": "Targeted Strike"},
+                    "target": {"label": "Enemy", "alignment": "enemy"},
+                    "units": 5290,
+                },
+            ],
+        }
+    ]
+    payload = {
+        "setup": setup_entries,
+        "army_names": ["Blue Team", "Red Team"],
+        "summary": summary_entries,
+        "win_rate": 0.5,
+        "runs": 5,
+        "sample_battle": {
+            "seed": "X728 Y616",
+            "army_histories": [
+                {"name": "Blue Team", "troops": [200000, 199795], "unrevivable": [0, 1200]},
+                {"name": "Red Team", "troops": [580000, 579037], "unrevivable": [0, 4000]},
+            ],
+            "battle_log_rounds": battle_log_rounds,
+        },
+        "rounds": [],
+    }
+
+    window = gui_main.MainWindow()
+    window._last_simulation_payload = payload
+
+    save_path = tmp_path / "summary_with_battle_log.html"
+
+    monkeypatch.setattr(
+        gui_main.QtWidgets.QFileDialog,
+        "getSaveFileName",
+        lambda *args, **kwargs: (str(save_path), "HTML Files (*.html)"),
+    )
+    monkeypatch.setattr(gui_main.QtWidgets.QMessageBox, "warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gui_main.QtWidgets.QMessageBox, "critical", lambda *args, **kwargs: None)
+
+    window.export_summary_with_sample_html()
+
+    assert save_path.exists()
+    html_content = save_path.read_text(encoding="utf-8")
+    text_only = re.sub(r"<[^>]+>", "", html_content)
+    assert "Round 1" in text_only
+    assert "Blue Team" in text_only and "Red Team" in text_only
+    assert "-293" in text_only and "-1,969" in text_only
+    assert "Due to [Verdandi]'s [First Strike] skill effect" in text_only
+    assert "[Our party](198,362) launched a basic attack on [Enemy]. [Enemy] lost 1,964 units." in text_only
+    assert "[Verdandi](198,362) cast [Targeted Strike]! [Enemy] lost 5,290 units" in text_only
+    assert 'data-log-expand' in html_content
     window.close()

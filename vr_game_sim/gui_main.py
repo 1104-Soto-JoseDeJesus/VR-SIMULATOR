@@ -8738,7 +8738,7 @@ class MainWindow(QtWidgets.QMainWindow):
             const armies = payload.armies.map((entry, idx) => {{
                 const name = typeof entry.name === 'string' && entry.name.trim().length
                     ? entry.name
-                    : `Army ${idx + 1}`;
+                    : `Army ${{idx + 1}}`;
                 return {{
                     name,
                     swatch: swatchClasses[idx % swatchClasses.length],
@@ -8793,7 +8793,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 tooltipContent.innerHTML = '';
                 const roundNode = document.createElement('div');
                 roundNode.className = 'troop-tooltip-round';
-                roundNode.textContent = `Round ${round}`;
+                roundNode.textContent = `Round ${{round}}`;
                 tooltipContent.appendChild(roundNode);
                 armies.forEach((army) => {{
                     const row = document.createElement('div');
@@ -8801,7 +8801,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     const label = document.createElement('span');
                     label.className = 'troop-tooltip-label';
                     const swatch = document.createElement('span');
-                    swatch.className = `swatch ${army.swatch}`;
+                    swatch.className = `swatch ${{army.swatch}}`;
                     label.appendChild(swatch);
                     label.appendChild(document.createTextNode(army.name));
                     const value = document.createElement('span');
@@ -8810,13 +8810,13 @@ class MainWindow(QtWidgets.QMainWindow):
                     const remaining = Number.isFinite(troopValue) ? troopValue : 0;
                     const remainingNode = document.createElement('span');
                     remainingNode.className = 'troop-tooltip-remaining';
-                    remainingNode.textContent = `Remaining: ${formatNumber(remaining)}`;
+                    remainingNode.textContent = `Remaining: ${{formatNumber(remaining)}}`;
                     value.appendChild(remainingNode);
                     const previousValue = round > 0 ? Number(army.troops[round - 1]) : remaining;
                     const deltaValue = Number.isFinite(previousValue) ? remaining - previousValue : 0;
                     const changeNode = document.createElement('span');
                     changeNode.className = 'troop-tooltip-change';
-                    changeNode.textContent = `Change: ${formatDelta(deltaValue)}`;
+                    changeNode.textContent = `Change: ${{formatDelta(deltaValue)}}`;
                     if (deltaValue > 0) {{
                         changeNode.classList.add('is-positive');
                     }} else if (deltaValue < 0) {{
@@ -8830,7 +8830,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     if (Number.isFinite(unrevivableValue) && unrevivableValue > 0) {{
                         const sub = document.createElement('div');
                         sub.className = 'troop-tooltip-subtext';
-                        sub.textContent = `Unrevivable: ${formatNumber(unrevivableValue)}`;
+                        sub.textContent = `Unrevivable: ${{formatNumber(unrevivableValue)}}`;
                         tooltipContent.appendChild(sub);
                     }}
                 }});
@@ -8846,10 +8846,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 const x = padX + round * step;
                 const ratio = rect.width / viewWidth;
                 const offset = Math.max(0, Math.min(rect.width, x * ratio));
-                marker.style.transform = `translateX(${offset}px)`;
+                marker.style.transform = `translateX(${{offset}}px)`;
                 marker.hidden = false;
                 if (tooltip) {{
-                    tooltip.style.left = `${offset}px`;
+                    tooltip.style.left = `${{offset}}px`;
                     tooltip.hidden = false;
                 }}
             }};

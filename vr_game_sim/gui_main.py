@@ -259,6 +259,190 @@ def iter_bonus_stat_entries(stats: dict[str, Any]) -> list[dict[str, Any]]:
     return entries
 
 
+def build_battle_log_rounds(
+    rounds_raw: list[Any], army_histories: list[dict[str, Any]] | None
+) -> list[dict[str, Any]]:
+    """Return normalized battle log rounds using round data and histories."""
+
+    if not isinstance(rounds_raw, list) or not rounds_raw:
+        return []
+    if not isinstance(army_histories, list) or len(army_histories) < 2:
+        return []
+
+    def coerce_int(value: Any, default: int | None = None) -> int | None:
+        try:
+            return int(round(float(value)))
+        except (TypeError, ValueError):
+            return default
+
+    normalized_histories: list[dict[str, Any]] = []
+    max_rounds: int | None = None
+    for idx, history in enumerate(army_histories[:2]):
+        troops_raw = history.get("troops") if isinstance(history, dict) else None
+        if not isinstance(troops_raw, (list, tuple)):
+            return []
+        troops: list[int] = []
+        for value in troops_raw:
+            coerced = coerce_int(value, 0)
+            troops.append(coerced if coerced is not None else 0)
+        if len(troops) < 2:
+            return []
+        history_name = history.get("name") if isinstance(history, dict) else None
+        if not history_name:
+            history_name = f"Army {idx + 1}"
+        normalized_histories.append({"name": history_name, "troops": troops})
+        rounds_available = len(troops) - 1
+        max_rounds = rounds_available if max_rounds is None else min(max_rounds, rounds_available)
+
+    if not normalized_histories or not max_rounds:
+        return []
+
+    name_to_index = {entry["name"]: idx for idx, entry in enumerate(normalized_histories)}
+    alignments = {
+        normalized_histories[0]["name"]: "ally",
+        normalized_histories[1]["name"]: "enemy",
+    }
+
+    def troops_after(idx: int, round_idx: int) -> int | None:
+        if idx < 0 or idx >= len(normalized_histories):
+            return None
+        troops = normalized_histories[idx]["troops"]
+        if round_idx < 0 or round_idx >= len(troops):
+            return None
+        return troops[round_idx]
+
+    def losses_this_round(idx: int, round_idx: int) -> int | None:
+        troops = normalized_histories[idx]["troops"]
+        if round_idx <= 0 or round_idx >= len(troops):
+            return None
+        return troops[round_idx] - troops[round_idx - 1]
+
+    def convert_combat_action(action: dict[str, Any], round_idx: int) -> dict[str, Any] | None:
+        attacker_name = str(action.get("attacker_name") or "").strip()
+        defender_name = str(action.get("defender_name") or "").strip()
+        if not attacker_name or not defender_name:
+            return None
+        action_type_raw = str(action.get("action_type") or "").strip().lower()
+        if "counter" in action_type_raw:
+            event_type = "counterattack"
+        elif "basic" in action_type_raw:
+            event_type = "basic_attack"
+        else:
+            event_type = "skill_damage"
+        attacker_idx = name_to_index.get(attacker_name)
+        defender_idx = name_to_index.get(defender_name)
+        attacker_alignment = alignments.get(attacker_name, "ally")
+        if attacker_alignment not in {"ally", "enemy"}:
+            attacker_alignment = "ally"
+        defender_alignment = "ally" if attacker_alignment == "enemy" else "enemy"
+
+        def troop_value(idx: int | None) -> int | None:
+            if idx is None:
+                return None
+            return troops_after(idx, round_idx)
+
+        units_raw = action.get("potential_kills")
+        units = coerce_int(units_raw, 0)
+        if units is None:
+            units = 0
+
+        target_entry = {
+            "label": defender_name,
+            "alignment": defender_alignment,
+            "troops_after": troop_value(defender_idx),
+        }
+
+        if event_type == "skill_damage":
+            hero_entry = {
+                "label": attacker_name,
+                "alignment": "hero",
+                "troops_after": troop_value(attacker_idx),
+            }
+            skill_label = str(action.get("action_type") or "").strip() or "Skill"
+            return {
+                "type": event_type,
+                "hero": hero_entry,
+                "skill": {"label": skill_label},
+                "target": target_entry,
+                "units": units,
+            }
+
+        subject_entry = {
+            "label": attacker_name,
+            "alignment": attacker_alignment,
+            "troops_after": troop_value(attacker_idx),
+        }
+        return {
+            "type": event_type,
+            "subject": subject_entry,
+            "target": target_entry,
+            "units": units,
+        }
+
+    battle_rounds: list[dict[str, Any]] = []
+    for entry in rounds_raw:
+        if not isinstance(entry, dict):
+            continue
+        round_idx = coerce_int(entry.get("round"))
+        if round_idx is None or round_idx <= 0 or round_idx > max_rounds:
+            continue
+        events: list[dict[str, Any]] = []
+        for action in entry.get("combat_actions", []) or []:
+            if isinstance(action, dict):
+                converted = convert_combat_action(action, round_idx)
+                if converted:
+                    events.append(converted)
+        skill_triggers = entry.get("skill_triggers")
+        if isinstance(skill_triggers, dict):
+            for army_name, triggers in skill_triggers.items():
+                idx = name_to_index.get(army_name)
+                hero_alignment = "hero" if idx == 0 else "enemy"
+                hero_entry = {
+                    "label": army_name,
+                    "alignment": hero_alignment,
+                    "troops_after": troops_after(idx, round_idx) if idx is not None else None,
+                }
+                if not isinstance(triggers, list):
+                    continue
+                for trigger in triggers:
+                    if not isinstance(trigger, dict):
+                        continue
+                    skill_name_raw = str(trigger.get("skill_name") or "")
+                    effect_desc_raw = str(trigger.get("effect_description") or "")
+                    skill_name = skill_name_raw.strip()
+                    effect_desc = effect_desc_raw.strip()
+                    if not skill_name and not effect_desc:
+                        continue
+                    if not skill_name or skill_name.strip("↳").strip() == "":
+                        text = effect_desc or skill_name_raw.strip()
+                        if text:
+                            if army_name:
+                                text = f"{army_name}: {text}"
+                            events.append({"type": "generic", "text": text})
+                        continue
+                    event: dict[str, Any] = {
+                        "type": "generic",
+                        "hero": hero_entry,
+                        "skill": {"label": skill_name},
+                    }
+                    if effect_desc:
+                        event["description"] = effect_desc
+                    events.append(event)
+
+        round_record = {
+            "round": round_idx,
+            "blue_troops_after": troops_after(0, round_idx),
+            "red_troops_after": troops_after(1, round_idx),
+            "blue_losses": losses_this_round(0, round_idx),
+            "red_losses": losses_this_round(1, round_idx),
+            "events": events,
+        }
+        battle_rounds.append(round_record)
+
+    battle_rounds.sort(key=lambda item: item.get("round", 0))
+    return battle_rounds
+
+
 def build_battle_log_markup(
     rounds_raw: list[Any],
     army_names: list[str],
@@ -476,11 +660,27 @@ def build_battle_log_markup(
             )
 
         def render_generic() -> str:
+            if event.get("text"):
+                return html.escape(str(event.get("text")))
             hero = normalize_actor(event.get("hero") or event.get("caster"), "hero")
             skill = event.get("skill") or event.get("ability")
-            if not hero.get("label") or skill is None:
-                return ""
-            return f"{render_actor(hero, include_troops=True)} used {render_skill(skill)}"
+            description = event.get("description") or event.get("detail")
+            if hero.get("label"):
+                parts = [f"{render_actor(hero, include_troops=True)}"]
+                if skill is not None:
+                    parts.append(f"used {render_skill(skill)}")
+                text = " ".join(parts)
+                if description:
+                    text += f" — {html.escape(str(description))}"
+                return text
+            if skill is not None:
+                text = render_skill(skill)
+                if description:
+                    text += f" — {html.escape(str(description))}"
+                return text
+            if description:
+                return html.escape(str(description))
+            return ""
 
         if event_type_raw in {"ongoing_buff", "periodic_gain", "rage_gain"}:
             return render_ongoing_buff()
@@ -4034,6 +4234,7 @@ class SimulationWorker(QtCore.QThread):
         self.win_rate: float | None = None
         self.best_match: dict[str, Any] | None = None
         self.sample_battle_stats: dict[str, Any] | None = None
+        self.battle_log_rounds: list[dict[str, Any]] | None = None
 
     def cancel(self) -> None:
         """Request the simulation to stop."""
@@ -4086,19 +4287,26 @@ class SimulationWorker(QtCore.QThread):
             report_text = sim.simulate_battle()
             rounds = report_builder.get_rounds()
             summary = build_skill_summaries(armies, self.setup_data)
+            army_histories = [
+                {
+                    "name": army.name,
+                    "troops": [int(round(float(val))) for val in army.troop_count_history],
+                    "unrevivable": [
+                        int(round(float(val))) for val in army.unrevivable_history
+                    ],
+                }
+                for army in armies
+            ]
+            battle_log_rounds = build_battle_log_rounds(rounds, army_histories)
+            self.battle_log_rounds = list(battle_log_rounds)
             self.sample_battle_stats = {
                 "round_count": int(sim.round),
-                "army_histories": [
-                    {
-                        "name": army.name,
-                        "troops": [int(round(float(val))) for val in army.troop_count_history],
-                        "unrevivable": [
-                            int(round(float(val))) for val in army.unrevivable_history
-                        ],
-                    }
-                    for army in armies
-                ],
+                "army_histories": army_histories,
             }
+            if battle_log_rounds:
+                self.sample_battle_stats["battle_log_rounds"] = list(battle_log_rounds)
+            if best_match and best_match.get("seed") not in (None, ""):
+                self.sample_battle_stats["seed"] = best_match.get("seed")
             if self._cancelled.is_set():
                 raise RuntimeError("cancelled")
 
@@ -9844,6 +10052,9 @@ class MainWindow(QtWidgets.QMainWindow):
         runs = getattr(worker, "runs", self.runs_spin.value())
         best_match = getattr(worker, "best_match", None) if worker else None
         sample_stats = getattr(worker, "sample_battle_stats", None) if worker else None
+        battle_log_rounds = (
+            getattr(worker, "battle_log_rounds", None) if worker else None
+        )
         setup_data = self._last_setup_data or [
             self.army1_frame.build_config(),
             self.army2_frame.build_config(),
@@ -9865,7 +10076,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 ],
             }
             if isinstance(sample_stats, dict):
-                export_payload["sample_battle"] = copy.deepcopy(sample_stats)
+                sample_copy = copy.deepcopy(sample_stats)
+                if isinstance(battle_log_rounds, list) and battle_log_rounds:
+                    sample_copy.setdefault(
+                        "battle_log_rounds", copy.deepcopy(battle_log_rounds)
+                    )
+                export_payload["sample_battle"] = sample_copy
+            if isinstance(battle_log_rounds, list) and battle_log_rounds:
+                export_payload["battle_log_rounds"] = copy.deepcopy(battle_log_rounds)
         self._last_simulation_payload = export_payload
         self.progress.setValue(0)
         self.status.setText("Ready")

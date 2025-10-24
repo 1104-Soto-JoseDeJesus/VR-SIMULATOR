@@ -7412,6 +7412,26 @@ class MainWindow(QtWidgets.QMainWindow):
                 + label_markup
                 + "</svg>"
             )
+            history_payload = {
+                "armies": [
+                    {
+                        "name": history.get("name"),
+                        "troops": list(history.get("troops", [])),
+                        "unrevivable": list(history.get("unrevivable", [])),
+                    }
+                    for history in sample_histories
+                ],
+                "view_box": {"width": width, "height": height},
+                "padding": {"x": pad_x, "y": pad_y},
+                "point_count": max_points,
+                "rounds": round_count,
+            }
+            data_json = json.dumps(history_payload).replace("</", "<\\/")
+            data_markup = (
+                "<script type=\"application/json\" id=\"troop-history-data\">"
+                + data_json
+                + "</script>"
+            )
             legend_items = []
             swatch_classes = ["swatch-a", "swatch-b", "swatch-c", "swatch-d"]
             for idx, history in enumerate(sample_histories):
@@ -7420,11 +7440,28 @@ class MainWindow(QtWidgets.QMainWindow):
                     f"<div class=\"legend-item\"><span class=\"swatch {swatch_classes[idx % len(swatch_classes)]}\"></span><span>{name}</span></div>"
                 )
             legend_markup = "<div class=\"legend chart-legend\">" + "".join(legend_items) + "</div>"
+            search_markup = (
+                "<form class=\"troop-search\" data-role=\"troop-search\" autocomplete=\"off\">"
+                + f"<label>Round <input type=\"number\" name=\"round\" min=\"0\" max=\"{round_count}\" value=\"{round_count}\"></label>"
+                + "<button type=\"submit\">Go</button>"
+                + "</form>"
+            )
+            chart_shell = (
+                "<div class=\"troop-chart-shell\" tabindex=\"0\" role=\"application\" aria-label=\"Interactive troop history\">"
+                + svg_markup
+                + "<div class=\"troop-marker\" hidden></div>"
+                + "<div class=\"troop-tooltip\" hidden><div class=\"troop-tooltip-content\"></div></div>"
+                + "</div>"
+            )
             return (
                 "<div class=\"troop-history\">"
                 + "<h3>Remaining Troops Over Time</h3>"
+                + data_markup
                 + "<div class=\"troop-chart-wrapper\">"
-                + svg_markup
+                + "<div class=\"troop-history-controls\">"
+                + search_markup
+                + "</div>"
+                + chart_shell
                 + legend_markup
                 + "</div></div>"
             )
@@ -7609,13 +7646,148 @@ class MainWindow(QtWidgets.QMainWindow):
             gap: 16px;
         }}
         .troop-chart-wrapper {{
+            position: relative;
             width: 100%;
             overflow: hidden;
+            display: grid;
+            gap: 12px;
+        }}
+        .troop-history-controls {{
+            display: flex;
+            justify-content: flex-end;
+        }}
+        .troop-search {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+        }}
+        .troop-search label {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }}
+        .troop-search input {{
+            width: 80px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(0, 0, 0, 0.25);
+            color: var(--text);
+        }}
+        .troop-search button {{
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: none;
+            background: var(--accent-a);
+            color: #04060f;
+            font-weight: 600;
+            cursor: pointer;
+        }}
+        .troop-search button:hover {{
+            background: #27ae60;
+        }}
+        .troop-chart-shell {{
+            position: relative;
+            width: 100%;
+            outline: none;
+            cursor: crosshair;
+        }}
+        .troop-chart-shell:focus-visible {{
+            box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.6);
+            border-radius: 12px;
         }}
         .troop-chart-svg {{
             width: 100%;
             height: auto;
             display: block;
+        }}
+        .troop-history [hidden] {{
+            display: none !important;
+        }}
+        .troop-marker {{
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: rgba(255, 255, 255, 0.65);
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
+        }}
+        .troop-marker::after {{
+            content: '';
+            position: absolute;
+            inset-inline-start: 50%;
+            transform: translateX(-50%);
+            bottom: 36px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 0 16px rgba(0, 0, 0, 0.4);
+        }}
+        .troop-tooltip {{
+            position: absolute;
+            top: 0;
+            inset-inline-start: 0;
+            transform: translate(-50%, calc(-100% - 12px));
+            min-width: 220px;
+            max-width: 280px;
+            background: rgba(8, 11, 22, 0.95);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: 0 18px 30px rgba(0, 0, 0, 0.45);
+            pointer-events: none;
+            z-index: 20;
+        }}
+        .troop-tooltip-round {{
+            font-weight: 600;
+            margin-bottom: 6px;
+        }}
+        .troop-tooltip-row {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 4px;
+        }}
+        .troop-tooltip-label {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+        }}
+        .troop-tooltip-value {{
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            line-height: 1.2;
+            gap: 2px;
+        }}
+        .troop-tooltip-remaining {{
+            font-size: 0.875rem;
+        }}
+        .troop-tooltip-change {{
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--muted);
+        }}
+        .troop-tooltip-change.is-positive {{
+            color: var(--accent-a);
+        }}
+        .troop-tooltip-change.is-negative {{
+            color: #e74c3c;
+        }}
+        .troop-tooltip-subtext {{
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin: -2px 0 6px 24px;
         }}
         .chart-axis {{
             stroke: rgba(255, 255, 255, 0.25);
@@ -8525,6 +8697,240 @@ class MainWindow(QtWidgets.QMainWindow):
                 );
             }}
         }}
+        const initTroopHistory = () => {{
+            const dataNode = document.getElementById('troop-history-data');
+            if (!dataNode) {{
+                return;
+            }}
+            let payload = null;
+            try {{
+                payload = JSON.parse(dataNode.textContent || dataNode.innerText || 'null');
+            }} catch (err) {{
+                payload = null;
+            }}
+            if (!payload || !Array.isArray(payload.armies) || !payload.armies.length) {{
+                return;
+            }}
+            const root = dataNode.closest('.troop-history');
+            if (!root) {{
+                return;
+            }}
+            const shell = root.querySelector('.troop-chart-shell');
+            const svg = root.querySelector('.troop-chart-svg');
+            if (!shell || !svg) {{
+                return;
+            }}
+            const marker = root.querySelector('.troop-marker');
+            const tooltip = root.querySelector('.troop-tooltip');
+            const tooltipContent = tooltip ? tooltip.querySelector('.troop-tooltip-content') : null;
+            const searchForm = root.querySelector('.troop-search');
+            const searchInput = searchForm ? searchForm.querySelector('input[name="round"]') : null;
+            const viewBox = payload.view_box || {{}};
+            const padding = payload.padding || {{}};
+            const viewWidth = Number(viewBox.width) || 0;
+            const padX = Number(padding.x) || 0;
+            const pointCount = Math.max(0, Number(payload.point_count) || 0);
+            const roundCount = Math.max(0, Number(payload.rounds) || Math.max(0, pointCount - 1));
+            if (!viewWidth || pointCount <= 1) {{
+                return;
+            }}
+            const swatchClasses = ['swatch-a', 'swatch-b', 'swatch-c', 'swatch-d'];
+            const armies = payload.armies.map((entry, idx) => {{
+                const name = typeof entry.name === 'string' && entry.name.trim().length
+                    ? entry.name
+                    : `Army ${idx + 1}`;
+                return {{
+                    name,
+                    swatch: swatchClasses[idx % swatchClasses.length],
+                    troops: Array.isArray(entry.troops) ? entry.troops.slice() : [],
+                    unrevivable: Array.isArray(entry.unrevivable) ? entry.unrevivable.slice() : [],
+                }};
+            }});
+            const expandSeries = (series) => {{
+                const result = new Array(pointCount);
+                let last = 0;
+                for (let i = 0; i < pointCount; i += 1) {{
+                    if (i < series.length) {{
+                        const candidate = Number(series[i]);
+                        if (Number.isFinite(candidate)) {{
+                            last = candidate;
+                        }}
+                    }}
+                    result[i] = last;
+                }}
+                return result;
+            }};
+            armies.forEach((army) => {{
+                army.troops = expandSeries(army.troops);
+                army.unrevivable = expandSeries(army.unrevivable);
+            }});
+            const step = pointCount > 1 ? (viewWidth - (padX * 2)) / (pointCount - 1) : 0;
+            const clampRound = (round) => {{
+                if (!Number.isFinite(round)) {{
+                    return 0;
+                }}
+                const rounded = Math.round(round);
+                return Math.min(Math.max(rounded, 0), pointCount - 1);
+            }};
+            const formatNumber = (value) => {{
+                if (!Number.isFinite(value)) {{
+                    return '0';
+                }}
+                const rounded = Math.round(value);
+                return typeof rounded.toLocaleString === 'function' ? rounded.toLocaleString() : String(rounded);
+            }};
+            const formatDelta = (value) => {{
+                if (!Number.isFinite(value) || value === 0) {{
+                    return '0';
+                }}
+                const magnitude = formatNumber(Math.abs(value));
+                return (value > 0 ? '+' : '-') + magnitude;
+            }};
+            const updateTooltip = (round) => {{
+                if (!tooltip || !tooltipContent) {{
+                    return;
+                }}
+                tooltipContent.innerHTML = '';
+                const roundNode = document.createElement('div');
+                roundNode.className = 'troop-tooltip-round';
+                roundNode.textContent = `Round ${round}`;
+                tooltipContent.appendChild(roundNode);
+                armies.forEach((army) => {{
+                    const row = document.createElement('div');
+                    row.className = 'troop-tooltip-row';
+                    const label = document.createElement('span');
+                    label.className = 'troop-tooltip-label';
+                    const swatch = document.createElement('span');
+                    swatch.className = `swatch ${army.swatch}`;
+                    label.appendChild(swatch);
+                    label.appendChild(document.createTextNode(army.name));
+                    const value = document.createElement('span');
+                    value.className = 'troop-tooltip-value';
+                    const troopValue = Number(army.troops[round]);
+                    const remaining = Number.isFinite(troopValue) ? troopValue : 0;
+                    const remainingNode = document.createElement('span');
+                    remainingNode.className = 'troop-tooltip-remaining';
+                    remainingNode.textContent = `Remaining: ${formatNumber(remaining)}`;
+                    value.appendChild(remainingNode);
+                    const previousValue = round > 0 ? Number(army.troops[round - 1]) : remaining;
+                    const deltaValue = Number.isFinite(previousValue) ? remaining - previousValue : 0;
+                    const changeNode = document.createElement('span');
+                    changeNode.className = 'troop-tooltip-change';
+                    changeNode.textContent = `Change: ${formatDelta(deltaValue)}`;
+                    if (deltaValue > 0) {{
+                        changeNode.classList.add('is-positive');
+                    }} else if (deltaValue < 0) {{
+                        changeNode.classList.add('is-negative');
+                    }}
+                    value.appendChild(changeNode);
+                    row.appendChild(label);
+                    row.appendChild(value);
+                    tooltipContent.appendChild(row);
+                    const unrevivableValue = Number(army.unrevivable[round]);
+                    if (Number.isFinite(unrevivableValue) && unrevivableValue > 0) {{
+                        const sub = document.createElement('div');
+                        sub.className = 'troop-tooltip-subtext';
+                        sub.textContent = `Unrevivable: ${formatNumber(unrevivableValue)}`;
+                        tooltipContent.appendChild(sub);
+                    }}
+                }});
+            }};
+            const positionMarker = (round) => {{
+                if (!marker) {{
+                    return;
+                }}
+                const rect = shell.getBoundingClientRect();
+                if (!rect || !rect.width) {{
+                    return;
+                }}
+                const x = padX + round * step;
+                const ratio = rect.width / viewWidth;
+                const offset = Math.max(0, Math.min(rect.width, x * ratio));
+                marker.style.transform = `translateX(${offset}px)`;
+                marker.hidden = false;
+                if (tooltip) {{
+                    tooltip.style.left = `${offset}px`;
+                    tooltip.hidden = false;
+                }}
+            }};
+            let currentRound = clampRound(roundCount);
+            if (searchInput) {{
+                searchInput.value = String(currentRound);
+            }}
+            const showRound = (round) => {{
+                currentRound = clampRound(round);
+                positionMarker(currentRound);
+                updateTooltip(currentRound);
+                if (searchInput) {{
+                    searchInput.value = String(Math.min(currentRound, roundCount));
+                }}
+            }};
+            const getRoundFromPointer = (clientX) => {{
+                const rect = shell.getBoundingClientRect();
+                if (!rect || !rect.width) {{
+                    return currentRound;
+                }}
+                const relative = clientX - rect.left;
+                const viewX = (relative / rect.width) * viewWidth;
+                const raw = step ? (viewX - padX) / step : 0;
+                return clampRound(raw);
+            }};
+            shell.addEventListener('pointermove', (event) => {{
+                if (event.pointerType === 'mouse' || event.pressure > 0 || event.buttons > 0) {{
+                    showRound(getRoundFromPointer(event.clientX));
+                }}
+            }});
+            shell.addEventListener('pointerdown', (event) => {{
+                shell.focus({{ preventScroll: true }});
+                showRound(getRoundFromPointer(event.clientX));
+            }});
+            shell.addEventListener('pointerup', (event) => {{
+                showRound(getRoundFromPointer(event.clientX));
+            }});
+            shell.addEventListener('keydown', (event) => {{
+                if (event.key === 'ArrowLeft') {{
+                    event.preventDefault();
+                    showRound(currentRound - 1);
+                }} else if (event.key === 'ArrowRight') {{
+                    event.preventDefault();
+                    showRound(currentRound + 1);
+                }} else if (event.key === 'Home') {{
+                    event.preventDefault();
+                    showRound(0);
+                }} else if (event.key === 'End') {{
+                    event.preventDefault();
+                    showRound(pointCount - 1);
+                }} else if (event.key === 'PageUp') {{
+                    event.preventDefault();
+                    showRound(currentRound - 5);
+                }} else if (event.key === 'PageDown') {{
+                    event.preventDefault();
+                    showRound(currentRound + 5);
+                }}
+            }});
+            if (searchForm && searchInput) {{
+                searchForm.addEventListener('submit', (event) => {{
+                    event.preventDefault();
+                    const value = Number(searchInput.value);
+                    if (Number.isFinite(value)) {{
+                        showRound(value);
+                        shell.focus({{ preventScroll: true }});
+                    }}
+                }});
+                searchInput.addEventListener('change', () => {{
+                    const value = Number(searchInput.value);
+                    if (Number.isFinite(value)) {{
+                        showRound(value);
+                    }}
+                }});
+            }}
+            window.addEventListener('resize', () => {{
+                positionMarker(currentRound);
+                updateTooltip(currentRound);
+            }});
+            showRound(currentRound);
+        }};
+        initTroopHistory();
     </script>
 </body>
 </html>

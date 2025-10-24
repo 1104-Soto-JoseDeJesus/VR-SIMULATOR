@@ -459,4 +459,7 @@ def test_export_summary_with_sample_sections(tmp_path, monkeypatch):
     expected_hero_sections = sum(len(entry["skills"]) for entry in summary_entries)
     assert html_content.count('<div class="skill-hero">') == expected_hero_sections
     assert html_content.count('<div class="sample-army-card">') == len(summary_entries)
+    assert '<script type="application/json" id="troop-history-data">' in html_content
+    assert 'class="troop-search"' in html_content
+    assert 'troop-tooltip-change' in html_content
     window.close()

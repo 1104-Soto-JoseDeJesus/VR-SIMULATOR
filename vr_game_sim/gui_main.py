@@ -4838,8 +4838,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pdf_layout = load_pdf_layout()
         self._last_setup_data: list[dict] | None = None
         self._last_simulation_payload: dict[str, Any] | None = None
-        env_flag = os.environ.get("VR_SIM_EXPORT_INGAME_LOG", "")
-        self.export_ingame_log_enabled = env_flag.lower() in {"1", "true", "yes", "on"}
+        env_flag = os.environ.get("VR_SIM_EXPORT_INGAME_LOG")
+        if env_flag is None:
+            disable_ingame_log = False
+        else:
+            disable_ingame_log = env_flag.strip().lower() in {
+                "0",
+                "false",
+                "no",
+                "off",
+                "disable",
+            }
+        self.export_ingame_log_enabled = not disable_ingame_log
 
     def open_star_overlay_tuner(self) -> None:
         """Open the star overlay debug dialog."""

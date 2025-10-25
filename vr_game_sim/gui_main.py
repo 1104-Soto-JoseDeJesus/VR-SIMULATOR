@@ -172,6 +172,27 @@ def _sanitize_filename_component(name: str, fallback: str) -> str:
     return cleaned or fallback
 
 
+def _should_skip_skill_trigger(
+    clean_skill_name: str, clean_effect_text: str
+) -> bool:
+    """Return True if a skill trigger should be hidden from HTML output."""
+
+    normalized_name = (clean_skill_name or "").strip()
+    if normalized_name in {
+        "Damage Commitment",
+        "Dynamic Unrevivable",
+        "Heal Commitment",
+    }:
+        return True
+    normalized_effect = (clean_effect_text or "").strip().lower()
+    if normalized_effect:
+        if "committed" in normalized_effect and (
+            "damage" in normalized_effect or "healing" in normalized_effect
+        ):
+            return True
+    return False
+
+
 def _default_export_basename(army1: str, army2: str, timestamp: float | None = None) -> str:
     """Return the default basename for exports using army names and date."""
 
@@ -7707,9 +7728,20 @@ class MainWindow(QtWidgets.QMainWindow):
                             for trig in triggers:
                                 if not isinstance(trig, dict):
                                     continue
-                                skill_name = strip_ansi_text(trig.get("skill_name", "")).strip() or "Skill"
+                                skill_name_clean = (
+                                    strip_ansi_text(trig.get("skill_name", "")).strip()
+                                )
+                                effect_description_raw = trig.get("effect_description")
+                                effect_desc_clean = strip_ansi_text(
+                                    effect_description_raw
+                                ).strip()
+                                if _should_skip_skill_trigger(
+                                    skill_name_clean, effect_desc_clean
+                                ):
+                                    continue
+                                skill_name = skill_name_clean or "Skill"
                                 effect_desc_html = format_log_text(
-                                    trig.get("effect_description"), preserve_breaks=True
+                                    effect_description_raw, preserve_breaks=True
                                 )
                                 detail_badges: list[str] = []
                                 for key, label in (

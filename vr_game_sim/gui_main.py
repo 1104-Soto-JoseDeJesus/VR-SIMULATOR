@@ -7540,12 +7540,261 @@ class MainWindow(QtWidgets.QMainWindow):
                     )
                     + "</ul></div>"
                 )
+            ansi_escape_re = re.compile(r"\x1b\[[0-9;]*m")
+
+            def strip_ansi_text(value: Any) -> str:
+                text = normalize_metadata_text(value)
+                return ansi_escape_re.sub("", text)
+
+            def format_log_text(value: Any, preserve_breaks: bool = False) -> str:
+                raw = strip_ansi_text(value).strip()
+                if not raw:
+                    return ""
+                if preserve_breaks:
+                    normalized = raw.replace("\r\n", "\n").replace("\r", "\n")
+                    return "<br>".join(html.escape(part) for part in normalized.split("\n"))
+                return html.escape(raw)
+
+            troop_history_meta: list[tuple[str, list[int]]] = []
+            if sample_histories:
+                for idx, history in enumerate(sample_histories):
+                    label_text = strip_ansi_text(history.get("name"))
+                    label_text = label_text.strip()
+                    if not label_text:
+                        label_text = (
+                            army_names[idx]
+                            if idx < len(army_names)
+                            else f"Army {idx + 1}"
+                        )
+                    troops_series = history.get("troops") or []
+                    troop_history_meta.append((label_text, troops_series))
+            elif army_names:
+                for idx, label in enumerate(army_names):
+                    troop_history_meta.append(
+                        (strip_ansi_text(label).strip() or f"Army {idx + 1}", [])
+                    )
+
+            round_blocks: list[str] = []
+            for idx, round_data in enumerate(round_details):
+                if not isinstance(round_data, dict):
+                    continue
+                round_no = idx + 1
+                raw_round = round_data.get("round")
+                if isinstance(raw_round, (int, float)):
+                    try:
+                        round_no = int(round(float(raw_round)))
+                    except (TypeError, ValueError):
+                        round_no = idx + 1
+                else:
+                    try:
+                        round_no = int(round(float(raw_round)))
+                    except (TypeError, ValueError):
+                        round_no = idx + 1
+                if round_no < 1:
+                    round_no = idx + 1
+                troop_badges: list[str] = []
+                for label_text, series in troop_history_meta:
+                    start_value = 0.0
+                    if series:
+                        pos = idx if idx < len(series) else len(series) - 1
+                        try:
+                            raw_start = series[pos]
+                        except (IndexError, TypeError, ValueError):
+                            raw_start = 0
+                        numeric_start = coerce_numeric(raw_start)
+                        start_value = numeric_start if numeric_start is not None else 0.0
+                    badge = (
+                        "<span class=\"round-army\">"
+                        + f"<span class=\"round-army-name\">{html.escape(label_text)}</span>"
+                        + f"<strong>{html.escape(fmt_int(start_value))}</strong>"
+                        + "</span>"
+                    )
+                    troop_badges.append(badge)
+                summary_html = "<summary><span class=\"round-label\">Round {}</span>".format(
+                    html.escape(str(round_no))
+                )
+                if troop_badges:
+                    summary_html += "<span class=\"round-counts\">" + "".join(troop_badges) + "</span>"
+                summary_html += "</summary>"
+
+                sections: list[str] = []
+
+                active_items: list[str] = []
+                for effect in round_data.get("active_effects") or []:
+                    effect_html = format_log_text(effect, preserve_breaks=True)
+                    if effect_html:
+                        active_items.append(f"<li>{effect_html}</li>")
+                if active_items:
+                    sections.append(
+                        "<div class=\"log-section\"><h4>Active Effects</h4><ul>"
+                        + "".join(active_items)
+                        + "</ul></div>"
+                    )
+
+                combat_rows: list[str] = []
+                for action in round_data.get("combat_actions") or []:
+                    if not isinstance(action, dict):
+                        continue
+                    action_type_raw = strip_ansi_text(action.get("action_type", "")).strip()
+                    log_line_raw = strip_ansi_text(action.get("log_line", "")).strip()
+                    combined_checks = [
+                        action_type_raw.lower() if action_type_raw else "",
+                        log_line_raw.lower() if log_line_raw else "",
+                    ]
+                    if any("heavily wounded" in text for text in combined_checks if text):
+                        continue
+                    if any("damage commit" in text for text in combined_checks if text):
+                        continue
+                    attacker_raw = strip_ansi_text(action.get("attacker_name", "")).strip() or "Unknown"
+                    defender_raw = strip_ansi_text(action.get("defender_name", "")).strip() or "Unknown"
+                    metrics_html: list[str] = []
+                    for key, label in (
+                        ("damage_potential_hp", "Potential"),
+                        ("absorbed_hp", "Absorbed"),
+                        ("final_hp_damage", "Damage"),
+                    ):
+                        raw_val = action.get(key)
+                        numeric_val = coerce_numeric(raw_val)
+                        if numeric_val is None:
+                            continue
+                        metrics_html.append(
+                            "<span class=\"combat-metric\"><span class=\"metric-label\">{label}</span><strong>{value}</strong></span>".format(
+                                label=html.escape(label),
+                                value=html.escape(fmt_int(raw_val)),
+                            )
+                        )
+                    kills_val = coerce_numeric(action.get("potential_kills"))
+                    if kills_val is not None and kills_val > 0:
+                        metrics_html.append(
+                            "<span class=\"combat-metric\"><span class=\"metric-label\">Kills</span><strong>{value}</strong></span>".format(
+                                value=html.escape(fmt_int(action.get("potential_kills")))
+                            )
+                        )
+                    header_html = (
+                        "<div class=\"combat-header\">"
+                        + "<span class=\"combat-actors\">"
+                        + f"<span class=\"combat-attacker\">{html.escape(attacker_raw)}</span>"
+                        + "<span class=\"combat-arrow\">→</span>"
+                        + f"<span class=\"combat-defender\">{html.escape(defender_raw)}</span>"
+                        + "</span>"
+                    )
+                    if action_type_raw:
+                        header_html += "<span class=\"combat-type\">{}</span>".format(
+                            html.escape(action_type_raw)
+                        )
+                    header_html += "</div>"
+                    combat_row_html = "<div class=\"combat-row\">" + header_html
+                    if metrics_html:
+                        combat_row_html += (
+                            "<div class=\"combat-metrics\">" + "".join(metrics_html) + "</div>"
+                        )
+                    combat_row_html += "</div>"
+                    combat_rows.append(combat_row_html)
+                if combat_rows:
+                    sections.append(
+                        "<div class=\"log-section\"><h4>Combat</h4><div class=\"combat-rows\">"
+                        + "".join(combat_rows)
+                        + "</div></div>"
+                    )
+
+                skill_groups: list[str] = []
+                skill_data = round_data.get("skill_triggers")
+                if isinstance(skill_data, dict):
+                    for army_label, triggers in skill_data.items():
+                        group_label = strip_ansi_text(army_label).strip() or "Army"
+                        entries: list[str] = []
+                        if triggers:
+                            for trig in triggers:
+                                if not isinstance(trig, dict):
+                                    continue
+                                skill_name = strip_ansi_text(trig.get("skill_name", "")).strip() or "Skill"
+                                effect_desc_html = format_log_text(
+                                    trig.get("effect_description"), preserve_breaks=True
+                                )
+                                detail_badges: list[str] = []
+                                for key, label in (
+                                    ("damage_done_hp", "Damage"),
+                                    ("shield_hp_gained", "Shield"),
+                                    ("healed_hp", "Healed"),
+                                    ("rage_generated", "Rage"),
+                                    ("rage_reduced", "Rage Reduced"),
+                                    ("rage_spent", "Rage Spent"),
+                                    ("potential_kills", "Kills"),
+                                ):
+                                    if key not in trig:
+                                        continue
+                                    raw_val = trig.get(key)
+                                    numeric_val = coerce_numeric(raw_val)
+                                    if numeric_val is None:
+                                        continue
+                                    if key == "potential_kills" and numeric_val <= 0:
+                                        continue
+                                    detail_badges.append(
+                                        "<span class=\"skill-badge\">{label} <strong>{value}</strong></span>".format(
+                                            label=html.escape(label),
+                                            value=html.escape(fmt_int(raw_val)),
+                                        )
+                                    )
+                                entry_html_parts = [
+                                    "<div class=\"skill-entry\">",
+                                    f"<strong>{html.escape(skill_name)}</strong>",
+                                ]
+                                if effect_desc_html:
+                                    entry_html_parts.append(
+                                        f"<span class=\"skill-effect\">{effect_desc_html}</span>"
+                                    )
+                                if detail_badges:
+                                    entry_html_parts.append(
+                                        "<div class=\"skill-detail\">" + "".join(detail_badges) + "</div>"
+                                    )
+                                entry_html_parts.append("</div>")
+                                entries.append("".join(entry_html_parts))
+                        if entries:
+                            skill_groups.append(
+                                "<div class=\"skill-group\"><h5>{label}</h5>{entries}</div>".format(
+                                    label=html.escape(group_label),
+                                    entries="".join(entries),
+                                )
+                            )
+                        else:
+                            skill_groups.append(
+                                "<div class=\"skill-group\"><h5>{label}</h5><p class=\"empty-state\">No skill triggers.</p></div>".format(
+                                    label=html.escape(group_label)
+                                )
+                            )
+                if skill_groups:
+                    sections.append(
+                        "<div class=\"log-section\"><h4>Skill Effects</h4><div class=\"skill-groups\">"
+                        + "".join(skill_groups)
+                        + "</div></div>"
+                    )
+
+                if sections:
+                    content_html = "<div class=\"round-content\">" + "".join(sections) + "</div>"
+                else:
+                    content_html = (
+                        "<div class=\"round-content\"><p class=\"empty-state\">No events recorded for this round.</p></div>"
+                    )
+                round_blocks.append("<details class=\"round-log\">" + summary_html + content_html + "</details>")
+
+            if round_blocks:
+                battle_log_markup = (
+                    "<section class=\"card sample-log-card\"><h2>Sample Battle Log</h2><div class=\"round-log-list\">"
+                    + "".join(round_blocks)
+                    + "</div></section>"
+                )
+            else:
+                battle_log_markup = (
+                    "<section class=\"card sample-log-card\"><h2>Sample Battle Log</h2><p class=\"empty-state\">No round data available.</p></section>"
+                )
+
             sample_markup = (
                 "<section class=\"card sample-card\">"
                 + "<h2>Sample Battle Details</h2>"
                 + summary_markup
                 + army_block_markup
                 + "</section>"
+                + battle_log_markup
             )
 
         html_output = f"""<!DOCTYPE html>
@@ -7937,6 +8186,211 @@ class MainWindow(QtWidgets.QMainWindow):
             padding: 24px;
             display: grid;
             gap: 18px;
+        }}
+        .sample-log-card {{
+            display: grid;
+            gap: 18px;
+        }}
+        .round-log-list {{
+            display: grid;
+            gap: 14px;
+        }}
+        .round-log {{
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: var(--panel-alt);
+            overflow: hidden;
+        }}
+        .round-log > summary {{
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            cursor: pointer;
+            list-style: none;
+            font-weight: 600;
+        }}
+        .round-log > summary::-webkit-details-marker {{
+            display: none;
+        }}
+        .round-log > summary::after {{
+            content: "▾";
+            font-size: 0.85rem;
+            margin-inline-start: auto;
+            transition: transform 0.2s ease;
+            color: var(--muted);
+        }}
+        .round-log[open] > summary::after {{
+            transform: rotate(180deg);
+        }}
+        .round-log[open] > summary {{
+            background: rgba(255, 255, 255, 0.04);
+            border-bottom: 1px solid var(--border);
+        }}
+        .round-label {{
+            font-size: 1.05rem;
+            letter-spacing: 0.02em;
+        }}
+        .round-counts {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-inline-start: auto;
+        }}
+        .round-army {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.05);
+            font-size: 0.85rem;
+            color: var(--muted);
+        }}
+        .round-army-name {{
+            font-weight: 600;
+            color: var(--text);
+        }}
+        .round-army strong {{
+            color: var(--text);
+            font-weight: 600;
+        }}
+        .round-content {{
+            padding: 20px 22px 22px;
+            display: grid;
+            gap: 20px;
+        }}
+        .log-section {{
+            display: grid;
+            gap: 12px;
+        }}
+        .log-section h4 {{
+            margin: 0;
+            font-size: 1rem;
+            letter-spacing: 0.03em;
+        }}
+        .log-section ul {{
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 8px;
+        }}
+        .log-section li {{
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            line-height: 1.4;
+        }}
+        .combat-rows {{
+            display: grid;
+            gap: 10px;
+        }}
+        .combat-row {{
+            display: grid;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }}
+        .combat-header {{
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }}
+        .combat-actors {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+        }}
+        .combat-attacker,
+        .combat-defender {{
+            font-weight: 600;
+        }}
+        .combat-arrow {{
+            color: var(--muted);
+        }}
+        .combat-type {{
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }}
+        .combat-metrics {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+        }}
+        .combat-metric {{
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }}
+        .combat-metric strong {{
+            font-size: 0.95rem;
+            color: var(--text);
+        }}
+        .skill-groups {{
+            display: grid;
+            gap: 12px;
+        }}
+        .skill-group {{
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: grid;
+            gap: 10px;
+        }}
+        .skill-group h5 {{
+            margin: 0;
+            font-size: 0.85rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }}
+        .skill-entry {{
+            display: grid;
+            gap: 6px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }}
+        .skill-entry strong {{
+            font-size: 0.95rem;
+        }}
+        .skill-effect {{
+            font-size: 0.85rem;
+            color: var(--muted);
+        }}
+        .skill-detail {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }}
+        .skill-badge {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 0.78rem;
+            color: var(--muted);
+        }}
+        .skill-badge strong {{
+            color: var(--text);
+            font-weight: 600;
         }}
         .metric-list {{
             margin: 0;

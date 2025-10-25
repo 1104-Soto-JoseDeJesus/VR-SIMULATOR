@@ -44,6 +44,7 @@ class GameSimulator:
         if 10000 < T <= 100000: return 0.74904783 * T + 14066.58867
         if 100000 < T <= 300000: return 0.20527127 * T + 68444.33684
         if 300000 < T <= 2000000: return 0.20528 * T + 68452
+        if 2000000 < T: return 0.20527905760055395 * T + 68453.884798892
         return T
 
     @staticmethod

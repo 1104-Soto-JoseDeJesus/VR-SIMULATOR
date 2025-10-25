@@ -182,11 +182,12 @@ def _should_skip_skill_trigger(
         "Damage Commitment",
         "Dynamic Unrevivable",
         "Heal Commitment",
+        "Healing Commitment",
     }:
         return True
     normalized_effect = (clean_effect_text or "").strip().lower()
     if normalized_effect:
-        if "committed" in normalized_effect and (
+        if re.search(r"\bcommit\w*\b", normalized_effect) and (
             "damage" in normalized_effect or "healing" in normalized_effect
         ):
             return True

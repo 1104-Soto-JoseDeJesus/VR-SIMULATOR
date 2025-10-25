@@ -554,6 +554,10 @@ def test_sample_round_html_omits_commitment_entries():
                         "effect_description": "Committed 60 healing.",
                     },
                     {
+                        "skill_name": "Healing Commitment",
+                        "effect_description": "Commits 75 healing to allies.",
+                    },
+                    {
                         "skill_name": "Helpful Skill",
                         "effect_description": "Inflicts a minor bleed.",
                     },
@@ -595,4 +599,6 @@ def test_sample_round_html_omits_commitment_entries():
     assert "Dynamic Unrevivable" not in combined_html
     assert "committed 120 damage" not in combined_html
     assert "Committed 60 healing" not in combined_html
+    assert "Healing Commitment" not in combined_html
+    assert "Commits 75 healing" not in combined_html
     assert "Helpful Skill" in combined_html

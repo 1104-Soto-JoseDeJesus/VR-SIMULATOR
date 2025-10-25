@@ -1,0 +1,12 @@
+<div class="ingame-log" data-version="1">
+  {% for round in rounds %}
+    <div class="round">
+      <div class="round-header">Round {{ round.number }}</div>
+      <ul class="round-lines">
+        {% for line in round.lines %}
+          <li class="log-line">{{ line|safe }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endfor %}
+</div>

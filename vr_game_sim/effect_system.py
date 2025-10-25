@@ -43,6 +43,95 @@ class EffectInstance:
         if not self.name:
             self.name = f"Unnamed_{self.effect_type.value}_{str(self.id)[:4]}"
 
+    def _stat_type_from_config(self) -> Optional[StatType]:
+        stat_to_mod_val = self.config.get("stat_to_mod")
+        if isinstance(stat_to_mod_val, StatType):
+            return stat_to_mod_val
+        if isinstance(stat_to_mod_val, str):
+            normalized_value = stat_to_mod_val.lower()
+            for stat_option in StatType:
+                if stat_option.value == normalized_value or stat_option.name.lower() == normalized_value:
+                    return stat_option
+        return None
+
+    def _custom_effect_disposition(self) -> str:
+        cfg = self.config or {}
+        if cfg.get("rage_amount"):
+            return "beneficial" if cfg.get("rage_amount", 0.0) > 0 else "harmful"
+        if cfg.get("rage_bonus_pct"):
+            return "beneficial" if cfg.get("rage_bonus_pct", 0.0) > 0 else "harmful"
+        if cfg.get("rage_reduction", 0.0) > 0:
+            return "harmful"
+        if cfg.get("buff_ids_to_remove"):
+            return "harmful"
+        if cfg.get("debuff_ids_to_remove"):
+            return "beneficial"
+        if cfg.get("evasion_chance", 0.0) > 0:
+            return "beneficial"
+        if cfg.get("retribution_rate", 0.0) > 0:
+            return "beneficial"
+        if cfg.get("marker_count") or self.name == EFFECT_NAME_JUDGEMENT_MARKER:
+            return "harmful"
+        if self.name == EFFECT_NAME_FIRST_STRIKE_RAGE_AURA:
+            return "beneficial"
+        if self.name in {
+            EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
+            EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
+            EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
+            EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
+        }:
+            return "harmful"
+        if self.name in {
+            EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
+            EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
+            EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
+            EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
+        }:
+            return "beneficial"
+        return "neutral"
+
+    def is_beneficial_for_target(self) -> bool:
+        if self.effect_type == EffectType.STAT_MOD:
+            stat_enum = self._stat_type_from_config()
+            magnitude = float(self.magnitude or 0.0)
+            if stat_enum in {
+                StatType.DAMAGE_TAKEN_MULTIPLIER,
+                StatType.BLEED_DAMAGE_REDUCTION,
+                StatType.POISON_DAMAGE_REDUCTION,
+                StatType.BURN_DAMAGE_REDUCTION,
+                StatType.LACERATE_DAMAGE_REDUCTION,
+            }:
+                return magnitude < 0
+            return magnitude > 0
+        if self.effect_type in {EffectType.SHIELD, EffectType.HEAL_INSTANT, EffectType.HEAL_OVER_TIME, EffectType.IMMUNITY}:
+            return True
+        if self.effect_type in {EffectType.DEBUFF, EffectType.DAMAGE_OVER_TIME}:
+            return False
+        if self.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+            return self._custom_effect_disposition() == "beneficial"
+        return False
+
+    def is_harmful_for_target(self) -> bool:
+        if self.effect_type == EffectType.STAT_MOD:
+            stat_enum = self._stat_type_from_config()
+            magnitude = float(self.magnitude or 0.0)
+            if stat_enum in {
+                StatType.DAMAGE_TAKEN_MULTIPLIER,
+                StatType.BLEED_DAMAGE_REDUCTION,
+                StatType.POISON_DAMAGE_REDUCTION,
+                StatType.BURN_DAMAGE_REDUCTION,
+                StatType.LACERATE_DAMAGE_REDUCTION,
+            }:
+                return magnitude > 0
+            return magnitude < 0
+        if self.effect_type in {EffectType.DEBUFF, EffectType.DAMAGE_OVER_TIME}:
+            return True
+        if self.effect_type in {EffectType.SHIELD, EffectType.HEAL_INSTANT, EffectType.HEAL_OVER_TIME, EffectType.IMMUNITY}:
+            return False
+        if self.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+            return self._custom_effect_disposition() == "harmful"
+        return False
+
     def get_functionality_description(self) -> str:
         desc_parts = []
         if self.effect_type == EffectType.STAT_MOD:

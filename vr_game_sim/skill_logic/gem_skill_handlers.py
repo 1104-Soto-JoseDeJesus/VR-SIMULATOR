@@ -511,6 +511,8 @@ def _apply_composite_combat_effects(
                 or eff.config.get("prevents_counterattack")
                 or eff.config.get("prevents_basic_attack")
                 or eff.config.get("prevents_rage_skill_cast")
+                or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
+                or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
             )
         ]
         if eligible_debuffs:
@@ -557,6 +559,7 @@ def _apply_composite_combat_effects(
                 eff.duration != -1
                 and eff.effect_type not in {EffectType.SHIELD, EffectType.HEAL_OVER_TIME}
                 and eff.config.get("is_dispellable", True)
+                and eff.is_beneficial_for_target()
             )
         ]
         if eligible_buffs:

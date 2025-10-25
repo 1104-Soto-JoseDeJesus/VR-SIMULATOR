@@ -565,6 +565,8 @@ def handle_plugin_awakening(
                 or eff.config.get("prevents_counterattack")
                 or eff.config.get("prevents_basic_attack")
                 or eff.name == EFFECT_NAME_SILENCE_DEBUFF
+                or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
+                or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
             )  # Include silence
             if is_debuff:
                 debuffs_to_target_ids.append(eff.id)
@@ -701,23 +703,25 @@ def handle_plugin_lokis_trick(
         if random.random() < skill_config.get("buff_removal_chance", 0.0):
             buff_ids_to_target = []
             buff_names_for_initial_log = []
-            pending_removal_effect_name = skill_config.get("pending_buff_removal_effect_name",
-                                                           EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL)
+            pending_removal_effect_name = skill_config.get(
+                "pending_buff_removal_effect_name",
+                EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
+            )
 
             for eff in opponent_army.active_effects:  # Target opponent's buffs
                 is_removable_buff = (
-                        eff.effect_type != EffectType.SHIELD and  # Don't remove shields this way
-                        eff.duration != -1 and  # Don't remove permanent effects
-                        eff.name != pending_removal_effect_name and  # Don't target self
-                        eff.effect_type != EffectType.HEAL_OVER_TIME and  # Don't remove heal over time
-                        eff.config.get("is_dispellable", True) and
-                        ((eff.effect_type == EffectType.STAT_MOD and eff.magnitude > 0) or \
-                         (eff.effect_type != EffectType.DEBUFF and eff.effect_type != EffectType.DAMAGE_OVER_TIME))
-                # General buff definition
+                    eff.effect_type != EffectType.SHIELD  # Don't remove shields this way
+                    and eff.duration != -1  # Don't remove permanent effects
+                    and eff.name != pending_removal_effect_name  # Don't target self
+                    and eff.effect_type != EffectType.HEAL_OVER_TIME  # Don't remove heal over time
+                    and eff.config.get("is_dispellable", True)
+                    and eff.is_beneficial_for_target()
                 )
                 if is_removable_buff:
                     buff_ids_to_target.append(eff.id)
-                    buff_names_for_initial_log.append(eff.name if eff.name else f"Buff ID ...{str(eff.id)[-4:]}")
+                    buff_names_for_initial_log.append(
+                        eff.name if eff.name else f"Buff ID ...{str(eff.id)[-4:]}"
+                    )
 
             if buff_ids_to_target:
                 pending_effect_config = {
@@ -1021,15 +1025,18 @@ def handle_plugin_blessed_negation(
     buff_names_for_initial_log = []
     for eff in opponent_army.active_effects:
         is_removable_buff = (
-                eff.effect_type != EffectType.SHIELD and eff.duration != -1 and
-                eff.name != EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL and
-                eff.effect_type != EffectType.HEAL_OVER_TIME and
-                ((eff.effect_type == EffectType.STAT_MOD and eff.magnitude > 0) or \
-                 (eff.effect_type != EffectType.DEBUFF and eff.effect_type != EffectType.DAMAGE_OVER_TIME))
+            eff.effect_type != EffectType.SHIELD
+            and eff.duration != -1
+            and eff.name != EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL
+            and eff.effect_type != EffectType.HEAL_OVER_TIME
+            and eff.config.get("is_dispellable", True)
+            and eff.is_beneficial_for_target()
         )
         if is_removable_buff:
             buff_ids_to_target.append(eff.id)
-            buff_names_for_initial_log.append(eff.name if eff.name else f"Buff ID ...{str(eff.id)[-4:]}")
+            buff_names_for_initial_log.append(
+                eff.name if eff.name else f"Buff ID ...{str(eff.id)[-4:]}"
+            )
 
     if buff_ids_to_target:
         pending_effect_config = {
@@ -1113,6 +1120,8 @@ def handle_plugin_wild_indulgence(
             or eff.config.get("prevents_counterattack")
             or eff.config.get("prevents_basic_attack")
             or eff.name == EFFECT_NAME_SILENCE_DEBUFF
+            or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
+            or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
         )
         if is_debuff:
             debuffs_to_target_ids.append(eff.id)
@@ -1197,6 +1206,8 @@ def handle_plugin_breaking_free(
             or eff.config.get("prevents_counterattack")
             or eff.config.get("prevents_basic_attack")
             or eff.name == EFFECT_NAME_SILENCE_DEBUFF
+            or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
+            or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
         )
         if is_debuff:
             debuffs_to_target_ids.append(eff.id)
@@ -2144,6 +2155,8 @@ def handle_plugin_halo_of_sacrifice(
             or eff.config.get("prevents_counterattack")
             or eff.config.get("prevents_basic_attack")
             or eff.name == EFFECT_NAME_SILENCE_DEBUFF
+            or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
+            or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
         )
         if is_debuff:
             debuff_ids.append(eff.id)

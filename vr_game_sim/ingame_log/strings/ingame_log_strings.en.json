@@ -1,0 +1,67 @@
+{
+  "meta": { "visible": true },
+  "BATTLE_START": {
+    "visible": false,
+    "text": "Battle begins."
+  },
+  "ROUND_START": {
+    "visible": true,
+    "text": "Round {n} begins."
+  },
+  "BASIC_ATTACK": {
+    "visible": true,
+    "text": "{attacker} attacks {defender}, dealing {damage} damage ({kills} kills)."
+  },
+  "COUNTER_ATTACK": {
+    "visible": true,
+    "text": "Counterattack! {attacker} strikes {defender} for {damage} damage."
+  },
+  "SKILL_CAST": {
+    "visible": true,
+    "text": "{attacker} uses {skill} on {defender}, causing {damage} damage ({kills} kills)."
+  },
+  "DOT_TICK": {
+    "visible": false,
+    "text": "{defender} suffers {damage} damage over time."
+  },
+  "HOT_TICK": {
+    "visible": false,
+    "text": "{target} is healed for {damage}."
+  },
+  "SHIELD_APPLIED": {
+    "visible": true,
+    "text": "{target} gains a shield: {skill}."
+  },
+  "SHIELD_ABSORB": {
+    "visible": true,
+    "text": "{defender}'s shield absorbs {absorbed} damage."
+  },
+  "EFFECT_GAINED": {
+    "visible": true,
+    "text": "{target} gains {effect}."
+  },
+  "EFFECT_EXPIRED": {
+    "visible": true,
+    "text": "{effect} on {target} expires."
+  },
+  "QUEUE_PRIMARY_RAGE": {
+    "visible": true,
+    "text": "{attacker}'s rage is full; primary skill queued for next round."
+  },
+  "RAGE_CLEARED": {
+    "visible": true,
+    "text": "Rage cleared."
+  },
+  "KILLS_APPLIED": {
+    "visible": false,
+    "text": "{defender} suffers {kills} kills."
+  },
+  "ROUND_END": {
+    "visible": true,
+    "text": "Round {n} ends."
+  },
+  "BATTLE_END": {
+    "visible": true,
+    "text": "Battle ends. Winner: {winner}. Total rounds: {rounds}."
+  }
+}

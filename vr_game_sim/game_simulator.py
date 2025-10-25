@@ -29,6 +29,11 @@ from .dynamic_unrevivable_config import (
 from .report_builder import ReportBuilder
 from colorama import Fore
 
+from .ingame_log.html_renderer import HtmlRenderer
+from .ingame_log.log_adapter import LogAdapter
+from .ingame_log.log_events import LogEvent
+from .ingame_log.number_format import NumberFormat
+
 
 class GameSimulator:
     SKILL_REGISTRY_GLOBAL = SKILL_REGISTRY_GLOBAL
@@ -63,6 +68,7 @@ class GameSimulator:
         report_builder: Optional[ReportBuilder] = None,
         track_stats: bool = True,
         mode: str = "standard",
+        export_ingame_log: bool = False,
     ):
         self.army1: Army = army1
         self.army2: Army = army2
@@ -81,6 +87,28 @@ class GameSimulator:
         self.army2._apply_initial_passive_skills()
         self.report_builder = report_builder or ReportBuilder()
         self.track_stats = track_stats
+        self.export_ingame_log = export_ingame_log
+        self._ingame_log_renderer: Optional[HtmlRenderer] = None
+        self._ingame_log_adapter: Optional[LogAdapter] = None
+        if self.export_ingame_log:
+            assets_dir = os.path.join(os.path.dirname(__file__), "ingame_log")
+            nf = NumberFormat(thousands=False, abbreviate=False, decimals=0, floor_damage=True)
+            self._ingame_log_renderer = HtmlRenderer(assets_dir=assets_dir, number_format=nf)
+            self._ingame_log_adapter = LogAdapter(self._ingame_log_renderer)
+
+    def _emit_ingame_log(self, event: LogEvent) -> None:
+        if self._ingame_log_adapter is not None:
+            self._ingame_log_adapter.push(event)
+
+    def get_ingame_log_html(self) -> str:
+        if self._ingame_log_adapter is None:
+            return ""
+        return self._ingame_log_adapter.render_html()
+
+    def get_ingame_log_css(self) -> str:
+        if self._ingame_log_renderer is None:
+            return ""
+        return self._ingame_log_renderer.render_styles()
 
     def _log_active_effects_for_report(self) -> List[str]:
         lines: List[str] = []
@@ -826,6 +854,9 @@ class GameSimulator:
             if army.hero1_rage_skill_scheduled_round is not None:
                 delay_rounds = army.army_round - army.hero1_rage_skill_scheduled_round
             army.hero1_rage_skill_scheduled_round = None
+            self._emit_ingame_log(
+                LogEvent(type="RAGE_CLEARED", round=self.round)
+            )
 
             if army.hero2_rage_skill_id and len(army.heroes) > 1:
                 if delay_rounds >= 2:
@@ -1169,6 +1200,27 @@ class GameSimulator:
                 context_desc=context,
             )
 
+        event_type = "COUNTER_ATTACK" if is_counter else "BASIC_ATTACK"
+        self._emit_ingame_log(
+            LogEvent(
+                type=event_type,
+                round=self.round,
+                attacker_name=att.name if att else None,
+                defender_name=dfd.name if dfd else None,
+                damage=hp_damage_to_troops,
+                kills=potential_units_killed_this_hit_rounded,
+            )
+        )
+        if absorbed_by_shield > 0:
+            self._emit_ingame_log(
+                LogEvent(
+                    type="SHIELD_ABSORB",
+                    round=self.round,
+                    defender_name=dfd.name if dfd else None,
+                    absorbed=absorbed_by_shield,
+                )
+            )
+
         return hp_damage_to_troops, absorbed_by_shield, damage_after_all_percent_mods, potential_units_killed_this_hit_rounded
 
     def apply_unrevivable_post_commit(self, mutual_engagement: bool = True) -> None:
@@ -1283,11 +1335,16 @@ class GameSimulator:
         self.army1._apply_initial_passive_skills()
         self.army2._apply_initial_passive_skills()
         self.round = 0
+        if self._ingame_log_renderer is not None:
+            self._ingame_log_renderer.reset()
+        self._emit_ingame_log(LogEvent(type="BATTLE_START", round=0))
 
         while self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
             self.round += 1
             for army in (self.army1, self.army2):
                 army.army_round += 1
+
+            self._emit_ingame_log(LogEvent(type="ROUND_START", round=self.round))
 
             self.army1.rage_added_this_round = 0.0
             self.army2.rage_added_this_round = 0.0
@@ -1367,6 +1424,13 @@ class GameSimulator:
                     if skill_def is not None and army.current_rage >= skill_def.get("rage_cost", 1000):
                         army.hero1_rage_skill_scheduled_round = self.round + 1
                         army.army_used_rage_skill_this_round_for_rage_gain_block = True
+                        self._emit_ingame_log(
+                            LogEvent(
+                                type="QUEUE_PRIMARY_RAGE",
+                                round=self.round,
+                                attacker_name=army.name,
+                            )
+                        )
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
                 break
@@ -1490,6 +1554,7 @@ class GameSimulator:
                 self.round_skill_triggers_log,
                 active_effects=active_lines,
             )
+            self._emit_ingame_log(LogEvent(type="ROUND_END", round=self.round))
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
                 if self.track_stats:
                     self.army1.kills_dealt_history.append(self.army1.kills_dealt_this_round)
@@ -1601,6 +1666,8 @@ class GameSimulator:
             winner = self.army2.name
         elif self.army1.current_troop_count <= 0 and self.army2.current_troop_count <= 0 and self.round > 0:
             winner = "Mutual Destruction"
+
+        self._emit_ingame_log(LogEvent(type="BATTLE_END", winner=winner, rounds_total=self.round))
 
         self.report_builder.emit_final(
             winner,

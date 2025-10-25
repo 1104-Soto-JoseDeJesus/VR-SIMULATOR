@@ -39,6 +39,15 @@ from vr_game_sim.gear_definitions import (
     resolve_gear,
 )
 from vr_game_sim.game_simulator import GameSimulator
+
+
+def inject_ingame_log_block(page_html: str, log_block_html: str) -> str:
+    """Insert the rendered in-game log block into the export HTML."""
+
+    marker = "<!--INGAME_LOG_BLOCK-->"
+    if marker in page_html:
+        return page_html.replace(marker, log_block_html)
+    return page_html + "\n" + log_block_html
 from vr_game_sim.report_builder import ReportBuilder
 from vr_game_sim.battlefield_report_builder import BattlefieldReportBuilder
 from vr_game_sim.main import (
@@ -3639,6 +3648,7 @@ class SimulationWorker(QtCore.QThread):
         num_workers: int,
         seed_target: dict[str, int] | None = None,
         dynamic_settings: dict[str, float] | None = None,
+        export_ingame_log: bool = False,
     ) -> None:
         super().__init__()
         self.setup_data = setup_data
@@ -3650,6 +3660,9 @@ class SimulationWorker(QtCore.QThread):
         self.win_rate: float | None = None
         self.best_match: dict[str, Any] | None = None
         self.sample_battle_stats: dict[str, Any] | None = None
+        self.export_ingame_log = export_ingame_log
+        self.ingame_log_html: str = ""
+        self.ingame_log_css: str = ""
 
     def cancel(self) -> None:
         """Request the simulation to stop."""
@@ -3698,7 +3711,13 @@ class SimulationWorker(QtCore.QThread):
                 raise RuntimeError("cancelled")
 
             report_builder = ReportBuilder(use_color=False)
-            sim = GameSimulator(armies[0], armies[1], report_builder, track_stats=True)
+            sim = GameSimulator(
+                armies[0],
+                armies[1],
+                report_builder,
+                track_stats=True,
+                export_ingame_log=self.export_ingame_log,
+            )
             report_text = sim.simulate_battle()
             rounds = report_builder.get_rounds()
             summary = build_skill_summaries(armies, self.setup_data)
@@ -3717,6 +3736,13 @@ class SimulationWorker(QtCore.QThread):
             }
             if self._cancelled.is_set():
                 raise RuntimeError("cancelled")
+
+            if self.export_ingame_log:
+                self.ingame_log_html = sim.get_ingame_log_html().strip()
+                self.ingame_log_css = sim.get_ingame_log_css().strip()
+            else:
+                self.ingame_log_html = ""
+                self.ingame_log_css = ""
 
             result_text = (
                 report_text
@@ -4812,6 +4838,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pdf_layout = load_pdf_layout()
         self._last_setup_data: list[dict] | None = None
         self._last_simulation_payload: dict[str, Any] | None = None
+        env_flag = os.environ.get("VR_SIM_EXPORT_INGAME_LOG", "")
+        self.export_ingame_log_enabled = env_flag.lower() in {"1", "true", "yes", "on"}
 
     def open_star_overlay_tuner(self) -> None:
         """Open the star overlay debug dialog."""
@@ -6134,6 +6162,7 @@ class MainWindow(QtWidgets.QMainWindow):
         include_sample_details: bool,
         dialog_title: str,
         filename_suffix: str,
+        export_ingame_log: bool | None = None,
     ) -> None:
         """Export the latest battle summary as an interactive HTML bundle."""
 
@@ -6145,6 +6174,16 @@ class MainWindow(QtWidgets.QMainWindow):
                 "Run a simulation to generate data for the HTML export.",
             )
             return
+
+        ingame_log_payload = payload.get("ingame_log") if isinstance(payload, dict) else None
+        if export_ingame_log is None:
+            ingame_log_enabled = bool(
+                ingame_log_payload and ingame_log_payload.get("enabled", True)
+            )
+        else:
+            ingame_log_enabled = export_ingame_log
+        if not ingame_log_enabled:
+            ingame_log_payload = None
 
         timestamp = payload.get("generated_at") or time.time()
         setup = payload.get("setup") or []
@@ -7545,6 +7584,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 + "<h2>Sample Battle Details</h2>"
                 + summary_markup
                 + army_block_markup
+                + "<!--INGAME_LOG_BLOCK-->"
                 + "</section>"
             )
 
@@ -9013,6 +9053,17 @@ class MainWindow(QtWidgets.QMainWindow):
 </html>
 """
 
+        if include_sample_details and ingame_log_payload:
+            log_html = (ingame_log_payload.get("html") or "").strip()
+            log_css = (ingame_log_payload.get("css") or "").strip()
+            if log_css:
+                indented = "\n" + "\n".join(
+                    f"    {line}" if line else "" for line in log_css.splitlines()
+                )
+                html_output = html_output.replace("    </style>", f"{indented}\n    </style>", 1)
+            if log_html:
+                html_output = inject_ingame_log_block(html_output, log_html)
+
         try:
             with open(save_path, "w", encoding="utf-8") as fh:
                 fh.write(html_output)
@@ -9032,6 +9083,7 @@ class MainWindow(QtWidgets.QMainWindow):
             include_sample_details=False,
             dialog_title="Export Overall Performance HTML",
             filename_suffix="overall_performance",
+            export_ingame_log=False,
         )
 
     def export_summary_with_sample_html(self) -> None:
@@ -9039,6 +9091,7 @@ class MainWindow(QtWidgets.QMainWindow):
             include_sample_details=True,
             dialog_title="Export Overall Performance & Sample Battle HTML",
             filename_suffix="overall_performance_sample",
+            export_ingame_log=self.export_ingame_log_enabled,
         )
 
     def export_pdf(self) -> None:
@@ -9110,6 +9163,7 @@ class MainWindow(QtWidgets.QMainWindow):
             workers,
             self.seed_target,
             dynamic_settings=self._dynamic_unrevivable_settings,
+            export_ingame_log=self.export_ingame_log_enabled,
         )
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
@@ -9207,6 +9261,15 @@ class MainWindow(QtWidgets.QMainWindow):
             }
             if isinstance(sample_stats, dict):
                 export_payload["sample_battle"] = copy.deepcopy(sample_stats)
+            if (
+                getattr(worker, "ingame_log_html", "")
+                and getattr(worker, "ingame_log_css", "") is not None
+            ):
+                export_payload["ingame_log"] = {
+                    "html": worker.ingame_log_html,
+                    "css": worker.ingame_log_css,
+                    "enabled": bool(self.export_ingame_log_enabled),
+                }
         self._last_simulation_payload = export_payload
         self.progress.setValue(0)
         self.status.setText("Ready")

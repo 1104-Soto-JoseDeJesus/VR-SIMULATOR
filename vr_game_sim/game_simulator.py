@@ -304,18 +304,21 @@ class GameSimulator:
             attacker_unit_type=attacker_unit_type,
             skill_label=skill_label_context,
         )
-        dr_effects = [
-            eff
-            for eff in apply_target.iter_stat_effects(
-                StatType.DAMAGE_TAKEN_MULTIPLIER,
-                attack_type_filter="SKILL",
-                attacker_unit_type=attacker_unit_type,
-                skill_label=skill_label_context,
-            )
-            if eff.magnitude < 0
-        ]
+        defender_positive_effects: list[EffectInstance] = []
+        dr_effects = []
+        for eff in apply_target.iter_stat_effects(
+            StatType.DAMAGE_TAKEN_MULTIPLIER,
+            attack_type_filter="SKILL",
+            attacker_unit_type=attacker_unit_type,
+            skill_label=skill_label_context,
+        ):
+            if eff.magnitude < 0:
+                dr_effects.append(eff)
+            elif eff.magnitude > 0:
+                defender_positive_effects.append(eff)
+
         total_dr_magnitude = sum(eff.magnitude for eff in dr_effects)
-        defender_positive_mags = damage_taken_percent_mods - total_dr_magnitude
+        defender_positive_mags = sum(eff.magnitude for eff in defender_positive_effects)
 
         total_skill_percentage_points = skill_damage_percent_boosts + damage_taken_percent_mods
 
@@ -361,6 +364,15 @@ class GameSimulator:
             skill_hp_damage_potential * dmg_multiplier_no_boost * advantage_multiplier
         )
 
+        dmg_multiplier_no_defender_positive = max(
+            0.05, 1.0 + skill_damage_percent_boosts + total_dr_magnitude
+        )
+        damage_no_defender_positive = (
+            skill_hp_damage_potential
+            * dmg_multiplier_no_defender_positive
+            * advantage_multiplier
+        )
+
         preview_hp_damage_to_troops, preview_absorbed_by_shield = apply_target.preview_shield_absorption(
             damage_after_all_mods
         )
@@ -368,6 +380,9 @@ class GameSimulator:
         hp_damage_without_dr = max(0.0, damage_no_dr - current_shield_hp)
         hp_saved = max(0.0, hp_damage_without_dr - hp_damage_expected)
         hp_damage_without_boost = max(0.0, damage_no_boost - current_shield_hp)
+        hp_damage_without_defender_positive = max(
+            0.0, damage_no_defender_positive - current_shield_hp
+        )
 
         raw_damage_for_logging = damage_after_all_mods
 
@@ -424,6 +439,32 @@ class GameSimulator:
                 troops = (extra_hp_from_boost * weight) / enemy_hp_per_troop
                 source_army.skill_kill_boost_totals[eff.source_skill_id] = (
                     source_army.skill_kill_boost_totals.get(eff.source_skill_id, 0.0)
+                    + troops
+                )
+
+        extra_hp_from_defender_positive = (
+            actual_skill_hp_damage_to_troops - hp_damage_without_defender_positive
+        )
+        if (
+            extra_hp_from_defender_positive > 0
+            and defender_positive_effects
+            and defender_positive_mags > 0
+        ):
+            for eff in defender_positive_effects:
+                if eff.magnitude <= 0:
+                    continue
+                weight = eff.magnitude / defender_positive_mags
+                troops = (extra_hp_from_defender_positive * weight) / enemy_hp_per_troop
+                owner_name = eff.config.get("source_army_name")
+                owner_army = (
+                    apply_target._find_army_by_name(owner_name)
+                    if owner_name
+                    else None
+                )
+                if owner_army is None:
+                    continue
+                owner_army.skill_kill_boost_totals[eff.source_skill_id] = (
+                    owner_army.skill_kill_boost_totals.get(eff.source_skill_id, 0.0)
                     + troops
                 )
 
@@ -958,22 +999,21 @@ class GameSimulator:
 
         current_shield_hp = dfd.get_current_shield_hp()
 
-        sum_defender_reduction_magnitudes = dfd.get_sum_stat_magnitudes(
+        defender_positive_effects: list[EffectInstance] = []
+        dr_effects: list[EffectInstance] = []
+        for eff in dfd.iter_stat_effects(
             StatType.DAMAGE_TAKEN_MULTIPLIER,
             attack_type_filter=attack_type_for_defense_filter,
             attacker_unit_type=attacker_unit_type,
-        )
-        dr_effects = [
-            eff
-            for eff in dfd.iter_stat_effects(
-                StatType.DAMAGE_TAKEN_MULTIPLIER,
-                attack_type_filter=attack_type_for_defense_filter,
-                attacker_unit_type=attacker_unit_type,
-            )
-            if eff.magnitude < 0
-        ]
+        ):
+            if eff.magnitude < 0:
+                dr_effects.append(eff)
+            elif eff.magnitude > 0:
+                defender_positive_effects.append(eff)
+
         total_dr_magnitude = sum(eff.magnitude for eff in dr_effects)
-        defender_positive_mags = sum_defender_reduction_magnitudes - total_dr_magnitude
+        defender_positive_mags = sum(eff.magnitude for eff in defender_positive_effects)
+        sum_defender_reduction_magnitudes = total_dr_magnitude + defender_positive_mags
 
         total_additive_percentage_points = (
             sum_specific_attack_magnitudes +
@@ -999,6 +1039,17 @@ class GameSimulator:
         )
         damage_no_boost = raw_damage_potential * dmg_multiplier_no_boost * advantage_multiplier
 
+        dmg_multiplier_no_defender_positive = max(
+            0.05,
+            1.0
+            + sum_specific_attack_magnitudes
+            + sum_general_attacker_magnitudes
+            + total_dr_magnitude,
+        )
+        damage_no_defender_positive = (
+            raw_damage_potential * dmg_multiplier_no_defender_positive * advantage_multiplier
+        )
+
         preview_hp_damage_to_troops, preview_absorbed_by_shield = dfd.preview_shield_absorption(
             damage_after_all_percent_mods
         )
@@ -1006,6 +1057,9 @@ class GameSimulator:
         hp_damage_without_dr = max(0.0, damage_no_dr - current_shield_hp)
         hp_saved = max(0.0, hp_damage_without_dr - hp_damage_expected)
         hp_damage_without_boost = max(0.0, damage_no_boost - current_shield_hp)
+        hp_damage_without_defender_positive = max(
+            0.0, damage_no_defender_positive - current_shield_hp
+        )
 
         if evasion_effect is not None:
             prevented_note = ""
@@ -1048,6 +1102,31 @@ class GameSimulator:
                 troops = (extra_hp_from_boost * weight) / defender_hp_per_troop
                 att.skill_kill_boost_totals[eff.source_skill_id] = (
                     att.skill_kill_boost_totals.get(eff.source_skill_id, 0.0) + troops
+                )
+
+        extra_hp_from_defender_positive = (
+            hp_damage_to_troops - hp_damage_without_defender_positive
+        )
+        if (
+            extra_hp_from_defender_positive > 0
+            and defender_positive_effects
+            and defender_positive_mags > 0
+        ):
+            defender_hp_per_troop = dfd.unit.effective_hp_per_troop(dfd.active_effects)
+            if defender_hp_per_troop <= 0:
+                defender_hp_per_troop = 1
+            for eff in defender_positive_effects:
+                if eff.magnitude <= 0:
+                    continue
+                weight = eff.magnitude / defender_positive_mags
+                troops = (extra_hp_from_defender_positive * weight) / defender_hp_per_troop
+                owner_name = eff.config.get("source_army_name")
+                owner_army = dfd._find_army_by_name(owner_name) if owner_name else None
+                if owner_army is None:
+                    continue
+                owner_army.skill_kill_boost_totals[eff.source_skill_id] = (
+                    owner_army.skill_kill_boost_totals.get(eff.source_skill_id, 0.0)
+                    + troops
                 )
 
         if hp_damage_to_troops > 0:

@@ -422,6 +422,59 @@ def test_export_summary_with_sample_sections(tmp_path, monkeypatch):
         },
     ]
 
+    sample_rounds = [
+        {
+            "round": 1,
+            "combat_actions": [
+                {
+                    "attacker_name": "ExportArmy Vanguard",
+                    "defender_name": "Opponent Guard",
+                    "action_type": "Normal Attack",
+                    "damage_potential_hp": 1234,
+                    "absorbed_hp": 234,
+                    "final_hp_damage": 1000,
+                    "potential_kills": 3,
+                },
+                {
+                    "attacker_name": "ExportArmy Vanguard",
+                    "defender_name": "Opponent Guard",
+                    "action_type": "Heavily Wounded Ratio",
+                    "damage_potential_hp": 0,
+                    "absorbed_hp": 0,
+                    "final_hp_damage": 0,
+                    "potential_kills": 0,
+                },
+                {
+                    "attacker_name": "ExportArmy Vanguard",
+                    "defender_name": "Opponent Guard",
+                    "action_type": "Damage Commit",
+                    "damage_potential_hp": 0,
+                    "absorbed_hp": 0,
+                    "final_hp_damage": 0,
+                    "potential_kills": 0,
+                },
+            ],
+            "skill_triggers": {
+                "ExportArmy": [
+                    {
+                        "skill_name": "Skill A",
+                        "effect_description": "Deals heavy damage.",
+                        "damage_done_hp": 500,
+                        "potential_kills": 2,
+                    }
+                ],
+                "Opponent": [
+                    {
+                        "skill_name": "Shield Skill",
+                        "effect_description": "Raises shield.",
+                        "shield_hp_gained": 400,
+                    }
+                ],
+            },
+            "active_effects": ["ExportArmy gains Battle Cry"],
+        }
+    ]
+
     payload = {
         "setup": setup_entries,
         "army_names": ["ExportArmy", "Opponent"],
@@ -436,7 +489,7 @@ def test_export_summary_with_sample_sections(tmp_path, monkeypatch):
                 {"troops": [95, 70, 60], "unrevivable": [0, 7, 15]},
             ],
         },
-        "rounds": [],
+        "rounds": sample_rounds,
     }
 
     window = gui_main.MainWindow()
@@ -462,4 +515,14 @@ def test_export_summary_with_sample_sections(tmp_path, monkeypatch):
     assert '<script type="application/json" id="troop-history-data">' in html_content
     assert 'class="troop-search"' in html_content
     assert 'troop-tooltip-change' in html_content
+    assert 'Sample Battle Log' in html_content
+    assert html_content.count('class="round-log"') == len(sample_rounds)
+    assert 'Round 1' in html_content
+    assert 'ExportArmy gains Battle Cry' in html_content
+    assert 'Normal Attack' in html_content
+    assert 'Heavily Wounded Ratio' not in html_content
+    assert 'Damage Commit' not in html_content
+    assert 'Skill A' in html_content
+    assert 'Shield Skill' in html_content
+    assert 'round-army-name">ExportArmy</span><strong>100</strong>' in html_content
     window.close()

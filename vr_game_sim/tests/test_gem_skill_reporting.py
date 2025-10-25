@@ -529,6 +529,134 @@ def test_export_summary_with_sample_sections(tmp_path, monkeypatch):
     window.close()
 
 
+def test_export_summary_with_sample_summary_no_log(tmp_path, monkeypatch):
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
+
+    try:
+        from PyQt6 import QtWidgets
+    except ImportError:
+        pytest.skip("PyQt6 is required for this test")
+
+    _app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    payload = {
+        "setup": [
+            {
+                "army_name": "ExportArmy",
+                "unit_type": "infantry",
+                "tier": 5,
+                "count": 100,
+                "atk_mod": 0.0,
+                "def_mod": 0.0,
+                "hp_mod": 0.0,
+                "bonus_stats": {},
+                "heroes": [
+                    {"hero_name_or_preset": "HeroOne"},
+                    {"hero_name_or_preset": "HeroTwo"},
+                ],
+                "gem_skills": {},
+            },
+            {
+                "army_name": "Opponent",
+                "unit_type": "archers",
+                "tier": 4,
+                "count": 95,
+                "atk_mod": 0.0,
+                "def_mod": 0.0,
+                "hp_mod": 0.0,
+                "bonus_stats": {},
+                "heroes": [
+                    {"hero_name_or_preset": "HeroThree"},
+                    {"hero_name_or_preset": "HeroFour"},
+                ],
+                "gem_skills": {},
+            },
+        ],
+        "army_names": ["ExportArmy", "Opponent"],
+        "summary": [
+            {
+                "initial": 100,
+                "remaining": 80,
+                "healed": 10,
+                "kills": 12,
+                "hero_names": ["HeroOne", "HeroTwo"],
+                "skills": [
+                    [{"id": "skill_a", "name": "Skill A", "casts": 1}],
+                    [{"id": "skill_a_support", "name": "Skill A Support", "casts": 0}],
+                ],
+            },
+            {
+                "initial": 95,
+                "remaining": 60,
+                "healed": 5,
+                "kills": 8,
+                "hero_names": ["HeroThree", "HeroFour"],
+                "skills": [
+                    [{"id": "skill_b", "name": "Skill B", "casts": 2}],
+                    [],
+                ],
+            },
+        ],
+        "win_rate": 0.5,
+        "runs": 10,
+        "sample_battle": {
+            "seed": 9999,
+            "winner": "ExportArmy",
+            "army_histories": [
+                {"name": "ExportArmy", "troops": [100, 90, 80]},
+                {"name": "Opponent", "troops": [95, 70, 55]},
+            ],
+        },
+        "rounds": [
+            {
+                "round": 1,
+                "combat_actions": [
+                    {
+                        "attacker_name": "ExportArmy Vanguard",
+                        "defender_name": "Opponent Guard",
+                        "action_type": "Normal Attack",
+                        "damage_potential_hp": 500,
+                        "absorbed_hp": 100,
+                        "final_hp_damage": 400,
+                    }
+                ],
+                "skill_triggers": {
+                    "ExportArmy": [
+                        {
+                            "skill_name": "Skill A",
+                            "effect_description": "Deals heavy damage.",
+                        }
+                    ]
+                },
+            }
+        ],
+    }
+
+    window = gui_main.MainWindow()
+    window._last_simulation_payload = payload
+
+    save_path = tmp_path / "summary_with_sample_no_log.html"
+
+    monkeypatch.setattr(
+        gui_main.QtWidgets.QFileDialog,
+        "getSaveFileName",
+        lambda *args, **kwargs: (str(save_path), "HTML Files (*.html)"),
+    )
+    monkeypatch.setattr(gui_main.QtWidgets.QMessageBox, "warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gui_main.QtWidgets.QMessageBox, "critical", lambda *args, **kwargs: None)
+
+    window.export_summary_with_sample_summary_html()
+
+    assert save_path.exists()
+    html_content = save_path.read_text(encoding="utf-8")
+    assert 'class="sample-summary"' in html_content or 'class="sample-summary-metrics"' in html_content
+    assert 'Sample Battle Details' in html_content
+    assert 'Sample Battle Log' not in html_content
+    assert 'class="round-log"' not in html_content
+    window.close()
+
+
 def test_sample_round_html_omits_commitment_entries():
     gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
 

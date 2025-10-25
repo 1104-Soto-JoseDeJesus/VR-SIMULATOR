@@ -1,3 +1,4 @@
+import html
 import os
 import random
 
@@ -526,3 +527,72 @@ def test_export_summary_with_sample_sections(tmp_path, monkeypatch):
     assert 'Shield Skill' in html_content
     assert 'round-army-name">ExportArmy</span><strong>100</strong>' in html_content
     window.close()
+
+
+def test_sample_round_html_omits_commitment_entries():
+    gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
+
+    rounds = [
+        {
+            "round": 1,
+            "skill_triggers": {
+                "ExportArmy": [
+                    {
+                        "skill_name": "Damage Commitment",
+                        "effect_description": "Committed 120 damage.",
+                    },
+                    {
+                        "skill_name": "↳ Follow Up",
+                        "effect_description": "↳ committed 120 damage.",
+                    },
+                    {
+                        "skill_name": "Dynamic Unrevivable",
+                        "effect_description": "Prevents revives.",
+                    },
+                    {
+                        "skill_name": "Heal Commitment",
+                        "effect_description": "Committed 60 healing.",
+                    },
+                    {
+                        "skill_name": "Helpful Skill",
+                        "effect_description": "Inflicts a minor bleed.",
+                    },
+                ]
+            },
+        }
+    ]
+
+    rendered_entries: list[str] = []
+    for round_data in rounds:
+        skill_data = round_data.get("skill_triggers")
+        if not isinstance(skill_data, dict):
+            continue
+        for triggers in skill_data.values():
+            if not triggers:
+                continue
+            for trig in triggers:
+                if not isinstance(trig, dict):
+                    continue
+                raw_skill = str(trig.get("skill_name", "") or "")
+                raw_effect = str(trig.get("effect_description", "") or "")
+                clean_name = raw_skill.strip()
+                clean_effect = raw_effect.strip()
+                if gui_main._should_skip_skill_trigger(clean_name, clean_effect):
+                    continue
+                entry_parts = [
+                    "<div class=\"skill-entry\">",
+                    f"<strong>{html.escape(clean_name or 'Skill')}</strong>",
+                ]
+                if clean_effect:
+                    entry_parts.append(
+                        f"<span class=\"skill-effect\">{html.escape(clean_effect)}</span>"
+                    )
+                entry_parts.append("</div>")
+                rendered_entries.append("".join(entry_parts))
+
+    combined_html = "".join(rendered_entries)
+    assert "Damage Commitment" not in combined_html
+    assert "Dynamic Unrevivable" not in combined_html
+    assert "committed 120 damage" not in combined_html
+    assert "Committed 60 healing" not in combined_html
+    assert "Helpful Skill" in combined_html

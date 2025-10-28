@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import random
 import copy
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 import threading
 import math
 import json
@@ -2082,8 +2082,16 @@ class ArmyFrame(QtWidgets.QGroupBox):
         # ``hero_overrides`` so presets can be tweaked without becoming
         # custom entries.
         self.custom_heroes: dict[int, dict] = {1: None, 2: None}
+        self._custom_hero_cache: dict[str, dict] = {}
         self.hero_overrides: dict[int, dict] = {1: {}, 2: {}}
+        self._hero_override_cache: dict[str, dict] = {}
         self._hero_names: dict[int, str] = {1: "None", 2: "None"}
+        # Plugin skills are preserved per slot so switching heroes does not
+        # automatically overwrite the player's chosen loadout.
+        self._slot_plugin_loadouts: dict[int, list[str] | None] = {1: None, 2: None}
+        self._slot_plugin_star_counts: dict[int, list[int]] = {1: [], 2: []}
+        self._loading_config = False
+        self._peer_frames: list[ArmyFrame] = []
 
         layout = QtWidgets.QGridLayout(self)
         row = 0
@@ -2258,6 +2266,145 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.hero1_combo.addItem(name)
             self.hero2_combo.addItem(name)
 
+    def set_peer_frames(self, peers: Iterable["ArmyFrame"]) -> None:
+        self._peer_frames = [p for p in peers if p is not self]
+
+    def _cache_custom_hero(self, cfg: dict | None) -> None:
+        if not cfg:
+            return
+        name = cfg.get("hero_name_or_preset")
+        if not name:
+            return
+        self._custom_hero_cache[name] = copy.deepcopy(cfg)
+
+    def _cache_overrides(self, hero_name: str, overrides: dict | None) -> None:
+        if not hero_name:
+            return
+        if overrides:
+            self._hero_override_cache[hero_name] = copy.deepcopy(overrides)
+        elif hero_name in self._hero_override_cache:
+            self._hero_override_cache.pop(hero_name, None)
+
+    def _resolve_auto_name_conflict(self, candidate: str) -> str:
+        peer_names = {peer.name_edit.text() for peer in self._peer_frames if peer}
+        if candidate not in peer_names:
+            return candidate
+        base = candidate
+        suffix = 2
+        while True:
+            unique = f"{base} ({suffix})"
+            if unique not in peer_names:
+                return unique
+            suffix += 1
+
+    def _clear_plugin_loadout(self, slot: int) -> None:
+        self._slot_plugin_loadouts[slot] = None
+        self._slot_plugin_star_counts[slot] = []
+        plugin_labels = self.hero1_plugin_imgs if slot == 1 else self.hero2_plugin_imgs
+        for lbl in plugin_labels:
+            lbl.set_image(None)
+            lbl.setToolTip("")
+            setattr(lbl, "skill_id", "")
+
+    def _set_plugin_loadout(
+        self,
+        slot: int,
+        plugin_ids: Iterable[str] | None,
+        star_counts: Iterable[int] | None = None,
+        *,
+        update_ui: bool = True,
+    ) -> None:
+        cleaned_ids: list[str] = []
+        if plugin_ids:
+            for sid in plugin_ids:
+                if isinstance(sid, str) and sid:
+                    cleaned_ids.append(sid)
+        self._slot_plugin_loadouts[slot] = cleaned_ids
+
+        counts: list[int] = []
+        if star_counts:
+            for idx, count in enumerate(star_counts):
+                if idx >= len(cleaned_ids):
+                    break
+                try:
+                    counts.append(int(count))
+                except Exception:
+                    continue
+        self._slot_plugin_star_counts[slot] = counts
+
+        if update_ui:
+            self._render_plugin_loadout(slot)
+
+    def _render_plugin_loadout(self, slot: int) -> None:
+        plugin_labels = self.hero1_plugin_imgs if slot == 1 else self.hero2_plugin_imgs
+        for lbl in plugin_labels:
+            lbl.set_image(None)
+            lbl.setToolTip("")
+            setattr(lbl, "skill_id", "")
+
+        plugin_ids = self._slot_plugin_loadouts.get(slot) or []
+        star_counts = self._slot_plugin_star_counts.get(slot) or []
+        if not plugin_ids:
+            self._slot_plugin_star_counts[slot] = []
+            return
+
+        updated_counts: list[int] = []
+        for idx, sid in enumerate(plugin_ids):
+            if idx >= len(plugin_labels):
+                break
+            lbl = plugin_labels[idx]
+            skill_def = SKILL_REGISTRY_GLOBAL.get(sid)
+            if skill_def:
+                img_name = skill_def["name"].replace("'", "").replace(" ", "-") + ".png"
+                skill_img_path = os.path.join(
+                    os.path.dirname(__file__), "Plugin Skill Images", img_name
+                )
+                lbl.setToolTip(skill_def.get("name", sid))
+                if os.path.exists(skill_img_path):
+                    lbl.set_image(skill_img_path)
+                    lbl.setText("")
+                else:
+                    lbl.setText(skill_def.get("name", sid))
+                    lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            else:
+                lbl.setText(sid)
+                lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            setattr(lbl, "skill_id", sid)
+            if star_counts and idx < len(star_counts):
+                try:
+                    lbl.set_star_count(int(star_counts[idx]))
+                except Exception:
+                    lbl.set_star_count(lbl.max_stars)
+            else:
+                lbl.set_star_count(lbl.max_stars)
+            try:
+                updated_counts.append(int(lbl.star_count))
+            except Exception:
+                updated_counts.append(int(getattr(lbl, "max_stars", 6)))
+
+        self._slot_plugin_star_counts[slot] = updated_counts
+
+    def _capture_plugin_state(self, slot: int) -> None:
+        loadout = self._slot_plugin_loadouts.get(slot)
+        if loadout is None:
+            return
+        if not loadout:
+            self._slot_plugin_star_counts[slot] = []
+            return
+        plugin_labels = self.hero1_plugin_imgs if slot == 1 else self.hero2_plugin_imgs
+        stars: list[int] = []
+        for idx, sid in enumerate(loadout):
+            if idx >= len(plugin_labels):
+                break
+            lbl = plugin_labels[idx]
+            if getattr(lbl, "_orig_image", None) is None and not lbl.text():
+                continue
+            try:
+                stars.append(int(lbl.star_count))
+            except Exception:
+                stars.append(int(getattr(lbl, "max_stars", 6)))
+        self._slot_plugin_star_counts[slot] = stars
+
     def edit_hero(self, slot: int) -> None:
         """Open the hero editor and persist changes.
 
@@ -2266,6 +2413,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
         """
         current_cfg = self.custom_heroes.get(slot)
         hero_name = self.hero1_combo.currentText() if slot == 1 else self.hero2_combo.currentText()
+        if current_cfg is None and hero_name not in {"None", "Custom"}:
+            cached_cfg = self._custom_hero_cache.get(hero_name)
+            if cached_cfg:
+                current_cfg = copy.deepcopy(cached_cfg)
         if current_cfg is None:
             preset = HERO_PRESETS.get(hero_name.lower())
             if preset:
@@ -2275,6 +2426,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     "base_skill_ids": preset.get("base_skills", []),
                     "plugin_skill_ids": preset.get("plugin_skills", []),
                 }
+        slot_plugins = self._slot_plugin_loadouts.get(slot)
+        if slot_plugins is not None:
+            current_cfg = dict(current_cfg or {"hero_name_or_preset": hero_name})
+            current_cfg["plugin_skill_ids"] = list(slot_plugins)
         overrides = self.hero_overrides.get(slot)
         if overrides:
             current_cfg = dict(current_cfg or {"hero_name_or_preset": hero_name})
@@ -2287,6 +2442,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 overrides = cfg.pop("skill_overrides", {})
                 self.hero_overrides[slot] = overrides
                 name = cfg["hero_name_or_preset"]
+                self._cache_overrides(name, overrides)
+                self._set_plugin_loadout(slot, cfg.get("plugin_skill_ids", []), update_ui=False)
                 preset = HERO_PRESETS.get(name.lower())
                 if (
                     preset
@@ -2295,8 +2452,11 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     and preset.get("plugin_skills", []) == cfg.get("plugin_skill_ids")
                 ):
                     self.custom_heroes[slot] = None
+                    self._custom_hero_cache.pop(name, None)
                 else:
-                    self.custom_heroes[slot] = cfg
+                    cfg_copy = copy.deepcopy(cfg)
+                    self.custom_heroes[slot] = cfg_copy
+                    self._cache_custom_hero(cfg_copy)
                     self._add_custom_option(name)
                 # Update selection without losing overrides
                 self._hero_names[slot] = name
@@ -2330,12 +2490,36 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.hero2_info.setText(info)
 
         prev_name = self._hero_names.get(slot)
+        prev_cfg = self.custom_heroes.get(slot)
+        changed = prev_name != name
+        if changed and prev_cfg and prev_cfg.get("hero_name_or_preset"):
+            self._cache_custom_hero(prev_cfg)
+        if changed and prev_name not in {None, "", "None", "Custom"}:
+            prev_overrides = self.hero_overrides.get(slot)
+            if prev_overrides:
+                self._cache_overrides(prev_name, prev_overrides)
+            else:
+                self._cache_overrides(prev_name, None)
+        if changed:
+            if name not in {"None", "Custom"}:
+                overrides = copy.deepcopy(self._hero_override_cache.get(name, {}))
+            else:
+                overrides = {}
+            self.hero_overrides[slot] = overrides
+            self._user_named = False
         cfg = self.custom_heroes.get(slot)
-        if prev_name != name:
-            # Changing heroes discards any overrides from the previous selection.
-            self.hero_overrides[slot] = {}
-            if cfg and cfg.get("hero_name_or_preset") != name and name not in {"None", "Custom"}:
+        if not cfg or cfg.get("hero_name_or_preset") != name:
+            if name not in {"None", "Custom"}:
+                cached_cfg = self._custom_hero_cache.get(name)
+                if cached_cfg:
+                    cfg = copy.deepcopy(cached_cfg)
+                    self.custom_heroes[slot] = cfg
+                else:
+                    self.custom_heroes[slot] = None
+                    cfg = None
+            else:
                 self.custom_heroes[slot] = None
+                cfg = None
         self._hero_names[slot] = name
 
         if name in {"None", ""} and self._hero_gear.get(slot):
@@ -2346,8 +2530,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
         img_label.set_image(None)
         img_label.setToolTip(name if name not in {"None", "Custom"} else "")
         plugin_labels = self.hero1_plugin_imgs if slot == 1 else self.hero2_plugin_imgs
+        if not self._loading_config:
+            self._capture_plugin_state(slot)
         for lbl in plugin_labels:
-            lbl.set_image(None)
             lbl.setToolTip("")
         if name not in {"None", "Custom"}:
             img_path = os.path.join(os.path.dirname(__file__), "Hero Images", f"{name.capitalize()}.png")
@@ -2358,28 +2543,20 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 img_label.setText(name)
                 img_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
-            plugin_ids: list[str] = []
-            if cfg and cfg.get("hero_name_or_preset") == name:
-                plugin_ids = cfg.get("plugin_skill_ids", [])
-            else:
-                preset = HERO_PRESETS.get(name.lower())
-                if preset:
-                    plugin_ids = preset.get("plugin_skills", [])
-            for lbl, sid in zip(plugin_labels, plugin_ids):
-                skill_def = SKILL_REGISTRY_GLOBAL.get(sid)
-                if not skill_def:
-                    continue
-                img_name = skill_def["name"].replace("'", "").replace(" ", "-") + ".png"
-                skill_img_path = os.path.join(
-                    os.path.dirname(__file__), "Plugin Skill Images", img_name
-                )
-                lbl.setToolTip(skill_def.get("name", sid))
-                if os.path.exists(skill_img_path):
-                    lbl.set_image(skill_img_path)
-                    lbl.setText("")
+            loadout = self._slot_plugin_loadouts.get(slot)
+            if loadout is None:
+                if cfg and cfg.get("hero_name_or_preset") == name:
+                    plugin_ids = cfg.get("plugin_skill_ids", [])
+                    plugin_counts = cfg.get("plugin_star_counts") if cfg else None
+                    self._set_plugin_loadout(slot, plugin_ids, plugin_counts, update_ui=False)
                 else:
-                    lbl.setText(skill_def.get("name", sid))
-                    lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+                    preset = HERO_PRESETS.get(name.lower())
+                    plugin_ids = preset.get("plugin_skills", []) if preset else []
+                    self._set_plugin_loadout(slot, plugin_ids, update_ui=False)
+                loadout = self._slot_plugin_loadouts.get(slot)
+            self._render_plugin_loadout(slot)
+        else:
+            self._clear_plugin_loadout(slot)
         self._update_name_if_auto()
 
     def _update_name_if_auto(self) -> None:
@@ -2395,7 +2572,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
             if hero2 in {"", "None"}:
                 hero2 = "None"
             new_name = f"{hero1}/{hero2}"
-        self.name_edit.setText(new_name)
+        unique_name = self._resolve_auto_name_conflict(new_name)
+        if self.name_edit.text() != unique_name:
+            self.name_edit.setText(unique_name)
 
     def _unit_changed(self, unit: str) -> None:
         """Update the troop type icon when unit selection changes."""
@@ -2426,87 +2605,113 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.unrevivable_spin.setToolTip("")
 
     def populate_from_config(self, cfg: dict) -> None:
-        self._user_named = bool(cfg.get("army_name"))
-        self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))
-        self.unit_combo.setCurrentText(cfg.get("unit_type", "pikemen"))
-        self._unit_changed(self.unit_combo.currentText())
-        self.tier_spin.setValue(int(cfg.get("tier", 5)))
-        self.count_spin.setValue(int(cfg.get("count", 100000)))
-        self.rally_checkbox.setChecked(bool(cfg.get("is_rally", False)))
-        self.atk_edit.setValue(float(cfg.get("atk_mod", 0)))
-        self.def_edit.setValue(float(cfg.get("def_mod", 0)))
-        self.hp_edit.setValue(float(cfg.get("hp_mod", 0)))
+        self._loading_config = True
+        try:
+            self._user_named = bool(cfg.get("army_name"))
+            self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))
+            self.unit_combo.setCurrentText(cfg.get("unit_type", "pikemen"))
+            self._unit_changed(self.unit_combo.currentText())
+            self.tier_spin.setValue(int(cfg.get("tier", 5)))
+            self.count_spin.setValue(int(cfg.get("count", 100000)))
+            self.rally_checkbox.setChecked(bool(cfg.get("is_rally", False)))
+            self.atk_edit.setValue(float(cfg.get("atk_mod", 0)))
+            self.def_edit.setValue(float(cfg.get("def_mod", 0)))
+            self.hp_edit.setValue(float(cfg.get("hp_mod", 0)))
 
-        self.unrevivable_spin.setValue(float(cfg.get("unrevivable_ratio", 0.65)))
-        self.dynamic_unrevivable_button.setChecked(
-            bool(cfg.get("use_dynamic_unrevivable_ratio", False))
-        )
+            self.unrevivable_spin.setValue(float(cfg.get("unrevivable_ratio", 0.65)))
+            self.dynamic_unrevivable_button.setChecked(
+                bool(cfg.get("use_dynamic_unrevivable_ratio", False))
+            )
 
-        hero_combos = [self.hero1_combo, self.hero2_combo]
-        for idx, combo in enumerate(hero_combos, start=1):
-            combo.setCurrentText("None")
-            self.custom_heroes[idx] = None
-            self.hero_overrides[idx] = {}
-            self._hero_names[idx] = "None"
-        self._hero_gear = {1: {}, 2: {}}
-        self._update_gear_button()
-        gear_map: dict[int, dict[str, str]] = {1: {}, 2: {}}
-        for idx, hero_cfg in enumerate(cfg.get("heroes", []), start=1):
-            if idx > 2:
-                break
-            name = hero_cfg.get("hero_name_or_preset", "")
-            overrides = hero_cfg.get("skill_overrides", {})
-            preset = HERO_PRESETS.get(name.lower())
-            if (
-                preset
-                and preset.get("talents") == hero_cfg.get("talent_ids")
-                and preset.get("base_skills") == hero_cfg.get("base_skill_ids")
-                and preset.get("plugin_skills") == hero_cfg.get("plugin_skill_ids")
-            ):
-                hero_name_display = name.capitalize()
-                self.hero_overrides[idx] = overrides
-            else:
-                hero_name_display = name
-                self.custom_heroes[idx] = {k: v for k, v in hero_cfg.items() if k != "skill_overrides"}
-                self.hero_overrides[idx] = overrides
-                self._add_custom_option(name)
-            combo = hero_combos[idx - 1]
-            # ``setCurrentText`` emits ``currentTextChanged`` which would in
-            # turn invoke ``_hero_selected`` and clear any overrides.  Block
-            # signals while populating and explicitly update the info labels
-            # afterwards.
-            self._hero_names[idx] = hero_name_display
-            block = combo.blockSignals(True)
-            combo.setCurrentText(hero_name_display)
-            combo.blockSignals(block)
-            self._hero_selected(idx, hero_name_display)
+            hero_combos = [self.hero1_combo, self.hero2_combo]
+            for idx, combo in enumerate(hero_combos, start=1):
+                combo.setCurrentText("None")
+                self.custom_heroes[idx] = None
+                self.hero_overrides[idx] = {}
+                self._hero_names[idx] = "None"
+                self._clear_plugin_loadout(idx)
+            self._custom_hero_cache.clear()
+            self._hero_override_cache.clear()
+            self._hero_gear = {1: {}, 2: {}}
+            self._update_gear_button()
+            gear_map: dict[int, dict[str, str]] = {1: {}, 2: {}}
+            for idx, hero_cfg in enumerate(cfg.get("heroes", []), start=1):
+                if idx > 2:
+                    break
+                name = hero_cfg.get("hero_name_or_preset", "")
+                overrides = hero_cfg.get("skill_overrides", {})
+                preset = HERO_PRESETS.get(name.lower())
+                if (
+                    preset
+                    and preset.get("talents") == hero_cfg.get("talent_ids")
+                    and preset.get("base_skills") == hero_cfg.get("base_skill_ids")
+                    and preset.get("plugin_skills") == hero_cfg.get("plugin_skill_ids")
+                ):
+                    hero_name_display = name.capitalize()
+                    overrides_copy = copy.deepcopy(overrides) if overrides else {}
+                    self.hero_overrides[idx] = overrides_copy
+                    self._cache_overrides(hero_name_display, overrides_copy)
+                else:
+                    hero_name_display = name
+                    cfg_copy = {k: v for k, v in hero_cfg.items() if k != "skill_overrides"}
+                    if hero_name_display and cfg_copy.get("hero_name_or_preset") != hero_name_display:
+                        cfg_copy["hero_name_or_preset"] = hero_name_display
+                    cfg_copy = copy.deepcopy(cfg_copy)
+                    self.custom_heroes[idx] = cfg_copy
+                    self._cache_custom_hero(cfg_copy)
+                    overrides_copy = copy.deepcopy(overrides) if overrides else {}
+                    self.hero_overrides[idx] = overrides_copy
+                    self._cache_overrides(hero_name_display, overrides_copy)
+                    self._add_custom_option(name)
+                combo = hero_combos[idx - 1]
+                # ``setCurrentText`` emits ``currentTextChanged`` which would in
+                # turn invoke ``_hero_selected`` and clear any overrides.  Block
+                # signals while populating and explicitly update the info labels
+                # afterwards.
+                self._hero_names[idx] = hero_name_display
+                block = combo.blockSignals(True)
+                combo.setCurrentText(hero_name_display)
+                combo.blockSignals(block)
 
-            raw_gear_cfg: dict[str, Any] = {}
-            if isinstance(hero_cfg, dict):
-                if isinstance(hero_cfg.get("gear_ids"), dict):
-                    raw_gear_cfg = dict(hero_cfg.get("gear_ids", {}))
-                elif isinstance(hero_cfg.get("gear"), dict):
-                    raw_gear_cfg = dict(hero_cfg.get("gear", {}))
-            normalized_slots: dict[str, str] = {}
-            for slot_key, raw_value in raw_gear_cfg.items():
-                slot_name = normalize_gear_slot(slot_key)
-                if not slot_name:
-                    continue
-                gear_def = resolve_gear(raw_value)
-                if not gear_def or gear_def.slot != slot_name:
-                    continue
-                normalized_slots[slot_name] = gear_def.id
-            if normalized_slots:
-                gear_map[idx] = normalized_slots
-        self._set_gear_config(gear_map)
+                plugin_ids_cfg = hero_cfg.get("plugin_skill_ids")
+                plugin_counts_cfg = hero_cfg.get("plugin_star_counts")
+                if plugin_ids_cfg is not None:
+                    self._set_plugin_loadout(
+                        idx, plugin_ids_cfg, plugin_counts_cfg, update_ui=False
+                    )
 
-        for idx, combo in enumerate(hero_combos, start=1):
-            self._hero_selected(idx, combo.currentText())
+                self._hero_selected(idx, hero_name_display)
 
-        self._restore_star_counts(cfg.get("heroes"))
+                raw_gear_cfg: dict[str, Any] = {}
+                if isinstance(hero_cfg, dict):
+                    if isinstance(hero_cfg.get("gear_ids"), dict):
+                        raw_gear_cfg = dict(hero_cfg.get("gear_ids", {}))
+                    elif isinstance(hero_cfg.get("gear"), dict):
+                        raw_gear_cfg = dict(hero_cfg.get("gear", {}))
+                normalized_slots: dict[str, str] = {}
+                for slot_key, raw_value in raw_gear_cfg.items():
+                    slot_name = normalize_gear_slot(slot_key)
+                    if not slot_name:
+                        continue
+                    gear_def = resolve_gear(raw_value)
+                    if not gear_def or gear_def.slot != slot_name:
+                        continue
+                    normalized_slots[slot_name] = gear_def.id
+                if normalized_slots:
+                    gear_map[idx] = normalized_slots
+            self._set_gear_config(gear_map)
 
-        self._set_gem_skills(cfg.get("gem_skills"))
-        self._set_bonus_stats(cfg.get("bonus_stats"))
+            for idx, combo in enumerate(hero_combos, start=1):
+                self._hero_selected(idx, combo.currentText())
+
+            self._restore_star_counts(cfg.get("heroes"))
+
+            self._set_gem_skills(cfg.get("gem_skills"))
+            self._set_bonus_stats(cfg.get("bonus_stats"))
+            for idx in (1, 2):
+                self._capture_plugin_state(idx)
+        finally:
+            self._loading_config = False
 
     def build_config(self) -> dict:
         heroes_cfg = []
@@ -2531,6 +2736,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     # Overrides tweak preset talents/skills without requiring a
                     # separate custom hero entry.
                     cfg["skill_overrides"] = overrides
+
+                slot_loadout = self._slot_plugin_loadouts.get(idx)
+                if slot_loadout is not None:
+                    cfg["plugin_skill_ids"] = list(slot_loadout)
 
                 hero_label = self.hero1_img if idx == 1 else self.hero2_img
                 if getattr(hero_label, "_orig_image", None) is not None:
@@ -4928,6 +5137,8 @@ class MainWindow(QtWidgets.QMainWindow):
         armies_row = QtWidgets.QHBoxLayout()
         self.army1_frame = ArmyFrame(1)
         self.army2_frame = ArmyFrame(2)
+        self.army1_frame.set_peer_frames([self.army2_frame])
+        self.army2_frame.set_peer_frames([self.army1_frame])
         self.army1_frame.gear_btn.clicked.connect(
             lambda: self._open_gear_dialog(self.army1_frame)
         )
@@ -9604,6 +9815,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.worker = None
 
         setup_data = [self.army1_frame.build_config(), self.army2_frame.build_config()]
+        self._ensure_unique_army_names(setup_data)
         self._last_setup_data = [copy.deepcopy(cfg) for cfg in setup_data]
         self._last_simulation_payload = None
         runs = self.runs_spin.value()
@@ -9628,7 +9840,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.error.connect(self._sim_error)
         self.worker.finished.connect(self.worker.deleteLater)
         self.worker.start()
- 
+
+    def _ensure_unique_army_names(self, configs: list[dict[str, Any]]) -> None:
+        seen: set[str] = set()
+        frames = [self.army1_frame, self.army2_frame]
+        for cfg, frame in zip(configs, frames):
+            base_name = cfg.get("army_name") or f"Army {frame.index}"
+            candidate = base_name
+            suffix = 2
+            while candidate in seen:
+                candidate = f"{base_name} ({suffix})"
+                suffix += 1
+            seen.add(candidate)
+            if candidate != base_name:
+                cfg["army_name"] = candidate
+                if frame.name_edit.text() != candidate:
+                    frame.name_edit.setText(candidate)
+
     def _populate_round_tree(
         self, rounds: list[dict], tree: QtWidgets.QTreeWidget | None = None
     ) -> None:

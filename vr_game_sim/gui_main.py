@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import random
 import copy
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 import threading
 import math
 import json
@@ -2082,8 +2082,11 @@ class ArmyFrame(QtWidgets.QGroupBox):
         # ``hero_overrides`` so presets can be tweaked without becoming
         # custom entries.
         self.custom_heroes: dict[int, dict] = {1: None, 2: None}
+        self._custom_hero_cache: dict[str, dict] = {}
         self.hero_overrides: dict[int, dict] = {1: {}, 2: {}}
+        self._hero_override_cache: dict[str, dict] = {}
         self._hero_names: dict[int, str] = {1: "None", 2: "None"}
+        self._peer_frames: list[ArmyFrame] = []
 
         layout = QtWidgets.QGridLayout(self)
         row = 0
@@ -2258,6 +2261,37 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.hero1_combo.addItem(name)
             self.hero2_combo.addItem(name)
 
+    def set_peer_frames(self, peers: Iterable["ArmyFrame"]) -> None:
+        self._peer_frames = [p for p in peers if p is not self]
+
+    def _cache_custom_hero(self, cfg: dict | None) -> None:
+        if not cfg:
+            return
+        name = cfg.get("hero_name_or_preset")
+        if not name:
+            return
+        self._custom_hero_cache[name] = copy.deepcopy(cfg)
+
+    def _cache_overrides(self, hero_name: str, overrides: dict | None) -> None:
+        if not hero_name:
+            return
+        if overrides:
+            self._hero_override_cache[hero_name] = copy.deepcopy(overrides)
+        elif hero_name in self._hero_override_cache:
+            self._hero_override_cache.pop(hero_name, None)
+
+    def _resolve_auto_name_conflict(self, candidate: str) -> str:
+        peer_names = {peer.name_edit.text() for peer in self._peer_frames if peer}
+        if candidate not in peer_names:
+            return candidate
+        base = candidate
+        suffix = 2
+        while True:
+            unique = f"{base} ({suffix})"
+            if unique not in peer_names:
+                return unique
+            suffix += 1
+
     def edit_hero(self, slot: int) -> None:
         """Open the hero editor and persist changes.
 
@@ -2266,6 +2300,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
         """
         current_cfg = self.custom_heroes.get(slot)
         hero_name = self.hero1_combo.currentText() if slot == 1 else self.hero2_combo.currentText()
+        if current_cfg is None and hero_name not in {"None", "Custom"}:
+            cached_cfg = self._custom_hero_cache.get(hero_name)
+            if cached_cfg:
+                current_cfg = copy.deepcopy(cached_cfg)
         if current_cfg is None:
             preset = HERO_PRESETS.get(hero_name.lower())
             if preset:
@@ -2287,6 +2325,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 overrides = cfg.pop("skill_overrides", {})
                 self.hero_overrides[slot] = overrides
                 name = cfg["hero_name_or_preset"]
+                self._cache_overrides(name, overrides)
                 preset = HERO_PRESETS.get(name.lower())
                 if (
                     preset
@@ -2295,8 +2334,11 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     and preset.get("plugin_skills", []) == cfg.get("plugin_skill_ids")
                 ):
                     self.custom_heroes[slot] = None
+                    self._custom_hero_cache.pop(name, None)
                 else:
-                    self.custom_heroes[slot] = cfg
+                    cfg_copy = copy.deepcopy(cfg)
+                    self.custom_heroes[slot] = cfg_copy
+                    self._cache_custom_hero(cfg_copy)
                     self._add_custom_option(name)
                 # Update selection without losing overrides
                 self._hero_names[slot] = name
@@ -2330,12 +2372,36 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.hero2_info.setText(info)
 
         prev_name = self._hero_names.get(slot)
+        prev_cfg = self.custom_heroes.get(slot)
+        changed = prev_name != name
+        if changed and prev_cfg and prev_cfg.get("hero_name_or_preset"):
+            self._cache_custom_hero(prev_cfg)
+        if changed and prev_name not in {None, "", "None", "Custom"}:
+            prev_overrides = self.hero_overrides.get(slot)
+            if prev_overrides:
+                self._cache_overrides(prev_name, prev_overrides)
+            else:
+                self._cache_overrides(prev_name, None)
+        if changed:
+            if name not in {"None", "Custom"}:
+                overrides = copy.deepcopy(self._hero_override_cache.get(name, {}))
+            else:
+                overrides = {}
+            self.hero_overrides[slot] = overrides
+            self._user_named = False
         cfg = self.custom_heroes.get(slot)
-        if prev_name != name:
-            # Changing heroes discards any overrides from the previous selection.
-            self.hero_overrides[slot] = {}
-            if cfg and cfg.get("hero_name_or_preset") != name and name not in {"None", "Custom"}:
+        if not cfg or cfg.get("hero_name_or_preset") != name:
+            if name not in {"None", "Custom"}:
+                cached_cfg = self._custom_hero_cache.get(name)
+                if cached_cfg:
+                    cfg = copy.deepcopy(cached_cfg)
+                    self.custom_heroes[slot] = cfg
+                else:
+                    self.custom_heroes[slot] = None
+                    cfg = None
+            else:
                 self.custom_heroes[slot] = None
+                cfg = None
         self._hero_names[slot] = name
 
         if name in {"None", ""} and self._hero_gear.get(slot):
@@ -2395,7 +2461,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
             if hero2 in {"", "None"}:
                 hero2 = "None"
             new_name = f"{hero1}/{hero2}"
-        self.name_edit.setText(new_name)
+        unique_name = self._resolve_auto_name_conflict(new_name)
+        if self.name_edit.text() != unique_name:
+            self.name_edit.setText(unique_name)
 
     def _unit_changed(self, unit: str) -> None:
         """Update the troop type icon when unit selection changes."""
@@ -2448,6 +2516,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.custom_heroes[idx] = None
             self.hero_overrides[idx] = {}
             self._hero_names[idx] = "None"
+        self._custom_hero_cache.clear()
+        self._hero_override_cache.clear()
         self._hero_gear = {1: {}, 2: {}}
         self._update_gear_button()
         gear_map: dict[int, dict[str, str]] = {1: {}, 2: {}}
@@ -2464,11 +2534,20 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 and preset.get("plugin_skills") == hero_cfg.get("plugin_skill_ids")
             ):
                 hero_name_display = name.capitalize()
-                self.hero_overrides[idx] = overrides
+                overrides_copy = copy.deepcopy(overrides) if overrides else {}
+                self.hero_overrides[idx] = overrides_copy
+                self._cache_overrides(hero_name_display, overrides_copy)
             else:
                 hero_name_display = name
-                self.custom_heroes[idx] = {k: v for k, v in hero_cfg.items() if k != "skill_overrides"}
-                self.hero_overrides[idx] = overrides
+                cfg_copy = {k: v for k, v in hero_cfg.items() if k != "skill_overrides"}
+                if hero_name_display and cfg_copy.get("hero_name_or_preset") != hero_name_display:
+                    cfg_copy["hero_name_or_preset"] = hero_name_display
+                cfg_copy = copy.deepcopy(cfg_copy)
+                self.custom_heroes[idx] = cfg_copy
+                self._cache_custom_hero(cfg_copy)
+                overrides_copy = copy.deepcopy(overrides) if overrides else {}
+                self.hero_overrides[idx] = overrides_copy
+                self._cache_overrides(hero_name_display, overrides_copy)
                 self._add_custom_option(name)
             combo = hero_combos[idx - 1]
             # ``setCurrentText`` emits ``currentTextChanged`` which would in
@@ -4928,6 +5007,8 @@ class MainWindow(QtWidgets.QMainWindow):
         armies_row = QtWidgets.QHBoxLayout()
         self.army1_frame = ArmyFrame(1)
         self.army2_frame = ArmyFrame(2)
+        self.army1_frame.set_peer_frames([self.army2_frame])
+        self.army2_frame.set_peer_frames([self.army1_frame])
         self.army1_frame.gear_btn.clicked.connect(
             lambda: self._open_gear_dialog(self.army1_frame)
         )
@@ -9604,6 +9685,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.worker = None
 
         setup_data = [self.army1_frame.build_config(), self.army2_frame.build_config()]
+        self._ensure_unique_army_names(setup_data)
         self._last_setup_data = [copy.deepcopy(cfg) for cfg in setup_data]
         self._last_simulation_payload = None
         runs = self.runs_spin.value()
@@ -9628,7 +9710,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.error.connect(self._sim_error)
         self.worker.finished.connect(self.worker.deleteLater)
         self.worker.start()
- 
+
+    def _ensure_unique_army_names(self, configs: list[dict[str, Any]]) -> None:
+        seen: set[str] = set()
+        frames = [self.army1_frame, self.army2_frame]
+        for cfg, frame in zip(configs, frames):
+            base_name = cfg.get("army_name") or f"Army {frame.index}"
+            candidate = base_name
+            suffix = 2
+            while candidate in seen:
+                candidate = f"{base_name} ({suffix})"
+                suffix += 1
+            seen.add(candidate)
+            if candidate != base_name:
+                cfg["army_name"] = candidate
+                if frame.name_edit.text() != candidate:
+                    frame.name_edit.setText(candidate)
+
     def _populate_round_tree(
         self, rounds: list[dict], tree: QtWidgets.QTreeWidget | None = None
     ) -> None:

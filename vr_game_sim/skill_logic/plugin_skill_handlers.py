@@ -2506,8 +2506,9 @@ def handle_plugin_this_too_shall_pass(
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
+    round_number = _get_army_round(triggering_army, simulator)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    if not (round_number == 1 or (round_number > 1 and (round_number - 1) % trigger_interval == 0)):
         return False, []
 
     skill_id = skill_def["id"]

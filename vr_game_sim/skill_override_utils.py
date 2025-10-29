@@ -5,6 +5,9 @@ from enum import Enum
 from typing import Any
 
 
+TRUNCATE_LIST_SENTINEL = "__truncate__"
+
+
 def _values_equal(a: Any, b: Any) -> bool:
     if isinstance(a, (int, float)) and isinstance(b, (int, float)):
         return math.isclose(float(a), float(b), rel_tol=1e-9, abs_tol=1e-9)
@@ -35,9 +38,9 @@ def diff_structures(base: Any, modified: Any) -> Any | None:
                 diff[key] = sanitize_for_json(sub_diff)
         return diff or None
     if isinstance(base, list) and isinstance(modified, list):
+        diff_map: dict[Any, Any] = {}
         if len(modified) < len(base):
-            return sanitize_for_json(modified)
-        diff_map: dict[int, Any] = {}
+            diff_map[TRUNCATE_LIST_SENTINEL] = len(modified)
         max_len = max(len(base), len(modified))
         for index in range(max_len):
             in_modified = index < len(modified)

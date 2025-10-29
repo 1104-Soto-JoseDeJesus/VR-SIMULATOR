@@ -1,6 +1,6 @@
 # === File: skill_definitions.py ===
 import copy
-from typing import Dict, Any
+from typing import Any, Dict, List
 from .enums import (
     EffectType,
     SkillTriggerType,
@@ -4698,14 +4698,41 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
 }
 
 
+def _apply_list_overrides(base_list: List[Any], overrides: Dict[Any, Any]) -> None:
+    for raw_idx, override_val in overrides.items():
+        try:
+            idx = int(raw_idx)
+        except (TypeError, ValueError):
+            continue
+        if idx < 0:
+            continue
+        if idx < len(base_list):
+            base_item = base_list[idx]
+            if isinstance(override_val, dict):
+                if isinstance(base_item, dict):
+                    _apply_overrides(base_item, override_val)
+                elif isinstance(base_item, list):
+                    _apply_list_overrides(base_item, override_val)
+                else:
+                    base_list[idx] = override_val
+            else:
+                base_list[idx] = override_val
+        else:
+            while len(base_list) < idx:
+                base_list.append(None)
+            base_list.append(override_val)
+
+
 def _apply_overrides(base: Dict[str, Any], overrides: Dict[str, Any]) -> None:
     """Recursively apply ``overrides`` into ``base`` in-place."""
     for key, val in overrides.items():
-        if (
-            isinstance(val, dict)
-            and isinstance(base.get(key), dict)
-        ):
-            _apply_overrides(base[key], val)
+        base_value = base.get(key)
+        if isinstance(base_value, dict) and isinstance(val, dict):
+            _apply_overrides(base_value, val)
+        elif isinstance(base_value, list) and isinstance(val, dict):
+            _apply_list_overrides(base_value, val)
+        elif isinstance(base_value, list) and isinstance(val, list):
+            base[key] = val
         else:
             base[key] = val
 

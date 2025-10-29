@@ -1357,6 +1357,40 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
                 setting_key = f"{unit_type}_{key}"
                 spin.setValue(settings[setting_key] * 100.0)
 
+    def _gather_settings(self) -> dict[str, float]:
+        values: dict[str, float] = {}
+        for unit_type, spins in self._type_setting_spins.items():
+            for key, spin in spins.items():
+                setting_key = f"{unit_type}_{key}"
+                values[setting_key] = spin.value() / 100.0
+        return values
+
+    def _apply_session(self) -> None:
+        settings = self._gather_settings()
+        dynamic_unrevivable_config.apply_session_settings(settings)
+        self._status.setText(
+            "Session overrides applied. These values reset on restart."
+        )
+        self.settings_applied.emit()
+
+    def _save_universal(self) -> None:
+        try:
+            dynamic_unrevivable_config.save_universal_settings(
+                self._gather_settings()
+            )
+        except OSError as exc:
+            QtWidgets.QMessageBox.critical(self, "Save Failed", str(exc))
+            return
+        self._status.setText("Universal overrides saved to disk.")
+        self._load_current_settings()
+        self.settings_applied.emit()
+
+    def _reset_defaults(self) -> None:
+        dynamic_unrevivable_config.reset_to_defaults()
+        self._load_current_settings()
+        self._status.setText("Dynamic ratios reset to defaults.")
+        self.settings_applied.emit()
+
 
 class TroopScalarDialog(QtWidgets.QDialog):
     """Dialog for adjusting the global troop scalar multiplier."""
@@ -1442,38 +1476,6 @@ class TroopScalarDialog(QtWidgets.QDialog):
         self._emit_multiplier(value)
         self.accept()
         self._status.clear()
-
-    def _gather_settings(self) -> dict[str, float]:
-        values: dict[str, float] = {}
-        for unit_type, spins in self._type_setting_spins.items():
-            for key, spin in spins.items():
-                setting_key = f"{unit_type}_{key}"
-                values[setting_key] = spin.value() / 100.0
-        return values
-
-    def _apply_session(self) -> None:
-        settings = self._gather_settings()
-        dynamic_unrevivable_config.apply_session_settings(settings)
-        self._status.setText("Session overrides applied. These values reset on restart.")
-        self.settings_applied.emit()
-
-    def _save_universal(self) -> None:
-        try:
-            dynamic_unrevivable_config.save_universal_settings(
-                self._gather_settings()
-            )
-        except OSError as exc:
-            QtWidgets.QMessageBox.critical(self, "Save Failed", str(exc))
-            return
-        self._status.setText("Universal overrides saved to disk.")
-        self._load_current_settings()
-        self.settings_applied.emit()
-
-    def _reset_defaults(self) -> None:
-        dynamic_unrevivable_config.reset_to_defaults()
-        self._load_current_settings()
-        self._status.setText("Dynamic ratios reset to defaults.")
-        self.settings_applied.emit()
 
 PathComponent = str | int
 

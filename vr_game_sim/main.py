@@ -45,6 +45,7 @@ from vr_game_sim.skill_definitions import (
     SKILL_REGISTRY_GLOBAL,
     build_skill_registry_with_overrides,
 )
+from vr_game_sim import troop_scalar_config
 
 # --- Configuration for Save/Load ---
 SETUPS_DIR = "setups"
@@ -243,6 +244,8 @@ def _run_single_battle(
     setup_data: List[Dict[str, Any]],
     seed: int | None = None,
     dynamic_settings: Dict[str, float] | None = None,
+    *,
+    troop_scalar_multiplier: float | None = None,
     return_report: bool = False,
 ) -> tuple:
     """Helper to run a single battle.
@@ -275,6 +278,13 @@ def _run_single_battle(
     if dynamic_settings is not None:
         dynamic_unrevivable_config.apply_session_settings(dynamic_settings)
 
+    session_multiplier = (
+        troop_scalar_config.get_multiplier()
+        if troop_scalar_multiplier is None
+        else troop_scalar_multiplier
+    )
+    troop_scalar_config.set_session_multiplier(session_multiplier)
+
     armies = create_armies_from_data(setup_data)
     sim = GameSimulator(armies[0], armies[1], track_stats=return_report)
     with contextlib.redirect_stdout(io.StringIO()):
@@ -294,6 +304,20 @@ def _run_single_battle(
         report_text = sim.report_builder.get_report_text()
         return (*result, report_text)
     return result
+
+
+def _run_single_battle_with_multiplier(
+    setup_data: List[Dict[str, Any]],
+    seed: int | None,
+    dynamic_settings: Dict[str, float] | None,
+    troop_scalar_multiplier: float,
+) -> tuple:
+    return _run_single_battle(
+        setup_data,
+        seed=seed,
+        dynamic_settings=dynamic_settings,
+        troop_scalar_multiplier=troop_scalar_multiplier,
+    )
 
 
 def run_additional_simulations(
@@ -320,6 +344,7 @@ def run_additional_simulations(
 
     dynamic_settings = dynamic_unrevivable_config.get_settings()
     dynamic_settings_payload = dict(dynamic_settings)
+    current_multiplier = troop_scalar_config.get_multiplier()
 
     own_remaining: List[float] = []
     enemy_remaining: List[float] = []
@@ -344,8 +369,13 @@ def run_additional_simulations(
             max_workers=num_workers, mp_context=multiprocessing.get_context("spawn")
         ) as ex:
             settings_iter = repeat(dynamic_settings_payload, runs)
+            multiplier_iter = repeat(current_multiplier, runs)
             results_iter = ex.map(
-                _run_single_battle, worker_inputs, seeds, settings_iter
+                _run_single_battle_with_multiplier,
+                worker_inputs,
+                seeds,
+                settings_iter,
+                multiplier_iter,
             )
             completed = 0
             for own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev in results_iter:
@@ -363,7 +393,10 @@ def run_additional_simulations(
     else:
         for i, seed_val in enumerate(seeds):
             own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev = _run_single_battle(
-                setup_data, seed=seed_val, dynamic_settings=dynamic_settings_payload
+                setup_data,
+                seed=seed_val,
+                dynamic_settings=dynamic_settings_payload,
+                troop_scalar_multiplier=current_multiplier,
             )
             own_remaining.append(own)
             enemy_remaining.append(enemy)
@@ -421,6 +454,7 @@ def run_additional_simulations(
                 else 0.0
             ),
             "dynamic_settings": dict(dynamic_settings_payload),
+            "troop_scalar_multiplier": current_multiplier,
         }
 
     if generate_histograms:
@@ -907,6 +941,7 @@ if __name__ == "__main__":
                 loaded,
                 seed=best_match["seed"],
                 dynamic_settings=best_match.get("dynamic_settings"),
+                troop_scalar_multiplier=best_match.get("troop_scalar_multiplier"),
                 return_report=True,
             )
             print(report_text)
@@ -1019,6 +1054,7 @@ if __name__ == "__main__":
                 setup_snapshot,
                 seed=best_match["seed"],
                 dynamic_settings=best_match.get("dynamic_settings"),
+                troop_scalar_multiplier=best_match.get("troop_scalar_multiplier"),
                 return_report=True,
             )
             print(report_text)

@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from vr_game_sim.main import _run_single_battle, run_additional_simulations
+from vr_game_sim import troop_scalar_config
 
 
 SEED_SEQUENCE = [
@@ -21,6 +22,7 @@ SETUP_PATH = (
     Path(__file__).resolve().parent.parent / "setups" / "1v1" / "CHECK.json"
 )
 SETUP_DATA = json.loads(SETUP_PATH.read_text(encoding="utf-8"))
+troop_scalar_config.set_session_multiplier(1.0)
 RESULTS = [_run_single_battle(SETUP_DATA, seed=s) for s in SEED_SEQUENCE]
 
 
@@ -73,6 +75,9 @@ def test_seed_selection_prefers_army1(monkeypatch: pytest.MonkeyPatch) -> None:
     assert best_match["seed"] == SEED_SEQUENCE[expected_idx]
     assert best_match["army1_remaining"] == pytest.approx(RESULTS[expected_idx][0])
     assert best_match["army2_remaining"] == pytest.approx(RESULTS[expected_idx][1])
+    assert best_match["troop_scalar_multiplier"] == pytest.approx(
+        troop_scalar_config.get_multiplier()
+    )
 
     selected_delta = abs(best_match["army1_remaining"] - target_remaining)
     for idx, result in enumerate(RESULTS[:RUNS]):
@@ -100,6 +105,9 @@ def test_seed_selection_prefers_army2(monkeypatch: pytest.MonkeyPatch) -> None:
     assert best_match["seed"] == SEED_SEQUENCE[expected_idx]
     assert best_match["army1_remaining"] == pytest.approx(RESULTS[expected_idx][0])
     assert best_match["army2_remaining"] == pytest.approx(RESULTS[expected_idx][1])
+    assert best_match["troop_scalar_multiplier"] == pytest.approx(
+        troop_scalar_config.get_multiplier()
+    )
 
     selected_delta = abs(best_match["army2_remaining"] - target_remaining)
     for idx, result in enumerate(RESULTS[:RUNS]):
@@ -115,3 +123,32 @@ def test_report_summary_includes_unrevivable() -> None:
     summary_lines = report_text.strip().splitlines()[-2:]
     assert len(summary_lines) == 2
     assert all("Unrevivable" in line for line in summary_lines)
+
+
+def test_cli_replay_respects_multiplier(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_randrange(monkeypatch, SEED_SEQUENCE.copy())
+    custom_multiplier = 1.3
+    troop_scalar_config.set_session_multiplier(custom_multiplier)
+
+    _, best_match = run_additional_simulations(
+        SETUP_DATA,
+        runs=2,
+        generate_histograms=False,
+        verbose=False,
+        num_workers=1,
+    )
+
+    assert best_match is not None
+    assert best_match["troop_scalar_multiplier"] == pytest.approx(custom_multiplier)
+
+    replay = _run_single_battle(
+        SETUP_DATA,
+        seed=best_match["seed"],
+        dynamic_settings=best_match.get("dynamic_settings"),
+        troop_scalar_multiplier=best_match.get("troop_scalar_multiplier"),
+    )
+
+    assert replay[0] == pytest.approx(best_match["army1_remaining"])
+    assert replay[1] == pytest.approx(best_match["army2_remaining"])
+
+    troop_scalar_config.set_session_multiplier(1.0)

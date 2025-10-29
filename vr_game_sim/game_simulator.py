@@ -27,6 +27,7 @@ from .dynamic_unrevivable_config import (
     get_type_settings as get_dynamic_unrevivable_type_settings,
 )
 from .report_builder import ReportBuilder
+from . import troop_scalar_config
 from colorama import Fore
 
 
@@ -37,15 +38,29 @@ class GameSimulator:
     @lru_cache(maxsize=None)
     def troop_scalar(T: float) -> float:
         # This function calculates a scalar based on troop count.
-        if T <= 0: return 0.0
-        if 1 <= T <= 100: return math.exp(-0.02426063 * (math.log(T) ** 2) + 0.53658754 * math.log(T) + 5.87457112)
-        if 100 < T <= 1000: return 327.53303836 * (T ** 0.45412486)
-        if 1000 < T <= 10000: return 315.16611724 * (T ** 0.45876193)
-        if 10000 < T <= 100000: return 0.74904783 * T + 14066.58867
-        if 100000 < T <= 300000: return 0.20527127 * T + 68444.33684
-        if 300000 < T <= 2000000: return 0.20528 * T + 68452
-        if 2000000 < T: return 0.20527905760055395 * T + 68453.884798892
-        return T
+        if T <= 0:
+            base_scalar = 0.0
+        elif 1 <= T <= 100:
+            base_scalar = math.exp(
+                -0.02426063 * (math.log(T) ** 2)
+                + 0.53658754 * math.log(T)
+                + 5.87457112
+            )
+        elif 100 < T <= 1000:
+            base_scalar = 327.53303836 * (T ** 0.45412486)
+        elif 1000 < T <= 10000:
+            base_scalar = 315.16611724 * (T ** 0.45876193)
+        elif 10000 < T <= 100000:
+            base_scalar = 0.74904783 * T + 14066.58867
+        elif 100000 < T <= 300000:
+            base_scalar = 0.20527127 * T + 68444.33684
+        elif 300000 < T <= 2000000:
+            base_scalar = 0.20528 * T + 68452
+        elif 2000000 < T:
+            base_scalar = 0.20527905760055395 * T + 68453.884798892
+        else:
+            base_scalar = T
+        return base_scalar * troop_scalar_config.get_multiplier()
 
     @staticmethod
     def advantage_adjust(attacker_unit: Unit, defender_unit: Unit) -> float:

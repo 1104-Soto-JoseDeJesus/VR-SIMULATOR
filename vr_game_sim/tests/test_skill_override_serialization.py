@@ -6,7 +6,10 @@ from vr_game_sim.skill_definitions import (
     SKILL_REGISTRY_GLOBAL,
     build_skill_registry_with_overrides,
 )
-from vr_game_sim.skill_override_utils import diff_structures
+from vr_game_sim.skill_override_utils import (
+    TRUNCATE_LIST_SENTINEL,
+    diff_structures,
+)
 
 
 def test_plugin_skill_override_list_serializes(tmp_path):
@@ -59,4 +62,26 @@ def test_diff_structures_handles_list_shrink():
 
     diff = diff_structures(base, modified)
 
-    assert diff == modified
+    assert diff == {TRUNCATE_LIST_SENTINEL: len(modified)}
+
+
+def test_build_skill_registry_handles_truncated_effect_list():
+    base_definition = copy.deepcopy(SKILL_REGISTRY_GLOBAL["talent_divine_resistance"])
+    modified_definition = copy.deepcopy(base_definition)
+    modified_definition["effects_to_apply"].pop()
+
+    overrides = diff_structures(base_definition, modified_definition)
+    assert overrides is not None
+    effects_override = overrides["effects_to_apply"]
+    assert effects_override[TRUNCATE_LIST_SENTINEL] == len(
+        modified_definition["effects_to_apply"]
+    )
+
+    registry = build_skill_registry_with_overrides({"talent_divine_resistance": overrides})
+    applied_effects = registry["talent_divine_resistance"]["effects_to_apply"]
+
+    assert len(applied_effects) == len(modified_definition["effects_to_apply"])
+    assert isinstance(
+        applied_effects[0]["effect_type"],
+        type(base_definition["effects_to_apply"][0]["effect_type"]),
+    )

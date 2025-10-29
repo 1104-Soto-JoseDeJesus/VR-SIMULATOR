@@ -1,6 +1,7 @@
 # === File: skill_definitions.py ===
 import copy
 from typing import Any, Dict, List
+from .skill_override_utils import TRUNCATE_LIST_SENTINEL
 from .enums import (
     EffectType,
     SkillTriggerType,
@@ -4699,7 +4700,19 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
 
 
 def _apply_list_overrides(base_list: List[Any], overrides: Dict[Any, Any]) -> None:
+    trim_to = overrides.get(TRUNCATE_LIST_SENTINEL)
+    if trim_to is not None:
+        try:
+            trim_len = int(trim_to)
+        except (TypeError, ValueError):
+            trim_len = None
+        if trim_len is not None and trim_len >= 0:
+            while len(base_list) > trim_len:
+                base_list.pop()
+
     for raw_idx, override_val in overrides.items():
+        if raw_idx == TRUNCATE_LIST_SENTINEL:
+            continue
         try:
             idx = int(raw_idx)
         except (TypeError, ValueError):

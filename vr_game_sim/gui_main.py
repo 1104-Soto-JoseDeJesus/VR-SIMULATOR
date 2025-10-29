@@ -49,6 +49,7 @@ from vr_game_sim.main import (
     save_army_to_file,
     load_army_from_file,
     HISTOGRAM_BG_COLOR,
+    SeedTarget,
 )
 from vr_game_sim import dynamic_unrevivable_config, troop_scalar_config
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
@@ -419,11 +420,12 @@ class SeedOutcomeDialog(QtWidgets.QDialog):
         parent: QtWidgets.QWidget | None,
         army1_name: str,
         army2_name: str,
-        current: dict[str, int] | None,
+        current: SeedTarget | None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Select Seed Outcome")
-        self._target: dict[str, int] | None = current
+        current_data: SeedTarget = dict(current) if current else {}
+        self._target: SeedTarget | None = current_data or None
 
         layout = QtWidgets.QVBoxLayout(self)
 
@@ -447,15 +449,41 @@ class SeedOutcomeDialog(QtWidgets.QDialog):
         self.remaining_spin = ThousandSepSpinBox(self)
         self.remaining_spin.setRange(0, 2_000_000)
         self.remaining_spin.setSingleStep(1_000)
+        remaining_default = current_data.get("remaining")
         self.remaining_spin.setValue(
-            current["remaining"] if current else 50_000
+            int(remaining_default) if isinstance(remaining_default, (int, float)) else 50_000
         )
 
         form = QtWidgets.QFormLayout()
         form.addRow("Remaining troops:", self.remaining_spin)
+
+        self.round_checkbox = QtWidgets.QCheckBox("Match rounds")
+        form.addRow(self.round_checkbox)
+
+        self.rounds_spin = QtWidgets.QSpinBox(self)
+        self.rounds_spin.setRange(1, 10_000)
+        rounds_default = current_data.get("rounds")
+        self.rounds_spin.setValue(
+            int(rounds_default) if isinstance(rounds_default, (int, float)) else 100
+        )
+        form.addRow("Target rounds:", self.rounds_spin)
+
+        self.round_tolerance_spin = QtWidgets.QSpinBox(self)
+        self.round_tolerance_spin.setRange(0, 10_000)
+        tolerance_default = current_data.get("round_tolerance")
+        self.round_tolerance_spin.setValue(
+            int(tolerance_default) if isinstance(tolerance_default, (int, float)) else 0
+        )
+        form.addRow("± range:", self.round_tolerance_spin)
+
+        self.round_checkbox.toggled.connect(self._on_round_toggle)
+        self.round_checkbox.setChecked(
+            bool(isinstance(rounds_default, (int, float)))
+        )
+        self._on_round_toggle(self.round_checkbox.isChecked())
         layout.addLayout(form)
 
-        if current and current.get("winner") == 2:
+        if current_data.get("winner") == 2:
             self.army2_radio.setChecked(True)
         else:
             self.army1_radio.setChecked(True)
@@ -473,17 +501,27 @@ class SeedOutcomeDialog(QtWidgets.QDialog):
 
     def _on_accept(self) -> None:
         winner = 1 if self.army1_radio.isChecked() else 2
-        self._target = {"winner": winner, "remaining": int(self.remaining_spin.value())}
+        target: SeedTarget = {}
+        target["winner"] = int(winner)
+        target["remaining"] = int(self.remaining_spin.value())
+        if self.round_checkbox.isChecked():
+            target["rounds"] = int(self.rounds_spin.value())
+            target["round_tolerance"] = int(self.round_tolerance_spin.value())
+        self._target = target
         self.accept()
 
     def _clear(self) -> None:
         self._target = None
         self.accept()
 
-    def target(self) -> dict[str, int] | None:
+    def target(self) -> SeedTarget | None:
         """Return the selected outcome or ``None`` if cleared."""
 
         return self._target
+
+    def _on_round_toggle(self, checked: bool) -> None:
+        self.rounds_spin.setEnabled(checked)
+        self.round_tolerance_spin.setEnabled(checked)
 
 
 class StarredImageLabel(QtWidgets.QLabel):
@@ -3953,14 +3991,14 @@ class SimulationWorker(QtCore.QThread):
         setup_data: list[dict],
         runs: int,
         num_workers: int,
-        seed_target: dict[str, int] | None = None,
+        seed_target: SeedTarget | None = None,
         dynamic_settings: dict[str, float] | None = None,
     ) -> None:
         super().__init__()
         self.setup_data = setup_data
         self.runs = runs
         self.num_workers = num_workers
-        self.seed_target = seed_target
+        self.seed_target = dict(seed_target) if seed_target else None
         self._cancelled = threading.Event()
         self.dynamic_settings = dict(dynamic_settings) if dynamic_settings else None
         self.win_rate: float | None = None
@@ -5127,7 +5165,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Battle Simulator")
-        self.seed_target: dict[str, int] | None = None
+        self.seed_target: SeedTarget | None = None
         self.seed_display: QtWidgets.QLabel | None = None
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
         self._troop_scalar_multiplier = troop_scalar_config.get_multiplier()
@@ -5579,7 +5617,8 @@ class MainWindow(QtWidgets.QMainWindow):
         army2_name = self.army2_frame.name_edit.text() or "Army 2"
         dlg = SeedOutcomeDialog(self, army1_name, army2_name, self.seed_target)
         if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-            self.seed_target = dlg.target()
+            target = dlg.target()
+            self.seed_target = dict(target) if target else None
             self._update_seed_display()
 
     def _update_seed_display(self) -> None:
@@ -5593,7 +5632,17 @@ class MainWindow(QtWidgets.QMainWindow):
         winner = self.seed_target.get("winner", 1)
         remaining = int(self.seed_target.get("remaining", 0))
         formatted = f"{remaining:,}".replace(",", "\u202f")
-        self.seed_display.setText(f"Seed: Army\u202f{winner}, {formatted}")
+        display = f"Seed: Army\u202f{winner}, {formatted}"
+        rounds_val = self.seed_target.get("rounds")
+        if isinstance(rounds_val, (int, float)):
+            rounds_int = int(round(float(rounds_val)))
+            tolerance_val = self.seed_target.get("round_tolerance", 0)
+            tolerance_int = int(round(float(tolerance_val))) if tolerance_val is not None else 0
+            if tolerance_int > 0:
+                display += f" (Rounds: {rounds_int}\u00a0\u00b1\u00a0{tolerance_int})"
+            else:
+                display += f" (Rounds: {rounds_int})"
+        self.seed_display.setText(display)
 
     def _init_status_controls(self, main_layout: QtWidgets.QVBoxLayout) -> None:
         """Create status label, progress bar and run options."""

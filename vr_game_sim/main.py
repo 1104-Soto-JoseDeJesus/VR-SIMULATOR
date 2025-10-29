@@ -5,7 +5,7 @@ import copy
 import os
 import argparse
 import sys
-from typing import List, Optional, Dict, Any, Callable
+from typing import List, Optional, Dict, Any, Callable, TypedDict
 import contextlib
 import io
 import math
@@ -46,6 +46,15 @@ from vr_game_sim.skill_definitions import (
     build_skill_registry_with_overrides,
 )
 from vr_game_sim import troop_scalar_config
+
+
+class SeedTarget(TypedDict, total=False):
+    """User-selected target outcome parameters for seed replay."""
+
+    winner: int
+    remaining: int
+    rounds: int
+    round_tolerance: int
 
 # --- Configuration for Save/Load ---
 SETUPS_DIR = "setups"
@@ -328,7 +337,7 @@ def run_additional_simulations(
     verbose: bool = True,
     num_workers: int = 1,
     progress_callback: Optional[Callable[[int, int], None]] = None,
-    target_outcome: Optional[Dict[str, int]] = None,
+    target_outcome: Optional[SeedTarget] = None,
 ) -> tuple[float, Optional[Dict[str, Any]]]:
     """Runs extra simulations and computes summary statistics.
 
@@ -418,17 +427,51 @@ def run_additional_simulations(
         if target_outcome:
             desired_winner = target_outcome.get("winner")
             desired_remaining = target_outcome.get("remaining")
-            if desired_winner in (1, 2) and desired_remaining is not None:
-                remaining_target = float(desired_remaining)
-                candidates: list[tuple[int, float]] = []
+            desired_rounds = target_outcome.get("rounds")
+            tolerance_raw = target_outcome.get("round_tolerance", 0)
+            tolerance = int(tolerance_raw) if tolerance_raw is not None else 0
+            if desired_winner in (1, 2):
+                remaining_target = (
+                    float(desired_remaining) if desired_remaining is not None else None
+                )
+                winner_candidates: list[tuple[int, float, int | None]] = []
                 for idx, winner in enumerate(winners):
                     if winner != desired_winner:
                         continue
                     own_val, enemy_val = battle_results[idx]
                     remaining = own_val if desired_winner == 1 else enemy_val
-                    candidates.append((idx, abs(float(remaining) - remaining_target)))
-                if candidates:
-                    best_idx = min(candidates, key=lambda item: (item[1], item[0]))[0]
+                    remaining_delta = (
+                        abs(float(remaining) - remaining_target)
+                        if remaining_target is not None
+                        else 0.0
+                    )
+                    round_val = rounds_taken[idx] if idx < len(rounds_taken) else None
+                    winner_candidates.append((idx, remaining_delta, round_val))
+
+                if desired_rounds is not None:
+                    in_window: list[tuple[int, float, float]] = []
+                    for idx, remaining_delta, round_val in winner_candidates:
+                        if round_val is None:
+                            continue
+                        round_delta = abs(int(round_val) - int(desired_rounds))
+                        if round_delta <= tolerance:
+                            in_window.append((idx, float(round_delta), remaining_delta))
+                    if in_window:
+                        best_idx = min(
+                            in_window, key=lambda item: (item[1], item[2], item[0])
+                        )[0]
+                    elif desired_remaining is not None and winner_candidates:
+                        best_idx = min(
+                            winner_candidates, key=lambda item: (item[1], item[0])
+                        )[0]
+                    elif winner_candidates:
+                        best_idx = min(winner_candidates, key=lambda item: item[0])[0]
+                elif desired_remaining is not None and winner_candidates:
+                    best_idx = min(
+                        winner_candidates, key=lambda item: (item[1], item[0])
+                    )[0]
+                elif winner_candidates:
+                    best_idx = min(winner_candidates, key=lambda item: item[0])[0]
         if best_idx is None and own_remaining and enemy_remaining:
             best_idx = min(
                 range(len(battle_results)),
@@ -455,6 +498,9 @@ def run_additional_simulations(
             ),
             "dynamic_settings": dict(dynamic_settings_payload),
             "troop_scalar_multiplier": current_multiplier,
+            "round_count": (
+                int(rounds_taken[best_idx]) if best_idx < len(rounds_taken) else None
+            ),
         }
 
     if generate_histograms:

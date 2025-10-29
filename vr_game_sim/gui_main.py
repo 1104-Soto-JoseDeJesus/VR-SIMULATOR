@@ -50,7 +50,7 @@ from vr_game_sim.main import (
     load_army_from_file,
     HISTOGRAM_BG_COLOR,
 )
-from vr_game_sim import dynamic_unrevivable_config
+from vr_game_sim import dynamic_unrevivable_config, troop_scalar_config
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.metadata_loader import get_skill_description
 from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
@@ -1318,6 +1318,91 @@ class DynamicUnrevivableDialog(QtWidgets.QDialog):
             for key, spin in spins.items():
                 setting_key = f"{unit_type}_{key}"
                 spin.setValue(settings[setting_key] * 100.0)
+
+
+class TroopScalarDialog(QtWidgets.QDialog):
+    """Dialog for adjusting the global troop scalar multiplier."""
+
+    multiplier_applied = QtCore.pyqtSignal(float)
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Troop Scalar Multiplier")
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        description = QtWidgets.QLabel(
+            "Adjust the multiplier applied to troop-based calculations."
+        )
+        description.setWordWrap(True)
+        layout.addWidget(description)
+
+        self._spin = QtWidgets.QDoubleSpinBox()
+        self._spin.setRange(0.0, 1000.0)
+        self._spin.setDecimals(3)
+        self._spin.setSingleStep(0.05)
+        self._spin.setValue(troop_scalar_config.get_multiplier())
+        layout.addWidget(self._spin)
+
+        self._status = QtWidgets.QLabel("")
+        self._status.setWordWrap(True)
+        layout.addWidget(self._status)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        layout.addLayout(btn_row)
+
+        session_btn = QtWidgets.QPushButton("Session Apply")
+        session_btn.clicked.connect(self._apply_session)
+        btn_row.addWidget(session_btn)
+
+        save_btn = QtWidgets.QPushButton("Save")
+        save_btn.clicked.connect(self._save_and_close)
+        btn_row.addWidget(save_btn)
+
+        reset_btn = QtWidgets.QPushButton("Reset to Default")
+        reset_btn.clicked.connect(self._reset_to_default)
+        btn_row.addWidget(reset_btn)
+
+        btn_row.addStretch(1)
+
+        close_btn = QtWidgets.QPushButton("Close")
+        close_btn.clicked.connect(self.reject)
+        layout.addWidget(close_btn, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+
+    def _set_status(self, message: str, *, error: bool = False) -> None:
+        color = "#ff6666" if error else "#66ff99"
+        self._status.setStyleSheet(f"color: {color};")
+        self._status.setText(message)
+
+    def _emit_multiplier(self, value: float) -> None:
+        self.multiplier_applied.emit(float(value))
+
+    def _apply_session(self) -> None:
+        try:
+            value = troop_scalar_config.set_session_multiplier(self._spin.value())
+        except ValueError as exc:  # pragma: no cover - GUI feedback
+            self._set_status(str(exc), error=True)
+            return
+        self._set_status(f"Session multiplier set to {value:.3f}")
+        self._emit_multiplier(value)
+
+    def _save_and_close(self) -> None:
+        try:
+            value = troop_scalar_config.save_multiplier(self._spin.value())
+        except ValueError as exc:  # pragma: no cover - GUI feedback
+            self._set_status(str(exc), error=True)
+            return
+        self._set_status(f"Multiplier saved at {value:.3f}")
+        self._spin.setValue(value)
+        self._emit_multiplier(value)
+        self.accept()
+
+    def _reset_to_default(self) -> None:
+        value = troop_scalar_config.reset_to_default()
+        self._spin.setValue(value)
+        self._set_status("Multiplier reset to default")
+        self._emit_multiplier(value)
+        self.accept()
         self._status.clear()
 
     def _gather_settings(self) -> dict[str, float]:
@@ -3924,6 +4009,13 @@ class SimulationWorker(QtCore.QThread):
                 dynamic_unrevivable_config.apply_session_settings(active_settings)
                 self.dynamic_settings = dict(active_settings)
 
+            multiplier = None
+            if best_match:
+                multiplier = best_match.get("troop_scalar_multiplier")
+            if multiplier is None:
+                multiplier = troop_scalar_config.get_multiplier()
+            troop_scalar_config.set_session_multiplier(float(multiplier))
+
             armies = create_armies_from_data(self.setup_data)
             if self._cancelled.is_set():
                 raise RuntimeError("cancelled")
@@ -5038,6 +5130,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.seed_target: dict[str, int] | None = None
         self.seed_display: QtWidgets.QLabel | None = None
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
+        self._troop_scalar_multiplier = troop_scalar_config.get_multiplier()
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
         self.pdf_layout = load_pdf_layout()
@@ -5061,8 +5154,17 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg.settings_applied.connect(self._on_dynamic_unrevivable_settings_changed)
         dlg.exec()
 
+    def open_troop_scalar_tool(self) -> None:
+        """Open the troop scalar multiplier configuration dialog."""
+        dlg = TroopScalarDialog(self)
+        dlg.multiplier_applied.connect(self._on_troop_scalar_multiplier_changed)
+        dlg.exec()
+
     def _on_dynamic_unrevivable_settings_changed(self) -> None:
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
+
+    def _on_troop_scalar_multiplier_changed(self, value: float) -> None:
+        self._troop_scalar_multiplier = float(value)
 
     def _open_gear_dialog(self, frame: ArmyFrame) -> None:
         hero_names = [frame.hero1_combo.currentText(), frame.hero2_combo.currentText()]
@@ -5116,6 +5218,8 @@ class MainWindow(QtWidgets.QMainWindow):
         pdf_action.triggered.connect(self.open_pdf_layout_tool)
         dynamic_action = dbg_menu.addAction("Dynamic Unrevivable…")
         dynamic_action.triggered.connect(self.open_dynamic_unrevivable_tool)
+        troop_scalar_action = dbg_menu.addAction("Change Troop Scalar…")
+        troop_scalar_action.triggered.connect(self.open_troop_scalar_tool)
         star_action = dbg_menu.addAction("Star Layout")
         star_action.triggered.connect(self.open_star_overlay_tuner)
         debug_btn.setMenu(dbg_menu)

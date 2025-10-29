@@ -3,7 +3,7 @@ import pytest
 from vr_game_sim.army_composition import Army
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.game_simulator import GameSimulator
-from vr_game_sim import dynamic_unrevivable_config
+from vr_game_sim import dynamic_unrevivable_config, troop_scalar_config
 from vr_game_sim.main import run_additional_simulations
 
 def _create_dynamic_armies():
@@ -242,15 +242,17 @@ def test_run_additional_simulations_propagates_dynamic_settings(monkeypatch: pyt
     }
     dynamic_unrevivable_config.apply_session_settings(override)
 
-    captured: list[dict | None] = []
+    captured: list[tuple[dict | None, float | None]] = []
 
     def fake_run_single_battle(
         setup: list[dict],
         seed: int | None = None,
         dynamic_settings: dict | None = None,
+        *,
+        troop_scalar_multiplier: float | None = None,
         return_report: bool = False,
     ):
-        captured.append(dynamic_settings)
+        captured.append((dynamic_settings, troop_scalar_multiplier))
         base_result = (0, 0, 1, 0, 0, 0, 0)
         if return_report:
             return (*base_result, "report")
@@ -299,6 +301,7 @@ def test_run_additional_simulations_propagates_dynamic_settings(monkeypatch: pyt
     ]
 
     captured.clear()
+    troop_scalar_config.set_session_multiplier(1.0)
     _, best_match = run_additional_simulations(
         setup_data,
         runs=2,
@@ -306,13 +309,18 @@ def test_run_additional_simulations_propagates_dynamic_settings(monkeypatch: pyt
         verbose=False,
         num_workers=1,
     )
-    assert captured and all(isinstance(item, dict) for item in captured)
+    assert captured and all(isinstance(item[0], dict) for item in captured)
     expected_settings = dynamic_unrevivable_config.get_settings()
-    for entry in captured:
-        assert entry == expected_settings
-    assert best_match and best_match.get("dynamic_settings") == expected_settings
+    expected_multiplier = troop_scalar_config.get_multiplier()
+    for settings, multiplier in captured:
+        assert settings == expected_settings
+        assert multiplier == pytest.approx(expected_multiplier)
+    assert best_match
+    assert best_match.get("dynamic_settings") == expected_settings
+    assert best_match.get("troop_scalar_multiplier") == pytest.approx(expected_multiplier)
 
     captured.clear()
+    troop_scalar_config.set_session_multiplier(1.0)
     _, best_match = run_additional_simulations(
         setup_data,
         runs=2,
@@ -321,6 +329,9 @@ def test_run_additional_simulations_propagates_dynamic_settings(monkeypatch: pyt
         num_workers=2,
     )
     assert len(captured) == 2
-    for entry in captured:
-        assert entry == expected_settings
-    assert best_match and best_match.get("dynamic_settings") == expected_settings
+    for settings, multiplier in captured:
+        assert settings == expected_settings
+        assert multiplier == pytest.approx(expected_multiplier)
+    assert best_match
+    assert best_match.get("dynamic_settings") == expected_settings
+    assert best_match.get("troop_scalar_multiplier") == pytest.approx(expected_multiplier)

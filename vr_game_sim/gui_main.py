@@ -60,6 +60,7 @@ from vr_game_sim.navmesh import NavMesh
 from itertools import zip_longest
 
 from vr_game_sim.gui.arena_stats import ArenaStatsHeader, ArenaStatsRow
+from vr_game_sim.skill_override_utils import diff_structures
 
 
 BONUS_TROOP_TYPES = ("pikemen", "archers", "infantry")
@@ -1525,9 +1526,24 @@ class SkillParamEditor(QtWidgets.QWidget):
                         continue
                     walk(sub_value, next_path, ov_dict.get(key))
             elif isinstance(value, list):
-                ov_list = override_value if isinstance(override_value, list) else []
+                overrides_map: dict[int, Any] = {}
+                if isinstance(override_value, list):
+                    overrides_map = {
+                        idx: override_value[idx]
+                        for idx in range(len(override_value))
+                        if idx < len(value)
+                    }
+                elif isinstance(override_value, dict):
+                    for raw_idx, ov_item in override_value.items():
+                        try:
+                            idx = int(raw_idx)
+                        except (TypeError, ValueError):
+                            continue
+                        if idx < 0 or idx >= len(value):
+                            continue
+                        overrides_map[idx] = ov_item
                 for index, item in enumerate(value):
-                    override_item = ov_list[index] if index < len(ov_list) else None
+                    override_item = overrides_map.get(index)
                     walk(item, path + (index,), override_item)
             else:
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -1618,30 +1634,7 @@ class SkillParamEditor(QtWidgets.QWidget):
 
     @classmethod
     def _diff_structures(cls, base: Any, modified: Any) -> Any | None:
-        if isinstance(base, dict) and isinstance(modified, dict):
-            diff: dict[str, Any] = {}
-            for key, mod_value in modified.items():
-                if key not in base:
-                    diff[key] = copy.deepcopy(mod_value)
-                    continue
-                sub_diff = cls._diff_structures(base[key], mod_value)
-                if sub_diff is not None:
-                    diff[key] = sub_diff
-            return diff or None
-        if isinstance(base, list) and isinstance(modified, list):
-            if len(base) != len(modified):
-                return copy.deepcopy(modified)
-            lists_equal = True
-            for b_item, m_item in zip(base, modified):
-                if cls._diff_structures(b_item, m_item) is not None:
-                    lists_equal = False
-                    break
-            if lists_equal:
-                return None
-            return copy.deepcopy(modified)
-        if cls._values_equal(base, modified):
-            return None
-        return modified
+        return diff_structures(base, modified)
 
 
 class BonusStatsDialog(QtWidgets.QDialog):

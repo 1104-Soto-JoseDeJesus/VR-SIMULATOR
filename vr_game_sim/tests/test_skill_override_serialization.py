@@ -51,3 +51,12 @@ def test_plugin_skill_override_list_serializes(tmp_path):
     applied = registry["plugin_divine_shield"]["effects_to_apply"][0]
     assert applied["magnitude"] == new_magnitude
     assert applied["effect_type"] == base_definition["effects_to_apply"][0]["effect_type"]
+
+
+def test_diff_structures_handles_list_shrink():
+    base = [1, 2, 3]
+    modified = [1, 2]
+
+    diff = diff_structures(base, modified)
+
+    assert diff == modified

@@ -52,6 +52,22 @@ def _expected_best_index(winner: int, target: int) -> int:
     return min(candidates, key=lambda item: (item[1], item[0]))[0]
 
 
+def _expected_round_index(
+    winner: int, target_remaining: int, target_round: int, tolerance: int
+) -> int:
+    candidates: list[tuple[int, int, float]] = []
+    for idx, result in enumerate(RESULTS[:RUNS]):
+        if result[4] != winner:
+            continue
+        round_delta = abs(int(result[2]) - target_round)
+        if round_delta > tolerance:
+            continue
+        remaining = result[0] if winner == 1 else result[1]
+        candidates.append((idx, round_delta, abs(float(remaining) - target_remaining)))
+    assert candidates, "Expected at least one candidate within the requested round window"
+    return min(candidates, key=lambda item: (item[1], item[2], item[0]))[0]
+
+
 def test_seed_selection_prefers_army1(monkeypatch: pytest.MonkeyPatch) -> None:
     _patch_randrange(monkeypatch, SEED_SEQUENCE.copy())
     target_remaining = 50_000
@@ -78,6 +94,7 @@ def test_seed_selection_prefers_army1(monkeypatch: pytest.MonkeyPatch) -> None:
     assert best_match["troop_scalar_multiplier"] == pytest.approx(
         troop_scalar_config.get_multiplier()
     )
+    assert best_match["round_count"] == int(RESULTS[expected_idx][2])
 
     selected_delta = abs(best_match["army1_remaining"] - target_remaining)
     for idx, result in enumerate(RESULTS[:RUNS]):
@@ -108,6 +125,7 @@ def test_seed_selection_prefers_army2(monkeypatch: pytest.MonkeyPatch) -> None:
     assert best_match["troop_scalar_multiplier"] == pytest.approx(
         troop_scalar_config.get_multiplier()
     )
+    assert best_match["round_count"] == int(RESULTS[expected_idx][2])
 
     selected_delta = abs(best_match["army2_remaining"] - target_remaining)
     for idx, result in enumerate(RESULTS[:RUNS]):
@@ -152,3 +170,53 @@ def test_cli_replay_respects_multiplier(monkeypatch: pytest.MonkeyPatch) -> None
     assert replay[1] == pytest.approx(best_match["army2_remaining"])
 
     troop_scalar_config.set_session_multiplier(1.0)
+
+
+def test_seed_selection_prefers_round_window(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_randrange(monkeypatch, SEED_SEQUENCE.copy())
+    target_remaining = 50_000
+    target_round = 110
+    tolerance = 1
+    expected_idx = _expected_round_index(1, target_remaining, target_round, tolerance)
+
+    _, best_match = run_additional_simulations(
+        SETUP_DATA,
+        runs=RUNS,
+        generate_histograms=False,
+        verbose=False,
+        num_workers=1,
+        target_outcome={
+            "winner": 1,
+            "remaining": target_remaining,
+            "rounds": target_round,
+            "round_tolerance": tolerance,
+        },
+    )
+
+    assert best_match is not None
+    assert best_match["seed"] == SEED_SEQUENCE[expected_idx]
+    assert best_match["round_count"] == int(RESULTS[expected_idx][2])
+
+
+def test_seed_selection_round_window_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_randrange(monkeypatch, SEED_SEQUENCE.copy())
+    target_remaining = 50_000
+    expected_idx = _expected_best_index(1, target_remaining)
+
+    _, best_match = run_additional_simulations(
+        SETUP_DATA,
+        runs=RUNS,
+        generate_histograms=False,
+        verbose=False,
+        num_workers=1,
+        target_outcome={
+            "winner": 1,
+            "remaining": target_remaining,
+            "rounds": 20,
+            "round_tolerance": 1,
+        },
+    )
+
+    assert best_match is not None
+    assert best_match["seed"] == SEED_SEQUENCE[expected_idx]
+    assert best_match["round_count"] == int(RESULTS[expected_idx][2])

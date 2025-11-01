@@ -4,6 +4,7 @@ from typing import List, Optional, Dict, Tuple, Any
 from .enums import SkillType
 from .unit_definition import Unit
 from .hero_definition import Hero, HERO_PRESETS  # HERO_PRESETS is imported here
+from .army_composition import normalize_mount_skill_id
 from .skill_system import SkillDefinition
 
 
@@ -250,4 +251,63 @@ def setup_hero_interactive(hero_index: int, army_name_for_hero_setup: str,
     final_plugin_skills = [ps_id for ps_id in plugin_skills if ps_id and ps_id.lower() not in ["none", "blank"]]
 
     return Hero(hero_name_input.capitalize(), final_talents, final_base_skills, final_plugin_skills, skill_registry)
+
+
+def select_mount_skills_interactive(
+    hero_names: List[str],
+    unit_type: str,
+    skill_registry: Dict[str, SkillDefinition],
+) -> Dict[str, List[str]]:
+    """Interactive prompt allowing mount skill selection for each hero slot."""
+
+    options_by_slot: Dict[int, List[Tuple[str, str]]] = {}
+    for skill_id, skill_def in skill_registry.items():
+        if not isinstance(skill_def, dict) or skill_def.get("type") != SkillType.MOUNT_SKILL:
+            continue
+        config = skill_def.get("config", {})
+        slot = config.get("slot")
+        if slot not in (1, 2):
+            continue
+        troop_types = config.get("troop_types")
+        if troop_types and unit_type and unit_type not in troop_types:
+            continue
+        name = skill_def.get("name", skill_id)
+        options_by_slot.setdefault(int(slot), []).append((name, skill_id))
+    for option_list in options_by_slot.values():
+        option_list.sort(key=lambda pair: pair[0])
+
+    selections: Dict[str, List[str]] = {}
+    for hero_idx, hero_name in enumerate(hero_names, start=1):
+        if not hero_name or hero_name.lower() == "none":
+            continue
+        print(f"\n  --- Mount Skills for Hero {hero_idx} ({hero_name}) ---")
+        for slot_idx in (1, 2):
+            options = options_by_slot.get(slot_idx, [])
+            if not options:
+                print(f"    Slot {slot_idx}: no mount skills available for {unit_type} troops.")
+                continue
+            print(f"    Slot {slot_idx} options:")
+            for idx, (display_name, skill_id) in enumerate(options, start=1):
+                print(f"      [{idx}] {display_name} (ID: {skill_id})")
+            while True:
+                choice = input(
+                    "    Enter number or skill ID for this slot (blank to skip): "
+                ).strip()
+                if not choice:
+                    break
+                selected_id: str | None = None
+                if choice.isdigit():
+                    num = int(choice)
+                    if 1 <= num <= len(options):
+                        selected_id = options[num - 1][1]
+                else:
+                    normalized = normalize_mount_skill_id(choice)
+                    if normalized and any(normalized == opt[1] for opt in options):
+                        selected_id = normalized
+                if selected_id:
+                    key = f"hero{hero_idx}_slot{slot_idx}"
+                    selections.setdefault(key, []).append(selected_id)
+                    break
+                print("      Invalid selection. Please enter a listed number or valid skill ID.")
+    return selections
 

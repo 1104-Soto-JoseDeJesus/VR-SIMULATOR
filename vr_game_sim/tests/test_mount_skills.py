@@ -14,7 +14,7 @@ except ImportError:  # pragma: no cover - optional dependency
     ArmyFrame = None  # type: ignore[assignment]
 
 from vr_game_sim.army_composition import Army
-from vr_game_sim.enums import SkillTriggerType, StatType
+from vr_game_sim.enums import EffectType, SkillTriggerType, StatType
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.main import create_armies_from_data
@@ -41,6 +41,13 @@ def _prepare_for_trigger(army: Army, opponent: Army) -> None:
     army.army_round = 1
     opponent.army_round = 1
     opponent.pending_hp_damage_this_round = 0.0
+    army.pending_hp_damage_this_round = 0.0
+    army.rage_added_this_round = 0.0
+    opponent.rage_added_this_round = 0.0
+    army.current_rage = 0.0
+    opponent.current_rage = 0.0
+    army.mount_rage_grants_this_round.clear()
+    opponent.mount_rage_grants_this_round.clear()
 
 
 def test_mount_buff_stacking_keeps_highest_magnitude():
@@ -120,6 +127,137 @@ def test_mount_direct_damage_skills_both_trigger():
 
     assert triggered_ids == expected_ids
     assert opponent.pending_hp_damage_this_round > 0
+
+
+def test_mount_passive_applied_once():
+    army = _create_army("Sigma")
+    opponent = _create_army("Tau")
+    army.set_mount_skills({"slot1_primary": ["mount_command_crippling_strike"]})
+    simulator = GameSimulator(army, opponent, track_stats=False)
+
+    _prepare_for_trigger(army, opponent)
+
+    for _ in range(2):
+        simulator._process_skill_triggers(
+            army,
+            opponent,
+            SkillTriggerType.CHANCE_PER_ROUND,
+            event_data={
+                "opponent_for_shield_calc": opponent,
+                "direct_target_army": opponent,
+            },
+        )
+        army.activate_queued_effects()
+        army.triggered_skills_this_round.clear()
+        army.skill_trigger_counts_this_round.clear()
+
+    passive_effects = [
+        eff
+        for eff in army.active_effects
+        if eff.effect_type == EffectType.STAT_MOD
+        and eff.config.get("mount_metadata", {}).get("stat_key")
+        == StatType.COMMAND_SKILL_CRIT_RATE.value
+    ]
+
+    assert len(passive_effects) == 1
+    assert passive_effects[0].magnitude == pytest.approx(0.02)
+
+
+def test_duplicate_mount_skill_instances_trigger_per_slot():
+    army = _create_army("Omega")
+    opponent = _create_army("Kappa")
+    army.set_mount_skills(
+        {
+            "hero1_slot1": "mount_command_crippling_strike",
+            "hero2_slot1": "mount_command_crippling_strike",
+        }
+    )
+    simulator = GameSimulator(army, opponent, track_stats=False)
+
+    _prepare_for_trigger(army, opponent)
+
+    simulator._process_skill_triggers(
+        army,
+        opponent,
+        SkillTriggerType.CHANCE_PER_ROUND,
+        event_data={
+            "opponent_for_shield_calc": opponent,
+            "direct_target_army": opponent,
+        },
+    )
+
+    assert army.skill_trigger_counts.get("mount_command_crippling_strike") == 2
+    assert {
+        key for key in army.triggered_skills_this_round if "mount_command_crippling_strike" in key
+    } == {
+        "mount_command_crippling_strike|hero1_slot1",
+        "mount_command_crippling_strike|hero2_slot1",
+    }
+
+
+def test_mount_buff_dedup_across_heroes():
+    army = _create_army("Iota")
+    opponent = _create_army("Theta")
+    army.set_mount_skills(
+        {
+            "hero1_slot2": "mount_command_lava_beast",
+            "hero2_slot2": "mount_command_ravens_breath",
+        }
+    )
+    simulator = GameSimulator(army, opponent, track_stats=False)
+
+    _prepare_for_trigger(army, opponent)
+
+    simulator._process_skill_triggers(
+        army,
+        opponent,
+        SkillTriggerType.CHANCE_PER_ROUND,
+        event_data={
+            "opponent_for_shield_calc": opponent,
+            "direct_target_army": opponent,
+        },
+    )
+    army.activate_queued_effects()
+
+    relevant_effects = [
+        eff
+        for eff in army.active_effects
+        if eff.config.get("mount_metadata")
+        and eff.config["mount_metadata"].get("stat_key") == StatType.GENERAL_DAMAGE_MODIFIER.value
+    ]
+
+    assert len(relevant_effects) == 1
+    assert relevant_effects[0].magnitude == pytest.approx(0.25)
+    meta = relevant_effects[0].config.get("mount_metadata", {})
+    assert meta.get("slot") == 2
+
+
+def test_mount_rage_gain_deduplicated():
+    army = _create_army("Lambda")
+    opponent = _create_army("Mu")
+    army.set_mount_skills(
+        {
+            "hero1_slot1": "mount_command_untamed_wilderness",
+            "hero2_slot1": "mount_command_untamed_wilderness",
+        }
+    )
+    simulator = GameSimulator(army, opponent, track_stats=False)
+
+    _prepare_for_trigger(army, opponent)
+
+    simulator._process_skill_triggers(
+        army,
+        opponent,
+        SkillTriggerType.CHANCE_PER_ROUND,
+        event_data={
+            "opponent_for_shield_calc": opponent,
+            "direct_target_army": opponent,
+        },
+    )
+
+    assert army.skill_trigger_counts.get("mount_command_untamed_wilderness") == 2
+    assert army.rage_added_this_round == pytest.approx(40.0)
+    assert army.current_rage == pytest.approx(40.0)
 
 
 @pytest.mark.skipif(QtWidgets is None or ArmyFrame is None, reason="PyQt6 not available")

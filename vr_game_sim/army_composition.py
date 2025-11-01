@@ -4,7 +4,7 @@ import math
 import copy
 import re
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any, Tuple, Set, Iterable
+from typing import List, Optional, Dict, Any, Tuple, Set, Iterable, Union
 
 from .enums import EffectType, SkillTriggerType, StatType, DoTType, SkillType
 from .unit_definition import Unit
@@ -103,6 +103,10 @@ class Army:
     gem_skills: List[SkillDefinition] = field(init=False, default_factory=list)
     mount_skill_ids: Dict[str, List[str]] = field(default_factory=dict)
     mount_skills: List[SkillDefinition] = field(init=False, default_factory=list)
+    mount_passives_applied: Set[str] = field(init=False, default_factory=set)
+    mount_rage_grants_this_round: Dict[Tuple[str, str], float] = field(
+        init=False, default_factory=dict
+    )
     simulator: Optional[GameSimulatorRef] = field(init=False, default=None)
     simulators: List[GameSimulatorRef] = field(init=False, default_factory=list)
     army_round: int = field(init=False, default=0)
@@ -318,6 +322,38 @@ class Army:
                     slot = int(match.group(1))
         return {"slot": slot, "hero_index": hero_index, "slot_key": slot_key}
 
+    def get_mount_slot_key(self, metadata: Dict[str, Any]) -> str:
+        slot_key = metadata.get("slot_key")
+        if isinstance(slot_key, str) and slot_key:
+            return slot_key
+        slot = metadata.get("slot")
+        hero_index = metadata.get("hero_index")
+        if slot is not None and hero_index is not None:
+            return f"hero{int(hero_index) + 1}_slot{slot}"
+        if slot is not None:
+            return f"slot{slot}"
+        if hero_index is not None:
+            return f"hero{int(hero_index) + 1}"
+        return "mount_default"
+
+    def get_skill_trigger_key(self, skill_def: Union[SkillDefinition, str]) -> str:
+        if isinstance(skill_def, dict):
+            skill_id = str(skill_def.get("id", ""))
+            config = skill_def.get("config", {}) if isinstance(skill_def.get("config"), dict) else {}
+        else:
+            skill_id = str(skill_def)
+            config = {}
+
+        if not config:
+            return skill_id
+
+        mount_meta = config.get("mount_metadata") or {}
+        if not isinstance(mount_meta, dict) or not mount_meta:
+            return skill_id
+
+        slot_key = self.get_mount_slot_key(mount_meta)
+        return f"{skill_id}|{slot_key}"
+
     def _annotate_mount_effect(
         self, effect: Dict[str, Any], metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -417,16 +453,17 @@ class Army:
         }:
             return True
 
-        slot = metadata.get("slot")
-        if slot is None:
+        slot_value: Any = metadata.get("slot")
+        if slot_value is None:
+            slot_value = metadata.get("slot_key")
+        if slot_value is None:
             return True
 
         stat_key = metadata.get("stat_key")
         if not stat_key:
             return True
 
-        hero_index = metadata.get("hero_index")
-        key = (slot, hero_index, target_army.name, stat_key, effect_type)
+        key = (slot_value, target_army.name, stat_key, effect_type)
         new_abs = abs(float(magnitude))
         containers = [
             target_army.active_effects,
@@ -438,9 +475,11 @@ class Army:
                 eff_meta = effect.config.get("mount_metadata") if effect.config else None
                 if not eff_meta:
                     continue
+                existing_slot_value: Any = eff_meta.get("slot")
+                if existing_slot_value is None:
+                    existing_slot_value = eff_meta.get("slot_key")
                 existing_key = (
-                    eff_meta.get("slot"),
-                    eff_meta.get("hero_index"),
+                    existing_slot_value,
                     eff_meta.get("target_name"),
                     eff_meta.get("stat_key"),
                     effect.effect_type,
@@ -484,6 +523,7 @@ class Army:
                     if normalized_id:
                         normalized.setdefault(slot_key, []).append(normalized_id)
         self.mount_skill_ids = normalized
+        self.mount_passives_applied.clear()
         self._reload_mount_skills()
 
     def _apply_initial_passive_skills(
@@ -1705,6 +1745,8 @@ class Army:
         self.simulator = None
         self.simulators.clear()
         self._reload_gem_skills()
+        self.mount_passives_applied.clear()
+        self.mount_rage_grants_this_round.clear()
         self._reload_mount_skills()
         self.current_troop_count = float(self.unit.initial_count)
         self.active_effects.clear()

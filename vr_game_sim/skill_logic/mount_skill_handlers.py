@@ -111,15 +111,65 @@ def _apply_heals(
 def _apply_rage_gain(
     *,
     triggering_army: ArmyRef,
+    target_army: ArmyRef,
     rage_amount: float,
     skill_id: str,
+    mount_metadata: Optional[Dict[str, Any]] = None,
 ) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
     if rage_amount <= 0:
         return False, []
-    gained = triggering_army.add_rage(rage_amount, source_skill_id=skill_id)
+    metadata = mount_metadata or {}
+    rage_to_award = float(rage_amount)
+    if metadata:
+        slot_identifier: Any = metadata.get("slot")
+        if slot_identifier is None:
+            slot_identifier = triggering_army.get_mount_slot_key(metadata)
+        target_name = target_army.name if target_army else triggering_army.name
+        key = (str(slot_identifier), target_name)
+        existing = triggering_army.mount_rage_grants_this_round.get(key)
+        if existing is not None:
+            if existing >= rage_amount - 1e-9:
+                return False, []
+            rage_to_award = rage_amount - existing
+        triggering_army.mount_rage_grants_this_round[key] = max(
+            existing or 0.0, float(rage_amount)
+        )
+
+    if rage_to_award <= 0:
+        return False, []
+
+    gained = target_army.add_rage(rage_to_award, source_skill_id=skill_id)
     if gained <= 0:
         return False, []
     return True, [(f"Grants {gained:.0f} Rage.", None)]
+
+
+def _apply_passive_effects_once(
+    *,
+    triggering_army: ArmyRef,
+    opponent_army: ArmyRef,
+    skill_def: SkillDefinition,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    passive_effects = skill_def.get("effects_to_apply")
+    if not passive_effects:
+        return False, []
+
+    passive_key = triggering_army.get_skill_trigger_key(skill_def)
+    if passive_key in triggering_army.mount_passives_applied:
+        return False, []
+
+    triggered, logs = _apply_effects(
+        source_army=triggering_army,
+        target_army=triggering_army,
+        opponent_for_calc=opponent_army,
+        skill_id=skill_def["id"],
+        effects=passive_effects,
+    )
+
+    if triggered:
+        triggering_army.mount_passives_applied.add(passive_key)
+
+    return triggered, logs
 
 
 def handle_mount_command_skill(
@@ -133,6 +183,8 @@ def handle_mount_command_skill(
     calc_target = opponent_army
     if event_data and event_data.get("actual_opponent_for_calc"):
         calc_target = event_data["actual_opponent_for_calc"]
+
+    mount_metadata = config.get("mount_metadata") or {}
 
     damage_factors = [float(x) for x in config.get("damage_factors", []) if x]
     heal_factors = [float(x) for x in config.get("heal_factors", []) if x]
@@ -189,12 +241,23 @@ def handle_mount_command_skill(
 
     rage_triggered, rage_logs = _apply_rage_gain(
         triggering_army=triggering_army,
+        target_army=triggering_army,
         rage_amount=rage_gain,
         skill_id=skill_def["id"],
+        mount_metadata=mount_metadata,
     )
     if rage_triggered:
         triggered = True
     logs.extend(rage_logs)
+
+    passive_triggered, passive_logs = _apply_passive_effects_once(
+        triggering_army=triggering_army,
+        opponent_army=opponent_army,
+        skill_def=skill_def,
+    )
+    if passive_triggered:
+        triggered = True
+    logs.extend(passive_logs)
 
     return triggered, logs
 
@@ -211,6 +274,8 @@ def handle_mount_cooperation_skill(
     if event_data and event_data.get("actual_opponent_for_calc"):
         calc_target = event_data["actual_opponent_for_calc"]
 
+    mount_metadata = config.get("mount_metadata") or {}
+
     damage_factors = [float(x) for x in config.get("damage_factors", []) if x]
     heal_factors = [float(x) for x in config.get("heal_factors", []) if x]
     self_effects = config.get("self_effects") or []
@@ -266,12 +331,23 @@ def handle_mount_cooperation_skill(
 
     rage_triggered, rage_logs = _apply_rage_gain(
         triggering_army=triggering_army,
+        target_army=triggering_army,
         rage_amount=rage_gain,
         skill_id=skill_def["id"],
+        mount_metadata=mount_metadata,
     )
     if rage_triggered:
         triggered = True
     logs.extend(rage_logs)
+
+    passive_triggered, passive_logs = _apply_passive_effects_once(
+        triggering_army=triggering_army,
+        opponent_army=opponent_army,
+        skill_def=skill_def,
+    )
+    if passive_triggered:
+        triggered = True
+    logs.extend(passive_logs)
 
     return triggered, logs
 
@@ -293,6 +369,8 @@ def handle_mount_reactive_skill(
     if allowed_sources and trigger_type not in allowed_sources:
         return False, []
 
+    mount_metadata = config.get("mount_metadata") or {}
+
     damage_factors = [float(x) for x in config.get("damage_factors", []) if x]
     heal_factors = [float(x) for x in config.get("heal_factors", []) if x]
     self_effects = config.get("self_effects") or []
@@ -348,11 +426,22 @@ def handle_mount_reactive_skill(
 
     rage_triggered, rage_logs = _apply_rage_gain(
         triggering_army=triggering_army,
+        target_army=triggering_army,
         rage_amount=rage_gain,
         skill_id=skill_def["id"],
+        mount_metadata=mount_metadata,
     )
     if rage_triggered:
         triggered = True
     logs.extend(rage_logs)
+
+    passive_triggered, passive_logs = _apply_passive_effects_once(
+        triggering_army=triggering_army,
+        opponent_army=opponent_army,
+        skill_def=skill_def,
+    )
+    if passive_triggered:
+        triggered = True
+    logs.extend(passive_logs)
 
     return triggered, logs

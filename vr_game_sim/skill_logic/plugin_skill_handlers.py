@@ -198,7 +198,8 @@ def handle_plugin_chance_of_reversal(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
-    if skill_id in triggering_army.triggered_skills_this_round:
+    trigger_key = triggering_army.get_skill_trigger_key(skill_def)
+    if trigger_key in triggering_army.triggered_skills_this_round:
         return False, []
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
@@ -226,8 +227,8 @@ def handle_plugin_chance_of_reversal(
         if created:
             an_effect_happened = True
             log_details.append((f"Gains {rage_gain:.0f} rage next round.", None))
-    if an_effect_happened:
-        triggering_army.triggered_skills_this_round.append(skill_id)
+    if an_effect_happened and trigger_key not in triggering_army.triggered_skills_this_round:
+        triggering_army.triggered_skills_this_round.append(trigger_key)
     return an_effect_happened, log_details
 
 

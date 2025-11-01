@@ -516,6 +516,7 @@ class BattlefieldEngine:
                 army.triggered_skills_this_round.clear()
                 army.skill_trigger_counts_this_round.clear()
                 army.skill_triggers_against_this_round.clear()
+                army.mount_rage_grants_this_round.clear()
                 if ctx.last_engaged_time > 0 and not ctx.idle_reset_done:
                     army.active_effects.clear()
                     army.upcoming_effects.clear()
@@ -831,6 +832,7 @@ class BattlefieldEngine:
             army.base_rage_awarded_this_round = False
             army.army_used_rage_skill_this_round_for_rage_gain_block = False
             army.hero1_rage_skill_cast_blocked_by_silence_this_round = False
+            army.mount_rage_grants_this_round.clear()
             army.kills_dealt_this_round = 0.0
             army.damage_contributors_this_round = {}
             army.damage_contributors_by_skill_this_round = {}

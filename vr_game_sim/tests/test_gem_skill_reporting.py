@@ -335,6 +335,108 @@ def test_export_summary_handles_list_gem_skill(tmp_path, monkeypatch):
     window.close()
 
 
+def test_export_summary_includes_mount_skills(tmp_path, monkeypatch):
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
+
+    try:
+        from PyQt6 import QtWidgets
+    except ImportError:
+        pytest.skip("PyQt6 is required for this test")
+
+    _app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    window = gui_main.MainWindow()
+
+    setup_cfg = {
+        "army_name": "ExportArmy",
+        "unit_type": "infantry",
+        "tier": 5,
+        "count": 100,
+        "atk_mod": 0.0,
+        "def_mod": 0.0,
+        "hp_mod": 0.0,
+        "heroes": [
+            {
+                "hero_name_or_preset": "HeroOne",
+                "mount_skill_ids": {"1": "mount_command_bone_spurs"},
+                "mount_skill_overrides": {
+                    "1": {"config": {"self_effects": {"0": {"magnitude": 0.42}}}}
+                },
+            },
+            {
+                "hero_name_or_preset": "HeroTwo",
+                "mount_skill_ids": {"1": "mount_command_crippling_strike"},
+                "mount_skill_overrides": {
+                    "1": {
+                        "config": {
+                            "interval_seconds": 9,
+                            "damage_factors": {"0": 960},
+                        }
+                    }
+                },
+            },
+        ],
+    }
+
+    summary_entry = {
+        "initial": 100,
+        "remaining": 80,
+        "healed": 20,
+        "kills": 30,
+        "hero_names": ["HeroOne", "HeroTwo"],
+        "skills": [[], []],
+    }
+
+    window._last_simulation_payload = {
+        "setup": [setup_cfg],
+        "army_names": ["ExportArmy", "Opponent"],
+        "summary": [summary_entry],
+        "win_rate": 0.5,
+        "runs": 10,
+        "histograms": [],
+        "generated_at": 123.0,
+    }
+
+    save_path = tmp_path / "mount-skills.html"
+
+    monkeypatch.setattr(
+        gui_main.QtWidgets.QFileDialog,
+        "getSaveFileName",
+        lambda *args, **kwargs: (str(save_path), "HTML Files (*.html)"),
+    )
+    monkeypatch.setattr(gui_main.QtWidgets.QMessageBox, "warning", lambda *a, **k: None)
+    monkeypatch.setattr(gui_main.QtWidgets.QMessageBox, "critical", lambda *a, **k: None)
+
+    original_exists = gui_main.os.path.exists
+
+    def _fake_exists(path: str) -> bool:
+        if (
+            isinstance(path, str)
+            and "MountSkillsIcons" in path
+            and "Crippling-Strike-small" in path
+        ):
+            return False
+        return original_exists(path)
+
+    monkeypatch.setattr(gui_main.os.path, "exists", _fake_exists)
+
+    window.export_summary_html()
+
+    assert save_path.exists()
+    html_content = save_path.read_text(encoding="utf-8")
+
+    assert "mount-grid" in html_content
+    assert "Bone Spurs" in html_content
+    assert "Self Buff</span><strong>+42% General Damage" in html_content
+    assert "Damage Factor</span><strong>960" in html_content
+    assert "Interval</span><strong>9s" in html_content
+    assert '<span class="mount-fallback">Crippling Strike</span>' in html_content
+    assert 'img src="data:image' in html_content
+
+    window.close()
+
+
 def test_export_summary_with_sample_sections(tmp_path, monkeypatch):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)

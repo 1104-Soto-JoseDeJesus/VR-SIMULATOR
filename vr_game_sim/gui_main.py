@@ -60,7 +60,7 @@ from vr_game_sim.navmesh import NavMesh
 from itertools import zip_longest
 
 from vr_game_sim.gui.arena_stats import ArenaStatsHeader, ArenaStatsRow
-from vr_game_sim.skill_override_utils import diff_structures
+from vr_game_sim.skill_override_utils import diff_structures, TRUNCATE_LIST_SENTINEL
 
 
 BONUS_TROOP_TYPES = ("pikemen", "archers", "infantry")
@@ -7481,6 +7481,204 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             return name, tooltip, skill_def if isinstance(skill_def, dict) else None
 
+        STAT_LABEL_OVERRIDES = {
+            "general_damage_modifier": "General Damage",
+            "damage_taken_multiplier": "Damage Taken",
+            "counter_damage_adjust": "Counterattack Damage",
+            "burn_damage_boost": "Burn Damage",
+            "poison_damage_boost": "Poison Damage",
+            "command_skill_crit_rate": "Command Skill Crit Rate",
+            "cooperation_skill_crit_rate": "Cooperation Skill Crit Rate",
+            "reactive_skill_crit_rate": "Reactive Skill Crit Rate",
+        }
+
+        def _format_number(value: Any) -> str:
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                if math.isclose(value, round(value), rel_tol=1e-9, abs_tol=1e-9):
+                    return str(int(round(value)))
+                return ("{:.2f}".format(float(value))).rstrip("0").rstrip(".")
+            return str(value)
+
+        def _format_percent_value(value: Any) -> str:
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                return str(value)
+            pct = float(value) * 100.0
+            if math.isclose(pct, round(pct), rel_tol=1e-9, abs_tol=1e-9):
+                return f"{pct:+.0f}%"
+            return f"{pct:+.1f}%"
+
+        def _format_stat_label(stat_value: Any) -> str:
+            raw = ""
+            if hasattr(stat_value, "value"):
+                raw = str(getattr(stat_value, "value"))
+            elif isinstance(stat_value, str):
+                raw = stat_value
+            elif stat_value is not None:
+                raw = str(stat_value)
+            key = raw.replace("StatType.", "").lower()
+            if key in STAT_LABEL_OVERRIDES:
+                return STAT_LABEL_OVERRIDES[key]
+            cleaned = key.replace("_", " ").strip()
+            return cleaned.title() if cleaned else "Effect"
+
+        def _format_duration_text(duration: Any) -> str:
+            if not isinstance(duration, (int, float)) or isinstance(duration, bool):
+                return ""
+            duration_val = float(duration)
+            if duration_val <= 0:
+                return " (permanent)"
+            rounds = _format_number(duration_val)
+            round_label = "round" if math.isclose(duration_val, 1.0, rel_tol=1e-9, abs_tol=1e-9) else "rounds"
+            seconds = _format_number(duration_val * 3.0)
+            return f" for {rounds} {round_label} (~{seconds}s)"
+
+        def _apply_overrides_for_display(
+            skill_def: dict[str, Any], overrides: dict[str, Any] | None
+        ) -> dict[str, Any]:
+            if not isinstance(skill_def, dict):
+                return {}
+            result = copy.deepcopy(skill_def)
+            if not isinstance(overrides, dict) or not overrides:
+                return result
+
+            def merge_dict(target: dict[str, Any], override_map: dict[str, Any]) -> None:
+                for key, value in override_map.items():
+                    if key not in target:
+                        target[key] = copy.deepcopy(value)
+                        continue
+                    current = target.get(key)
+                    if isinstance(current, dict) and isinstance(value, dict):
+                        merge_dict(current, value)
+                    elif isinstance(current, list) and isinstance(value, dict):
+                        merge_list(current, value)
+                    elif isinstance(current, list) and isinstance(value, list):
+                        target[key] = [copy.deepcopy(item) for item in value]
+                    else:
+                        target[key] = copy.deepcopy(value)
+
+            def merge_list(target_list: list[Any], override_map: dict[str, Any] | list[Any] | Any) -> None:
+                if isinstance(override_map, dict):
+                    trim_val = override_map.get(TRUNCATE_LIST_SENTINEL)
+                    if isinstance(trim_val, (int, float)) and trim_val >= 0:
+                        trim_len = int(trim_val)
+                        del target_list[trim_len:]
+                    for raw_idx, sub_val in override_map.items():
+                        if raw_idx == TRUNCATE_LIST_SENTINEL:
+                            continue
+                        try:
+                            idx = int(raw_idx)
+                        except (TypeError, ValueError):
+                            continue
+                        if idx < 0:
+                            continue
+                        while len(target_list) <= idx:
+                            target_list.append(None)
+                        existing = target_list[idx]
+                        if isinstance(existing, dict) and isinstance(sub_val, dict):
+                            merge_dict(existing, sub_val)
+                        elif isinstance(existing, list) and isinstance(sub_val, dict):
+                            merge_list(existing, sub_val)
+                        elif isinstance(existing, list) and isinstance(sub_val, list):
+                            target_list[idx] = [copy.deepcopy(item) for item in sub_val]
+                        else:
+                            target_list[idx] = copy.deepcopy(sub_val)
+                elif isinstance(override_map, list):
+                    target_list[:] = [copy.deepcopy(item) for item in override_map]
+                else:
+                    target_list[:] = [copy.deepcopy(override_map)]
+
+            merge_dict(result, overrides)
+            return result
+
+        def build_mount_detail_pairs(
+            skill_def: dict[str, Any] | None, overrides: dict[str, Any] | None
+        ) -> list[tuple[str, str]]:
+            if not isinstance(skill_def, dict):
+                return []
+            effective = _apply_overrides_for_display(skill_def, overrides)
+            pairs: list[tuple[str, str]] = []
+            trigger_chance = effective.get("trigger_chance")
+            if isinstance(trigger_chance, (int, float)) and not math.isclose(
+                trigger_chance, 1.0, rel_tol=1e-9, abs_tol=1e-9
+            ):
+                pct_text = _format_percent_value(trigger_chance)
+                pairs.append(("Trigger Chance", pct_text))
+
+            config = effective.get("config") if isinstance(effective, dict) else None
+            if isinstance(config, dict):
+                interval_seconds = config.get("interval_seconds")
+                interval_rounds = config.get("interval_rounds") or config.get("cooldown_rounds")
+                if isinstance(interval_seconds, (int, float)) and interval_seconds > 0:
+                    interval_text = f"{_format_number(interval_seconds)}s"
+                    if isinstance(interval_rounds, (int, float)) and interval_rounds > 0:
+                        round_label = (
+                            "round"
+                            if math.isclose(interval_rounds, 1.0, rel_tol=1e-9, abs_tol=1e-9)
+                            else "rounds"
+                        )
+                        interval_text += f" ({_format_number(interval_rounds)} {round_label})"
+                    pairs.append(("Interval", interval_text))
+
+                max_triggers = config.get("max_triggers_per_round")
+                if isinstance(max_triggers, (int, float)) and max_triggers > 0:
+                    max_text = f"{_format_number(max_triggers)} / round"
+                    pairs.append(("Max Triggers", max_text))
+
+                damage_factors = config.get("damage_factors")
+                if isinstance(damage_factors, list):
+                    values = [
+                        _format_number(val)
+                        for val in damage_factors
+                        if isinstance(val, (int, float)) and not isinstance(val, bool)
+                    ]
+                    if values:
+                        label = "Damage Factor" if len(values) == 1 else "Damage Factors"
+                        pairs.append((label, ", ".join(values)))
+
+                heal_factors = config.get("heal_factors")
+                if isinstance(heal_factors, list):
+                    values = [
+                        _format_number(val)
+                        for val in heal_factors
+                        if isinstance(val, (int, float)) and not isinstance(val, bool)
+                    ]
+                    if values:
+                        label = "Heal Factor" if len(values) == 1 else "Heal Factors"
+                        pairs.append((label, ", ".join(values)))
+
+                rage_gain = config.get("rage_gain")
+                if isinstance(rage_gain, (int, float)) and rage_gain:
+                    sign = "+" if rage_gain > 0 else ""
+                    pairs.append(("Rage Gain", f"{sign}{_format_number(rage_gain)}"))
+
+                def gather_effects(
+                    effects: Any, label_prefix: str
+                ) -> list[tuple[str, str]]:
+                    results: list[tuple[str, str]] = []
+                    seen: set[tuple[str, str]] = set()
+                    if not isinstance(effects, list):
+                        return results
+                    for effect in effects:
+                        if not isinstance(effect, dict):
+                            continue
+                        magnitude = effect.get("magnitude")
+                        if not isinstance(magnitude, (int, float)) or isinstance(magnitude, bool):
+                            continue
+                        stat_label = _format_stat_label(effect.get("stat_to_mod"))
+                        duration_text = _format_duration_text(effect.get("duration"))
+                        value_text = f"{_format_percent_value(magnitude)} {stat_label}{duration_text}"
+                        key = (label_prefix, value_text)
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        results.append((label_prefix, value_text))
+                    return results
+
+                pairs.extend(gather_effects(config.get("self_effects"), "Self Buff"))
+                pairs.extend(gather_effects(config.get("enemy_effects"), "Enemy Debuff"))
+
+            return pairs
+
         armies_html: list[str] = []
         sample_army_blocks: list[str] = []
         skill_columns: list[dict[str, Any]] = [
@@ -7904,6 +8102,18 @@ class MainWindow(QtWidgets.QMainWindow):
                             normalized_mounts[slot_index] = value
                             break
 
+                mount_overrides_cfg = hero_cfg.get("mount_skill_overrides")
+                normalized_mount_overrides: dict[int, dict[str, Any]] = {}
+                if isinstance(mount_overrides_cfg, dict):
+                    for raw_key, override_data in mount_overrides_cfg.items():
+                        try:
+                            slot_index = int(raw_key)
+                        except (TypeError, ValueError):
+                            continue
+                        if not isinstance(override_data, dict):
+                            continue
+                        normalized_mount_overrides[slot_index] = override_data
+
                 mount_icons: list[str] = []
                 for slot_index in (1, 2):
                     mount_skill_id = normalized_mounts.get(slot_index)
@@ -7921,6 +8131,21 @@ class MainWindow(QtWidgets.QMainWindow):
                             f"<strong>{safe_mount_name}</strong>"
                             + (f"<p>{tooltip_html}</p>" if tooltip_html else "")
                         )
+                        detail_pairs = build_mount_detail_pairs(
+                            mount_def,
+                            normalized_mount_overrides.get(slot_index),
+                        )
+                        if detail_pairs:
+                            detail_markup = "".join(
+                                "<li><span>{}</span><strong>{}</strong></li>".format(
+                                    html.escape(label),
+                                    html.escape(value),
+                                )
+                                for label, value in detail_pairs
+                            )
+                            tooltip_content += (
+                                "<ul class=\"mount-details\">" + detail_markup + "</ul>"
+                            )
                         icon_markup = (
                             f"<img src=\"{icon_uri}\" alt=\"{safe_mount_name} icon\">"
                             if icon_uri
@@ -9692,6 +9917,24 @@ class MainWindow(QtWidgets.QMainWindow):
             font-size: 0.75rem;
             text-align: center;
             padding: 6px;
+        }}
+        .mount-details {{
+            margin: 10px 0 0;
+            padding: 0;
+            list-style: none;
+            font-size: 0.8rem;
+        }}
+        .mount-details li {{
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 4px;
+        }}
+        .mount-details li span {{
+            color: var(--muted);
+        }}
+        .mount-details li strong {{
+            font-weight: 600;
         }}
         .hero-grid {{
             display: grid;

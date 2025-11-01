@@ -521,6 +521,7 @@ class BattlefieldEngine:
                     army.active_effects.clear()
                     army.upcoming_effects.clear()
                     army.effects_to_activate_next_round.clear()
+                    army.mount_passives_applied.clear()
                     # Reapply passive skills without resetting troop counts.
                     # Remove existing passive skill trigger counts so they
                     # apply their effects again for this idle army.

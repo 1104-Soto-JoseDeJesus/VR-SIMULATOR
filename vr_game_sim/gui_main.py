@@ -806,6 +806,42 @@ class StarredImageLabel(QtWidgets.QLabel):
         )
 
 
+class MountSkillIconLabel(QtWidgets.QLabel):
+    """Label used to display mount skill icons within the army preview."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFixedSize(48, 48)
+        self.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.setScaledContents(False)
+        self._current_icon: str | None = None
+        self.skill_id: str = ""
+
+    def set_icon(self, icon_path: str | None) -> None:
+        """Display the icon stored at ``icon_path`` if it exists."""
+
+        self._current_icon = icon_path if icon_path else None
+        if icon_path and os.path.exists(icon_path):
+            pixmap = QtGui.QPixmap(icon_path)
+            if not pixmap.isNull():
+                scaled = pixmap.scaled(
+                    self.width(),
+                    self.height(),
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+                self.setPixmap(scaled)
+                self.setText("")
+                return
+        self.setPixmap(QtGui.QPixmap())
+        self.setText("")
+
+    def clear_icon(self) -> None:
+        """Clear any displayed icon."""
+
+        self.set_icon(None)
+
+
 class StarOverlayDebugDialog(QtWidgets.QDialog):
     """Dialog allowing live tweaking of star overlay layout."""
 
@@ -1858,6 +1894,215 @@ class JewelSkillsDialog(QtWidgets.QDialog):
         return selections
 
 
+class MountSkillsDialog(QtWidgets.QDialog):
+    """Dialog for configuring mount skills for each hero slot."""
+
+    def __init__(
+        self,
+        hero_names: list[str],
+        unit_type: str,
+        loadouts: dict[int, dict[int, str]] | None,
+        overrides: dict[int, dict[int, dict[str, Any]]] | None,
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Mount Skills")
+        self.setModal(True)
+        self._hero_names = hero_names
+        self._unit_type = unit_type
+        self._options = self._build_mount_options()
+        self._slot_combos: dict[tuple[int, int], QtWidgets.QComboBox] = {}
+        self._slot_descriptions: dict[tuple[int, int], QtWidgets.QLabel] = {}
+        self._slot_editors: dict[tuple[int, int], SkillParamEditor] = {}
+        self._hero_enabled: dict[int, bool] = {}
+        self._current_selection: dict[tuple[int, int], str | None] = {}
+        self._overrides: dict[int, dict[int, dict[str, Any]]] = {
+            hero_idx: copy.deepcopy(overrides.get(hero_idx, {}) if overrides else {})
+            for hero_idx in range(1, len(hero_names) + 1)
+        }
+        self._loadouts: dict[int, dict[int, str]] = {
+            hero_idx: dict(loadouts.get(hero_idx, {}) if loadouts else {})
+            for hero_idx in range(1, len(hero_names) + 1)
+        }
+
+        layout = QtWidgets.QVBoxLayout(self)
+        info = QtWidgets.QLabel(
+            "Assign up to two mount skills per hero slot. Skill parameters can be tweaked "
+            "using the configuration panel beneath each selection."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        container = QtWidgets.QWidget()
+        container_layout = QtWidgets.QVBoxLayout(container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(16)
+
+        for hero_idx, hero_name in enumerate(hero_names, start=1):
+            display_name = hero_name if hero_name not in {None, "", "None"} else "None"
+            group = QtWidgets.QGroupBox(f"Hero {hero_idx}: {display_name}")
+            form = QtWidgets.QFormLayout(group)
+            form.setFieldGrowthPolicy(QtWidgets.QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+            hero_active = display_name not in {"None", ""}
+            self._hero_enabled[hero_idx] = hero_active
+
+            for slot_idx in (1, 2):
+                slot_container = QtWidgets.QWidget()
+                slot_layout = QtWidgets.QVBoxLayout(slot_container)
+                slot_layout.setContentsMargins(0, 0, 0, 0)
+                slot_layout.setSpacing(6)
+
+                combo = QtWidgets.QComboBox()
+                combo.setEditable(True)
+                combo.setInsertPolicy(QtWidgets.QComboBox.InsertPolicy.NoInsert)
+                combo.addItem("None", "")
+                options = self._options.get(slot_idx, [])
+                completer_items: list[str] = ["None"]
+                for name, sid in options:
+                    combo.addItem(name, sid)
+                    completer_items.append(name)
+                    combo.setItemData(
+                        combo.count() - 1,
+                        sid,
+                        QtCore.Qt.ItemDataRole.ToolTipRole,
+                    )
+                completer = QtWidgets.QCompleter(completer_items, combo)
+                completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+                completer.setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)
+                combo.setCompleter(completer)
+                combo.setEnabled(hero_active)
+
+                desc_label = QtWidgets.QLabel("No mount skill selected.")
+                desc_label.setWordWrap(True)
+                editor = SkillParamEditor()
+                editor.setEnabled(hero_active)
+
+                self._slot_combos[(hero_idx, slot_idx)] = combo
+                self._slot_descriptions[(hero_idx, slot_idx)] = desc_label
+                self._slot_editors[(hero_idx, slot_idx)] = editor
+
+                initial_skill = self._loadouts.get(hero_idx, {}).get(slot_idx, "")
+                if isinstance(initial_skill, str) and initial_skill:
+                    idx = combo.findData(initial_skill)
+                    if idx == -1:
+                        display = SKILL_REGISTRY_GLOBAL.get(initial_skill, {}).get("name", initial_skill)
+                        combo.addItem(display, initial_skill)
+                        idx = combo.count() - 1
+                    combo.setCurrentIndex(idx)
+                else:
+                    combo.setCurrentIndex(0)
+                self._current_selection[(hero_idx, slot_idx)] = (
+                    initial_skill if isinstance(initial_skill, str) and initial_skill else None
+                )
+
+                combo.currentIndexChanged.connect(
+                    partial(self._on_selection_changed, hero_idx, slot_idx)
+                )
+
+                slot_layout.addWidget(combo)
+                slot_layout.addWidget(desc_label)
+                slot_layout.addWidget(editor)
+                form.addRow(f"Slot {slot_idx}", slot_container)
+
+                self._apply_selection(hero_idx, slot_idx, initial=True)
+
+            container_layout.addWidget(group)
+
+        scroll.setWidget(container)
+        layout.addWidget(scroll)
+
+        btn_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        btn_box.accepted.connect(self.accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+    def _build_mount_options(self) -> dict[int, list[tuple[str, str]]]:
+        options: dict[int, list[tuple[str, str]]] = {}
+        for sid, sdef in SKILL_REGISTRY_GLOBAL.items():
+            if not isinstance(sdef, dict):
+                continue
+            if sdef.get("type") != SkillType.MOUNT_SKILL:
+                continue
+            config = sdef.get("config", {})
+            slot = config.get("slot")
+            if slot not in (1, 2):
+                continue
+            troop_types = config.get("troop_types")
+            if troop_types and self._unit_type and self._unit_type not in troop_types:
+                continue
+            name = sdef.get("name", sid)
+            options.setdefault(int(slot), []).append((name, sid))
+        for values in options.values():
+            values.sort(key=lambda item: item[0])
+        return options
+
+    @staticmethod
+    def _skill_display(skill_id: str) -> tuple[str, str]:
+        skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id) or {}
+        name = ""
+        if isinstance(skill_def, dict):
+            raw_name = skill_def.get("name")
+            if isinstance(raw_name, str) and raw_name.strip():
+                name = raw_name.strip()
+        if not name:
+            name = skill_id.replace("_", " ").title()
+        description = get_skill_description(skill_id, name) or ""
+        return name, description.strip()
+
+    def _on_selection_changed(self, hero_idx: int, slot_idx: int) -> None:
+        if not self._hero_enabled.get(hero_idx, False):
+            return
+        self._apply_selection(hero_idx, slot_idx)
+
+    def _apply_selection(self, hero_idx: int, slot_idx: int, *, initial: bool = False) -> None:
+        combo = self._slot_combos[(hero_idx, slot_idx)]
+        editor = self._slot_editors[(hero_idx, slot_idx)]
+        desc_label = self._slot_descriptions[(hero_idx, slot_idx)]
+        current_id = combo.currentData()
+        prev = self._current_selection.get((hero_idx, slot_idx))
+        if not initial and prev and current_id != prev:
+            self._overrides.get(hero_idx, {}).pop(slot_idx, None)
+        if isinstance(current_id, str) and current_id:
+            self._current_selection[(hero_idx, slot_idx)] = current_id
+            overrides = self._overrides.get(hero_idx, {}).get(slot_idx, {})
+            editor.setEnabled(True)
+            editor.set_skill(current_id, overrides)
+            name, description = self._skill_display(current_id)
+            combo.setToolTip(description or name)
+            desc_label.setText(description or "Description unavailable.")
+        else:
+            self._current_selection[(hero_idx, slot_idx)] = None
+            self._overrides.get(hero_idx, {}).pop(slot_idx, None)
+            editor.set_skill(None)
+            editor.setEnabled(False)
+            combo.setToolTip("")
+            desc_label.setText("No mount skill selected.")
+
+    def result(self) -> tuple[dict[int, dict[int, str]], dict[int, dict[int, dict[str, Any]]]]:
+        selections: dict[int, dict[int, str]] = {}
+        overrides: dict[int, dict[int, dict[str, Any]]] = {}
+        for hero_idx in range(1, len(self._hero_names) + 1):
+            if not self._hero_enabled.get(hero_idx, False):
+                continue
+            for slot_idx in (1, 2):
+                combo = self._slot_combos.get((hero_idx, slot_idx))
+                editor = self._slot_editors.get((hero_idx, slot_idx))
+                if not combo or not editor:
+                    continue
+                skill_id = combo.currentData()
+                if isinstance(skill_id, str) and skill_id:
+                    selections.setdefault(hero_idx, {})[slot_idx] = skill_id
+                    override_data = editor.get_overrides()
+                    if override_data:
+                        overrides.setdefault(hero_idx, {})[slot_idx] = override_data
+        return selections, overrides
+
 class GearSelectionDialog(QtWidgets.QDialog):
     """Dialog for assigning gear to each hero slot."""
 
@@ -2208,6 +2453,13 @@ class ArmyFrame(QtWidgets.QGroupBox):
         # automatically overwrite the player's chosen loadout.
         self._slot_plugin_loadouts: dict[int, list[str] | None] = {1: None, 2: None}
         self._slot_plugin_star_counts: dict[int, list[int]] = {1: [], 2: []}
+        self._mount_loadouts: dict[int, dict[int, str]] = {1: {}, 2: {}}
+        self._mount_overrides: dict[int, dict[int, dict[str, Any]]] = {1: {}, 2: {}}
+        self._mount_icon_dir = os.path.join(os.path.dirname(__file__), "MountSkillsIcons")
+        placeholder_path = os.path.join(self._mount_icon_dir, "none.png")
+        self._mount_placeholder_path = (
+            placeholder_path if os.path.exists(placeholder_path) else None
+        )
         self._loading_config = False
         self._peer_frames: list[ArmyFrame] = []
 
@@ -2272,13 +2524,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.gem_skills_btn = QtWidgets.QPushButton("Jewel Skills")
         self.bonus_stats_btn = QtWidgets.QPushButton("Bonus Stats")
 
-        # Mount skills configuration is not yet available but the
-        # button is present for future expansion.
-        self.mount_skills_btn.setEnabled(False)
-
         self._bonus_stats = default_bonus_stats()
         self._gem_skills: dict[str, str] = {slot: "" for slot, _ in JEWEL_SLOTS}
         self._hero_gear: dict[int, dict[str, str]] = {1: {}, 2: {}}
+        self.mount_skills_btn.clicked.connect(self._open_mount_skills_dialog)
         self.gem_skills_btn.clicked.connect(self._open_gem_skills_dialog)
         self.bonus_stats_btn.clicked.connect(self._open_bonus_stats_dialog)
 
@@ -2301,6 +2550,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self._update_bonus_stats_button()
         self._update_gem_skills_button()
         self._update_gear_button()
+        self._update_mount_skills_button()
 
         # --- Troop type icon ---
         self.unit_icon = QtWidgets.QLabel()
@@ -2313,15 +2563,17 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.hero1_plugin_imgs = [StarredImageLabel(), StarredImageLabel()]
         for lbl in self.hero1_plugin_imgs:
             lbl.setFixedSize(56, 69)
+        self.hero1_mount_imgs = [MountSkillIconLabel(), MountSkillIconLabel()]
         hero1_preview_layout = QtWidgets.QHBoxLayout()
         hero1_preview_layout.setContentsMargins(0, 0, 0, 0)
-        hero1_preview_layout.setSpacing(30)
+        hero1_preview_layout.setSpacing(24)
+        combined_hero1_icons = self.hero1_plugin_imgs + self.hero1_mount_imgs
         if self.index == 1:
             hero1_preview_layout.addWidget(self.hero1_img)
-            for lbl in self.hero1_plugin_imgs:
+            for lbl in combined_hero1_icons:
                 hero1_preview_layout.addWidget(lbl)
         else:
-            for lbl in reversed(self.hero1_plugin_imgs):
+            for lbl in reversed(combined_hero1_icons):
                 hero1_preview_layout.addWidget(lbl)
             hero1_preview_layout.addWidget(self.hero1_img)
         hero1_preview_widget = QtWidgets.QWidget()
@@ -2333,15 +2585,17 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.hero2_plugin_imgs = [StarredImageLabel(), StarredImageLabel()]
         for lbl in self.hero2_plugin_imgs:
             lbl.setFixedSize(56, 69)
+        self.hero2_mount_imgs = [MountSkillIconLabel(), MountSkillIconLabel()]
         hero2_preview_layout = QtWidgets.QHBoxLayout()
         hero2_preview_layout.setContentsMargins(0, 0, 0, 0)
-        hero2_preview_layout.setSpacing(30)
+        hero2_preview_layout.setSpacing(24)
+        combined_hero2_icons = self.hero2_plugin_imgs + self.hero2_mount_imgs
         if self.index == 1:
             hero2_preview_layout.addWidget(self.hero2_img)
-            for lbl in self.hero2_plugin_imgs:
+            for lbl in combined_hero2_icons:
                 hero2_preview_layout.addWidget(lbl)
         else:
-            for lbl in reversed(self.hero2_plugin_imgs):
+            for lbl in reversed(combined_hero2_icons):
                 hero2_preview_layout.addWidget(lbl)
             hero2_preview_layout.addWidget(self.hero2_img)
         hero2_preview_widget = QtWidgets.QWidget()
@@ -2501,6 +2755,188 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 updated_counts.append(int(getattr(lbl, "max_stars", 6)))
 
         self._slot_plugin_star_counts[slot] = updated_counts
+
+    @staticmethod
+    def _sanitize_mount_icon_name(label: str) -> str:
+        sanitized = re.sub(r"[^A-Za-z0-9]+", "-", (label or "").strip())
+        sanitized = re.sub(r"-{2,}", "-", sanitized).strip("-")
+        return sanitized
+
+    def _resolve_mount_icon_path(self, skill_id: str) -> str | None:
+        candidates: list[str] = []
+        skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id) or {}
+        name = skill_def.get("name") if isinstance(skill_def, dict) else None
+        if isinstance(name, str) and name:
+            candidates.append(name)
+        if isinstance(skill_id, str) and skill_id:
+            candidates.extend([skill_id, skill_id.replace("mount_", "")])
+
+        for candidate in candidates:
+            sanitized = self._sanitize_mount_icon_name(candidate)
+            if not sanitized:
+                continue
+            for suffix in ("-small.png", ".png"):
+                icon_path = os.path.join(self._mount_icon_dir, sanitized + suffix)
+                if os.path.exists(icon_path):
+                    return icon_path
+        return None
+
+    def _mount_skill_display(self, skill_id: str) -> tuple[str, str]:
+        skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id) or {}
+        name = ""
+        if isinstance(skill_def, dict):
+            raw_name = skill_def.get("name")
+            if isinstance(raw_name, str) and raw_name.strip():
+                name = raw_name.strip()
+        if not name:
+            name = skill_id.replace("_", " ").title()
+        description = get_skill_description(skill_id, name) or ""
+        tooltip_parts = [name]
+        if description.strip():
+            tooltip_parts.append(description.strip())
+        return name, "\n".join(tooltip_parts)
+
+    def _clear_mount_loadout(self, slot: int) -> None:
+        self._mount_loadouts[slot] = {}
+        self._mount_overrides[slot] = {}
+        self._render_mount_loadout(slot)
+        self._update_mount_skills_button()
+
+    def _set_mount_loadout(
+        self,
+        slot: int,
+        mount_ids: Any,
+        overrides: dict | None = None,
+        *,
+        update_ui: bool = True,
+    ) -> None:
+        normalized: dict[int, str] = {}
+        if isinstance(mount_ids, dict):
+            items = mount_ids.items()
+        elif isinstance(mount_ids, (list, tuple)):
+            items = ((idx + 1, value) for idx, value in enumerate(mount_ids))
+        elif isinstance(mount_ids, str):
+            items = ((1, mount_ids),)
+        else:
+            items = ()
+
+        for raw_slot, value in items:
+            try:
+                slot_idx = int(raw_slot)
+            except (TypeError, ValueError):
+                continue
+            if slot_idx <= 0:
+                continue
+            values: Iterable[Any]
+            if isinstance(value, (list, tuple, set)):
+                values = value
+            else:
+                values = (value,)
+            for entry in values:
+                if isinstance(entry, str) and entry.strip():
+                    normalized[slot_idx] = entry.strip()
+                    break
+
+        self._mount_loadouts[slot] = normalized
+
+        normalized_overrides: dict[int, dict[str, Any]] = {}
+        if isinstance(overrides, dict):
+            for raw_slot, override_data in overrides.items():
+                try:
+                    slot_idx = int(raw_slot)
+                except (TypeError, ValueError):
+                    continue
+                if slot_idx not in normalized:
+                    continue
+                if isinstance(override_data, dict) and override_data:
+                    normalized_overrides[slot_idx] = copy.deepcopy(override_data)
+        self._mount_overrides[slot] = normalized_overrides
+
+        if update_ui:
+            self._render_mount_loadout(slot)
+            self._update_mount_skills_button()
+
+    def _render_mount_loadout(self, slot: int) -> None:
+        mount_labels = self.hero1_mount_imgs if slot == 1 else self.hero2_mount_imgs
+        loadout = self._mount_loadouts.get(slot) or {}
+        for idx, lbl in enumerate(mount_labels, start=1):
+            skill_id = loadout.get(idx)
+            if skill_id:
+                icon_path = self._resolve_mount_icon_path(skill_id)
+                if icon_path:
+                    lbl.set_icon(icon_path)
+                elif self._mount_placeholder_path:
+                    lbl.set_icon(self._mount_placeholder_path)
+                else:
+                    lbl.clear_icon()
+                name, tooltip = self._mount_skill_display(skill_id)
+                lbl.setToolTip(tooltip)
+                lbl.skill_id = skill_id
+                if not icon_path and not self._mount_placeholder_path:
+                    lbl.setText(name)
+            else:
+                if self._mount_placeholder_path:
+                    lbl.set_icon(self._mount_placeholder_path)
+                    lbl.setToolTip("No mount skill equipped.")
+                else:
+                    lbl.clear_icon()
+                    lbl.setToolTip("No mount skill equipped.")
+                lbl.skill_id = ""
+
+    def _mount_skills_summary(self) -> tuple[int, str]:
+        entries: list[str] = []
+        total = 0
+        for hero_idx in (1, 2):
+            loadout = self._mount_loadouts.get(hero_idx) or {}
+            if not loadout:
+                continue
+            hero_name = self._hero_names.get(hero_idx) or f"Hero {hero_idx}"
+            display_name = hero_name if hero_name not in {"", "None", "Custom"} else f"Hero {hero_idx}"
+            for slot_idx in sorted(loadout):
+                skill_id = loadout[slot_idx]
+                if not skill_id:
+                    continue
+                skill_name, _ = self._mount_skill_display(skill_id)
+                entries.append(f"{display_name} • Slot {slot_idx}: {skill_name}")
+                total += 1
+        return total, "\n".join(entries)
+
+    def _update_mount_skills_button(self) -> None:
+        count, summary = self._mount_skills_summary()
+        if count:
+            self.mount_skills_btn.setText(f"Mount Skills ({count})")
+            self.mount_skills_btn.setToolTip(summary)
+        else:
+            self.mount_skills_btn.setText("Mount Skills")
+            self.mount_skills_btn.setToolTip("No mount skills configured.")
+
+    def _open_mount_skills_dialog(self) -> None:
+        hero_names = [self.hero1_combo.currentText(), self.hero2_combo.currentText()]
+        loadout_snapshot = {
+            1: copy.deepcopy(self._mount_loadouts.get(1, {})),
+            2: copy.deepcopy(self._mount_loadouts.get(2, {})),
+        }
+        overrides_snapshot = {
+            1: copy.deepcopy(self._mount_overrides.get(1, {})),
+            2: copy.deepcopy(self._mount_overrides.get(2, {})),
+        }
+        dlg = MountSkillsDialog(
+            hero_names,
+            self.unit_combo.currentText(),
+            loadout_snapshot,
+            overrides_snapshot,
+            self,
+        )
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            selections, overrides = dlg.result()
+            for slot in (1, 2):
+                self._set_mount_loadout(
+                    slot,
+                    selections.get(slot),
+                    overrides.get(slot),
+                    update_ui=True,
+                )
+            self._update_mount_skills_button()
 
     def _capture_plugin_state(self, slot: int) -> None:
         loadout = self._slot_plugin_loadouts.get(slot)
@@ -2673,9 +3109,12 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     self._set_plugin_loadout(slot, plugin_ids, update_ui=False)
                 loadout = self._slot_plugin_loadouts.get(slot)
             self._render_plugin_loadout(slot)
+            self._render_mount_loadout(slot)
         else:
             self._clear_plugin_loadout(slot)
+            self._clear_mount_loadout(slot)
         self._update_name_if_auto()
+        self._update_mount_skills_button()
 
     def _update_name_if_auto(self) -> None:
         if self._user_named:
@@ -2748,6 +3187,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 self.hero_overrides[idx] = {}
                 self._hero_names[idx] = "None"
                 self._clear_plugin_loadout(idx)
+                self._clear_mount_loadout(idx)
             self._custom_hero_cache.clear()
             self._hero_override_cache.clear()
             self._hero_gear = {1: {}, 2: {}}
@@ -2798,6 +3238,12 @@ class ArmyFrame(QtWidgets.QGroupBox):
                         idx, plugin_ids_cfg, plugin_counts_cfg, update_ui=False
                     )
 
+                mount_ids_cfg = hero_cfg.get("mount_skill_ids")
+                mount_overrides_cfg = hero_cfg.get("mount_skill_overrides")
+                self._set_mount_loadout(
+                    idx, mount_ids_cfg, mount_overrides_cfg, update_ui=False
+                )
+
                 self._hero_selected(idx, hero_name_display)
 
                 raw_gear_cfg: dict[str, Any] = {}
@@ -2828,6 +3274,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self._set_bonus_stats(cfg.get("bonus_stats"))
             for idx in (1, 2):
                 self._capture_plugin_state(idx)
+            self._update_mount_skills_button()
         finally:
             self._loading_config = False
 
@@ -2889,6 +3336,24 @@ class ArmyFrame(QtWidgets.QGroupBox):
                         any_custom_plugin = True
                 if any_custom_plugin and plugin_counts:
                     cfg["plugin_star_counts"] = plugin_counts
+
+                mount_loadout = self._mount_loadouts.get(idx) or {}
+                if mount_loadout:
+                    cfg["mount_skill_ids"] = {
+                        str(slot_idx): skill_id
+                        for slot_idx, skill_id in sorted(mount_loadout.items())
+                        if isinstance(skill_id, str) and skill_id
+                    }
+                mount_overrides = self._mount_overrides.get(idx) or {}
+                if mount_overrides:
+                    serialized_overrides = {}
+                    for slot_idx, override_data in mount_overrides.items():
+                        if not mount_loadout.get(slot_idx):
+                            continue
+                        if isinstance(override_data, dict) and override_data:
+                            serialized_overrides[str(slot_idx)] = copy.deepcopy(override_data)
+                    if serialized_overrides:
+                        cfg["mount_skill_overrides"] = serialized_overrides
 
                 gear_selection = self._hero_gear.get(idx, {})
                 if gear_selection:
@@ -6846,6 +7311,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         icon_lookup = build_lookup(os.path.join(base_dir, "Icons"))
         plugin_icon_lookup = build_lookup(os.path.join(base_dir, "Plugin Skill Images"))
+        mount_icon_lookup = build_lookup(os.path.join(base_dir, "MountSkillsIcons"))
 
         stat_icons = {
             "attack": ensure_asset(os.path.join(base_dir, "Stat Icons", "attack.png")),
@@ -7417,19 +7883,75 @@ class MainWindow(QtWidgets.QMainWindow):
                     )
                     + "</div>"
                 )
-                mount_slots = "".join(
-                    (
-                        f"<img src=\"{mount_placeholder}\" alt=\"Mount skill placeholder\">"
-                        if mount_placeholder
-                        else "<div class=\"placeholder-empty\"></div>"
-                    )
-                    for _ in range(2)
-                )
+                raw_mount_cfg = hero_cfg.get("mount_skill_ids")
+                normalized_mounts: dict[int, str] = {}
+                if isinstance(raw_mount_cfg, dict):
+                    mount_items = raw_mount_cfg.items()
+                elif isinstance(raw_mount_cfg, (list, tuple)):
+                    mount_items = ((idx + 1, value) for idx, value in enumerate(raw_mount_cfg))
+                else:
+                    mount_items = ()
+                for raw_key, raw_value in mount_items:
+                    try:
+                        slot_index = int(raw_key)
+                    except (TypeError, ValueError):
+                        continue
+                    if slot_index <= 0:
+                        continue
+                    values = raw_value if isinstance(raw_value, (list, tuple)) else (raw_value,)
+                    for value in values:
+                        if isinstance(value, str) and value:
+                            normalized_mounts[slot_index] = value
+                            break
+
+                mount_icons: list[str] = []
+                for slot_index in (1, 2):
+                    mount_skill_id = normalized_mounts.get(slot_index)
+                    if mount_skill_id:
+                        mount_name, tooltip, mount_def = build_skill_display(mount_skill_id)
+                        safe_mount_name = html.escape(mount_name)
+                        icon_path = resolve_from_lookup(mount_name, mount_icon_lookup)
+                        if not icon_path and mount_def:
+                            icon_path = resolve_from_lookup(mount_def.get("id", ""), mount_icon_lookup)
+                        if not icon_path:
+                            icon_path = resolve_from_lookup(mount_skill_id, mount_icon_lookup)
+                        icon_uri = ensure_asset(icon_path) if icon_path else None
+                        tooltip_html = html.escape(tooltip).replace("\n", "<br>") if tooltip else ""
+                        tooltip_content = (
+                            f"<strong>{safe_mount_name}</strong>"
+                            + (f"<p>{tooltip_html}</p>" if tooltip_html else "")
+                        )
+                        icon_markup = (
+                            f"<img src=\"{icon_uri}\" alt=\"{safe_mount_name} icon\">"
+                            if icon_uri
+                            else f"<span class=\"mount-fallback\">{safe_mount_name}</span>"
+                        )
+                        mount_icons.append(
+                            "<div class=\"mount-icon tooltip\" tabindex=\"0\">"
+                            + icon_markup
+                            + f"<span class=\"tooltip-content\">{tooltip_content}</span>"
+                            + "</div>"
+                        )
+                    else:
+                        placeholder_markup = (
+                            f"<img src=\"{mount_placeholder}\" alt=\"Empty mount slot\">"
+                            if mount_placeholder
+                            else "<div class=\"placeholder-empty\"></div>"
+                        )
+                        mount_icons.append(
+                            "<div class=\"mount-icon empty\">"
+                            + placeholder_markup
+                            + "</div>"
+                        )
+
                 hero_sections.append(
-                    "<div class=\"hero-section\"><h5>Mount Skills (Coming Soon)</h5>"
-                    + "<div class=\"mount-grid\">"
-                    + mount_slots
-                    + "</div></div>"
+                    "<div class=\"hero-section\"><h5>Mount Skills</h5>"
+                    + (
+                        "<div class=\"mount-grid\">" + "".join(mount_icons) + "</div>"
+                        if mount_icons
+                        else "<p class=\"empty-state\">No mount skills equipped.</p>"
+                    )
+                    + "</div>"
                 )
 
                 hero_cards.append(
@@ -9130,28 +9652,46 @@ class MainWindow(QtWidgets.QMainWindow):
             color: var(--muted);
         }}
         .mount-grid {{
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(2, 72px);
             justify-content: center;
-            align-items: center;
             gap: 14px;
             margin-inline: auto;
         }}
-        .mount-grid img,
-        .mount-grid .placeholder-empty {{
-            width: 60px;
-            height: 60px;
-            background: var(--panel-alt);
-            border-radius: 14px;
+        .mount-icon {{
+            width: 72px;
+            height: 72px;
+            border-radius: 16px;
             border: 1px solid var(--border);
-        }}
-        .mount-grid img {{
-            padding: 8px;
-            object-fit: contain;
-        }}
-        .mount-grid .placeholder-empty {{
+            background: var(--panel-alt);
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
+        }}
+        .mount-icon img {{
+            width: 54px;
+            height: 54px;
+            object-fit: contain;
+        }}
+        .mount-icon.empty img {{
+            opacity: 0.35;
+        }}
+        .mount-icon .placeholder-empty {{
+            width: 54px;
+            height: 54px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.04);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            font-size: 0.7rem;
+        }}
+        .mount-fallback {{
+            font-size: 0.75rem;
+            text-align: center;
+            padding: 6px;
         }}
         .hero-grid {{
             display: grid;

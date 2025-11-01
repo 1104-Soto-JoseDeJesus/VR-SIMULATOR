@@ -5,10 +5,11 @@ import copy
 import os
 import argparse
 import sys
-from typing import List, Optional, Dict, Any, Callable, TypedDict
+from typing import List, Optional, Dict, Any, Callable, TypedDict, Iterable
 import contextlib
 import io
 import math
+import re
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
 import matplotlib
@@ -31,7 +32,8 @@ plt.style.use("default")
 from vr_game_sim.enums import SkillType
 from vr_game_sim.unit_definition import Unit as UnitClass
 from vr_game_sim.hero_definition import Hero, HERO_PRESETS
-from vr_game_sim.army_composition import Army
+from vr_game_sim.army_composition import Army, normalize_mount_skill_id
+import vr_game_sim.army_composition as army_composition_module
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim import dynamic_unrevivable_config
 from vr_game_sim.interactive_setup import (
@@ -40,11 +42,13 @@ from vr_game_sim.interactive_setup import (
     input_float,
     setup_hero_interactive,
     input_multi_choice_numbered,
+    select_mount_skills_interactive,
 )
 from vr_game_sim.skill_definitions import (
     SKILL_REGISTRY_GLOBAL,
     build_skill_registry_with_overrides,
 )
+import vr_game_sim.skill_definitions as skill_definitions
 from vr_game_sim import troop_scalar_config
 
 
@@ -185,6 +189,35 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
     # Collect all overrides so ``GameSimulator`` can use a registry with the
     # tweaked values when looking up skills by id (e.g. for rage skills).
     combined_overrides: Dict[str, Dict[str, Any]] = {}
+    pending_mount_maps: List[Dict[str, List[str]]] = []
+
+    def normalize_mount_mapping(raw: Any) -> Dict[int, List[str]]:
+        mapping: Dict[int, List[str]] = {}
+        if isinstance(raw, dict):
+            items = raw.items()
+        elif isinstance(raw, (list, tuple)):
+            items = ((idx + 1, value) for idx, value in enumerate(raw))
+        elif isinstance(raw, str):
+            items = ((1, raw),)
+        else:
+            return mapping
+        for raw_slot, value in items:
+            try:
+                slot_idx = int(raw_slot)
+            except (TypeError, ValueError):
+                continue
+            if slot_idx <= 0:
+                continue
+            values: Iterable[Any]
+            if isinstance(value, (list, tuple, set)):
+                values = value
+            else:
+                values = (value,)
+            for entry in values:
+                normalized_id = normalize_mount_skill_id(entry)
+                if normalized_id:
+                    mapping.setdefault(slot_idx, []).append(normalized_id)
+        return mapping
 
     for army_config in loaded_data:
         unit = UnitClass(
@@ -196,6 +229,7 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
             initial_hp_modifier=army_config["hp_mod"],
         )
         heroes_list: List[Hero] = []
+        mount_skill_map: Dict[str, List[str]] = {}
         for hero_conf in army_config.get("heroes", []):
             overrides = hero_conf.get("skill_overrides")
             if overrides:
@@ -223,6 +257,25 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
             )
             heroes_list.append(hero)
 
+            hero_index = len(heroes_list)
+            mount_ids_cfg = normalize_mount_mapping(hero_conf.get("mount_skill_ids"))
+            if mount_ids_cfg:
+                for slot_idx, skill_ids in mount_ids_cfg.items():
+                    key = f"hero{hero_index}_slot{slot_idx}"
+                    mount_skill_map.setdefault(key, []).extend(skill_ids)
+            mount_overrides_cfg = hero_conf.get("mount_skill_overrides")
+            if isinstance(mount_overrides_cfg, dict) and mount_ids_cfg:
+                for raw_slot, override_data in mount_overrides_cfg.items():
+                    try:
+                        slot_idx = int(raw_slot)
+                    except (TypeError, ValueError):
+                        continue
+                    skill_ids = mount_ids_cfg.get(slot_idx)
+                    if not skill_ids or not isinstance(override_data, dict):
+                        continue
+                    for normalized_id in skill_ids:
+                        combined_overrides[normalized_id] = copy.deepcopy(override_data)
+
         # Create Army instance. The simulator instance will be injected later by GameSimulator.
         army_obj = Army(
             army_config["army_name"],
@@ -239,12 +292,20 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
         if isinstance(gem_skills_cfg, dict):
             army_obj.set_gem_skills(copy.deepcopy(gem_skills_cfg))
         armies.append(army_obj)
+        pending_mount_maps.append(copy.deepcopy(mount_skill_map))
 
     # Ensure ``GameSimulator`` uses a registry with any overrides applied.
     if combined_overrides:
-        GameSimulator.SKILL_REGISTRY_GLOBAL = build_skill_registry_with_overrides(combined_overrides)
+        new_registry = build_skill_registry_with_overrides(combined_overrides)
     else:
-        GameSimulator.SKILL_REGISTRY_GLOBAL = SKILL_REGISTRY_GLOBAL
+        new_registry = SKILL_REGISTRY_GLOBAL
+    GameSimulator.SKILL_REGISTRY_GLOBAL = new_registry
+    skill_definitions.SKILL_REGISTRY_GLOBAL = new_registry
+    army_composition_module.SKILL_REGISTRY_GLOBAL = new_registry
+
+    for army_obj, mount_map in zip(armies, pending_mount_maps):
+        if mount_map:
+            army_obj.set_mount_skills(copy.deepcopy(mount_map))
 
     return armies
 
@@ -931,7 +992,16 @@ def run_interactive_setup() -> List[Army]:
             else:
                 break
 
+        hero_names_for_mount = [hero.name for hero in current_heroes_list]
+        while len(hero_names_for_mount) < max_heroes_per_army:
+            hero_names_for_mount.append("None")
+        mount_skill_map = select_mount_skills_interactive(
+            hero_names_for_mount, unit_type_str, SKILL_REGISTRY_GLOBAL
+        )
+
         army_instance = Army(army_name, current_unit_obj, current_heroes_list)
+        if mount_skill_map:
+            army_instance.set_mount_skills(mount_skill_map)
         armies_setup_interactive.append(army_instance)
         print(
             f"--- {army_name} (T{current_unit_obj.tier} {current_unit_obj.unit_type} x{current_unit_obj.initial_count}) setup complete. ---"
@@ -942,6 +1012,8 @@ def run_interactive_setup() -> List[Army]:
 def get_setup_data_for_saving(armies: List[Army]) -> List[Dict[str, Any]]:
     """Prepares the data from Army objects for saving."""
     save_data_list: List[Dict[str, Any]] = []
+    mount_pattern = re.compile(r"hero(\d+)_slot(\d+)")
+
     for army_obj in armies:
         army_config = {
             "army_name": army_obj.name,
@@ -953,13 +1025,47 @@ def get_setup_data_for_saving(armies: List[Army]) -> List[Dict[str, Any]]:
             "hp_mod": army_obj.unit.hp_multiplier,
             "heroes": [],
         }
-        for hero_obj in army_obj.heroes:
+        mount_lookup: Dict[int, Dict[str, list[str]]] = {}
+        for slot_key, skill_ids in army_obj.mount_skill_ids.items():
+            match = mount_pattern.fullmatch(slot_key)
+            if not match:
+                continue
+            hero_idx = int(match.group(1))
+            slot_idx = match.group(2)
+            entries: list[str] = []
+            if isinstance(skill_ids, (list, tuple, set)):
+                iterable = skill_ids
+            else:
+                iterable = [skill_ids]
+            for raw in iterable:
+                normalized = normalize_mount_skill_id(raw)
+                if normalized:
+                    entries.append(normalized)
+            if not entries:
+                continue
+            hero_mounts = mount_lookup.setdefault(hero_idx, {})
+            hero_mounts[slot_idx] = entries
+
+        for hero_idx, hero_obj in enumerate(army_obj.heroes, start=1):
             hero_config = {
                 "hero_name_or_preset": hero_obj.name,  # This is the name used/entered during setup
                 "talent_ids": hero_obj.talent_ids,
                 "base_skill_ids": hero_obj.base_skill_ids,
                 "plugin_skill_ids": hero_obj.plugin_skill_ids,
             }
+            mount_map = mount_lookup.get(hero_idx)
+            if mount_map:
+                serialized_mounts: Dict[str, Any] = {}
+                for slot_idx, entries in mount_map.items():
+                    filtered = [entry for entry in entries if entry]
+                    if not filtered:
+                        continue
+                    if len(filtered) == 1:
+                        serialized_mounts[slot_idx] = filtered[0]
+                    else:
+                        serialized_mounts[slot_idx] = filtered
+                if serialized_mounts:
+                    hero_config["mount_skill_ids"] = serialized_mounts
             army_config["heroes"].append(hero_config)
         save_data_list.append(army_config)
     return save_data_list

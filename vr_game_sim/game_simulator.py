@@ -702,10 +702,13 @@ class GameSimulator:
                         an_effect_truly_happened = False
                         log_details_current_skill: List[Tuple[str, Optional[Dict[str, Any]]]] = []
 
+                        trigger_key = triggering_army.get_skill_trigger_key(skill_def)
+                        cooldown_key = trigger_key
+
                         is_on_cooldown = False
                         if cooldown is not None:
                             last_triggered = triggering_army.skill_last_triggered_round.get(
-                                skill_id, -(cooldown + 1)
+                                cooldown_key, -(cooldown + 1)
                             )
                             if triggering_army.army_round < last_triggered + cooldown:
                                 is_on_cooldown = True
@@ -727,7 +730,7 @@ class GameSimulator:
                             ):
                                 continue
                         else:
-                            if skill_id in triggering_army.triggered_skills_this_round:
+                            if trigger_key in triggering_army.triggered_skills_this_round:
                                 continue
 
                         logic_handler: Optional[SkillLogicHandler] = skill_def.get("logic_handler")
@@ -779,15 +782,15 @@ class GameSimulator:
                                 )
 
                             if cooldown is not None:
-                                triggering_army.skill_last_triggered_round[skill_id] = triggering_army.army_round
+                                triggering_army.skill_last_triggered_round[cooldown_key] = triggering_army.army_round
 
                             if max_triggers > 1:
                                 triggering_army.skill_trigger_counts_this_round[skill_id] = current_triggers + 1
                                 targets_triggered.add(actual_effect_target.name)
                                 triggering_army.skill_triggers_against_this_round[skill_id] = targets_triggered
                             else:
-                                if skill_id not in triggering_army.triggered_skills_this_round:
-                                    triggering_army.triggered_skills_this_round.append(skill_id)
+                                if trigger_key not in triggering_army.triggered_skills_this_round:
+                                    triggering_army.triggered_skills_this_round.append(trigger_key)
 
     def _execute_rage_skills(self, army: Army, opponent: Army, is_hero2_delayed_trigger: bool = False):
         skill_to_execute_id: Optional[str] = None
@@ -1363,6 +1366,7 @@ class GameSimulator:
                 army.skill_triggers_against_this_round.clear()
                 army.healing_hymn_triggered_this_round = False
                 army.base_rage_awarded_this_round = False
+                army.mount_rage_grants_this_round.clear()
 
             for army in [self.army1, self.army2]:
                 if army.effects_to_activate_next_round:

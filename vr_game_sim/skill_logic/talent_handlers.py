@@ -280,7 +280,8 @@ def handle_talent_full_focus(
     skill_config = skill_def.get("config", {})
     damage_factor = skill_config.get("damage_factor", 0.0)
 
-    if skill_id in triggering_army.triggered_skills_this_round:
+    trigger_key = triggering_army.get_skill_trigger_key(skill_def)
+    if trigger_key in triggering_army.triggered_skills_this_round:
         return False, []
 
     if damage_factor > 0:
@@ -299,7 +300,8 @@ def handle_talent_full_focus(
             opponent_army.pending_hp_damage_this_round += hp_damage
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
-            triggering_army.triggered_skills_this_round.append(skill_id)
+            if trigger_key not in triggering_army.triggered_skills_this_round:
+                triggering_army.triggered_skills_this_round.append(trigger_key)
             log_details.append(
                 (
                     f"Deals damage to {opponent_army.name} (Factor: {damage_factor}) due to {skill_def['name']}.",

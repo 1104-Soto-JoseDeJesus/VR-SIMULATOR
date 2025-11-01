@@ -1,93 +1,81 @@
 [
     {
-        "army_name": "Yulmi/Leandra",
+        "army_name": "Helgar/Leif",
         "unit_type": "archers",
-        "tier": 7,
-        "count": 350000,
+        "tier": 5,
+        "count": 100000,
         "is_rally": false,
-        "atk_mod": 3.8,
-        "def_mod": 2.4,
-        "hp_mod": 1.0,
+        "atk_mod": 0.0,
+        "def_mod": 0.0,
+        "hp_mod": 0.0,
         "unrevivable_ratio": 0.65,
-        "use_dynamic_unrevivable_ratio": true,
+        "use_dynamic_unrevivable_ratio": false,
         "heroes": [
             {
-                "hero_name_or_preset": "Yulmi",
+                "hero_name_or_preset": "Helgar",
                 "talent_ids": [
-                    "talent_dreadful_curse",
-                    "talent_high_fighting_spirit",
-                    "talent_low_whispers"
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
                 ],
                 "base_skill_ids": [
-                    "base_skill_plague",
-                    "rage_skill_undead_harvest"
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
                 ],
-                "plugin_skill_ids": [
-                    "plugin_poison_arrow",
-                    "plugin_fiery_detonation"
-                ]
+                "plugin_skill_ids": []
             },
             {
-                "hero_name_or_preset": "Leandra",
+                "hero_name_or_preset": "Leif",
                 "talent_ids": [
-                    "talent_soul_awakening",
-                    "talent_flexible_strike",
-                    "talent_opportune_strike"
+                    "talent_blade_counter",
+                    "talent_shield_of_resistance",
+                    "talent_revenge_echo"
                 ],
                 "base_skill_ids": [
-                    "base_skill_vengeful_fury",
-                    "base_skill_serrated_flourish"
+                    "base_skill_planned_attack",
+                    "base_skill_sharp_pursuit"
                 ],
-                "plugin_skill_ids": [
-                    "plugin_this_too_shall_pass",
-                    "plugin_blessed_negation"
-                ]
+                "plugin_skill_ids": []
             }
         ]
     },
     {
-        "army_name": "Leandra/Yulmi",
+        "army_name": "Rollo/Freydis",
         "unit_type": "archers",
-        "tier": 7,
-        "count": 350000,
+        "tier": 5,
+        "count": 100000,
         "is_rally": false,
-        "atk_mod": 3.8,
-        "def_mod": 2.4,
-        "hp_mod": 1.0,
+        "atk_mod": 0.0,
+        "def_mod": 0.0,
+        "hp_mod": 0.0,
         "unrevivable_ratio": 0.65,
-        "use_dynamic_unrevivable_ratio": true,
+        "use_dynamic_unrevivable_ratio": false,
         "heroes": [
             {
-                "hero_name_or_preset": "Leandra",
+                "hero_name_or_preset": "Rollo",
                 "talent_ids": [
-                    "talent_soul_awakening",
-                    "talent_flexible_strike",
-                    "talent_opportune_strike"
+                    "talent_patient_waiting",
+                    "talent_revolutionary_resolve",
+                    "talent_adaptable_agility"
                 ],
                 "base_skill_ids": [
-                    "base_skill_vengeful_fury",
-                    "base_skill_serrated_flourish"
+                    "base_skill_tough_choice",
+                    "base_skill_bloody_pillage"
                 ],
-                "plugin_skill_ids": [
-                    "plugin_this_too_shall_pass",
-                    "plugin_blessed_negation"
-                ]
+                "plugin_skill_ids": []
             },
             {
-                "hero_name_or_preset": "Yulmi",
+                "hero_name_or_preset": "Freydis",
                 "talent_ids": [
-                    "talent_dreadful_curse",
-                    "talent_high_fighting_spirit",
-                    "talent_low_whispers"
+                    "talent_heroic_blessing",
+                    "talent_battle_chime",
+                    "talent_flames_judgment"
                 ],
                 "base_skill_ids": [
-                    "base_skill_plague",
-                    "rage_skill_undead_harvest"
+                    "base_skill_blades_judgment",
+                    "base_skill_desperate_strike"
                 ],
-                "plugin_skill_ids": [
-                    "plugin_poison_arrow",
-                    "plugin_fiery_detonation"
-                ]
+                "plugin_skill_ids": []
             }
         ]
     }

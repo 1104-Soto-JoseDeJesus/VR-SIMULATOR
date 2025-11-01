@@ -1,0 +1,94 @@
+[
+    {
+        "army_name": "Margit/Lagertha (TEST)",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 350000,
+        "is_rally": false,
+        "atk_mod": 3.8,
+        "def_mod": 2.4,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Margit",
+                "talent_ids": [
+                    "talent_cutting_blade",
+                    "talent_thirst_for_blood",
+                    "talent_seas_grace"
+                ],
+                "base_skill_ids": [
+                    "base_skill_ride_the_waves",
+                    "base_skill_raging_tide"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_blessed_negation",
+                    "plugin_enrage"
+                ]
+            },
+            {
+                "hero_name_or_preset": "Lagertha",
+                "talent_ids": [
+                    "talent_shieldaxe_attack",
+                    "talent_chiefs_might",
+                    "talent_fatal_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_shield_breaker",
+                    "rage_skill_showdown"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_breaking_free",
+                    "plugin_rapid_defense"
+                ]
+            }
+        ]
+    },
+    {
+        "army_name": "Margit/Lagertha (RAGE)",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 350000,
+        "is_rally": false,
+        "atk_mod": 3.8,
+        "def_mod": 2.4,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Margit",
+                "talent_ids": [
+                    "talent_cutting_blade",
+                    "talent_thirst_for_blood",
+                    "talent_seas_grace"
+                ],
+                "base_skill_ids": [
+                    "base_skill_ride_the_waves",
+                    "base_skill_raging_tide"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_rage_leech",
+                    "plugin_first_strike"
+                ]
+            },
+            {
+                "hero_name_or_preset": "Lagertha",
+                "talent_ids": [
+                    "talent_shieldaxe_attack",
+                    "talent_chiefs_might",
+                    "talent_fatal_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_shield_breaker",
+                    "rage_skill_showdown"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_enrage",
+                    "plugin_odins_asylum"
+                ]
+            }
+        ]
+    }
+]

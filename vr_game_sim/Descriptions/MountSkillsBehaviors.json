@@ -1,0 +1,893 @@
+[
+  {
+    "name": "Crippling Strike",
+    "slot": 1,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 780). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Firewing Ashes",
+    "slot": 1,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: increase your Burning damage by 50% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Bonegnaw Bug",
+    "slot": 1,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: increase your Poison damage by 50% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Pain N Fury",
+    "slot": 1,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Command Skill Critical Rate (flat). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Abyssal Maw",
+    "slot": 1,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: increase your Counterattack damage by 100% for 2s. increase your damage by 100% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Bone Spurs",
+    "slot": 1,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: increase your total damage by 16% for 2s. increase your damage by 16% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Hard Shell",
+    "slot": 1,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Command Skill Critical Rate (flat). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Untamed Wilderness",
+    "slot": 1,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 390). recover 40 Rage. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Flame Serpent",
+    "slot": 1,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 390). increase your Burning damage by 9% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Razor Fangs",
+    "slot": 1,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 390). increase your Poison damage by 9% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Teeth N Claws",
+    "slot": 1,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 390). increase your total damage by 8% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Dragon Venomfire",
+    "slot": 1,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: increase your Burning damage by 35% for 2s. increase your Poison damage by 35% for 2s. increase your damage by 35% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Ragebeast Soul",
+    "slot": 1,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Counterattack Skill Critical Rate (flat). Every 8s: recover 105 Rage. Limit: triggers up to 2 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Retaliation Fangs",
+    "slot": 1,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Counterattack Skill Critical Rate (flat). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Pincer Strike",
+    "slot": 1,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 650). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Spiritual Blessing",
+    "slot": 1,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Counterattack Skill Critical Rate (flat). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Beastly Rage",
+    "slot": 1,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Counterattack Skill Critical Rate (flat). Every 4s: recover 125 Rage. Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Shatterbone Bite",
+    "slot": 1,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Counterattack Skill Critical Rate (flat). Every 4s: increase your total damage by 5% for 2s. Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Impenetrable Scales",
+    "slot": 1,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Counterattack Skill Critical Rate (flat). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Power Swipe",
+    "slot": 1,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Counterattack Skill Critical Rate (flat). Every 8s: deal direct damage to the current target (Damage Factor 500). Limit: triggers up to 2 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Healing Leaf",
+    "slot": 1,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Counterattack Skill Critical Rate (flat). Limit: triggers up to 2 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Hoof Strike",
+    "slot": 1,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Counterattack Skill Critical Rate (flat). Limit: triggers up to 2 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Corrosive Claws",
+    "slot": 1,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Counterattack Skill Critical Rate (flat). Every 8s: increase your total damage by 5% for 2s. Limit: triggers up to 2 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Purple-Gold Scales",
+    "slot": 1,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Counterattack Skill Critical Rate (flat). Limit: triggers up to 2 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Stinging Tongue",
+    "slot": 1,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 865). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Razor Sharp Spikes",
+    "slot": 1,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Cooperation Skill Critical Rate (flat). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Soul of Fury",
+    "slot": 1,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Cooperation Skill Critical Rate (flat). Every 6s: recover 180 Rage. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Bone-shatter Jaw",
+    "slot": 1,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Cooperation Skill Critical Rate (flat). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Bladed Spines",
+    "slot": 1,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Cooperation Skill Critical Rate (flat). Every 6s: increase your total damage by 18% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Sturdy Bone Armor",
+    "slot": 1,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Cooperation Skill Critical Rate (flat). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Strangled Death",
+    "slot": 1,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Cooperation Skill Critical Rate (flat). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Bloody Jaws",
+    "slot": 1,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Cooperation Skill Critical Rate (flat). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Bloodthirst Gaze",
+    "slot": 1,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Cooperation Skill Critical Rate (flat). Every 6s: recover 150 Rage. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Severing Strike",
+    "slot": 1,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Cooperation Skill Critical Rate (flat). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Frost Jotun Roar",
+    "slot": 1,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Cooperation Skill Critical Rate (flat). Every 6s: increase your total damage by 15% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Emerald Scales",
+    "slot": 1,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +2% Cooperation Skill Critical Rate (flat). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Firedrake Soul",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 500). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Flaming Claws",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 425). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Poison N Heal",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 500). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Venom Rip",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 425). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Venom Impact",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 500). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Blazing Wolf Spirit",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 450). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Ravens Breath",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: increase your total damage by 25% for 2s. increase your damage by 25% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Deer Blessing",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Lava Beast",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 400). increase your total damage by 20% for 2s. increase your damage by 20% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Toxic Fly",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 400). increase your total damage by 20% for 2s. increase your damage by 20% for 2s. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Deer Judgement",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 550). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Ancient Insight",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 550). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Blazing Firebird",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 750). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Toxic Spike",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 750). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Corrosive Poison",
+    "slot": 2,
+    "type": "command",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Command Skill Critical Rate (flat). Upon entering battle and then every 6s: deal direct damage to the current target (Damage Factor 950). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Golden Feather",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 825). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Razor Armor",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 400). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Roaring Waves",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 400). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Evil Threat",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 8s: deal direct damage to the current target (Damage Factor 425). Limit: triggers up to 2 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Winged Guardian",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 8s: deal direct damage to the current target (Damage Factor 425). Limit: triggers up to 2 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Moonlit Howl",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 850). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Armor Chant",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 875). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Reptile Heal",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 1). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Destructive Clamp",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 1). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Scaly Rebirth",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 1). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Marsh Reptile",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 1). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Bloodthirsty Eye",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 3). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Manic Heal",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 650). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Wolfus Gnaw",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 850). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Ripping Claws",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 575). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Deer Redemption",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 1). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Slaughter N Heal",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 1). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Spiked Shield",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 1). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Icedrake Breath",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 700). recover 100 Rage. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Frostwing Fury",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 700). recover 100 Rage. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Kraken Touch",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 700). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Fatal Chomp",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 650). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Agonizing Frost",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 825). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Divine Awe",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 1). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Blessed Dew",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 1). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Icicle Armor",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 1). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Bloodwing Assault",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 675). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Biting Chill",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 1). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Steel Scale",
+    "slot": 2,
+    "type": "reactive",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Counterattack Skill Critical Rate (flat). Every 4s: deal direct damage to the current target (Damage Factor 825). Limit: triggers up to 1 times per activation window. Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  },
+  {
+    "name": "Bloodthirst Recovery",
+    "slot": 2,
+    "type": "cooperation",
+    "troop_types": [
+      "archers",
+      "infantry",
+      "pikemen"
+    ],
+    "description": "Passive: +3% Cooperation Skill Critical Rate (flat). Every 6s: deal direct damage to the current target (Damage Factor 575). Target: current combat target unless otherwise stated. Effects don't stack; re-applying refreshes duration."
+  }
+]

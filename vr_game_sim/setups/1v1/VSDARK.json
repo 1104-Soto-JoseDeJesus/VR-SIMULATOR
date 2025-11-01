@@ -1,0 +1,183 @@
+[
+    {
+        "army_name": "Rosky/Helgar",
+        "unit_type": "pikemen",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "atk_mod": 2.7643,
+        "def_mod": 2.5606,
+        "hp_mod": 0.8625,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_shield",
+                    "plugin_freyas_blessing"
+                ],
+                "plugin_star_counts": [
+                    6,
+                    5
+                ],
+                "skill_overrides": {
+                    "talent_pirate_tricks": {
+                        "trigger_chance": 0.575,
+                        "config": {
+                            "shield_factor": 740.0
+                        }
+                    },
+                    "rage_skill_spirit_battleship": {
+                        "config": {
+                            "damage_factor": 2000.0,
+                            "def_reduction_magnitude": -0.2
+                        }
+                    },
+                    "plugin_freyas_blessing": {
+                        "trigger_chance": 0.14,
+                        "config": {
+                            "direct_heal_factor": 530.0,
+                            "buff_details": {
+                                "magnitude": 0.225
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_rest_and_counterattack",
+                    "plugin_hymn_of_life"
+                ]
+            }
+        ],
+        "bonus_stats": {
+            "damage_reduction": {
+                "all": 0.04,
+                "vs_pikemen": 0.0219,
+                "reactive": 0.004
+            },
+            "damage_boost": {
+                "all": 0.0125,
+                "vs_pikemen": 0.0165
+            },
+            "shield_gain": 0.007,
+            "counter_boost": 0.0475
+        }
+    },
+    {
+        "army_name": "Yvette/Helgar",
+        "unit_type": "pikemen",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "atk_mod": 2.6718,
+        "def_mod": 2.2519,
+        "hp_mod": 0.9956,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Yvette",
+                "talent_ids": [
+                    "talent_healing_chords",
+                    "talent_healing_hymn",
+                    "talent_horn_of_countering"
+                ],
+                "base_skill_ids": [
+                    "base_skill_sanctity_of_life",
+                    "base_skill_vital_blessing"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_rest_and_counterattack",
+                    "plugin_hymn_of_life"
+                ],
+                "plugin_star_counts": [
+                    5,
+                    5
+                ],
+                "skill_overrides": {
+                    "plugin_rest_and_counterattack": {
+                        "trigger_chance": 0.14,
+                        "config": {
+                            "shield_factor": 380.0,
+                            "heal_factor": 380.0
+                        }
+                    },
+                    "plugin_hymn_of_life": {
+                        "trigger_chance": 0.19,
+                        "config": {
+                            "hot_heal_factor": 260.0,
+                            "hp_buff_magnitude": 0.095
+                        }
+                    }
+                }
+            },
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_shield",
+                    "plugin_shield_reflector"
+                ],
+                "skill_overrides": {
+                    "plugin_divine_shield": {
+                        "effects_to_apply": {
+                            "0": {
+                                "magnitude": 0.17
+                            }
+                        },
+                        "config": {
+                            "damage_factor": 765.0,
+                            "immunity_chance": 0.45
+                        }
+                    }
+                },
+                "plugin_star_counts": [
+                    5,
+                    6
+                ]
+            }
+        ],
+        "bonus_stats": {
+            "damage_reduction": {
+                "vs_pikemen": 0.0021,
+                "reactive": 0.0097
+            },
+            "damage_boost": {
+                "vs_pikemen": 0.01,
+                "reactive_crit_rate": 0.0345
+            },
+            "shield_gain": 0.032,
+            "rage_skill_boost": 0.0102
+        }
+    }
+]

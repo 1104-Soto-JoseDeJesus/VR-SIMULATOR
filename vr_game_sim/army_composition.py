@@ -2,10 +2,11 @@ import uuid
 import random
 import math
 import copy
+import re
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Tuple, Set, Iterable
 
-from .enums import EffectType, SkillTriggerType, StatType, DoTType
+from .enums import EffectType, SkillTriggerType, StatType, DoTType, SkillType
 from .unit_definition import Unit
 from .hero_definition import Hero
 from .effect_system import EffectInstance
@@ -83,6 +84,12 @@ def normalize_gem_skill_id(value: Any) -> str:
     return text if text else ""
 
 
+def normalize_mount_skill_id(value: Any) -> str:
+    """Return a normalized mount skill identifier."""
+
+    return normalize_gem_skill_id(value)
+
+
 @dataclass(slots=True)
 class Army:
     name: str
@@ -94,6 +101,8 @@ class Army:
     bonus_stats_config: Dict[str, Any] = field(default_factory=dict)
     gem_skill_ids: Dict[str, str] = field(default_factory=dict)
     gem_skills: List[SkillDefinition] = field(init=False, default_factory=list)
+    mount_skill_ids: Dict[str, List[str]] = field(default_factory=dict)
+    mount_skills: List[SkillDefinition] = field(init=False, default_factory=list)
     simulator: Optional[GameSimulatorRef] = field(init=False, default=None)
     simulators: List[GameSimulatorRef] = field(init=False, default_factory=list)
     army_round: int = field(init=False, default=0)
@@ -295,6 +304,155 @@ class Army:
                 continue
             self.gem_skills.append(copy.deepcopy(skill_def))
 
+    def _parse_mount_slot_key(self, slot_key: str) -> Dict[str, Any]:
+        slot = None
+        hero_index = None
+        if isinstance(slot_key, str):
+            match = re.match(r"hero(\d+)_slot(\d+)", slot_key, flags=re.IGNORECASE)
+            if match:
+                hero_index = int(match.group(1)) - 1
+                slot = int(match.group(2))
+            else:
+                match = re.match(r"slot(\d+)", slot_key, flags=re.IGNORECASE)
+                if match:
+                    slot = int(match.group(1))
+        return {"slot": slot, "hero_index": hero_index, "slot_key": slot_key}
+
+    def _annotate_mount_effect(
+        self, effect: Dict[str, Any], metadata: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        effect_copy = copy.deepcopy(effect)
+        cfg = effect_copy.get("config")
+        if isinstance(cfg, dict):
+            cfg = cfg.copy()
+        else:
+            cfg = {}
+        mount_meta = cfg.get("mount_metadata", {}).copy()
+        mount_meta.update(metadata)
+        cfg["mount_metadata"] = mount_meta
+        effect_copy["config"] = cfg
+        return effect_copy
+
+    def _reload_mount_skills(self) -> None:
+        """Refresh cached mount skill definitions from the registry."""
+
+        self.mount_skills = []
+        if not self.mount_skill_ids:
+            return
+
+        for slot_key, skill_values in self.mount_skill_ids.items():
+            if not isinstance(slot_key, str):
+                continue
+            metadata = self._parse_mount_slot_key(slot_key)
+            if isinstance(skill_values, (str, bytes)):
+                skill_iterable: Iterable[str] = [skill_values]
+            else:
+                skill_iterable = list(skill_values) if isinstance(skill_values, Iterable) else []
+
+            for raw_skill_id in skill_iterable:
+                normalized_id = normalize_mount_skill_id(raw_skill_id)
+                if not normalized_id:
+                    continue
+                base_def = SKILL_REGISTRY_GLOBAL.get(normalized_id)
+                if not base_def:
+                    print(
+                        f"Warning: Mount skill '{normalized_id}' for army '{self.name}' not found in registry."
+                    )
+                    continue
+                troop_types = base_def.get("config", {}).get("troop_types")
+                if troop_types and self.unit.unit_type not in troop_types:
+                    continue
+                skill_copy = copy.deepcopy(base_def)
+                config = skill_copy.setdefault("config", {})
+                config = config.copy()
+                skill_copy["config"] = config
+                mount_meta = config.get("mount_metadata", {}).copy()
+                mount_meta.update(
+                    {
+                        "slot": metadata.get("slot"),
+                        "hero_index": metadata.get("hero_index"),
+                        "slot_key": metadata.get("slot_key"),
+                        "skill_id": normalized_id,
+                    }
+                )
+                config["mount_metadata"] = mount_meta
+                config.setdefault("slot", metadata.get("slot"))
+                config.setdefault("hero_index", metadata.get("hero_index"))
+
+                if "effects_to_apply" in skill_copy:
+                    skill_copy["effects_to_apply"] = [
+                        self._annotate_mount_effect(effect, mount_meta)
+                        for effect in skill_copy["effects_to_apply"]
+                    ]
+
+                if "sub_effects" in skill_copy:
+                    for sub_effect in skill_copy["sub_effects"]:
+                        effect_to_apply = sub_effect.get("effect_to_apply")
+                        if isinstance(effect_to_apply, dict):
+                            sub_effect["effect_to_apply"] = self._annotate_mount_effect(
+                                effect_to_apply, mount_meta
+                            )
+
+                for key in ("self_effects", "enemy_effects"):
+                    if key in config and isinstance(config[key], list):
+                        config[key] = [
+                            self._annotate_mount_effect(effect, mount_meta)
+                            for effect in config[key]
+                        ]
+
+                self.mount_skills.append(skill_copy)
+
+    def _should_apply_mount_effect(
+        self,
+        *,
+        target_army: "Army",
+        effect_type: EffectType,
+        magnitude: float,
+        metadata: Dict[str, Any],
+    ) -> bool:
+        if effect_type not in {
+            EffectType.STAT_MOD,
+            EffectType.DEBUFF,
+            EffectType.CUSTOM_SKILL_EFFECT,
+        }:
+            return True
+
+        slot = metadata.get("slot")
+        if slot is None:
+            return True
+
+        stat_key = metadata.get("stat_key")
+        if not stat_key:
+            return True
+
+        hero_index = metadata.get("hero_index")
+        key = (slot, hero_index, target_army.name, stat_key, effect_type)
+        new_abs = abs(float(magnitude))
+        containers = [
+            target_army.active_effects,
+            target_army.upcoming_effects,
+            target_army.effects_to_activate_next_round,
+        ]
+        for container in containers:
+            for effect in list(container):
+                eff_meta = effect.config.get("mount_metadata") if effect.config else None
+                if not eff_meta:
+                    continue
+                existing_key = (
+                    eff_meta.get("slot"),
+                    eff_meta.get("hero_index"),
+                    eff_meta.get("target_name"),
+                    eff_meta.get("stat_key"),
+                    effect.effect_type,
+                )
+                if existing_key != key:
+                    continue
+                existing_abs = abs(float(effect.magnitude or 0.0))
+                if existing_abs >= new_abs - 1e-9:
+                    return False
+                container.remove(effect)
+        return True
+
     def set_gem_skills(self, gem_skills: Dict[str, Any] | None) -> None:
         """Assign jewel skills to this army using ``gem_skills`` mapping."""
 
@@ -309,6 +467,25 @@ class Army:
         self.gem_skill_ids = normalized
         self._reload_gem_skills()
 
+    def set_mount_skills(self, mount_skills: Dict[str, Any] | None) -> None:
+        """Assign mount skills to this army using ``mount_skills`` mapping."""
+
+        normalized: Dict[str, List[str]] = {}
+        if mount_skills:
+            for slot_key, raw_values in mount_skills.items():
+                if not isinstance(slot_key, str):
+                    continue
+                if isinstance(raw_values, (list, tuple, set)):
+                    values = raw_values
+                else:
+                    values = [raw_values]
+                for raw in values:
+                    normalized_id = normalize_mount_skill_id(raw)
+                    if normalized_id:
+                        normalized.setdefault(slot_key, []).append(normalized_id)
+        self.mount_skill_ids = normalized
+        self._reload_mount_skills()
+
     def _apply_initial_passive_skills(
         self, *, simulator: Optional[GameSimulatorRef] = None
     ) -> None:
@@ -320,6 +497,7 @@ class Army:
                 continue
             skill_definitions.extend(hero.skills)
         skill_definitions.extend(self.gem_skills)
+        skill_definitions.extend(self.mount_skills)
 
         for skill_def in skill_definitions:
             if (
@@ -943,6 +1121,43 @@ class Army:
 
         if owner_army:
             final_config.setdefault("source_army_name", owner_army.name)
+
+        is_mount_skill = False
+        mount_metadata: Dict[str, Any] = {}
+        skill_def_lookup = SKILL_REGISTRY_GLOBAL.get(source_skill_id)
+        if isinstance(skill_def_lookup, dict):
+            skill_type_val = skill_def_lookup.get("type")
+            if isinstance(skill_type_val, SkillType):
+                is_mount_skill = skill_type_val == SkillType.MOUNT_SKILL
+            elif isinstance(skill_type_val, str):
+                is_mount_skill = skill_type_val.upper() == SkillType.MOUNT_SKILL.value
+            if is_mount_skill:
+                mount_metadata.update(skill_def_lookup.get("config", {}).get("mount_metadata", {}) or {})
+
+        if is_mount_skill:
+            existing_meta = final_config.get("mount_metadata")
+            if isinstance(existing_meta, dict):
+                mount_metadata.update(existing_meta)
+            mount_metadata.setdefault("slot", mount_metadata.get("slot"))
+            mount_metadata.setdefault("hero_index", mount_metadata.get("hero_index"))
+            mount_metadata["target_name"] = target_army.name
+            stat_to_mod_val = final_config.get("stat_to_mod")
+            if isinstance(stat_to_mod_val, StatType):
+                stat_key = stat_to_mod_val.value
+            elif isinstance(stat_to_mod_val, str):
+                stat_key = stat_to_mod_val
+            else:
+                stat_key = canonical_effect_name
+            mount_metadata["stat_key"] = stat_key
+            final_config["mount_metadata"] = mount_metadata
+            if not self._should_apply_mount_effect(
+                target_army=target_army,
+                effect_type=effect_data.get("effect_type"),
+                magnitude=magnitude,
+                metadata=mount_metadata,
+            ):
+                return None
+
         inst = EffectInstance(
             id=uuid.uuid4(),
             source_skill_id=source_skill_id,
@@ -1490,6 +1705,7 @@ class Army:
         self.simulator = None
         self.simulators.clear()
         self._reload_gem_skills()
+        self._reload_mount_skills()
         self.current_troop_count = float(self.unit.initial_count)
         self.active_effects.clear()
         self.upcoming_effects.clear()

@@ -642,33 +642,60 @@ class GameSimulator:
             if 'opponent_for_shield_calc' in event_data:
                 actual_opponent_for_calc = event_data['opponent_for_shield_calc']
 
+        def _normalize_trigger_value(value: Any) -> Optional[SkillTriggerType]:
+            if isinstance(value, SkillTriggerType):
+                return value
+            if isinstance(value, str):
+                try:
+                    return SkillTriggerType[value]
+                except KeyError:
+                    try:
+                        return SkillTriggerType(value)
+                    except ValueError:
+                        return None
+            return None
+
         skill_definitions: list[SkillDefinition] = []
         for hero in triggering_army.heroes:
             skill_definitions.extend(hero.skills)
         gem_skills = getattr(triggering_army, "gem_skills", []) or []
         skill_definitions.extend(gem_skills)
+        mount_skills = getattr(triggering_army, "mount_skills", []) or []
+        skill_definitions.extend(mount_skills)
 
         for skill_def in skill_definitions:
             if skill_def["id"] == "dummy_talent_empty":
                 continue
-            if skill_def["trigger"] == SkillTriggerType.RAGE_SKILL:
+            normalized_trigger = _normalize_trigger_value(skill_def.get("trigger"))
+            if normalized_trigger == SkillTriggerType.RAGE_SKILL:
                 continue
-            if skill_def["trigger"] == SkillTriggerType.PASSIVE:
+            if normalized_trigger == SkillTriggerType.PASSIVE:
                 continue
 
-            if skill_def["trigger"] == trigger_type:
-                    base_chance = skill_def.get("trigger_chance", 1.0)
-                    coop_bonus = 0.0
-                    if (
-                        skill_def["trigger"]
-                        in [SkillTriggerType.ON_BASIC_ATTACK, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST]
-                        and PluginSkillLabel.COOPERATION in skill_def.get("labels", [])
-                    ):
-                        coop_bonus = triggering_army.get_sum_stat_magnitudes(
-                            StatType.COOPERATION_TRIGGER_RATE_MODIFIER
-                        )
-                    final_chance = min(1.0, base_chance + coop_bonus)
-                    if random.random() < final_chance:
+            triggers_to_consider: List[SkillTriggerType] = []
+            if normalized_trigger:
+                triggers_to_consider.append(normalized_trigger)
+            extra_triggers = skill_def.get("config", {}).get("additional_triggers", [])
+            for extra_trigger in extra_triggers:
+                normalized_extra = _normalize_trigger_value(extra_trigger)
+                if normalized_extra and normalized_extra not in triggers_to_consider:
+                    triggers_to_consider.append(normalized_extra)
+
+            if trigger_type not in triggers_to_consider:
+                continue
+
+            base_chance = skill_def.get("trigger_chance", 1.0)
+            coop_bonus = 0.0
+            trigger_for_bonus = normalized_trigger or trigger_type
+            if (
+                trigger_for_bonus in (SkillTriggerType.ON_BASIC_ATTACK, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST)
+                and PluginSkillLabel.COOPERATION in (skill_def.get("labels", []) or [])
+            ):
+                coop_bonus = triggering_army.get_sum_stat_magnitudes(
+                    StatType.COOPERATION_TRIGGER_RATE_MODIFIER
+                )
+            final_chance = min(1.0, base_chance + coop_bonus)
+            if random.random() < final_chance:
                         skill_id = skill_def["id"]
                         skill_cfg = skill_def.get("config", {})
                         cooldown = skill_cfg.get("cooldown_rounds")
@@ -707,6 +734,7 @@ class GameSimulator:
                         if logic_handler:
                             handler_event_data = (event_data or {}).copy()
                             handler_event_data['actual_opponent_for_calc'] = actual_opponent_for_calc
+                            handler_event_data['trigger_type'] = trigger_type
                             an_effect_truly_happened, log_details_current_skill = \
                                 logic_handler(triggering_army, actual_effect_target, skill_def, handler_event_data, self)
                         elif "sub_effects" in skill_def:
@@ -738,7 +766,7 @@ class GameSimulator:
                                 self._log_skill_trigger(triggering_army, f"  ↳", desc_str, damage_details=dmg_details)
                             triggering_army.increment_skill_trigger_count(skill_id)
 
-                            if skill_def.get("trigger") == SkillTriggerType.CHANCE_PER_ROUND:
+                            if normalized_trigger == SkillTriggerType.CHANCE_PER_ROUND:
                                 self._process_skill_triggers(
                                     triggering_army,
                                     actual_effect_target,
@@ -1605,6 +1633,15 @@ class GameSimulator:
                     if plugin_skills_triggered:
                         self.report_builder.lines.append("    Plugin Skills:")
                         self.report_builder.lines.append("\n".join(plugin_skills_triggered))
+            mount_skill_entries: List[str] = []
+            for mount_skill in getattr(army_obj, "mount_skills", []) or []:
+                count = army_obj.skill_trigger_counts.get(mount_skill["id"], 0)
+                if count:
+                    mount_skill_entries.append(f"    - {mount_skill['name']}: {count} time(s)")
+            if mount_skill_entries:
+                has_printed_for_army = True
+                self.report_builder.lines.append("  Mount Skills:")
+                self.report_builder.lines.append("\n".join(mount_skill_entries))
             if not has_printed_for_army:
                 self.report_builder.lines.append("  No skills triggered or no skills equipped for any hero.")
 

@@ -364,6 +364,9 @@ def get_skill_description(skill_id: Optional[str], skill_name: Optional[str] = N
         elif type_text in {"plugin", "plugin_skill"}:
             _add_context("plugin")
             _add_context("skill")
+        elif type_text in {"mount", "mount_skill"}:
+            _add_context("mount")
+            _add_context("skill")
         else:
             _add_context("skill")
 

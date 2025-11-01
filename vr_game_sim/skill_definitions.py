@@ -131,6 +131,7 @@ from .skill_logic.utility_skill_handlers import (
     handle_generic_single_damage_skill,
     handle_generic_heal_skill,
 )
+from .mount_skill_definitions import MOUNT_SKILL_DEFINITIONS
 
 SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
     # --- Talent Skills ---
@@ -4697,6 +4698,8 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "effects_to_apply": [], "logic_handler": None
     }
 }
+
+SKILL_REGISTRY_GLOBAL.update(MOUNT_SKILL_DEFINITIONS)
 
 
 def _apply_list_overrides(base_list: List[Any], overrides: Dict[Any, Any]) -> None:

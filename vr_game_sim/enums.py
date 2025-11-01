@@ -89,6 +89,7 @@ class SkillType(Enum):
     BASE_SKILL = "BASE_SKILL"
     PLUGIN_SKILL = "PLUGIN_SKILL"
     GEM_SKILL = "GEM_SKILL"
+    MOUNT_SKILL = "MOUNT_SKILL"
 
 
 class PluginSkillLabel(Enum):

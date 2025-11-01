@@ -500,8 +500,14 @@ class Army:
         skill_definitions.extend(self.mount_skills)
 
         for skill_def in skill_definitions:
-            if (
-                skill_def.get("trigger") != SkillTriggerType.PASSIVE
+            trigger = skill_def.get("trigger")
+            has_permanent_effects = bool(skill_def.get("effects_to_apply"))
+            is_mount_skill_with_passives = (
+                skill_def.get("type") == SkillType.MOUNT_SKILL and has_permanent_effects
+            )
+
+            if not is_mount_skill_with_passives and (
+                trigger != SkillTriggerType.PASSIVE
                 or skill_def.get("id") == "dummy_talent_empty"
             ):
                 continue

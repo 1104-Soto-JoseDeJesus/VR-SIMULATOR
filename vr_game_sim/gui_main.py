@@ -2034,7 +2034,9 @@ class MountSkillsDialog(QtWidgets.QDialog):
             if slot not in (1, 2):
                 continue
             troop_types = config.get("troop_types")
-            if troop_types and self._unit_type and self._unit_type not in troop_types:
+            if not troop_types:
+                continue
+            if self._unit_type and self._unit_type not in troop_types:
                 continue
             name = sdef.get("name", sid)
             options.setdefault(int(slot), []).append((name, sid))

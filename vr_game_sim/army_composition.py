@@ -396,7 +396,9 @@ class Army:
                     )
                     continue
                 troop_types = base_def.get("config", {}).get("troop_types")
-                if troop_types and self.unit.unit_type not in troop_types:
+                if not troop_types:
+                    continue
+                if self.unit.unit_type not in troop_types:
                     continue
                 skill_copy = copy.deepcopy(base_def)
                 config = skill_copy.setdefault("config", {})

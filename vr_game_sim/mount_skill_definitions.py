@@ -108,14 +108,19 @@ def _create_effect(
 ) -> Dict[str, Any]:
     magnitude = magnitude_pct / 100.0
     duration_rounds = max(0, int(round(duration_seconds / 3)))
+    if duration_rounds > 0:
+        duration_value = max(0, duration_rounds - 1)
+    else:
+        duration_value = duration_rounds
     effect_name = f"{skill_id}_{name_hint}_{stat.value}"
     return {
         "effect_type": EffectType.STAT_MOD,
         "name": effect_name,
         "stat_to_mod": stat,
         "magnitude": magnitude,
-        "duration": duration_rounds,
+        "duration": duration_value,
         "target": target,
+        "duration_rounds": duration_rounds,
     }
 
 

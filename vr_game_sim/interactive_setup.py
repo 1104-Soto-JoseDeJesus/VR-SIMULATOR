@@ -269,7 +269,9 @@ def select_mount_skills_interactive(
         if slot not in (1, 2):
             continue
         troop_types = config.get("troop_types")
-        if troop_types and unit_type and unit_type not in troop_types:
+        if not troop_types:
+            continue
+        if unit_type and unit_type not in troop_types:
             continue
         name = skill_def.get("name", skill_id)
         options_by_slot.setdefault(int(slot), []).append((name, skill_id))

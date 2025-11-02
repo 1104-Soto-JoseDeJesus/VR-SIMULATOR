@@ -235,6 +235,68 @@ def test_skill_summary_includes_gem_skills():
     row.deleteLater()
 
 
+def test_skill_summary_includes_mount_skills():
+    gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
+    build_army_skill_summary = gui_main.build_army_skill_summary
+
+    hero1 = Hero(
+        "HeroOne",
+        ["dummy_talent_empty", "dummy_talent_empty", "dummy_talent_empty"],
+        [],
+        [],
+        SKILL_REGISTRY_GLOBAL,
+    )
+    hero2 = Hero(
+        "HeroTwo",
+        ["dummy_talent_empty", "dummy_talent_empty", "dummy_talent_empty"],
+        [],
+        [],
+        SKILL_REGISTRY_GLOBAL,
+    )
+    unit = Unit(unit_type="infantry", tier=5, initial_count=100)
+    army = Army(name="MountArmy", unit=unit, heroes=[hero1, hero2])
+
+    hero1_mount = "mount_command_crippling_strike"
+    hero2_mount = "mount_command_bone_spurs"
+    army.set_mount_skills(
+        {
+            "hero1_slot1": [hero1_mount],
+            "hero2_slot1": [hero2_mount],
+        }
+    )
+
+    army.skill_trigger_counts[hero1_mount] = 4
+    army.skill_kill_totals[hero1_mount] = 11
+    army.skill_rage_totals[hero1_mount] = 7
+    army.skill_trigger_counts[hero2_mount] = 3
+    army.skill_heal_totals[hero2_mount] = 5
+    army.skill_shield_totals[hero2_mount] = 2
+
+    cfg = {
+        "heroes": [
+            {"hero_name_or_preset": "HeroOne"},
+            {"hero_name_or_preset": "HeroTwo"},
+        ]
+    }
+
+    summary = build_army_skill_summary(army, cfg, "red")
+    hero1_skills = summary["skills"][0]
+    hero2_skills = summary["skills"][1]
+
+    mount1_entry = next((entry for entry in hero1_skills if entry["id"] == hero1_mount), None)
+    mount2_entry = next((entry for entry in hero2_skills if entry["id"] == hero2_mount), None)
+
+    assert mount1_entry is not None
+    assert mount1_entry["casts"] == 4
+    assert mount1_entry["kills"] == 11
+    assert mount1_entry["rage"] == 7
+
+    assert mount2_entry is not None
+    assert mount2_entry["casts"] == 3
+    assert mount2_entry["heals"] == 5
+    assert mount2_entry["shielded"] == 2
+
+
 def test_export_summary_handles_list_gem_skill(tmp_path, monkeypatch):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
@@ -379,14 +441,48 @@ def test_export_summary_includes_mount_skills(tmp_path, monkeypatch):
         ],
     }
 
-    summary_entry = {
-        "initial": 100,
-        "remaining": 80,
-        "healed": 20,
-        "kills": 30,
-        "hero_names": ["HeroOne", "HeroTwo"],
-        "skills": [[], []],
-    }
+    hero1 = Hero(
+        "HeroOne",
+        ["dummy_talent_empty", "dummy_talent_empty", "dummy_talent_empty"],
+        [],
+        [],
+        SKILL_REGISTRY_GLOBAL,
+    )
+    hero2 = Hero(
+        "HeroTwo",
+        ["dummy_talent_empty", "dummy_talent_empty", "dummy_talent_empty"],
+        [],
+        [],
+        SKILL_REGISTRY_GLOBAL,
+    )
+    unit = Unit(unit_type="infantry", tier=5, initial_count=100)
+    army = Army(name=setup_cfg["army_name"], unit=unit, heroes=[hero1, hero2])
+    army.set_mount_skills(
+        {
+            "hero1_slot1": ["mount_command_bone_spurs"],
+            "hero2_slot1": ["mount_command_crippling_strike"],
+        }
+    )
+    army.current_troop_count = 80
+    army.troops_healed_total = 20
+    army.kills_dealt_history = [30]
+
+    army.skill_trigger_counts["mount_command_bone_spurs"] = 2
+    army.skill_heal_totals["mount_command_bone_spurs"] = 14
+    army.skill_trigger_counts["mount_command_crippling_strike"] = 3
+    army.skill_kill_totals["mount_command_crippling_strike"] = 18
+
+    summary_entry = gui_main.build_army_skill_summary(army, setup_cfg, "red")
+    hero_skills = summary_entry.get("skills", [])
+    assert isinstance(hero_skills, list) and len(hero_skills) >= 2
+    assert any(
+        isinstance(entry, dict) and entry.get("id") == "mount_command_bone_spurs"
+        for entry in hero_skills[0]
+    )
+    assert any(
+        isinstance(entry, dict) and entry.get("id") == "mount_command_crippling_strike"
+        for entry in hero_skills[1]
+    )
 
     window._last_simulation_payload = {
         "setup": [setup_cfg],

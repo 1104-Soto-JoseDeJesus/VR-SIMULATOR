@@ -4385,6 +4385,9 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
             )
         skill_lists.append(hero_entries)
 
+    while len(skill_lists) < len(hero_names):
+        skill_lists.append([])
+
     gem_skill_ids = getattr(army, "gem_skill_ids", {}) or {}
     if gem_skill_ids:
         if not skill_lists:
@@ -4417,6 +4420,46 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
         for idx, entries in gem_entries_by_idx.items():
             entries.sort(key=lambda item: item[0])
             skill_lists[idx].extend(entry for _, entry in entries)
+
+    def _coerce_index(value: Any) -> int | None:
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str) and value.strip().isdigit():
+            try:
+                return int(value.strip())
+            except ValueError:
+                return None
+        return None
+
+    mount_skills = getattr(army, "mount_skills", []) or []
+    for mount_def in mount_skills:
+        if not isinstance(mount_def, dict):
+            continue
+        sid = mount_def.get("id")
+        if not isinstance(sid, str) or not sid:
+            continue
+        entry = _skill_stats_entry(army, sid, mount_def.get("name", sid))
+        config = mount_def.get("config", {}) or {}
+        if isinstance(config, dict):
+            rarity = config.get("rarity")
+            if rarity:
+                entry["rarity"] = rarity
+            hero_idx = _coerce_index(config.get("hero_index"))
+            mount_meta = config.get("mount_metadata") if isinstance(config.get("mount_metadata"), dict) else {}
+        else:
+            hero_idx = None
+            mount_meta = {}
+        if hero_idx is None and isinstance(mount_meta, dict):
+            hero_idx = _coerce_index(mount_meta.get("hero_index"))
+        if hero_idx is None:
+            hero_idx = 0
+        if hero_idx < 0:
+            hero_idx = 0
+        while hero_idx >= len(skill_lists):
+            skill_lists.append([])
+        while hero_idx >= len(hero_names):
+            hero_names.append(f"Hero {hero_idx + 1}")
+        skill_lists[hero_idx].append(entry)
 
     return {
         "team": team,

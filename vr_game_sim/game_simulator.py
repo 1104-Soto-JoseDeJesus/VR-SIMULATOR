@@ -508,6 +508,10 @@ class GameSimulator:
                 source_army.name, {}
             )
             skill_map[sid] = skill_map.get(sid, 0.0) + actual_skill_hp_damage_to_troops
+            source_army.skill_damage_totals[sid] = (
+                source_army.skill_damage_totals.get(sid, 0.0)
+                + actual_skill_hp_damage_to_troops
+            )
 
         if actual_skill_hp_damage_to_troops > 0 and apply_target:
             skill_name = "skill damage"
@@ -599,6 +603,10 @@ class GameSimulator:
                 continue
 
             attacker.pending_hp_damage_this_round += returned_hp
+            sid = effect.source_skill_id or "unknown"
+            defender.skill_damage_totals[sid] = (
+                defender.skill_damage_totals.get(sid, 0.0) + returned_hp
+            )
             defender_name = defender.name
             attacker.damage_contributors_this_round[defender_name] = (
                 attacker.damage_contributors_this_round.get(defender_name, 0.0)

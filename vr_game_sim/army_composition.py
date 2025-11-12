@@ -156,6 +156,7 @@ class Army:
         init=False, default_factory=dict
     )
     skill_kill_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    skill_damage_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_heal_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_shield_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_rage_totals: Dict[str, float] = field(init=False, default_factory=dict)
@@ -1125,6 +1126,12 @@ class Army:
                         skill_map[effect.source_skill_id] = skill_map.get(
                             effect.source_skill_id, 0.0
                         ) + hp_damage_to_troops_dot
+                        if caster_army:
+                            sid = effect.source_skill_id or "unknown"
+                            caster_army.skill_damage_totals[sid] = (
+                                caster_army.skill_damage_totals.get(sid, 0.0)
+                                + hp_damage_to_troops_dot
+                            )
 
                     dot_type_str = dot_type.value if isinstance(dot_type, DoTType) else "DoT"
                     log_msg = f"takes {hp_damage_to_troops_dot:.0f} HP ({dot_type_str}) damage (pending)."
@@ -1532,6 +1539,7 @@ class Army:
         self.heal_contributors_this_round = {}
         self.clear_dynamic_unrevivable_tracking()
         self.skill_kill_totals.clear()
+        self.skill_damage_totals.clear()
         self.skill_heal_totals.clear()
         self.skill_shield_totals.clear()
         self.skill_rage_totals.clear()

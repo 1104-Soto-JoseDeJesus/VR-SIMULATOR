@@ -290,6 +290,11 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 for skill_list in self._skills
                 for s in (skill_list or [])
             )
+            total_damage = sum(
+                (s.get("damage", 0) or 0) + (s.get("boosted_damage", 0) or 0)
+                for skill_list in self._skills
+                for s in (skill_list or [])
+            )
             total_damage_reduced = sum(
                 s.get("damage_reduced", 0)
                 for skill_list in self._skills
@@ -315,6 +320,7 @@ class HeroStatsWidget(QtWidgets.QWidget):
                 hero_name,
                 skills,
                 self._total_kills,
+                total_damage,
                 self._total_healed,
                 total_shielded,
                 total_rage_reduced,
@@ -406,6 +412,7 @@ class SkillStatsRow(QtWidgets.QWidget):
         self,
         data: dict,
         total_kills: int,
+        total_damage: int,
         total_healed: int,
         total_shielded: int,
         total_rage_reduced: int,
@@ -470,6 +477,7 @@ class SkillStatsRow(QtWidgets.QWidget):
 
         colors = {
             "kills": ("#8B0000", "#FF9999"),
+            "damage": ("#B22222", "#FFA07A"),
             "healed": ("#006400", "#90EE90"),
             "shielded": ("#00008B", "#ADD8E6"),
             "damage_reduced": ("#FF8C00", "#FFD580"),
@@ -512,6 +520,34 @@ class SkillStatsRow(QtWidgets.QWidget):
         setup_bar(kills_bar, total_kills, data.get("kills", 0), data.get("boosted_kills", 0), *colors["kills"], "kills")
         layout.addWidget(kills_bar, 0, 4)
 
+        # Damage
+        damage_icon = QtWidgets.QLabel()
+        damage_path = os.path.join(
+            os.path.dirname(__file__), "..", "Icons", "KillsICON.png"
+        )
+        damage_pix = QtGui.QPixmap(damage_path)
+        if not damage_pix.isNull():
+            damage_icon.setPixmap(
+                damage_pix.scaled(
+                    size,
+                    size,
+                    QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        damage_icon.setToolTip("Damage")
+        layout.addWidget(damage_icon, 0, 5)
+        damage_bar = QtWidgets.QProgressBar()
+        setup_bar(
+            damage_bar,
+            total_damage,
+            data.get("damage", 0),
+            data.get("boosted_damage", 0),
+            *colors["damage"],
+            "damage",
+        )
+        layout.addWidget(damage_bar, 0, 6)
+
         # Heals
         heals_icon = QtWidgets.QLabel()
         heals_path = os.path.join(
@@ -527,10 +563,10 @@ class SkillStatsRow(QtWidgets.QWidget):
                     QtCore.Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        layout.addWidget(heals_icon, 0, 5)
+        layout.addWidget(heals_icon, 0, 7)
         heals_bar = QtWidgets.QProgressBar()
         setup_bar(heals_bar, total_healed, data.get("heals", 0), data.get("boosted_heals", 0), *colors["healed"], "healed")
-        layout.addWidget(heals_bar, 0, 6)
+        layout.addWidget(heals_bar, 0, 8)
 
         # Shields
         shield_icon = QtWidgets.QLabel()
@@ -547,10 +583,10 @@ class SkillStatsRow(QtWidgets.QWidget):
                     QtCore.Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        layout.addWidget(shield_icon, 0, 7)
+        layout.addWidget(shield_icon, 0, 9)
         shield_bar = QtWidgets.QProgressBar()
         setup_bar(shield_bar, total_shielded, data.get("shielded", 0), data.get("boosted_shielded", 0), *colors["shielded"], "shielded")
-        layout.addWidget(shield_bar, 0, 8)
+        layout.addWidget(shield_bar, 0, 10)
 
         # Damage Reduction
         dr_icon = QtWidgets.QLabel()
@@ -567,10 +603,10 @@ class SkillStatsRow(QtWidgets.QWidget):
                     QtCore.Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        layout.addWidget(dr_icon, 0, 9)
+        layout.addWidget(dr_icon, 0, 11)
         dr_bar = QtWidgets.QProgressBar()
         setup_bar(dr_bar, total_damage_reduced, data.get("damage_reduced", 0), data.get("boosted_damage_reduced", 0), *colors["damage_reduced"], "damage_reduced")
-        layout.addWidget(dr_bar, 0, 10)
+        layout.addWidget(dr_bar, 0, 12)
 
         # Rage Reduction
         rr_icon = QtWidgets.QLabel()
@@ -587,10 +623,10 @@ class SkillStatsRow(QtWidgets.QWidget):
                     QtCore.Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        layout.addWidget(rr_icon, 0, 11)
+        layout.addWidget(rr_icon, 0, 13)
         rr_bar = QtWidgets.QProgressBar()
         setup_bar(rr_bar, total_rage_reduced, data.get("rage_reduced", 0), data.get("boosted_rage_reduced", 0), *colors["rage_reduced"], "rage_reduced")
-        layout.addWidget(rr_bar, 0, 12)
+        layout.addWidget(rr_bar, 0, 14)
 
         # Rage
         rage_icon = QtWidgets.QLabel()
@@ -607,10 +643,10 @@ class SkillStatsRow(QtWidgets.QWidget):
                     QtCore.Qt.TransformationMode.SmoothTransformation,
                 )
             )
-        layout.addWidget(rage_icon, 0, 13)
+        layout.addWidget(rage_icon, 0, 15)
         rage_bar = QtWidgets.QProgressBar()
         setup_bar(rage_bar, total_rage, data.get("rage", 0), data.get("boosted_rage", 0), *colors["rage"], "rage")
-        layout.addWidget(rage_bar, 0, 14)
+        layout.addWidget(rage_bar, 0, 16)
 
         layout.setColumnStretch(0, 3)
         layout.setColumnStretch(4, 3)
@@ -619,6 +655,7 @@ class SkillStatsRow(QtWidgets.QWidget):
         layout.setColumnStretch(10, 3)
         layout.setColumnStretch(12, 3)
         layout.setColumnStretch(14, 3)
+        layout.setColumnStretch(16, 3)
 
 
 class HeroSkillDialog(QtWidgets.QDialog):
@@ -629,6 +666,7 @@ class HeroSkillDialog(QtWidgets.QDialog):
         hero_name: str,
         skills: list[dict],
         total_kills: int,
+        total_damage: int,
         total_healed: int,
         total_shielded: int,
         total_rage_reduced: int,
@@ -643,7 +681,14 @@ class HeroSkillDialog(QtWidgets.QDialog):
         for data in skills:
             layout.addWidget(
                 SkillStatsRow(
-                    data, total_kills, total_healed, total_shielded, total_rage_reduced, total_rage, total_damage_reduced
+                    data,
+                    total_kills,
+                    total_damage,
+                    total_healed,
+                    total_shielded,
+                    total_rage_reduced,
+                    total_rage,
+                    total_damage_reduced,
                 )
             )
         self.setLayout(layout)

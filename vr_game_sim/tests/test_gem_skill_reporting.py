@@ -49,6 +49,7 @@ def test_reactive_crit_rate_increases_damage():
         damage_factor=200.0,
         source_skill_def=skill_def,
     )
+    assert attacker.skill_damage_totals.get("test_skill", 0.0) == pytest.approx(base_damage)
 
     attacker2, defender2, sim2 = _make_armies(
         {"damage_boost": {"reactive_crit_rate": 1.0}}
@@ -60,6 +61,7 @@ def test_reactive_crit_rate_increases_damage():
         damage_factor=200.0,
         source_skill_def=skill_def,
     )
+    assert attacker2.skill_damage_totals.get("test_skill", 0.0) == pytest.approx(crit_damage)
 
     assert crit_damage > base_damage
     assert pytest.approx(crit_damage / base_damage, rel=1e-6) == 1.5
@@ -125,6 +127,7 @@ def test_gem_retribution_counts_kills():
         source_skill_def=skill_def,
     )
     assert damage > 0
+    assert defender.skill_damage_totals.get("gem_retribution", 0.0) == pytest.approx(damage)
 
     attacker.commit_pending_healing_and_damage()
     defender.commit_pending_healing_and_damage()
@@ -161,6 +164,7 @@ def test_skill_summary_includes_gem_skills():
     })
     army.skill_trigger_counts[gem1] = 2
     army.skill_kill_totals[gem1] = 5
+    army.skill_damage_totals[gem1] = 12
     army.skill_trigger_counts[gem2] = 3
     army.skill_heal_totals[gem2] = 7
 
@@ -181,6 +185,7 @@ def test_skill_summary_includes_gem_skills():
     assert gem1_entry is not None
     assert gem1_entry["casts"] == 2
     assert gem1_entry["kills"] == 5
+    assert gem1_entry["damage"] == 12
     assert gem1_entry.get("rarity") == "Legendary"
 
     assert gem2_entry is not None
@@ -213,6 +218,7 @@ def test_skill_summary_includes_gem_skills():
 
     totals = {
         "kills": _total("kills", hero1_skills),
+        "damage": _total("damage", hero1_skills),
         "healed": _total("heals", hero1_skills),
         "shielded": _total("shielded", hero1_skills),
         "rage_reduced": _total("rage_reduced", hero1_skills),
@@ -223,6 +229,7 @@ def test_skill_summary_includes_gem_skills():
     row = SkillStatsRow(
         gem1_entry,
         totals["kills"],
+        totals["damage"],
         totals["healed"],
         totals["shielded"],
         totals["rage_reduced"],
@@ -352,12 +359,14 @@ def test_export_summary_with_sample_sections(tmp_path, monkeypatch):
             "name": name,
             "casts": base,
             "kills": base + 1,
+            "damage": base + 13,
             "heals": base + 2,
             "shielded": base + 3,
             "damage_reduced": base + 4,
             "rage": base + 5,
             "rage_reduced": base + 6,
             "boosted_kills": base + 7,
+            "boosted_damage": base + 14,
             "boosted_heals": base + 8,
             "boosted_shielded": base + 9,
             "boosted_rage": base + 10,

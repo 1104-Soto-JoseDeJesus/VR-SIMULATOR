@@ -3841,6 +3841,7 @@ def _skill_stats_entry(
         "name": name,
         "casts": army.skill_trigger_counts.get(skill_id, 0),
         "kills": int(round(army.skill_kill_totals.get(skill_id, 0.0))),
+        "damage": int(round(army.skill_damage_totals.get(skill_id, 0.0))),
         "heals": int(round(army.skill_heal_totals.get(skill_id, 0.0))),
         "shielded": int(round(army.skill_shield_totals.get(skill_id, 0.0))),
         "rage": int(round(army.skill_rage_totals.get(skill_id, 0.0))),
@@ -7020,6 +7021,7 @@ class MainWindow(QtWidgets.QMainWindow):
         skill_columns: list[dict[str, Any]] = [
             {"key": "casts", "label": "Casts", "is_boosted": False, "icon": None},
             {"key": "kills", "label": "Kills", "is_boosted": False, "icon": None},
+            {"key": "damage", "label": "Damage", "is_boosted": False, "icon": None},
             {"key": "heals", "label": "Heals", "is_boosted": False, "icon": None},
             {"key": "shielded", "label": "Shielded", "is_boosted": False, "icon": None},
             {

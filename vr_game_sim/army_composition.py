@@ -1127,6 +1127,13 @@ class Army:
                         ) + hp_damage_to_troops_dot
 
                     dot_type_str = dot_type.value if isinstance(dot_type, DoTType) else "DoT"
+                    enemy_hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)
+                    if enemy_hp_per_troop <= 0:
+                        enemy_hp_per_troop = 1
+                    potential_kills = 0
+                    if hp_damage_to_troops_dot > 0:
+                        potential_kills = round(hp_damage_to_troops_dot / enemy_hp_per_troop)
+
                     log_msg = f"takes {hp_damage_to_troops_dot:.0f} HP ({dot_type_str}) damage (pending)."
                     if absorbed_by_shield_dot > 0:
                         log_msg += f" {absorbed_by_shield_dot:.0f} HP absorbed by shield."
@@ -1141,6 +1148,7 @@ class Army:
                         damage_details={
                             "damage_done_hp": round(dot_damage_after_target_debuffs),
                             "absorbed_hp": round(absorbed_by_shield_dot),
+                            "potential_kills": int(potential_kills),
                         },
                     )
 

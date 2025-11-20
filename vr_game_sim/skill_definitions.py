@@ -29,7 +29,7 @@ from .skill_logic.talent_handlers import (
     # LAGERTHA TALENT HANDLERS
     handle_talent_chiefs_might, handle_talent_fatal_strike,
     handle_talent_high_fighting_spirit, handle_talent_low_whispers,
-    handle_talent_specter_lycan_assault, handle_talent_amazing_attack,
+    handle_talent_specter_lycan_onslaught, handle_talent_devastating_charge,
     # ROSKY TALENT HANDLERS
     handle_talent_blade_wielder, handle_talent_maniacal, handle_talent_pirate_tricks,
     # OLENA TALENT HANDLERS
@@ -71,7 +71,7 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_berserk_fury, handle_rage_brutal_blow,
     handle_base_skill_judgements_fury,
     handle_base_skill_shield_breaker,
-    handle_base_skill_plague, handle_base_skill_throwing_axe,
+    handle_base_skill_plague, handle_base_skill_fatal_flying_axe,
     handle_base_skill_vengeful_fury, handle_base_skill_ride_the_waves
 )
 from .skill_logic.plugin_skill_handlers import (
@@ -121,7 +121,7 @@ from .skill_logic.rage_skill_handlers import (
     handle_rage_ruling_trial,
     handle_rage_showdown,
     handle_rage_undead_harvest,
-    handle_rage_all_kill,
+    handle_rage_slaughter_feast,
     # ROSKY RAGE SKILL HANDLER
     handle_rage_spirit_battleship,
     # LEANDRA & MARGIT RAGE HANDLERS
@@ -1120,41 +1120,45 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
 
     # --- Ivor Skills ---
     "talent_tactical_rules": {
-        "id": "talent_tactical_rules", "name": "Tactical Rules", "type": SkillType.TALENT,
+        "id": "talent_tactical_rules", "name": "Law of Victory", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
         "effects_to_apply": [
-            {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_TACTICAL_RULES_RAGE_BUFF,
-             "stat_to_mod": StatType.HERO1_RAGE_SKILL_DAMAGE_MODIFIER, "magnitude": 0.15, "duration": -1},
-            {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_TACTICAL_RULES_RAGE_BUFF,
-             "stat_to_mod": StatType.HERO2_RAGE_SKILL_DAMAGE_MODIFIER, "magnitude": 0.15, "duration": -1}
+            {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_LAW_OF_VICTORY_RAGE_BUFF,
+             "stat_to_mod": StatType.HERO1_RAGE_SKILL_DAMAGE_MODIFIER, "magnitude": 0.18, "duration": -1},
+            {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_LAW_OF_VICTORY_RAGE_BUFF,
+             "stat_to_mod": StatType.HERO2_RAGE_SKILL_DAMAGE_MODIFIER, "magnitude": 0.18, "duration": -1}
         ]
     },
     "talent_specter_lycan_assault": {
-        "id": "talent_specter_lycan_assault", "name": "Specter Lycan Assault", "type": SkillType.TALENT,
+        "id": "talent_specter_lycan_assault", "name": "Specter Lycan Onslaught", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
-        "logic_handler": handle_talent_specter_lycan_assault,
+        "logic_handler": handle_talent_specter_lycan_onslaught,
         "labels": [PluginSkillLabel.COMMAND],
-        "config": {"damage_factor": 650.0, "trigger_interval": 9}
+        "config": {"damage_factor": 800.0, "trigger_interval": 9}
     },
     "talent_amazing_attack": {
-        "id": "talent_amazing_attack", "name": "Amazing Attack", "type": SkillType.TALENT,
-        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
-        "logic_handler": handle_talent_amazing_attack,
-        "labels": [PluginSkillLabel.COMMAND],
-        "config": {"troop_threshold": 350000, "damage_boost": 0.05}
+        "id": "talent_amazing_attack", "name": "Devastating Charge", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.25, "target": "ENEMY",
+        "logic_handler": handle_talent_devastating_charge,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "effects_to_apply": [
+            {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_DEVASTATING_CHARGE_RALLY_BUFF,
+             "stat_to_mod": StatType.DAMAGE_AGAINST_RALLY_ARMIES, "magnitude": 0.05, "duration": -1}
+        ],
+        "config": {"damage_factor": 400.0, "defense_buff": 0.30, "defense_duration": 1}
     },
     "base_skill_throwing_axe": {
-        "id": "base_skill_throwing_axe", "name": "Throwing Axe", "type": SkillType.BASE_SKILL,
+        "id": "base_skill_throwing_axe", "name": "Fatal Flying Axe", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
-        "logic_handler": handle_base_skill_throwing_axe,
+        "logic_handler": handle_base_skill_fatal_flying_axe,
         "labels": [PluginSkillLabel.COOPERATION],
-        "config": {"damage_factor": 350.0, "buffed_damage_factor": 450.0}
+        "config": {"damage_factor": 500.0, "buffed_damage_factor": 750.0}
     },
     "rage_skill_all_kill": {
-        "id": "rage_skill_all_kill", "name": "All Kill", "type": SkillType.BASE_SKILL,
+        "id": "rage_skill_all_kill", "name": "Slaughter Feast", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
-        "logic_handler": handle_rage_all_kill,
-        "config": {"damage_factor": 800.0, "attack_buff": 0.12, "attack_duration": 2}
+        "logic_handler": handle_rage_slaughter_feast,
+        "config": {"damage_factor": 1000.0, "attack_buff": 0.20, "attack_duration": 3}
     },
 
     # --- Rosky Skills ---

@@ -945,20 +945,20 @@ def handle_base_skill_plague(
 
 
 # --- Ivor Base Skill Handlers ---
-def handle_base_skill_throwing_axe(triggering_army: ArmyRef, opponent_army: ArmyRef,
-                                   skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
-                                   simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+def handle_base_skill_fatal_flying_axe(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                                       skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+                                       simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
     happened = False
     logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     cfg = skill_def.get("config", {})
     dmg = cfg.get("damage_factor", 0.0)
     buffed = cfg.get("buffed_damage_factor", dmg)
-    has_buff = any(
+    enemy_has_temp_buff = any(
         eff.effect_type not in (EffectType.DEBUFF, EffectType.DAMAGE_OVER_TIME)
         and eff.duration != -1
-        for eff in triggering_army.active_effects
+        for eff in opponent_army.active_effects
     )
-    dmg_factor = buffed if has_buff else dmg
+    dmg_factor = buffed if enemy_has_temp_buff else dmg
     if dmg_factor > 0:
         hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, dmg_factor, source_skill_def=skill_def)

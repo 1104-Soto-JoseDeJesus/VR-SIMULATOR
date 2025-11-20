@@ -1035,9 +1035,9 @@ def handle_rage_spirit_battleship(
 
 
 # --- Ivor Rage Skill Handler ---
-def handle_rage_all_kill(triggering_army: ArmyRef, opponent_army: ArmyRef,
-                         skill_def: SkillDefinition, event_data: Dict[str, Any],
-                         simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+def handle_rage_slaughter_feast(triggering_army: ArmyRef, opponent_army: ArmyRef,
+                                skill_def: SkillDefinition, event_data: Dict[str, Any],
+                                simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
     an_effect_happened = False
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     damage_dealt_flag = False
@@ -1103,14 +1103,14 @@ def handle_rage_all_kill(triggering_army: ArmyRef, opponent_army: ArmyRef,
     atk_buff = cfg.get("attack_buff", 0.0)
     atk_dur = cfg.get("attack_duration", 2)
     if atk_buff != 0:
-        buff_data = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_ALL_KILL_ATTACK_BUFF,
+        buff_data = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_SLAUGHTER_FEAST_ATTACK_BUFF,
                      "stat_to_mod": StatType.BASE_ATTACK_MULTIPLIER, "magnitude": atk_buff,
                      "duration": atk_dur, "activate_next_round": True}
         created_buff = triggering_army._create_and_add_single_effect(buff_data, skill_def["id"],
                                                                     triggering_army, triggering_army, opponent_army)
         if created_buff:
             an_effect_happened = True
-            log_details.append((f"Gains '{EFFECT_NAME_ALL_KILL_ATTACK_BUFF}' for {atk_dur + 1} rounds (starting next round).",
+            log_details.append((f"Gains '{EFFECT_NAME_SLAUGHTER_FEAST_ATTACK_BUFF}' for {atk_dur + 1} rounds (starting next round).",
                                None))
 
     return an_effect_happened, log_details, damage_dealt_flag

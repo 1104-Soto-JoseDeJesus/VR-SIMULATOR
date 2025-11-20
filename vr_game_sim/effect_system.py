@@ -185,6 +185,9 @@ class EffectInstance:
             elif stat_to_mod_val == StatType.GENERAL_DAMAGE_MODIFIER:
                 verb = "Reduces General Damage Dealt by" if self.magnitude < 0 else "Increases General Damage Dealt by"
                 desc_parts.append(f"{verb} {abs(self.magnitude * 100):.0f}%")
+            elif stat_to_mod_val == StatType.DAMAGE_AGAINST_RALLY_ARMIES:
+                verb = "Reduces Damage Dealt vs Rally Armies by" if self.magnitude < 0 else "Increases Damage Dealt vs Rally Armies by"
+                desc_parts.append(f"{verb} {abs(self.magnitude * 100):.0f}%")
             elif stat_to_mod_val == StatType.BLEED_DAMAGE_BOOST: desc_parts.append(f"{self.magnitude * 100:+.0f}% to Bleed Damage Dealt")
             elif stat_to_mod_val == StatType.POISON_DAMAGE_BOOST: desc_parts.append(f"{self.magnitude * 100:+.0f}% to Poison Damage Dealt")
             elif stat_to_mod_val == StatType.BURN_DAMAGE_BOOST: desc_parts.append(f"{self.magnitude * 100:+.0f}% to Burn Damage Dealt")

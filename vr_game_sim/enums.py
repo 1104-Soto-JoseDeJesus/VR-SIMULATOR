@@ -51,6 +51,7 @@ class StatType(Enum):
 
     # General Modifiers
     GENERAL_DAMAGE_MODIFIER = "general_damage_modifier" # General damage dealt increase/decrease by source
+    DAMAGE_AGAINST_RALLY_ARMIES = "damage_against_rally_armies" # Conditional damage bonus vs rally armies
     DAMAGE_TAKEN_MULTIPLIER = "damage_taken_multiplier" # General damage taken increase/decrease on target
 
     # Shield and Healing Modifiers

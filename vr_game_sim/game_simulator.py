@@ -208,6 +208,15 @@ class GameSimulator:
             skill_label=skill_label_context,
         )
         relevant_stats = {StatType.GENERAL_DAMAGE_MODIFIER}
+        if calc_target.is_rally:
+            rally_bonus = source_army.get_sum_stat_magnitudes(
+                StatType.DAMAGE_AGAINST_RALLY_ARMIES,
+                attack_type_filter="SKILL",
+                target_unit_type=target_unit_type,
+                skill_label=skill_label_context,
+            )
+            skill_damage_percent_boosts += rally_bonus
+            relevant_stats.add(StatType.DAMAGE_AGAINST_RALLY_ARMIES)
         current_skill_trigger_type = source_skill_def.get("trigger") if source_skill_def else None
 
         if current_skill_trigger_type == SkillTriggerType.RAGE_SKILL:
@@ -986,6 +995,13 @@ class GameSimulator:
             attack_type_filter=attack_type_for_defense_filter,
             target_unit_type=target_unit_type,
         )
+        sum_rally_bonus = 0.0
+        if dfd.is_rally:
+            sum_rally_bonus = att.get_sum_stat_magnitudes(
+                StatType.DAMAGE_AGAINST_RALLY_ARMIES,
+                attack_type_filter=attack_type_for_defense_filter,
+                target_unit_type=target_unit_type,
+            )
 
         positive_boost_effects = [
             eff
@@ -1005,10 +1021,21 @@ class GameSimulator:
             )
             if eff.magnitude > 0
         )
+        if dfd.is_rally:
+            positive_boost_effects.extend(
+                eff
+                for eff in att.iter_stat_effects(
+                    StatType.DAMAGE_AGAINST_RALLY_ARMIES,
+                    attack_type_filter=attack_type_for_defense_filter,
+                    target_unit_type=target_unit_type,
+                )
+                if eff.magnitude > 0
+            )
         total_positive_boost = sum(eff.magnitude for eff in positive_boost_effects)
         attacker_negative_mags = (
             sum_specific_attack_magnitudes
             + sum_general_attacker_magnitudes
+            + sum_rally_bonus
             - total_positive_boost
         )
 
@@ -1033,6 +1060,7 @@ class GameSimulator:
         total_additive_percentage_points = (
             sum_specific_attack_magnitudes +
             sum_general_attacker_magnitudes +
+            sum_rally_bonus +
             sum_defender_reduction_magnitudes
         )
 

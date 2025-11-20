@@ -197,9 +197,10 @@ EFFECT_NAME_PLAGUE_DAMAGE_TAKEN_DEBUFF = "Plague Damage Taken Debuff"
 EFFECT_NAME_UNDEAD_HARVEST_HP_REDUCTION = "Undead Harvest HP Reduction"
 
 # --- Ivor Skill Effect Names ---
-EFFECT_NAME_TACTICAL_RULES_RAGE_BUFF = "Tactical Rules Rage Buff"
-EFFECT_NAME_AMAZING_ATTACK_BUFF = "Amazing Attack Damage Buff"
-EFFECT_NAME_ALL_KILL_ATTACK_BUFF = "All Kill Attack Buff"
+EFFECT_NAME_LAW_OF_VICTORY_RAGE_BUFF = "Law of Victory Rage Buff"
+EFFECT_NAME_DEVASTATING_CHARGE_DEFENSE_BUFF = "Devastating Charge Defense Buff"
+EFFECT_NAME_DEVASTATING_CHARGE_RALLY_BUFF = "Devastating Charge Rally Damage Buff"
+EFFECT_NAME_SLAUGHTER_FEAST_ATTACK_BUFF = "Slaughter Feast Attack Buff"
 
 # --- Rosky Skill Effect Names ---
 EFFECT_NAME_BLADE_WIELDER_COUNTER_BOOST = "Blade Wielder Counter Boost"

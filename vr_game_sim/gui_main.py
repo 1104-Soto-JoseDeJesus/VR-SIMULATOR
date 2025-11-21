@@ -3988,6 +3988,8 @@ class SimulationWorker(QtCore.QThread):
         num_workers: int,
         seed_target: SeedTarget | None = None,
         dynamic_settings: dict[str, float] | None = None,
+        *,
+        cooldowns_enabled: bool = True,
     ) -> None:
         super().__init__()
         self.setup_data = setup_data
@@ -3999,6 +4001,7 @@ class SimulationWorker(QtCore.QThread):
         self.win_rate: float | None = None
         self.best_match: dict[str, Any] | None = None
         self.sample_battle_stats: dict[str, Any] | None = None
+        self.cooldowns_enabled: bool = bool(cooldowns_enabled)
 
     def cancel(self) -> None:
         """Request the simulation to stop."""
@@ -4021,6 +4024,7 @@ class SimulationWorker(QtCore.QThread):
                 progress_callback=progress_cb,
                 num_workers=self.num_workers,
                 target_outcome=self.seed_target,
+                cooldowns_enabled=self.cooldowns_enabled,
             )
             self.win_rate = float(win_rate)
             self.best_match = dict(best_match) if isinstance(best_match, dict) else None
@@ -4054,7 +4058,13 @@ class SimulationWorker(QtCore.QThread):
                 raise RuntimeError("cancelled")
 
             report_builder = ReportBuilder(use_color=False)
-            sim = GameSimulator(armies[0], armies[1], report_builder, track_stats=True)
+            sim = GameSimulator(
+                armies[0],
+                armies[1],
+                report_builder,
+                track_stats=True,
+                cooldowns_enabled=self.cooldowns_enabled,
+            )
             report_text = sim.simulate_battle()
             rounds = report_builder.get_rounds()
             summary = build_skill_summaries(armies, self.setup_data)
@@ -5162,6 +5172,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("Battle Simulator")
         self.seed_target: SeedTarget | None = None
         self.seed_display: QtWidgets.QLabel | None = None
+        self.cooldowns_enabled: bool = True
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
         self._troop_scalar_multiplier = troop_scalar_config.get_multiplier()
         main_layout = self._init_tabs()
@@ -5198,6 +5209,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_troop_scalar_multiplier_changed(self, value: float) -> None:
         self._troop_scalar_multiplier = float(value)
+
+    def _on_cooldowns_toggled(self, checked: bool) -> None:
+        self.cooldowns_enabled = bool(checked)
 
     def _open_gear_dialog(self, frame: ArmyFrame) -> None:
         hero_names = [frame.hero1_combo.currentText(), frame.hero2_combo.currentText()]
@@ -5253,6 +5267,10 @@ class MainWindow(QtWidgets.QMainWindow):
         dynamic_action.triggered.connect(self.open_dynamic_unrevivable_tool)
         troop_scalar_action = dbg_menu.addAction("Change Troop Scalar…")
         troop_scalar_action.triggered.connect(self.open_troop_scalar_tool)
+        cooldowns_action = dbg_menu.addAction("Cool downs mode")
+        cooldowns_action.setCheckable(True)
+        cooldowns_action.setChecked(self.cooldowns_enabled)
+        cooldowns_action.toggled.connect(self._on_cooldowns_toggled)
         star_action = dbg_menu.addAction("Star Layout")
         star_action.triggered.connect(self.open_star_overlay_tuner)
         debug_btn.setMenu(dbg_menu)
@@ -9980,6 +9998,7 @@ class MainWindow(QtWidgets.QMainWindow):
             workers,
             self.seed_target,
             dynamic_settings=self._dynamic_unrevivable_settings,
+            cooldowns_enabled=self.cooldowns_enabled,
         )
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))

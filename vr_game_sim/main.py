@@ -256,6 +256,7 @@ def _run_single_battle(
     *,
     troop_scalar_multiplier: float | None = None,
     return_report: bool = False,
+    cooldowns_enabled: bool = True,
 ) -> tuple:
     """Helper to run a single battle.
 
@@ -295,7 +296,12 @@ def _run_single_battle(
     troop_scalar_config.set_session_multiplier(session_multiplier)
 
     armies = create_armies_from_data(setup_data)
-    sim = GameSimulator(armies[0], armies[1], track_stats=return_report)
+    sim = GameSimulator(
+        armies[0],
+        armies[1],
+        track_stats=return_report,
+        cooldowns_enabled=cooldowns_enabled,
+    )
     with contextlib.redirect_stdout(io.StringIO()):
         sim.simulate_battle()
     winner = 0
@@ -320,12 +326,14 @@ def _run_single_battle_with_multiplier(
     seed: int | None,
     dynamic_settings: Dict[str, float] | None,
     troop_scalar_multiplier: float,
+    cooldowns_enabled: bool = True,
 ) -> tuple:
     return _run_single_battle(
         setup_data,
         seed=seed,
         dynamic_settings=dynamic_settings,
         troop_scalar_multiplier=troop_scalar_multiplier,
+        cooldowns_enabled=cooldowns_enabled,
     )
 
 
@@ -338,6 +346,7 @@ def run_additional_simulations(
     num_workers: int = 1,
     progress_callback: Optional[Callable[[int, int], None]] = None,
     target_outcome: Optional[SeedTarget] = None,
+    cooldowns_enabled: bool = True,
 ) -> tuple[float, Optional[Dict[str, Any]]]:
     """Runs extra simulations and computes summary statistics.
 
@@ -379,12 +388,14 @@ def run_additional_simulations(
         ) as ex:
             settings_iter = repeat(dynamic_settings_payload, runs)
             multiplier_iter = repeat(current_multiplier, runs)
+            cooldown_iter = repeat(bool(cooldowns_enabled), runs)
             results_iter = ex.map(
                 _run_single_battle_with_multiplier,
                 worker_inputs,
                 seeds,
                 settings_iter,
                 multiplier_iter,
+                cooldown_iter,
             )
             completed = 0
             for own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev in results_iter:
@@ -406,6 +417,7 @@ def run_additional_simulations(
                 seed=seed_val,
                 dynamic_settings=dynamic_settings_payload,
                 troop_scalar_multiplier=current_multiplier,
+                cooldowns_enabled=cooldowns_enabled,
             )
             own_remaining.append(own)
             enemy_remaining.append(enemy)

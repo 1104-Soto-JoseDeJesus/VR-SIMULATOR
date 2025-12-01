@@ -710,12 +710,8 @@ def handle_plugin_lokis_trick(
 
             for eff in opponent_army.active_effects:  # Target opponent's buffs
                 is_removable_buff = (
-                    eff.effect_type != EffectType.SHIELD  # Don't remove shields this way
-                    and eff.duration != -1  # Don't remove permanent effects
-                    and eff.name != pending_removal_effect_name  # Don't target self
-                    and eff.effect_type != EffectType.HEAL_OVER_TIME  # Don't remove heal over time
-                    and eff.config.get("is_dispellable", True)
-                    and eff.is_beneficial_for_target()
+                    eff.name != pending_removal_effect_name  # Don't target self
+                    and eff.is_dispellable_buff_candidate()
                 )
                 if is_removable_buff:
                     buff_ids_to_target.append(eff.id)
@@ -1025,12 +1021,8 @@ def handle_plugin_blessed_negation(
     buff_names_for_initial_log = []
     for eff in opponent_army.active_effects:
         is_removable_buff = (
-            eff.effect_type != EffectType.SHIELD
-            and eff.duration != -1
-            and eff.name != EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL
-            and eff.effect_type != EffectType.HEAL_OVER_TIME
-            and eff.config.get("is_dispellable", True)
-            and eff.is_beneficial_for_target()
+            eff.name != EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL
+            and eff.is_dispellable_buff_candidate()
         )
         if is_removable_buff:
             buff_ids_to_target.append(eff.id)

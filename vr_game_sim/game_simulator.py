@@ -171,6 +171,8 @@ class GameSimulator:
         is_hero2_rage_skill: bool = False,
         source_skill_def: Optional[SkillDefinition] = None,
         damage_application_target: Optional[Army] = None,
+        *,
+        damage_is_over_time: bool = False,
     ) -> Tuple[float, float, int, float]:
         if source_army.current_troop_count <= 0:
             return 0.0, 0.0, 0, 0.0
@@ -179,7 +181,7 @@ class GameSimulator:
         apply_target = damage_application_target or target_army
 
         evasion_effect = None
-        if apply_target:
+        if apply_target and not damage_is_over_time:
             evasion_effect = self._attempt_evasion(
                 apply_target, source_army, "SKILL", source_skill_def
             )
@@ -550,6 +552,9 @@ class GameSimulator:
         source_skill_def: Optional[SkillDefinition],
     ) -> Optional[EffectInstance]:
         """Return the evasion effect instance when the attack is avoided."""
+
+        if attack_type.upper() not in {"BASIC", "COUNTER", "SKILL"}:
+            return None
 
         evasion_effects = [
             eff

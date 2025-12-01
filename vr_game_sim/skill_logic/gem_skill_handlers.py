@@ -555,12 +555,7 @@ def _apply_composite_combat_effects(
         eligible_buffs = [
             eff
             for eff in opponent_army.active_effects
-            if (
-                eff.duration != -1
-                and eff.effect_type not in {EffectType.SHIELD, EffectType.HEAL_OVER_TIME}
-                and eff.config.get("is_dispellable", True)
-                and eff.is_beneficial_for_target()
-            )
+            if eff.is_dispellable_buff_candidate()
         ]
         if eligible_buffs:
             selected = random.sample(

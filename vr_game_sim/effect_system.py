@@ -111,6 +111,17 @@ class EffectInstance:
             return self._custom_effect_disposition() == "beneficial"
         return False
 
+    def is_dispellable_buff_candidate(self, *, include_shields: bool = False) -> bool:
+        if self.duration == -1:
+            return False
+        if not include_shields and self.effect_type == EffectType.SHIELD:
+            return False
+        if self.effect_type == EffectType.HEAL_OVER_TIME:
+            return False
+        if not self.config.get("is_dispellable", True):
+            return False
+        return self.is_beneficial_for_target()
+
     def is_harmful_for_target(self) -> bool:
         if self.effect_type == EffectType.STAT_MOD:
             stat_enum = self._stat_type_from_config()

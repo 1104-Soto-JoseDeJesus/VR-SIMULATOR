@@ -1894,6 +1894,98 @@ class JewelSkillsDialog(QtWidgets.QDialog):
         return selections
 
 
+class MountSkillsDialog(QtWidgets.QDialog):
+    """Dialog for assigning up to two mount skills per hero."""
+
+    def __init__(
+        self,
+        selected: dict[int, list[str]] | None,
+        hero_names: dict[int, str],
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Mount Skills")
+        self.setModal(True)
+        self._slot_boxes: dict[tuple[int, int], QtWidgets.QComboBox] = {}
+
+        layout = QtWidgets.QVBoxLayout(self)
+        info = QtWidgets.QLabel(
+            "Assign up to two mount skills to each hero. Mount skills trigger automatically based on their description."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        container = QtWidgets.QWidget()
+        form = QtWidgets.QFormLayout(container)
+        form.setFieldGrowthPolicy(QtWidgets.QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
+
+        options: list[tuple[str, str]] = []
+        for sid, sdef in SKILL_REGISTRY_GLOBAL.items():
+            if _is_mount_skill(sid):
+                options.append((sdef.get("name", sid), sid))
+        options.sort(key=lambda item: item[0])
+        options.insert(0, ("None", ""))
+
+        current = selected or {}
+        for hero_idx in (1, 2):
+            hero_display = hero_names.get(hero_idx) or f"Hero {hero_idx}"
+            for slot_idx in range(2):
+                combo = QtWidgets.QComboBox()
+                combo.setEditable(True)
+                combo.setInsertPolicy(QtWidgets.QComboBox.InsertPolicy.NoInsert)
+                for name, sid in options:
+                    combo.addItem(name, sid)
+                completer = QtWidgets.QCompleter([name for name, _ in options], combo)
+                completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+                completer.setCompletionMode(QtWidgets.QCompleter.CompletionMode.PopupCompletion)
+                combo.setCompleter(completer)
+
+                selected_ids = current.get(hero_idx, []) or []
+                if slot_idx < len(selected_ids):
+                    sid = selected_ids[slot_idx]
+                    idx = combo.findData(sid)
+                    if idx == -1 and sid:
+                        display_name = SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", sid)
+                        combo.addItem(display_name, sid)
+                        idx = combo.count() - 1
+                    if idx >= 0:
+                        combo.setCurrentIndex(idx)
+
+                label_text = f"{hero_display} • Slot {slot_idx + 1}:"
+                form.addRow(label_text, combo)
+                self._slot_boxes[(hero_idx, slot_idx)] = combo
+
+            if hero_display in {"", "None"}:
+                for slot_idx in range(2):
+                    self._slot_boxes[(hero_idx, slot_idx)].setEnabled(False)
+
+        scroll.setWidget(container)
+        layout.addWidget(scroll)
+
+        btn_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        btn_box.accepted.connect(self.accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+    def result(self) -> dict[int, list[str]]:
+        selections: dict[int, list[str]] = {1: [], 2: []}
+        for hero_idx in (1, 2):
+            for slot_idx in range(2):
+                combo = self._slot_boxes.get((hero_idx, slot_idx))
+                if combo is None or not combo.isEnabled():
+                    continue
+                sid = combo.currentData()
+                if isinstance(sid, str) and sid:
+                    selections[hero_idx].append(sid)
+        return selections
+
+
 class GearSelectionDialog(QtWidgets.QDialog):
     """Dialog for assigning gear to each hero slot."""
 
@@ -2308,13 +2400,11 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.gem_skills_btn = QtWidgets.QPushButton("Jewel Skills")
         self.bonus_stats_btn = QtWidgets.QPushButton("Bonus Stats")
 
-        # Mount skills configuration is not yet available but the
-        # button is present for future expansion.
-        self.mount_skills_btn.setEnabled(False)
-
         self._bonus_stats = default_bonus_stats()
+        self._mount_skills: dict[int, list[str]] = {1: [], 2: []}
         self._gem_skills: dict[str, str] = {slot: "" for slot, _ in JEWEL_SLOTS}
         self._hero_gear: dict[int, dict[str, str]] = {1: {}, 2: {}}
+        self.mount_skills_btn.clicked.connect(self._open_mount_skills_dialog)
         self.gem_skills_btn.clicked.connect(self._open_gem_skills_dialog)
         self.bonus_stats_btn.clicked.connect(self._open_bonus_stats_dialog)
 
@@ -2335,6 +2425,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         # Extra row for preview content added externally
 
         self._update_bonus_stats_button()
+        self._update_mount_skills_button()
         self._update_gem_skills_button()
         self._update_gear_button()
 
@@ -2679,6 +2770,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
         if name in {"None", ""} and self._hero_gear.get(slot):
             self._hero_gear[slot] = {}
         self._update_gear_button()
+        if name in {"None", ""}:
+            self._mount_skills[slot] = []
+            self._update_mount_skills_button()
 
         img_label = self.hero1_img if slot == 1 else self.hero2_img
         img_label.set_image(None)
@@ -2711,6 +2805,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self._render_plugin_loadout(slot)
         else:
             self._clear_plugin_loadout(slot)
+        self._update_mount_skills_button()
         self._update_name_if_auto()
 
     def _update_name_if_auto(self) -> None:
@@ -2789,6 +2884,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self._hero_gear = {1: {}, 2: {}}
             self._update_gear_button()
             gear_map: dict[int, dict[str, str]] = {1: {}, 2: {}}
+            mount_map: dict[int, list[str]] = {1: [], 2: []}
             for idx, hero_cfg in enumerate(cfg.get("heroes", []), start=1):
                 if idx > 2:
                     break
@@ -2836,6 +2932,12 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
                 self._hero_selected(idx, hero_name_display)
 
+                mount_ids_cfg = hero_cfg.get("mount_skill_ids")
+                if isinstance(mount_ids_cfg, (list, tuple)):
+                    mount_map[idx] = [
+                        sid for sid in mount_ids_cfg if isinstance(sid, str) and sid.strip()
+                    ]
+
                 raw_gear_cfg: dict[str, Any] = {}
                 if isinstance(hero_cfg, dict):
                     if isinstance(hero_cfg.get("gear_ids"), dict):
@@ -2854,6 +2956,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 if normalized_slots:
                     gear_map[idx] = normalized_slots
             self._set_gear_config(gear_map)
+            self._set_mount_skills(mount_map)
 
             for idx, combo in enumerate(hero_combos, start=1):
                 self._hero_selected(idx, combo.currentText())
@@ -2925,6 +3028,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
                         any_custom_plugin = True
                 if any_custom_plugin and plugin_counts:
                     cfg["plugin_star_counts"] = plugin_counts
+
+                mount_skills = [sid for sid in self._mount_skills.get(idx, []) if sid]
+                if mount_skills:
+                    cfg["mount_skill_ids"] = mount_skills
 
                 gear_selection = self._hero_gear.get(idx, {})
                 if gear_selection:
@@ -2999,6 +3106,61 @@ class ArmyFrame(QtWidgets.QGroupBox):
     def _set_bonus_stats(self, stats: dict[str, Any] | None) -> None:
         self._bonus_stats = merge_bonus_stats(default_bonus_stats(), stats or {})
         self._update_bonus_stats_button()
+
+    def _open_mount_skills_dialog(self) -> None:
+        hero_names = {1: self.hero1_combo.currentText(), 2: self.hero2_combo.currentText()}
+        dlg = MountSkillsDialog(self._mount_skills, hero_names, self)
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            self._set_mount_skills(dlg.result())
+
+    def _set_mount_skills(self, mount_skills: dict[int, list[str]] | None) -> None:
+        normalized: dict[int, list[str]] = {1: [], 2: []}
+        if mount_skills:
+            for hero_idx, skills in mount_skills.items():
+                if hero_idx not in normalized or not isinstance(skills, (list, tuple)):
+                    continue
+                cleaned: list[str] = []
+                for sid in skills:
+                    if not isinstance(sid, str):
+                        continue
+                    trimmed = sid.strip()
+                    if not trimmed:
+                        continue
+                    cleaned.append(trimmed)
+                    if len(cleaned) >= 2:
+                        break
+                normalized[hero_idx] = cleaned
+        self._mount_skills = normalized
+        self._update_mount_skills_button()
+
+    def _update_mount_skills_button(self) -> None:
+        if not hasattr(self, "mount_skills_btn"):
+            return
+        count, summary = self._mount_skills_summary()
+        if count:
+            self.mount_skills_btn.setText(f"Mount Skills ({count})")
+            self.mount_skills_btn.setToolTip(summary)
+        else:
+            self.mount_skills_btn.setText("Mount Skills")
+            self.mount_skills_btn.setToolTip("No mount skills selected.")
+
+    def _mount_skills_summary(self) -> tuple[int, str]:
+        entries: list[str] = []
+        total = 0
+        for hero_idx in (1, 2):
+            skills = self._mount_skills.get(hero_idx, [])
+            if not skills:
+                continue
+            names: list[str] = []
+            for sid in skills:
+                skill_def = SKILL_REGISTRY_GLOBAL.get(sid)
+                names.append(skill_def.get("name", sid) if skill_def else sid)
+            hero_name = self._hero_names.get(hero_idx, f"Hero {hero_idx}") or f"Hero {hero_idx}"
+            entries.append(f"{hero_name}: {', '.join(names)}")
+            total += len(names)
+        if not entries:
+            return 0, "No mount skills selected."
+        return total, "\n".join(entries)
 
     def _update_bonus_stats_button(self) -> None:
         count, summary = self._bonus_stats_summary()

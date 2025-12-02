@@ -13,6 +13,7 @@ from vr_game_sim.enums import (
     SkillTriggerType,
     SkillType,
     PluginSkillLabel,
+    StatType,
 )
 from vr_game_sim.hero_definition import Hero
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
@@ -57,6 +58,55 @@ def test_reactive_crit_rate_increases_damage():
     crit_damage, *_ = sim2._calculate_generic_skill_damage(
         attacker2,
         defender2,
+        damage_factor=200.0,
+        source_skill_def=skill_def,
+    )
+
+    assert crit_damage > base_damage
+    assert pytest.approx(crit_damage / base_damage, rel=1e-6) == 1.5
+
+
+def test_command_crit_rate_sums_multiple_sources(monkeypatch):
+    skill_def = {
+        "id": "command_skill",
+        "name": "Command Skill",
+        "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND,
+        "labels": [PluginSkillLabel.COMMAND],
+    }
+
+    base_attacker, base_defender, base_sim = _make_armies()
+
+    # A random roll that should only crit when the individual crit-rate sources are added together.
+    monkeypatch.setattr(random, "random", lambda: 0.3)
+    base_damage, *_ = base_sim._calculate_generic_skill_damage(
+        base_attacker,
+        base_defender,
+        damage_factor=200.0,
+        source_skill_def=skill_def,
+    )
+
+    attacker, defender, sim = _make_armies(
+        {"damage_boost": {"command_crit_rate": 0.15}}
+    )
+    effect_data = {
+        "name": "Command Crit Buff",
+        "effect_type": EffectType.STAT_MOD,
+        "config": {
+            "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
+            "config_filter": {"skill_label": "COMMAND", "attack_type": "SKILL"},
+        },
+        "magnitude": 0.2,
+        "duration": -1,
+    }
+    buff = attacker._create_and_add_single_effect(
+        effect_data, "buff_skill", attacker, attacker
+    )
+    attacker.active_effects.append(buff)
+
+    crit_damage, *_ = sim._calculate_generic_skill_damage(
+        attacker,
+        defender,
         damage_factor=200.0,
         source_skill_def=skill_def,
     )

@@ -1,7 +1,7 @@
 [
   {
     "name": "Crippling Strike",
-    "description": "Deployed Troops Command Skill Critical Rate increases by 2%. Upon entering battle, deal direct damage (Damage Factor 780) 1 time to target every 6s."
+    "description": "Passively increases deployed Troops Command Skill Critical Rate by 2%. Upon entering battle, deals direct damage (Damage Factor 780) to the target every 6 rounds (first hit on round 6)."
   },
   {
     "name": "Firewing Ashes",

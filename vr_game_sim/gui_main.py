@@ -53,6 +53,7 @@ from vr_game_sim.main import (
 )
 from vr_game_sim import dynamic_unrevivable_config, troop_scalar_config
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
+from vr_game_sim.enums import StatType
 from vr_game_sim.metadata_loader import get_skill_description
 from vr_game_sim.battlefield_engine import BattlefieldEngine, ENGAGEMENT_DISTANCE
 from vr_game_sim.arena_engine import ArenaEngine
@@ -280,6 +281,41 @@ def iter_bonus_stat_entries(stats: dict[str, Any]) -> list[dict[str, Any]]:
         float(stats.get("command_skill_boost", 0.0)),
     )
 
+    return entries
+
+
+def iter_skill_bonus_entries_from_effects(
+    effects: Iterable[Any],
+) -> list[dict[str, Any]]:
+    """Return structured bonus entries for always-on skill effects."""
+
+    label_map: dict[StatType, tuple[str, bool]] = {
+        StatType.REACTIVE_SKILL_CRIT_RATE: ("Reactive Skill Critical Rate", False),
+        StatType.COOPERATION_SKILL_CRIT_RATE: ("Cooperation Skill Critical Rate", False),
+        StatType.COMMAND_SKILL_CRIT_RATE: ("Command Skill Critical Rate", False),
+    }
+
+    entries: list[dict[str, Any]] = []
+    for effect in effects or []:
+        config = getattr(effect, "config", None) or {}
+        if not config.get("manual_bonus_stat"):
+            continue
+        source_skill = getattr(effect, "source_skill_id", "") or ""
+        if (
+            source_skill == "manual_bonus_stats"
+            or str(source_skill).startswith("gear::")
+        ):
+            continue
+        stat = config.get("stat_to_mod")
+        label_info = label_map.get(stat)
+        if not label_info:
+            continue
+        label, invert = label_info
+        try:
+            magnitude = float(getattr(effect, "magnitude", 0.0))
+        except (TypeError, ValueError):
+            continue
+        entries.append({"label": label, "value": magnitude, "invert": invert})
     return entries
 
 
@@ -3951,6 +3987,10 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
             entries.sort(key=lambda item: item[0])
             skill_lists[idx].extend(entry for _, entry in entries)
 
+    passive_bonus_entries = iter_skill_bonus_entries_from_effects(
+        getattr(army, "active_effects", [])
+    )
+
     return {
         "team": team,
         "name": army.name,
@@ -3962,6 +4002,7 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
         "kills": int(round(sum(army.kills_dealt_history))),
         "skills": skill_lists,
         "hero_names": hero_names,
+        "passive_bonus_entries": passive_bonus_entries,
     }
 
 
@@ -7153,6 +7194,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 }
                 for entry in iter_bonus_stat_entries(bonus_stats)
             ]
+            for entry in summary_entry.get("passive_bonus_entries", []) or []:
+                try:
+                    label = entry.get("label")
+                    value = fmt_percent(
+                        float(entry.get("value", 0.0)),
+                        bool(entry.get("invert", False)),
+                    )
+                except (TypeError, ValueError):
+                    continue
+                if label:
+                    bonus_entries.append({"label": str(label), "value": value})
             stats_html = []
             for key, label in (("attack", "Attack"), ("defense", "Defense"), ("health", "Health")):
                 icon = stat_icons.get(key) or ""

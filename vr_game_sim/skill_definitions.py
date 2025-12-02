@@ -4694,6 +4694,32 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         },
     },
 
+    # --- Mount Skills ---
+    "mount_crippling_strike": {
+        "id": "mount_crippling_strike",
+        "name": "Crippling Strike",
+        "type": SkillType.MOUNT_SKILL,
+        "source": "mount",
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND,
+        "trigger_chance": 1.0,
+        "target": "ENEMY",
+        "logic_handler": handle_talent_serpents_rage,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"damage_factor": 780.0, "trigger_interval": 6},
+        "passive_effects": [
+            {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
+                "magnitude": 0.02,
+                "duration": -1,
+                "activate_next_round": False,
+                "manual_bonus_stat": True,
+                "config_filter": {"skill_label": "COMMAND", "attack_type": "SKILL"},
+            }
+        ],
+    },
+
     # --- Dummy Talent ---
     "dummy_talent_empty": {
         "id": "dummy_talent_empty", "name": "Empty Talent Slot", "type": SkillType.TALENT,

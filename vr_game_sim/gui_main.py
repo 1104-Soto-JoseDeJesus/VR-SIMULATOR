@@ -3898,6 +3898,19 @@ def _skill_stats_entry(
     return entry
 
 
+def _is_mount_skill(skill_id: str) -> bool:
+    skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id) or {}
+    skill_type = skill_def.get("type")
+    if isinstance(skill_type, SkillType) and skill_type.name.endswith("MOUNT_SKILL"):
+        return True
+    if isinstance(skill_type, str) and skill_type.upper().endswith("MOUNT_SKILL"):
+        return True
+    if skill_def.get("is_mount_skill") or skill_def.get("mount_skill"):
+        return True
+    source_val = skill_def.get("source") or skill_def.get("origin")
+    return isinstance(source_val, str) and source_val.lower() == "mount"
+
+
 def _resolve_portraits(cfg: dict) -> tuple[str, str]:
     """Return portrait paths for the heroes defined in ``cfg``."""
 
@@ -3986,6 +3999,51 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
         for idx, entries in gem_entries_by_idx.items():
             entries.sort(key=lambda item: item[0])
             skill_lists[idx].extend(entry for _, entry in entries)
+
+    mount_skill_ids: set[str] = set()
+    stats_maps: list[dict[str, float]] = [
+        army.skill_trigger_counts,
+        army.skill_kill_totals,
+        army.skill_heal_totals,
+        army.skill_shield_totals,
+        army.skill_rage_totals,
+        army.skill_rage_reduction_totals,
+        army.skill_damage_reduction_totals,
+        army.skill_kill_boost_totals,
+        army.skill_heal_boost_totals,
+        army.skill_shield_boost_totals,
+        army.skill_rage_boost_totals,
+        army.skill_rage_reduction_boost_totals,
+        army.skill_damage_reduction_boost_totals,
+    ]
+    for stat_map in stats_maps:
+        for skill_id, value in stat_map.items():
+            if not skill_id or skill_id in mount_skill_ids:
+                continue
+            if not _is_mount_skill(skill_id):
+                continue
+            if abs(float(value)) <= 1e-9:
+                continue
+            mount_skill_ids.add(skill_id)
+
+    if mount_skill_ids:
+        if not skill_lists:
+            skill_lists.append([])
+        target_list = skill_lists[0]
+        existing_ids = {entry.get("id") for entry in target_list if isinstance(entry, dict)}
+        for skill_id in sorted(mount_skill_ids):
+            if skill_id in existing_ids:
+                continue
+            skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id) or {}
+            entry = _skill_stats_entry(
+                army,
+                skill_id,
+                skill_def.get("name", skill_id),
+            )
+            entry["is_mount"] = True
+            entry["source"] = skill_def.get("source") or skill_def.get("origin") or "mount"
+            entry["type"] = skill_def.get("type")
+            target_list.append(entry)
 
     passive_bonus_entries = iter_skill_bonus_entries_from_effects(
         getattr(army, "active_effects", [])
@@ -6947,6 +7005,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         icon_lookup = build_lookup(os.path.join(base_dir, "Icons"))
         plugin_icon_lookup = build_lookup(os.path.join(base_dir, "Plugin Skill Images"))
+        mount_icon_lookup = build_lookup(os.path.join(base_dir, "MountSkillsIcons"))
 
         stat_icons = {
             "attack": ensure_asset(os.path.join(base_dir, "Stat Icons", "attack.png")),
@@ -7115,6 +7174,22 @@ class MainWindow(QtWidgets.QMainWindow):
                 else "Description unavailable."
             )
             return name, tooltip, skill_def if isinstance(skill_def, dict) else None
+
+        def resolve_skill_icon(skill_id: str, skill_name: str | None) -> str | None:
+            preferred_label = skill_name or skill_id
+            skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id) or {}
+            if _is_mount_skill(skill_id):
+                path = resolve_from_lookup(preferred_label, mount_icon_lookup) or resolve_from_lookup(
+                    skill_def.get("name", skill_id), mount_icon_lookup
+                )
+                if path:
+                    return ensure_asset(path)
+            path = resolve_from_lookup(preferred_label, plugin_icon_lookup) or resolve_from_lookup(
+                skill_def.get("name", skill_id), plugin_icon_lookup
+            )
+            if path:
+                return ensure_asset(path)
+            return None
 
         armies_html: list[str] = []
         sample_army_blocks: list[str] = []
@@ -7529,20 +7604,57 @@ class MainWindow(QtWidgets.QMainWindow):
                     )
                     + "</div>"
                 )
-                mount_slots = "".join(
-                    (
-                        f"<img src=\"{mount_placeholder}\" alt=\"Mount skill placeholder\">"
-                        if mount_placeholder
-                        else "<div class=\"placeholder-empty\"></div>"
+                mount_entries: list[dict[str, Any]] = []
+                if hero_idx < len(hero_skill_lists):
+                    mount_entries = [
+                        entry
+                        for entry in hero_skill_lists[hero_idx] or []
+                        if isinstance(entry, dict)
+                        and _is_mount_skill(str(entry.get("id", "")))
+                    ]
+
+                if mount_entries:
+                    mount_tiles: list[str] = []
+                    for entry in mount_entries:
+                        skill_id = str(entry.get("id", ""))
+                        skill_name = normalize_metadata_text(entry.get("name")) or normalize_metadata_text(skill_id)
+                        desc_raw = get_skill_description(skill_id, skill_name) if skill_id else None
+                        desc = normalize_metadata_text(desc_raw) or "Skill details coming soon."
+                        tooltip = html.escape(desc).replace("\n", "<br>")
+                        icon_uri = resolve_skill_icon(skill_id, skill_name) or mount_placeholder or ""
+                        display_name = html.escape(skill_name or "Mount Skill")
+                        mount_tiles.append(
+                            "<div class=\"tooltip mount-slot\" tabindex=\"0\">"
+                            + (
+                                f"<img src=\"{icon_uri}\" alt=\"{display_name}\">"
+                                if icon_uri
+                                else "<div class=\"placeholder-empty\"></div>"
+                            )
+                            + f"<span class=\"tooltip-content\"><strong>{display_name}</strong><p>{tooltip}</p></span>"
+                            + "</div>"
+                        )
+
+                    hero_sections.append(
+                        "<div class=\"hero-section\"><h5>Mount Skills</h5>"
+                        + "<div class=\"mount-grid\">"
+                        + "".join(mount_tiles)
+                        + "</div></div>"
                     )
-                    for _ in range(2)
-                )
-                hero_sections.append(
-                    "<div class=\"hero-section\"><h5>Mount Skills (Coming Soon)</h5>"
-                    + "<div class=\"mount-grid\">"
-                    + mount_slots
-                    + "</div></div>"
-                )
+                else:
+                    mount_slots = "".join(
+                        (
+                            f"<img src=\"{mount_placeholder}\" alt=\"Mount skill placeholder\">"
+                            if mount_placeholder
+                            else "<div class=\"placeholder-empty\"></div>"
+                        )
+                        for _ in range(2)
+                    )
+                    hero_sections.append(
+                        "<div class=\"hero-section\"><h5>Mount Skills</h5>"
+                        + "<div class=\"mount-grid\">"
+                        + mount_slots
+                        + "</div></div>"
+                    )
 
                 hero_cards.append(
                     "<div class=\"hero-card\">"
@@ -7742,11 +7854,24 @@ class MainWindow(QtWidgets.QMainWindow):
 
                     skill_cards: list[str] = []
                     for entry in valid_entries:
+                        skill_id = str(entry.get("id", ""))
                         skill_name = (
                             normalize_metadata_text(entry.get("name"))
-                            or normalize_metadata_text(entry.get("id"))
+                            or normalize_metadata_text(skill_id)
                             or "Skill"
                         )
+                        desc_raw = get_skill_description(skill_id, skill_name) if skill_id else None
+                        desc_text = normalize_metadata_text(desc_raw) or "Description unavailable."
+                        tooltip = html.escape(desc_text).replace("\n", "<br>")
+                        icon_uri = resolve_skill_icon(skill_id, skill_name)
+                        title_markup = html.escape(skill_name)
+                        if tooltip:
+                            title_markup = (
+                                "<span class=\"tooltip\" tabindex=\"0\">"
+                                + title_markup
+                                + f"<span class=\"tooltip-content\"><strong>{title_markup}</strong><p>{tooltip}</p></span>"
+                                + "</span>"
+                            )
                         core_metrics_markup = build_metric_items(entry, core_metric_meta)
                         boosted_metrics_markup = (
                             build_metric_items(entry, boosted_metric_meta)
@@ -7756,7 +7881,12 @@ class MainWindow(QtWidgets.QMainWindow):
                         card_parts = [
                             "<div class=\"skill-card\">",
                             "<header class=\"skill-card-header\">",
-                            f"<h5 class=\"skill-card-title\">{html.escape(skill_name)}</h5>",
+                            (
+                                f"<img src=\"{icon_uri}\" alt=\"{html.escape(skill_name)} icon\" class=\"skill-card-icon\" loading=\"lazy\">"
+                                if icon_uri
+                                else ""
+                            ),
+                            f"<h5 class=\"skill-card-title\">{title_markup}</h5>",
                             "</header>",
                             "<div class=\"skill-metric-grid\">",
                             core_metrics_markup or "<p class=\"empty-state\">No metrics available.</p>",
@@ -8547,7 +8677,7 @@ class MainWindow(QtWidgets.QMainWindow):
         }}
         .troop-tooltip-row {{
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-start;
             align-items: center;
             gap: 12px;
             margin-bottom: 4px;
@@ -8968,8 +9098,16 @@ class MainWindow(QtWidgets.QMainWindow):
         .skill-card-header {{
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
             gap: 12px;
+        }}
+        .skill-card-icon {{
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--panel);
+            padding: 6px;
         }}
         .skill-card-title {{
             margin: 0;
@@ -9247,6 +9385,11 @@ class MainWindow(QtWidgets.QMainWindow):
             align-items: center;
             gap: 14px;
             margin-inline: auto;
+        }}
+        .mount-slot {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }}
         .mount-grid img,
         .mount-grid .placeholder-empty {{

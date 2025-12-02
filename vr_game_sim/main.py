@@ -249,6 +249,21 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
     return armies
 
 
+def _resolve_cooldown_flags(
+    cooldowns_enabled: bool = True,
+    hero_cooldowns_enabled: Optional[bool] = None,
+    plugin_cooldowns_enabled: Optional[bool] = None,
+    gem_cooldowns_enabled: Optional[bool] = None,
+    mount_cooldowns_enabled: Optional[bool] = None,
+) -> tuple[bool, bool, bool, bool]:
+    base_state = bool(cooldowns_enabled)
+    hero_flag = base_state if hero_cooldowns_enabled is None else bool(hero_cooldowns_enabled)
+    plugin_flag = base_state if plugin_cooldowns_enabled is None else bool(plugin_cooldowns_enabled)
+    gem_flag = base_state if gem_cooldowns_enabled is None else bool(gem_cooldowns_enabled)
+    mount_flag = base_state if mount_cooldowns_enabled is None else bool(mount_cooldowns_enabled)
+    return hero_flag, plugin_flag, gem_flag, mount_flag
+
+
 def _run_single_battle(
     setup_data: List[Dict[str, Any]],
     seed: int | None = None,
@@ -257,6 +272,10 @@ def _run_single_battle(
     troop_scalar_multiplier: float | None = None,
     return_report: bool = False,
     cooldowns_enabled: bool = True,
+    hero_cooldowns_enabled: Optional[bool] = None,
+    plugin_cooldowns_enabled: Optional[bool] = None,
+    gem_cooldowns_enabled: Optional[bool] = None,
+    mount_cooldowns_enabled: Optional[bool] = None,
 ) -> tuple:
     """Helper to run a single battle.
 
@@ -295,12 +314,24 @@ def _run_single_battle(
     )
     troop_scalar_config.set_session_multiplier(session_multiplier)
 
+    hero_cd, plugin_cd, gem_cd, mount_cd = _resolve_cooldown_flags(
+        cooldowns_enabled,
+        hero_cooldowns_enabled,
+        plugin_cooldowns_enabled,
+        gem_cooldowns_enabled,
+        mount_cooldowns_enabled,
+    )
+
     armies = create_armies_from_data(setup_data)
     sim = GameSimulator(
         armies[0],
         armies[1],
         track_stats=return_report,
         cooldowns_enabled=cooldowns_enabled,
+        hero_cooldowns_enabled=hero_cd,
+        plugin_cooldowns_enabled=plugin_cd,
+        gem_cooldowns_enabled=gem_cd,
+        mount_cooldowns_enabled=mount_cd,
     )
     with contextlib.redirect_stdout(io.StringIO()):
         sim.simulate_battle()
@@ -327,6 +358,10 @@ def _run_single_battle_with_multiplier(
     dynamic_settings: Dict[str, float] | None,
     troop_scalar_multiplier: float,
     cooldowns_enabled: bool = True,
+    hero_cooldowns_enabled: Optional[bool] = None,
+    plugin_cooldowns_enabled: Optional[bool] = None,
+    gem_cooldowns_enabled: Optional[bool] = None,
+    mount_cooldowns_enabled: Optional[bool] = None,
 ) -> tuple:
     return _run_single_battle(
         setup_data,
@@ -334,6 +369,10 @@ def _run_single_battle_with_multiplier(
         dynamic_settings=dynamic_settings,
         troop_scalar_multiplier=troop_scalar_multiplier,
         cooldowns_enabled=cooldowns_enabled,
+        hero_cooldowns_enabled=hero_cooldowns_enabled,
+        plugin_cooldowns_enabled=plugin_cooldowns_enabled,
+        gem_cooldowns_enabled=gem_cooldowns_enabled,
+        mount_cooldowns_enabled=mount_cooldowns_enabled,
     )
 
 
@@ -347,6 +386,10 @@ def run_additional_simulations(
     progress_callback: Optional[Callable[[int, int], None]] = None,
     target_outcome: Optional[SeedTarget] = None,
     cooldowns_enabled: bool = True,
+    hero_cooldowns_enabled: Optional[bool] = None,
+    plugin_cooldowns_enabled: Optional[bool] = None,
+    gem_cooldowns_enabled: Optional[bool] = None,
+    mount_cooldowns_enabled: Optional[bool] = None,
 ) -> tuple[float, Optional[Dict[str, Any]]]:
     """Runs extra simulations and computes summary statistics.
 
@@ -363,6 +406,13 @@ def run_additional_simulations(
     dynamic_settings = dynamic_unrevivable_config.get_settings()
     dynamic_settings_payload = dict(dynamic_settings)
     current_multiplier = troop_scalar_config.get_multiplier()
+    hero_cd, plugin_cd, gem_cd, mount_cd = _resolve_cooldown_flags(
+        cooldowns_enabled,
+        hero_cooldowns_enabled,
+        plugin_cooldowns_enabled,
+        gem_cooldowns_enabled,
+        mount_cooldowns_enabled,
+    )
 
     own_remaining: List[float] = []
     enemy_remaining: List[float] = []
@@ -388,14 +438,22 @@ def run_additional_simulations(
         ) as ex:
             settings_iter = repeat(dynamic_settings_payload, runs)
             multiplier_iter = repeat(current_multiplier, runs)
-            cooldown_iter = repeat(bool(cooldowns_enabled), runs)
+            cooldown_base_iter = repeat(bool(cooldowns_enabled), runs)
+            hero_cd_iter = repeat(hero_cd, runs)
+            plugin_cd_iter = repeat(plugin_cd, runs)
+            gem_cd_iter = repeat(gem_cd, runs)
+            mount_cd_iter = repeat(mount_cd, runs)
             results_iter = ex.map(
                 _run_single_battle_with_multiplier,
                 worker_inputs,
                 seeds,
                 settings_iter,
                 multiplier_iter,
-                cooldown_iter,
+                cooldown_base_iter,
+                hero_cd_iter,
+                plugin_cd_iter,
+                gem_cd_iter,
+                mount_cd_iter,
             )
             completed = 0
             for own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev in results_iter:
@@ -418,6 +476,10 @@ def run_additional_simulations(
                 dynamic_settings=dynamic_settings_payload,
                 troop_scalar_multiplier=current_multiplier,
                 cooldowns_enabled=cooldowns_enabled,
+                hero_cooldowns_enabled=hero_cd,
+                plugin_cooldowns_enabled=plugin_cd,
+                gem_cooldowns_enabled=gem_cd,
+                mount_cooldowns_enabled=mount_cd,
             )
             own_remaining.append(own)
             enemy_remaining.append(enemy)

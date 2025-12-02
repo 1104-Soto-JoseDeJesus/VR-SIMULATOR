@@ -71,6 +71,44 @@ class GameSimulator:
         if adv.get(def_type) == atk_type: return 0.95
         return 1.0
 
+    def _is_mount_skill(self, skill_def: Dict[str, Any]) -> bool:
+        skill_type = skill_def.get("type")
+        mount_type = getattr(SkillType, "MOUNT_SKILL", None)
+        if mount_type is not None and skill_type == mount_type:
+            return True
+        if isinstance(skill_type, str) and skill_type.upper().endswith("MOUNT_SKILL"):
+            return True
+        if skill_def.get("is_mount_skill") or skill_def.get("mount_skill"):
+            return True
+        source_val = skill_def.get("source") or skill_def.get("origin")
+        return isinstance(source_val, str) and source_val.lower() == "mount"
+
+    def _cooldown_enabled_for_skill(self, skill_def: Dict[str, Any]) -> bool:
+        skill_type = skill_def.get("type")
+        if self._is_mount_skill(skill_def):
+            return self.mount_cooldowns_enabled
+        if isinstance(skill_type, SkillType):
+            if skill_type == SkillType.PLUGIN_SKILL:
+                return self.plugin_cooldowns_enabled
+            if skill_type == SkillType.GEM_SKILL:
+                return self.gem_cooldowns_enabled
+            return self.hero_cooldowns_enabled
+
+        if isinstance(skill_type, str):
+            normalized = skill_type.upper()
+            if normalized.endswith("PLUGIN_SKILL"):
+                return self.plugin_cooldowns_enabled
+            if normalized.endswith("GEM_SKILL"):
+                return self.gem_cooldowns_enabled
+            if normalized.endswith("MOUNT_SKILL"):
+                return self.mount_cooldowns_enabled
+
+        labels = skill_def.get("labels", [])
+        if labels and all(isinstance(label, PluginSkillLabel) for label in labels):
+            return self.plugin_cooldowns_enabled
+
+        return self.hero_cooldowns_enabled
+
     def __init__(
         self,
         army1: Army,
@@ -79,6 +117,11 @@ class GameSimulator:
         track_stats: bool = True,
         mode: str = "standard",
         cooldowns_enabled: bool = True,
+        *,
+        hero_cooldowns_enabled: bool | None = None,
+        plugin_cooldowns_enabled: bool | None = None,
+        gem_cooldowns_enabled: bool | None = None,
+        mount_cooldowns_enabled: bool | None = None,
     ):
         self.army1: Army = army1
         self.army2: Army = army2
@@ -86,7 +129,21 @@ class GameSimulator:
         self.army2.register_simulator(self)
         self.round: int = 0
         self.mode: str = mode
-        self.cooldowns_enabled: bool = bool(cooldowns_enabled)
+        base_cooldown_state = bool(cooldowns_enabled)
+        self.hero_cooldowns_enabled: bool = (
+            base_cooldown_state if hero_cooldowns_enabled is None else bool(hero_cooldowns_enabled)
+        )
+        self.plugin_cooldowns_enabled: bool = (
+            base_cooldown_state
+            if plugin_cooldowns_enabled is None
+            else bool(plugin_cooldowns_enabled)
+        )
+        self.gem_cooldowns_enabled: bool = (
+            base_cooldown_state if gem_cooldowns_enabled is None else bool(gem_cooldowns_enabled)
+        )
+        self.mount_cooldowns_enabled: bool = (
+            base_cooldown_state if mount_cooldowns_enabled is None else bool(mount_cooldowns_enabled)
+        )
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
             self.army1.name: [], self.army2.name: []
@@ -689,7 +746,7 @@ class GameSimulator:
                     skill_cfg = skill_def.get("config", {})
                     cooldown = (
                         skill_cfg.get("cooldown_rounds")
-                        if self.cooldowns_enabled
+                        if self._cooldown_enabled_for_skill(skill_def)
                         else None
                     )
                     an_effect_truly_happened = False

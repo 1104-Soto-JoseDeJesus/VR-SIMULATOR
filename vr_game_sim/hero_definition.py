@@ -26,6 +26,7 @@ class Hero:
     plugin_skill_ids: List[str]
     skill_registry: InitVar[Dict[str, SkillDefinition]]
     gear_config: InitVar[Dict[str, Any] | None] = None
+    mount_skill_ids: List[str] = field(default_factory=list)
     skills: List[SkillDefinition] = field(init=False, default_factory=list)
     gear_ids: Dict[str, str] = field(init=False, default_factory=dict)
     gear_items: Dict[str, "GearDefinition"] = field(init=False, default_factory=dict)
@@ -37,6 +38,12 @@ class Hero:
     ):
         if skill_registry is None:
             skill_registry = {}
+        if self.mount_skill_ids is None:
+            self.mount_skill_ids = []
+        elif isinstance(self.mount_skill_ids, (tuple, set)):
+            self.mount_skill_ids = list(self.mount_skill_ids)
+        elif not isinstance(self.mount_skill_ids, list):
+            self.mount_skill_ids = [str(self.mount_skill_ids)]
         if len(self.talent_ids) != 3:
             if len(self.talent_ids) < 3:
                 self.talent_ids.extend(["dummy_talent_empty"] * (3 - len(self.talent_ids)))
@@ -47,8 +54,10 @@ class Hero:
             raise ValueError(f"Hero {self.name} base skills limited to a maximum of 2. Got {len(self.base_skill_ids)}")
         if len(self.plugin_skill_ids) > 2:
             raise ValueError(f"Hero {self.name} plugin skills limited to a maximum of 2. Got {len(self.plugin_skill_ids)}")
+        if len(self.mount_skill_ids) > 2:
+            raise ValueError(f"Hero {self.name} mount skills limited to a maximum of 2. Got {len(self.mount_skill_ids)}")
 
-        for skill_id_list in [self.talent_ids, self.base_skill_ids, self.plugin_skill_ids]:
+        for skill_id_list in [self.talent_ids, self.base_skill_ids, self.plugin_skill_ids, self.mount_skill_ids]:
             for skill_id in skill_id_list:
                 if skill_id and skill_id.lower() not in ["", "none", "blank"]:
                     if skill_id in skill_registry:

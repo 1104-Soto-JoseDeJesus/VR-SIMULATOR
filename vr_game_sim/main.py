@@ -208,6 +208,11 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
                 if overrides
                 else SKILL_REGISTRY_GLOBAL
             )
+            mount_skill_ids = hero_conf.get("mount_skill_ids", [])
+            if isinstance(mount_skill_ids, (list, tuple, set)):
+                mount_skill_ids = [sid for sid in mount_skill_ids if isinstance(sid, str)][:2]
+            else:
+                mount_skill_ids = []
             gear_cfg: Dict[str, Any] | None = None
             if isinstance(hero_conf.get("gear"), dict):
                 gear_cfg = copy.deepcopy(hero_conf.get("gear"))
@@ -218,6 +223,7 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
                 talent_ids=hero_conf["talent_ids"],
                 base_skill_ids=hero_conf["base_skill_ids"],
                 plugin_skill_ids=hero_conf["plugin_skill_ids"],
+                mount_skill_ids=mount_skill_ids,
                 skill_registry=registry,
                 gear_config=gear_cfg,
             )
@@ -1033,6 +1039,7 @@ def get_setup_data_for_saving(armies: List[Army]) -> List[Dict[str, Any]]:
                 "talent_ids": hero_obj.talent_ids,
                 "base_skill_ids": hero_obj.base_skill_ids,
                 "plugin_skill_ids": hero_obj.plugin_skill_ids,
+                "mount_skill_ids": hero_obj.mount_skill_ids,
             }
             army_config["heroes"].append(hero_config)
         save_data_list.append(army_config)

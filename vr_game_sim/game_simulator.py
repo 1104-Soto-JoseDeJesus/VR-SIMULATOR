@@ -744,11 +744,13 @@ class GameSimulator:
                 if random.random() < final_chance:
                     skill_id = skill_def["id"]
                     skill_cfg = skill_def.get("config", {})
-                    cooldown = (
-                        skill_cfg.get("cooldown_rounds")
-                        if self._cooldown_enabled_for_skill(skill_def)
-                        else None
-                    )
+                    cooldown = None
+                    if skill_def.get("trigger") != SkillTriggerType.CHANCE_PER_ROUND:
+                        cooldown = (
+                            skill_cfg.get("cooldown_rounds")
+                            if self._cooldown_enabled_for_skill(skill_def)
+                            else None
+                        )
                     an_effect_truly_happened = False
                     log_details_current_skill: List[Tuple[str, Optional[Dict[str, Any]]]] = []
 

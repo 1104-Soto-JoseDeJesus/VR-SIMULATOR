@@ -8025,7 +8025,6 @@ class MainWindow(QtWidgets.QMainWindow):
                         desc_raw = get_skill_description(skill_id, skill_name) if skill_id else None
                         desc_text = normalize_metadata_text(desc_raw) or "Description unavailable."
                         tooltip = html.escape(desc_text).replace("\n", "<br>")
-                        icon_uri = resolve_skill_icon(skill_id, skill_name)
                         title_markup = html.escape(skill_name)
                         if tooltip:
                             title_markup = (
@@ -8043,11 +8042,6 @@ class MainWindow(QtWidgets.QMainWindow):
                         card_parts = [
                             "<div class=\"skill-card\">",
                             "<header class=\"skill-card-header\">",
-                            (
-                                f"<img src=\"{icon_uri}\" alt=\"{html.escape(skill_name)} icon\" class=\"skill-card-icon\" loading=\"lazy\">"
-                                if icon_uri
-                                else ""
-                            ),
                             f"<h5 class=\"skill-card-title\">{title_markup}</h5>",
                             "</header>",
                             "<div class=\"skill-metric-grid\">",

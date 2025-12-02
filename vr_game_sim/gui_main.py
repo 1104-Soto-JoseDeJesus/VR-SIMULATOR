@@ -3989,7 +3989,10 @@ class SimulationWorker(QtCore.QThread):
         seed_target: SeedTarget | None = None,
         dynamic_settings: dict[str, float] | None = None,
         *,
-        cooldowns_enabled: bool = True,
+        hero_cooldowns_enabled: bool = True,
+        plugin_cooldowns_enabled: bool = True,
+        gem_cooldowns_enabled: bool = True,
+        mount_cooldowns_enabled: bool = True,
     ) -> None:
         super().__init__()
         self.setup_data = setup_data
@@ -4001,7 +4004,10 @@ class SimulationWorker(QtCore.QThread):
         self.win_rate: float | None = None
         self.best_match: dict[str, Any] | None = None
         self.sample_battle_stats: dict[str, Any] | None = None
-        self.cooldowns_enabled: bool = bool(cooldowns_enabled)
+        self.hero_cooldowns_enabled: bool = bool(hero_cooldowns_enabled)
+        self.plugin_cooldowns_enabled: bool = bool(plugin_cooldowns_enabled)
+        self.gem_cooldowns_enabled: bool = bool(gem_cooldowns_enabled)
+        self.mount_cooldowns_enabled: bool = bool(mount_cooldowns_enabled)
 
     def cancel(self) -> None:
         """Request the simulation to stop."""
@@ -4024,7 +4030,11 @@ class SimulationWorker(QtCore.QThread):
                 progress_callback=progress_cb,
                 num_workers=self.num_workers,
                 target_outcome=self.seed_target,
-                cooldowns_enabled=self.cooldowns_enabled,
+                cooldowns_enabled=self.hero_cooldowns_enabled,
+                hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+                plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+                gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+                mount_cooldowns_enabled=self.mount_cooldowns_enabled,
             )
             self.win_rate = float(win_rate)
             self.best_match = dict(best_match) if isinstance(best_match, dict) else None
@@ -4063,7 +4073,11 @@ class SimulationWorker(QtCore.QThread):
                 armies[1],
                 report_builder,
                 track_stats=True,
-                cooldowns_enabled=self.cooldowns_enabled,
+                cooldowns_enabled=self.hero_cooldowns_enabled,
+                hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+                plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+                gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+                mount_cooldowns_enabled=self.mount_cooldowns_enabled,
             )
             report_text = sim.simulate_battle()
             rounds = report_builder.get_rounds()
@@ -5172,7 +5186,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("Battle Simulator")
         self.seed_target: SeedTarget | None = None
         self.seed_display: QtWidgets.QLabel | None = None
-        self.cooldowns_enabled: bool = True
+        self.hero_cooldowns_enabled: bool = True
+        self.plugin_cooldowns_enabled: bool = True
+        self.gem_cooldowns_enabled: bool = True
+        self.mount_cooldowns_enabled: bool = True
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
         self._troop_scalar_multiplier = troop_scalar_config.get_multiplier()
         main_layout = self._init_tabs()
@@ -5210,8 +5227,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_troop_scalar_multiplier_changed(self, value: float) -> None:
         self._troop_scalar_multiplier = float(value)
 
-    def _on_cooldowns_toggled(self, checked: bool) -> None:
-        self.cooldowns_enabled = bool(checked)
+    def _on_hero_cooldowns_toggled(self, checked: bool) -> None:
+        self.hero_cooldowns_enabled = bool(checked)
+
+    def _on_plugin_cooldowns_toggled(self, checked: bool) -> None:
+        self.plugin_cooldowns_enabled = bool(checked)
+
+    def _on_gem_cooldowns_toggled(self, checked: bool) -> None:
+        self.gem_cooldowns_enabled = bool(checked)
+
+    def _on_mount_cooldowns_toggled(self, checked: bool) -> None:
+        self.mount_cooldowns_enabled = bool(checked)
 
     def _open_gear_dialog(self, frame: ArmyFrame) -> None:
         hero_names = [frame.hero1_combo.currentText(), frame.hero2_combo.currentText()]
@@ -5267,10 +5293,26 @@ class MainWindow(QtWidgets.QMainWindow):
         dynamic_action.triggered.connect(self.open_dynamic_unrevivable_tool)
         troop_scalar_action = dbg_menu.addAction("Change Troop Scalar…")
         troop_scalar_action.triggered.connect(self.open_troop_scalar_tool)
-        cooldowns_action = dbg_menu.addAction("Cool downs mode")
-        cooldowns_action.setCheckable(True)
-        cooldowns_action.setChecked(self.cooldowns_enabled)
-        cooldowns_action.toggled.connect(self._on_cooldowns_toggled)
+        cooldowns_menu = dbg_menu.addMenu("Cooldowns")
+        hero_cooldowns_action = cooldowns_menu.addAction("Hero cooldowns")
+        hero_cooldowns_action.setCheckable(True)
+        hero_cooldowns_action.setChecked(self.hero_cooldowns_enabled)
+        hero_cooldowns_action.toggled.connect(self._on_hero_cooldowns_toggled)
+
+        plugin_cooldowns_action = cooldowns_menu.addAction("Plugin cooldowns")
+        plugin_cooldowns_action.setCheckable(True)
+        plugin_cooldowns_action.setChecked(self.plugin_cooldowns_enabled)
+        plugin_cooldowns_action.toggled.connect(self._on_plugin_cooldowns_toggled)
+
+        gem_cooldowns_action = cooldowns_menu.addAction("Gem cooldowns")
+        gem_cooldowns_action.setCheckable(True)
+        gem_cooldowns_action.setChecked(self.gem_cooldowns_enabled)
+        gem_cooldowns_action.toggled.connect(self._on_gem_cooldowns_toggled)
+
+        mount_cooldowns_action = cooldowns_menu.addAction("Mount cooldowns")
+        mount_cooldowns_action.setCheckable(True)
+        mount_cooldowns_action.setChecked(self.mount_cooldowns_enabled)
+        mount_cooldowns_action.toggled.connect(self._on_mount_cooldowns_toggled)
         star_action = dbg_menu.addAction("Star Layout")
         star_action.triggered.connect(self.open_star_overlay_tuner)
         debug_btn.setMenu(dbg_menu)
@@ -9998,7 +10040,10 @@ class MainWindow(QtWidgets.QMainWindow):
             workers,
             self.seed_target,
             dynamic_settings=self._dynamic_unrevivable_settings,
-            cooldowns_enabled=self.cooldowns_enabled,
+            hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+            plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+            gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+            mount_cooldowns_enabled=self.mount_cooldowns_enabled,
         )
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
@@ -10109,6 +10154,12 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.army1_frame.name_edit.text() or "Army 1",
                     self.army2_frame.name_edit.text() or "Army 2",
                 ],
+                "cooldown_settings": {
+                    "hero": self.hero_cooldowns_enabled,
+                    "plugin": self.plugin_cooldowns_enabled,
+                    "gem": self.gem_cooldowns_enabled,
+                    "mount": self.mount_cooldowns_enabled,
+                },
             }
             if isinstance(sample_stats, dict):
                 export_payload["sample_battle"] = copy.deepcopy(sample_stats)

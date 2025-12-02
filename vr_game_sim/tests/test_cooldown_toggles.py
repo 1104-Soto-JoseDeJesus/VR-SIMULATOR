@@ -192,3 +192,47 @@ def test_mount_cooldowns_can_be_disabled(skill_registry_guard):
 
     assert log.count(("mount", 1)) == 1
     assert log.count(("mount", 2)) == 1
+
+
+def test_chance_per_round_ignores_cooldown_modifiers(skill_registry_guard):
+    log: list[tuple[str, int]] = []
+
+    def _periodic_handler(interval: int):
+        def _handler(triggering_army: Army, _target: Army, _skill_def, _event_data, _simulator):
+            if triggering_army.army_round > 0 and triggering_army.army_round % interval == 0:
+                log.append(("mount", triggering_army.army_round))
+                return True, []
+            return False, []
+
+        return _handler
+
+    periodic_skill = {
+        "id": "mount_chance_cd_skill",
+        "name": "Crippling Strike",
+        "type": "MOUNT_SKILL",
+        "source": "mount",
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND,
+        "trigger_chance": 1.0,
+        "config": {"trigger_interval": 6, "cooldown_rounds": 8},
+        "logic_handler": _periodic_handler(6),
+    }
+    _register_skill(periodic_skill, skill_registry_guard)
+
+    hero = Hero(
+        "Rider",
+        ["dummy_talent_empty"] * 3,
+        [periodic_skill["id"]],
+        [],
+        SKILL_REGISTRY_GLOBAL,
+    )
+    army1 = Army("A1", Unit("pikemen", 5, initial_count=10), heroes=[hero])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army1, army2, mount_cooldowns_enabled=True)
+
+    for round_no in range(1, 13):
+        army1.army_round = round_no
+        sim.round = round_no
+        _reset_round_state(army1)
+        sim._process_skill_triggers(army1, army2, SkillTriggerType.CHANCE_PER_ROUND)
+
+    assert log == [("mount", 6), ("mount", 12)]

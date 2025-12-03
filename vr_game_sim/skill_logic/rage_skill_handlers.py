@@ -26,8 +26,10 @@ def handle_rage_sharp_pursuit(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefiniti
         hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(army, opp, dmg_fctr,
                                                                                 is_hero2_rage_skill=is_h2_delay,
                                                                                 source_skill_def=sk_def)
-        if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg; dmg_dealt_flag = True
-        if hp_dmg > 0 or absrb > 0: eff_hpnd = True
+        if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg
+        if hp_dmg > 0 or absrb > 0:
+            eff_hpnd = True
+            dmg_dealt_flag = True
         logs.append((f"Deals damage to {opp.name}.",
                      {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
     sh_fctr = sk_cfg.get("shield_factor", 0.0);
@@ -58,8 +60,10 @@ def handle_rage_sacred_blade(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinitio
         hp_dmg, absrb, kills, raw_dmg = sim._calculate_generic_skill_damage(army, opp, dmg_fctr,
                                                                            is_hero2_rage_skill=is_h2_delay,
                                                                            source_skill_def=sk_def)
-        if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg; dmg_dealt_flag = True
-        if hp_dmg > 0 or absrb > 0: eff_hpnd = True
+        if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg
+        if hp_dmg > 0 or absrb > 0:
+            eff_hpnd = True
+            dmg_dealt_flag = True
         logs.append((f"Deals damage to {opp.name}.",
                      {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
         if sim.mode in ("battlefield", "arena"):
@@ -74,8 +78,10 @@ def handle_rage_sacred_blade(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinitio
                         army, other, dmg_fctr,
                         is_hero2_rage_skill=is_h2_delay,
                         source_skill_def=sk_def)
-                    if hp_dmg2 > 0: other.pending_hp_damage_this_round += hp_dmg2; dmg_dealt_flag = True
-                    if hp_dmg2 > 0 or absrb2 > 0: eff_hpnd = True
+                    if hp_dmg2 > 0: other.pending_hp_damage_this_round += hp_dmg2
+                    if hp_dmg2 > 0 or absrb2 > 0:
+                        eff_hpnd = True
+                        dmg_dealt_flag = True
                     logs.append((f"Deals damage to {other.name}.",
                                  {"damage_done_hp": round(raw_dmg2), "absorbed_hp": round(absrb2), "potential_kills": kills2}))
     buff_dets = sk_cfg.get("buff_details")
@@ -161,8 +167,10 @@ def handle_rage_vanquishing_blade(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefi
         hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(army, opp, dmg_fctr_vb,
                                                                                 is_hero2_rage_skill=is_h2_delay,
                                                                                 source_skill_def=sk_def)
-        if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg; dmg_dealt_flag = True
-        if hp_dmg > 0 or absrb > 0: eff_hpnd = True
+        if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg
+        if hp_dmg > 0 or absrb > 0:
+            eff_hpnd = True
+            dmg_dealt_flag = True
         logs.append((f"Deals damage to {opp.name}.",
                      {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
     return eff_hpnd, logs, dmg_dealt_flag
@@ -179,8 +187,10 @@ def handle_generic_damage_rage_skill(army: ArmyRef, opp: ArmyRef, sk_def: SkillD
         hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(army, opp, dmg_fctr,
                                                                                 is_hero2_rage_skill=is_h2_delay,
                                                                                 source_skill_def=sk_def)
-        if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg; dmg_dealt_flag = True
-        if hp_dmg > 0 or absrb > 0: eff_hpnd = True
+        if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg
+        if hp_dmg > 0 or absrb > 0:
+            eff_hpnd = True
+            dmg_dealt_flag = True
         logs.append((f"Deals damage to {opp.name}.",
                      {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
     return eff_hpnd, logs, dmg_dealt_flag

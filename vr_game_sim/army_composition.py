@@ -1210,6 +1210,7 @@ class Army:
             elif effect.name in (
                 EFFECT_NAME_CONCENTRATION_RAGE_GAIN,
                 EFFECT_NAME_MOUNT_PERIODIC_RAGE_GAIN,
+                EFFECT_NAME_UNTAMED_WILDERNESS_RAGE_GAIN,
             ) and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
                     current_sim_round = getattr(self, "army_round", self.simulator.round if self.simulator else 0)

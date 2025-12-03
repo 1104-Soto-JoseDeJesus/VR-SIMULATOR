@@ -9673,14 +9673,14 @@ class MainWindow(QtWidgets.QMainWindow):
         }}
         .mount-grid img,
         .mount-grid .placeholder-empty {{
-            width: 60px;
-            height: 60px;
+            width: 90px;
+            height: 90px;
             background: var(--panel-alt);
-            border-radius: 14px;
+            border-radius: 21px;
             border: 1px solid var(--border);
         }}
         .mount-grid img {{
-            padding: 8px;
+            padding: 12px;
             object-fit: contain;
         }}
         .mount-grid .placeholder-empty {{

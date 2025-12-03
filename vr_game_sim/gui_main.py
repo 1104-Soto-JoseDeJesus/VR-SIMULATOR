@@ -4205,7 +4205,8 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
     hero_names = [h.get("hero_name_or_preset", "").capitalize() for h in heroes_cfg]
 
     skill_lists: list[list[dict[str, Any]]] = []
-    for hero in army.heroes:
+    hero_mount_skill_ids: list[set[str]] = []
+    for hero_idx, hero in enumerate(army.heroes):
         hero_entries: list[dict[str, Any]] = []
         hero_entries.append(
             _skill_stats_entry(army, "base_rage", "Base Rage", casts_override="")
@@ -4219,6 +4220,19 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
             hero_entries.append(
                 _skill_stats_entry(army, sid, skill_def.get("name", sid))
             )
+        cfg_mount_ids: set[str] = set()
+        hero_cfg = heroes_cfg[hero_idx] if hero_idx < len(heroes_cfg) else {}
+        if isinstance(hero_cfg, dict):
+            mount_ids_cfg = hero_cfg.get("mount_skill_ids", []) or []
+            if isinstance(mount_ids_cfg, (list, tuple, set)):
+                cfg_mount_ids.update(str(sid) for sid in mount_ids_cfg if isinstance(sid, str))
+        for sid in getattr(hero, "mount_skill_ids", []) or []:
+            if isinstance(sid, str) and sid:
+                cfg_mount_ids.add(str(sid))
+        for entry in hero_entries:
+            if isinstance(entry, dict) and str(entry.get("id", "")) in cfg_mount_ids:
+                entry["is_mount"] = True
+        hero_mount_skill_ids.append(cfg_mount_ids)
         skill_lists.append(hero_entries)
 
     gem_skill_ids = getattr(army, "gem_skill_ids", {}) or {}
@@ -4280,24 +4294,42 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
                 continue
             mount_skill_ids.add(skill_id)
 
-    if mount_skill_ids:
-        if not skill_lists:
+    def _add_mount_entry(hero_index: int, skill_id: str) -> None:
+        if not isinstance(skill_id, str) or not skill_id:
+            return
+        while len(skill_lists) <= hero_index:
             skill_lists.append([])
-        target_list = skill_lists[0]
-        existing_ids = {entry.get("id") for entry in target_list if isinstance(entry, dict)}
+        target_list = skill_lists[hero_index]
+        skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id) or {}
+        for entry in target_list:
+            if isinstance(entry, dict) and entry.get("id") == skill_id:
+                entry["is_mount"] = True
+                entry.setdefault("source", skill_def.get("source") or skill_def.get("origin") or "mount")
+                entry.setdefault("type", skill_def.get("type"))
+                return
+        entry = _skill_stats_entry(
+            army,
+            skill_id,
+            skill_def.get("name", skill_id),
+        )
+        entry["is_mount"] = True
+        entry["source"] = skill_def.get("source") or skill_def.get("origin") or "mount"
+        entry["type"] = skill_def.get("type")
+        target_list.append(entry)
+
+    for idx, mount_ids in enumerate(hero_mount_skill_ids):
+        for skill_id in sorted(mount_ids):
+            _add_mount_entry(idx, skill_id)
+
+    if mount_skill_ids:
         for skill_id in sorted(mount_skill_ids):
-            if skill_id in existing_ids:
-                continue
-            skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id) or {}
-            entry = _skill_stats_entry(
-                army,
-                skill_id,
-                skill_def.get("name", skill_id),
-            )
-            entry["is_mount"] = True
-            entry["source"] = skill_def.get("source") or skill_def.get("origin") or "mount"
-            entry["type"] = skill_def.get("type")
-            target_list.append(entry)
+            target_indices = [
+                idx for idx, mount_ids in enumerate(hero_mount_skill_ids) if skill_id in mount_ids
+            ]
+            if not target_indices:
+                target_indices = [0]
+            for hero_index in target_indices:
+                _add_mount_entry(hero_index, skill_id)
 
     passive_bonus_entries = iter_skill_bonus_entries_from_effects(
         getattr(army, "active_effects", [])

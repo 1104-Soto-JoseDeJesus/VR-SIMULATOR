@@ -4922,7 +4922,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
             "damage_factor": 390.0,
             "trigger_interval": 6,
             "rage_gain_per_round": 40,
-            "rage_gain_duration": 2,
+            "rage_gain_duration": 1,
             "rage_effect_name": EFFECT_NAME_UNTAMED_WILDERNESS_RAGE_GAIN,
         },
         "passive_effects": [

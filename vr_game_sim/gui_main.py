@@ -4126,6 +4126,22 @@ def _skill_stats_entry(
 ) -> dict[str, Any]:
     """Return aggregated statistics for ``skill_id`` from ``army``."""
 
+    boosted_burn_map = getattr(army, "skill_kill_boost_burn_totals", {}) or {}
+    boosted_counter_map = (
+        getattr(army, "skill_kill_boost_counterattack_totals", {}) or {}
+    )
+    boosted_other_map = getattr(army, "skill_kill_boost_other_totals", {}) or {}
+    total_boosted_kills = float(army.skill_kill_boost_totals.get(skill_id, 0.0))
+    boosted_burn_kills = float(boosted_burn_map.get(skill_id, 0.0))
+    boosted_counter_kills = float(boosted_counter_map.get(skill_id, 0.0))
+    boosted_other_kills_val = boosted_other_map.get(skill_id)
+    try:
+        boosted_other_kills = float(boosted_other_kills_val)
+    except (TypeError, ValueError):
+        boosted_other_kills = total_boosted_kills - boosted_burn_kills - boosted_counter_kills
+    if boosted_other_kills < 0:
+        boosted_other_kills = 0.0
+
     entry = {
         "id": skill_id,
         "name": name,
@@ -4136,7 +4152,10 @@ def _skill_stats_entry(
         "rage": int(round(army.skill_rage_totals.get(skill_id, 0.0))),
         "rage_reduced": int(round(army.skill_rage_reduction_totals.get(skill_id, 0.0))),
         "damage_reduced": int(round(army.skill_damage_reduction_totals.get(skill_id, 0.0))),
-        "boosted_kills": int(round(army.skill_kill_boost_totals.get(skill_id, 0.0))),
+        "boosted_kills": int(round(total_boosted_kills)),
+        "boosted_burn_kills": int(round(boosted_burn_kills)),
+        "boosted_counter_kills": int(round(boosted_counter_kills)),
+        "boosted_other_kills": int(round(boosted_other_kills)),
         "boosted_heals": int(round(army.skill_heal_boost_totals.get(skill_id, 0.0))),
         "boosted_shielded": int(round(army.skill_shield_boost_totals.get(skill_id, 0.0))),
         "boosted_rage": int(round(army.skill_rage_boost_totals.get(skill_id, 0.0))),
@@ -4269,6 +4288,12 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
             skill_lists[idx].extend(entry for _, entry in entries)
 
     mount_skill_ids: set[str] = set()
+    burn_boost_totals = getattr(army, "skill_kill_boost_burn_totals", {}) or {}
+    counter_boost_totals = (
+        getattr(army, "skill_kill_boost_counterattack_totals", {}) or {}
+    )
+    other_boost_totals = getattr(army, "skill_kill_boost_other_totals", {}) or {}
+
     stats_maps: list[dict[str, float]] = [
         army.skill_trigger_counts,
         army.skill_kill_totals,
@@ -4283,6 +4308,9 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
         army.skill_rage_boost_totals,
         army.skill_rage_reduction_boost_totals,
         army.skill_damage_reduction_boost_totals,
+        burn_boost_totals,
+        counter_boost_totals,
+        other_boost_totals,
     ]
     for stat_map in stats_maps:
         for skill_id, value in stat_map.items():
@@ -7500,6 +7528,24 @@ class MainWindow(QtWidgets.QMainWindow):
             {
                 "key": "boosted_kills",
                 "label": "Boosted Kills",
+                "is_boosted": True,
+                "icon": None,
+            },
+            {
+                "key": "boosted_burn_kills",
+                "label": "Boosted Burn Kills",
+                "is_boosted": True,
+                "icon": None,
+            },
+            {
+                "key": "boosted_counter_kills",
+                "label": "Counterattack Boosted Kills",
+                "is_boosted": True,
+                "icon": None,
+            },
+            {
+                "key": "boosted_other_kills",
+                "label": "Other Boosted Kills",
                 "is_boosted": True,
                 "icon": None,
             },

@@ -44,6 +44,7 @@ from .constants import (
     EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
     EFFECT_NAME_HOLY_ENLIGHTENMENT_DMG_TAKEN_DEBUFF,
     EFFECT_NAME_BLESSED_BY_FATE_ENEMY_DMG_TAKEN_DEBUFF,
+    EFFECT_NAME_RAGEBEAST_SOUL_RAGE_GAIN,
 )
 
 GameSimulatorRef = "GameSimulator"  # Forward reference
@@ -1241,7 +1242,11 @@ class Army:
                     if tick_offset >= total_ticks and effect in self.active_effects:
                         self.active_effects.remove(effect)
 
-            elif effect.name in (EFFECT_NAME_DELAYED_RAGE_GAIN, EFFECT_NAME_PAIN_N_FURY_RAGE_GAIN) and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+            elif effect.name in (
+                EFFECT_NAME_DELAYED_RAGE_GAIN,
+                EFFECT_NAME_PAIN_N_FURY_RAGE_GAIN,
+                EFFECT_NAME_RAGEBEAST_SOUL_RAGE_GAIN,
+            ) and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round' and effect.duration <= 0:
                     rage_amt = effect.config.get("rage_amount", 0)
                     if rage_amt > 0:

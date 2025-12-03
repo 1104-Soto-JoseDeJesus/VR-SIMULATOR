@@ -217,6 +217,7 @@ def handle_rage_skill_snakes_frenzy(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -269,6 +270,7 @@ def handle_rage_skill_paralyzing_terror(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -307,6 +309,7 @@ def handle_rage_skill_paralyzing_terror(
                         )
                         if hp_dmg2 > 0:
                             other.pending_hp_damage_this_round += hp_dmg2
+                        if hp_dmg2 > 0 or absorbed2 > 0:
                             damage_dealt_flag = True
                         if hp_dmg2 > 0 or absorbed2 > 0:
                             an_effect_happened = True
@@ -365,6 +368,7 @@ def handle_rage_skill_intimidation(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -382,6 +386,7 @@ def handle_rage_skill_intimidation(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -450,6 +455,7 @@ def handle_rage_skill_viking_sage(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -504,6 +510,7 @@ def handle_rage_holy_enlightenment(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -587,6 +594,7 @@ def handle_rage_raining_arrows(  # Verdandi's skill, already exists
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -746,6 +754,7 @@ def handle_rage_incineration(
                     )
                     if hp_dmg2 > 0:
                         other.pending_hp_damage_this_round += hp_dmg2
+                    if hp_dmg2 > 0 or absorbed2 > 0:
                         damage_dealt_flag = True
                     if hp_dmg2 > 0 or absorbed2 > 0:
                         an_effect_happened = True
@@ -1008,6 +1017,7 @@ def handle_rage_spirit_battleship(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -1062,6 +1072,7 @@ def handle_rage_slaughter_feast(triggering_army: ArmyRef, opponent_army: ArmyRef
             source_skill_def=skill_def)
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -1100,6 +1111,7 @@ def handle_rage_slaughter_feast(triggering_army: ArmyRef, opponent_army: ArmyRef
                         )
                         if hp_dmg2 > 0:
                             other.pending_hp_damage_this_round += hp_dmg2
+                        if hp_dmg2 > 0 or absorbed2 > 0:
                             damage_dealt_flag = True
                         if hp_dmg2 > 0 or absorbed2 > 0:
                             an_effect_happened = True
@@ -1147,6 +1159,7 @@ def handle_rage_undead_harvest(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -1273,6 +1286,7 @@ def handle_rage_skill_heavenly_descent(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -1370,6 +1384,7 @@ def handle_rage_ruling_trial(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -1385,6 +1400,7 @@ def handle_rage_ruling_trial(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
@@ -1441,6 +1457,7 @@ def handle_rage_showdown(
         )
         if hp_damage > 0:
             opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
             damage_dealt_flag = True
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True

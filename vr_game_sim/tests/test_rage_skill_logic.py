@@ -1,12 +1,13 @@
 import uuid
-from vr_game_sim.game_simulator import GameSimulator
+
 from vr_game_sim.army_composition import Army
-from vr_game_sim.unit_definition import Unit
-from vr_game_sim.hero_definition import Hero
-from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
+from vr_game_sim.constants import EFFECT_NAME_FIRST_STRIKE_RAGE_AURA, EFFECT_NAME_SILENCE_DEBUFF
 from vr_game_sim.effect_system import EffectInstance
 from vr_game_sim.enums import EffectType
-from vr_game_sim.constants import EFFECT_NAME_SILENCE_DEBUFF, EFFECT_NAME_FIRST_STRIKE_RAGE_AURA
+from vr_game_sim.game_simulator import GameSimulator
+from vr_game_sim.hero_definition import Hero
+from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
+from vr_game_sim.unit_definition import Unit
 
 
 def make_army_with_rage_skill(name="Army"):
@@ -157,3 +158,44 @@ def test_hero2_rage_skill_does_not_reset_rage():
     sim._execute_rage_skills(army1, army2, is_hero2_delayed_trigger=True)
 
     assert army1.current_rage == 1500
+
+
+def test_rage_skill_absorbed_damage_still_triggers_reaction():
+    attacker_hero = Hero(
+        "Attacker",
+        ["dummy_talent_empty", "dummy_talent_empty", "dummy_talent_empty"],
+        ["base_skill_holy_enlightenment"],
+        [],
+        SKILL_REGISTRY_GLOBAL,
+    )
+    defender_hero = Hero(
+        "Defender",
+        ["talent_tit_for_tat", "dummy_talent_empty", "dummy_talent_empty"],
+        [],
+        [],
+        SKILL_REGISTRY_GLOBAL,
+    )
+    attacker = Army("Attacker", Unit("pikemen", 5, initial_count=10), heroes=[attacker_hero])
+    defender = Army("Defender", Unit("pikemen", 5, initial_count=10), heroes=[defender_hero])
+    sim = GameSimulator(attacker, defender, mode="arena")
+    sim.round = 1
+
+    shield = EffectInstance(
+        uuid.uuid4(),
+        "test_shield",
+        EffectType.SHIELD,
+        duration=1,
+        magnitude=1_000_000,
+        name="Test Shield",
+    )
+    defender.active_effects.append(shield)
+    defender.started_round_with_active_shield = True
+
+    attacker.current_rage = 1000
+    attacker.hero1_rage_skill_queued_this_round = True
+
+    sim._execute_rage_skills(attacker, defender)
+
+    assert defender.pending_hp_damage_this_round == 0
+    assert defender.skill_trigger_counts.get("talent_tit_for_tat") == 1
+    assert attacker.pending_hp_damage_this_round > 0

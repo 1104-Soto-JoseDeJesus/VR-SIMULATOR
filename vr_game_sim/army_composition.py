@@ -166,6 +166,10 @@ class Army:
     skill_rage_reduction_totals: Dict[str, float] = field(init=False, default_factory=dict)
     # Totals contributed indirectly via boost effects
     skill_kill_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    # Critical-hit specific boost totals keyed by skill id then trigger label
+    skill_crit_kill_boost_totals: Dict[str, Dict[str, float]] = field(
+        init=False, default_factory=dict
+    )
     skill_heal_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_shield_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_rage_boost_totals: Dict[str, float] = field(init=False, default_factory=dict)
@@ -1577,6 +1581,7 @@ class Army:
         self.skill_damage_reduction_totals.clear()
         self.skill_rage_reduction_totals.clear()
         self.skill_kill_boost_totals.clear()
+        self.skill_crit_kill_boost_totals.clear()
         self.skill_heal_boost_totals.clear()
         self.skill_shield_boost_totals.clear()
         self.skill_rage_boost_totals.clear()

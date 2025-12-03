@@ -406,6 +406,7 @@ class GameSimulator:
         defender_positive_mags = sum(eff.magnitude for eff in defender_positive_effects)
 
         total_skill_percentage_points = skill_damage_percent_boosts + damage_taken_percent_mods
+        base_skill_percentage_points = total_skill_percentage_points
 
         crit_stat_lookup = {
             PluginSkillLabel.REACTIVE.value.upper(): StatType.REACTIVE_SKILL_CRIT_RATE,
@@ -413,6 +414,7 @@ class GameSimulator:
             PluginSkillLabel.COMMAND.value.upper(): StatType.COMMAND_SKILL_CRIT_RATE,
         }
         crit_rate = 0.0
+        crit_triggered = False
         crit_stat = crit_stat_lookup.get(skill_label_context or "")
         if crit_stat is not None:
             crit_rate = source_army.get_sum_stat_magnitudes(
@@ -424,6 +426,7 @@ class GameSimulator:
             crit_rate = max(0.0, min(1.0, crit_rate))
         if crit_rate > 0 and random.random() < crit_rate:
             total_skill_percentage_points += 0.5
+            crit_triggered = True
 
         final_skill_damage_multiplier = max(0.05, 1.0 + total_skill_percentage_points)
 
@@ -517,6 +520,26 @@ class GameSimulator:
         )
         if enemy_hp_per_troop <= 0:
             enemy_hp_per_troop = 1
+        if crit_triggered:
+            base_multiplier_no_crit = max(0.05, 1.0 + base_skill_percentage_points)
+            damage_without_crit = (
+                skill_hp_damage_potential
+                * base_multiplier_no_crit
+                * advantage_multiplier
+            )
+            extra_hp_from_crit = max(0.0, damage_after_all_mods - damage_without_crit)
+            crit_troops = (
+                extra_hp_from_crit / enemy_hp_per_troop if enemy_hp_per_troop else 0.0
+            )
+            if crit_troops > 0 and source_skill_def and skill_label_context:
+                skill_id = source_skill_def.get("id")
+                if isinstance(skill_id, str) and skill_id:
+                    crit_totals = source_army.skill_crit_kill_boost_totals.setdefault(
+                        skill_id, {}
+                    )
+                    crit_totals[skill_label_context] = crit_totals.get(
+                        skill_label_context, 0.0
+                    ) + crit_troops
         extra_hp_from_boost = actual_skill_hp_damage_to_troops - hp_damage_without_boost
         if extra_hp_from_boost > 0 and total_positive_boost > 0:
             for eff in positive_boost_effects:

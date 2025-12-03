@@ -8542,9 +8542,9 @@ class MainWindow(QtWidgets.QMainWindow):
                             active_items.append(f"<li>{effect_html}</li>")
                     if active_items:
                         sections.append(
-                            "<div class=\"log-section\"><h4>Active Effects</h4><ul>"
+                            "<div class=\"log-section\"><details><summary><h4>Active Effects</h4></summary><ul>"
                             + "".join(active_items)
-                            + "</ul></div>"
+                            + "</ul></details></div>"
                         )
 
                     combat_rows: list[str] = []

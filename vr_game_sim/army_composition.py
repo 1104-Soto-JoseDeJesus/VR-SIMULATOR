@@ -1235,7 +1235,7 @@ class Army:
                         self.simulator._log_skill_trigger(self, effect.name,
                                                           f"gains {', '.join(log_parts)} ({gained_this_tick} total this round). New rage: {self.current_rage:.0f}")
 
-            elif effect.name == EFFECT_NAME_DELAYED_RAGE_GAIN and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+            elif effect.name in (EFFECT_NAME_DELAYED_RAGE_GAIN, EFFECT_NAME_PAIN_N_FURY_RAGE_GAIN) and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round' and effect.duration <= 0:
                     rage_amt = effect.config.get("rage_amount", 0)
                     if rage_amt > 0:

@@ -269,6 +269,75 @@ def handle_talent_serpents_rage(
     return an_effect_happened, log_details
 
 
+def handle_mount_periodic_stat_boost(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    interval = cfg.get("trigger_interval", 6)
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % interval == 0):
+        return False, []
+
+    stat_to_mod = cfg.get("stat_to_mod")
+    magnitude = cfg.get("buff_magnitude", 0.0)
+    duration = cfg.get("buff_duration", 1)
+    effect_name = cfg.get("effect_name") or skill_def.get("name", "Mount Skill")
+
+    if not stat_to_mod or magnitude == 0:
+        return False, []
+
+    buff_data = {
+        "effect_type": EffectType.STAT_MOD,
+        "name": effect_name,
+        "stat_to_mod": stat_to_mod,
+        "magnitude": magnitude,
+        "duration": duration,
+        "activate_next_round": True,
+    }
+    created_buff = triggering_army._create_and_add_single_effect(
+        buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+    )
+    if not created_buff:
+        return False, []
+
+    log_stat = str(stat_to_mod).split(".")[-1].replace("_", " ").title()
+    return True, [(
+        f"Gains {log_stat} boost of {magnitude * 100:.0f}% for {duration + 1} rounds (starting next round).",
+        None,
+    )]
+
+
+def handle_mount_periodic_rage_gain(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    interval = cfg.get("trigger_interval", 6)
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % interval == 0):
+        return False, []
+
+    rage_gain = cfg.get("rage_gain", 0)
+    if rage_gain <= 0:
+        return False, []
+
+    rage_effect = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": cfg.get("effect_name", EFFECT_NAME_DELAYED_RAGE_GAIN),
+        "duration": 0,
+        "config": {"rage_amount": rage_gain},
+        "activate_next_round": True,
+    }
+    created_effect = triggering_army._create_and_add_single_effect(
+        rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+    )
+    if not created_effect:
+        return False, []
+
+    return True, [(f"Recovers {rage_gain} rage next round.", None)]
+
+
 def handle_talent_full_focus(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],

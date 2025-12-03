@@ -1,6 +1,7 @@
 import copy
 
 from vr_game_sim.enums import SkillType
+from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
 from vr_game_sim.main import create_armies_from_data, get_setup_data_for_saving
 
 
@@ -58,3 +59,35 @@ def test_mount_skills_persist_in_saved_data():
     saved_hero = saved_cfg["heroes"][0]
 
     assert saved_hero.get("mount_skill_ids") == cfg["heroes"][0]["mount_skill_ids"]
+
+
+def test_new_command_mount_skills_registered():
+    expected = {
+        "mount_firewing_ashes": {
+            "stat": "burn_damage_boost",
+            "magnitude": 0.5,
+            "duration": 1,
+        },
+        "mount_bonegnaw_bug": {
+            "stat": "poison_damage_boost",
+            "magnitude": 0.5,
+            "duration": 1,
+        },
+        "mount_pain_n_fury": {
+            "rage_gain": 155,
+        },
+    }
+
+    for skill_id, expectations in expected.items():
+        skill_def = SKILL_REGISTRY_GLOBAL.get(skill_id)
+        assert skill_def, f"{skill_id} missing from registry"
+        assert skill_def.get("type") == SkillType.MOUNT_SKILL
+
+        config = skill_def.get("config", {})
+        if "stat" in expectations:
+            assert getattr(config.get("stat_to_mod"), "value", None) == expectations["stat"]
+            assert config.get("buff_magnitude") == expectations["magnitude"]
+            # Duration values are zero-indexed internally; 1 yields a 2-round duration in practice.
+            assert config.get("buff_duration") == expectations["duration"]
+        if "rage_gain" in expectations:
+            assert config.get("rage_gain") == expectations["rage_gain"]

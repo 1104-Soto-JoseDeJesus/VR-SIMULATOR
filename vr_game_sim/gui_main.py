@@ -4131,6 +4131,24 @@ def _skill_stats_entry(
         getattr(army, "skill_kill_boost_counterattack_totals", {}) or {}
     )
     boosted_other_map = getattr(army, "skill_kill_boost_other_totals", {}) or {}
+    crit_boost_map = getattr(army, "skill_crit_kill_boost_totals", {}) or {}
+    crit_breakdown_raw = crit_boost_map.get(skill_id, {}) if isinstance(crit_boost_map, dict) else {}
+    crit_breakdown: dict[str, int] = {}
+    crit_label_display = {
+        "REACTIVE": "Reactive Skill Crit Kills",
+        "COOPERATION": "Cooperation Skill Crit Kills",
+        "COMMAND": "Command Skill Crit Kills",
+    }
+    crit_boost_total = 0.0
+    for label_key, display in crit_label_display.items():
+        raw_val = crit_breakdown_raw.get(label_key, 0.0) if isinstance(crit_breakdown_raw, dict) else 0.0
+        try:
+            as_float = float(raw_val)
+        except (TypeError, ValueError):
+            as_float = 0.0
+        crit_boost_total += as_float
+        if abs(as_float) > 1e-9:
+            crit_breakdown[display] = int(round(as_float))
     total_boosted_kills = float(army.skill_kill_boost_totals.get(skill_id, 0.0))
     boosted_burn_kills = float(boosted_burn_map.get(skill_id, 0.0))
     boosted_counter_kills = float(boosted_counter_map.get(skill_id, 0.0))
@@ -4156,6 +4174,8 @@ def _skill_stats_entry(
         "boosted_burn_kills": int(round(boosted_burn_kills)),
         "boosted_counter_kills": int(round(boosted_counter_kills)),
         "boosted_other_kills": int(round(boosted_other_kills)),
+        "crit_boosted_kills": int(round(crit_boost_total)),
+        "crit_boosted_breakdown": crit_breakdown,
         "boosted_heals": int(round(army.skill_heal_boost_totals.get(skill_id, 0.0))),
         "boosted_shielded": int(round(army.skill_shield_boost_totals.get(skill_id, 0.0))),
         "boosted_rage": int(round(army.skill_rage_boost_totals.get(skill_id, 0.0))),
@@ -4293,6 +4313,7 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
         getattr(army, "skill_kill_boost_counterattack_totals", {}) or {}
     )
     other_boost_totals = getattr(army, "skill_kill_boost_other_totals", {}) or {}
+    crit_boost_totals = getattr(army, "skill_crit_kill_boost_totals", {}) or {}
 
     stats_maps: list[dict[str, float]] = [
         army.skill_trigger_counts,
@@ -4303,6 +4324,7 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
         army.skill_rage_reduction_totals,
         army.skill_damage_reduction_totals,
         army.skill_kill_boost_totals,
+        crit_boost_totals,
         army.skill_heal_boost_totals,
         army.skill_shield_boost_totals,
         army.skill_rage_boost_totals,
@@ -4318,7 +4340,19 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
                 continue
             if not _is_mount_skill(skill_id):
                 continue
-            if abs(float(value)) <= 1e-9:
+            numeric_value = 0.0
+            if isinstance(value, dict):
+                for sub_val in value.values():
+                    try:
+                        numeric_value += abs(float(sub_val))
+                    except (TypeError, ValueError):
+                        continue
+            else:
+                try:
+                    numeric_value = abs(float(value))
+                except (TypeError, ValueError):
+                    numeric_value = 0.0
+            if numeric_value <= 1e-9:
                 continue
             mount_skill_ids.add(skill_id)
 
@@ -7550,6 +7584,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 "icon": None,
             },
             {
+                "key": "crit_boosted_kills",
+                "label": "Critical-Boosted Kills",
+                "is_boosted": True,
+                "icon": None,
+            },
+            {
                 "key": "boosted_heals",
                 "label": "Boosted Heals",
                 "is_boosted": True,
@@ -8209,6 +8249,26 @@ class MainWindow(QtWidgets.QMainWindow):
                             if boosted_metric_meta
                             else ""
                         )
+                        crit_breakdown_markup = ""
+                        crit_breakdown = entry.get("crit_boosted_breakdown")
+                        if isinstance(crit_breakdown, dict):
+                            crit_items: list[str] = []
+                            for label, value in crit_breakdown.items():
+                                crit_items.append(
+                                    "<li><strong>{label}:</strong> {value}</li>".format(
+                                        label=html.escape(str(label)),
+                                        value=fmt_int(value),
+                                    )
+                                )
+                            if crit_items:
+                                crit_breakdown_markup = (
+                                    "<details class=\"skill-critical\">"
+                                    + "<summary>Critical Hit Boosted Kills (by trigger)</summary>"
+                                    + "<ul class=\"critical-breakdown\">"
+                                    + "".join(crit_items)
+                                    + "</ul>"
+                                    + "</details>"
+                                )
                         card_parts = [
                             "<div class=\"skill-card\">",
                             "<header class=\"skill-card-header\">",
@@ -8227,6 +8287,8 @@ class MainWindow(QtWidgets.QMainWindow):
                                 + "</div>"
                                 + "</details>"
                             )
+                        if crit_breakdown_markup:
+                            card_parts.append(crit_breakdown_markup)
                         card_parts.append("</div>")
                         skill_cards.append("".join(card_parts))
 

@@ -76,6 +76,22 @@ def test_new_command_mount_skills_registered():
         "mount_pain_n_fury": {
             "rage_gain": 155,
         },
+        "mount_abyssal_maw": {
+            "stat_mods": [
+                {"stat": "basic_damage_adjust", "magnitude": 1.0, "duration": 1},
+                {"stat": "counter_damage_adjust", "magnitude": 1.0, "duration": 1},
+            ],
+        },
+        "mount_bone_spurs": {
+            "stat": "general_damage_modifier",
+            "magnitude": 0.16,
+            "duration": 1,
+        },
+        "mount_hard_shell": {
+            "stat": "damage_taken_multiplier",
+            "magnitude": -0.32,
+            "duration": 0,
+        },
     }
 
     for skill_id, expectations in expected.items():
@@ -89,5 +105,20 @@ def test_new_command_mount_skills_registered():
             assert config.get("buff_magnitude") == expectations["magnitude"]
             # Duration values are zero-indexed internally; 1 yields a 2-round duration in practice.
             assert config.get("buff_duration") == expectations["duration"]
+        if "stat_mods" in expectations:
+            mod_expectations = {entry["stat"]: entry for entry in expectations["stat_mods"]}
+            mod_config = config.get("stat_mods") or []
+            mod_actual = {
+                getattr(entry.get("stat_to_mod"), "value", None): {
+                    "magnitude": entry.get("buff_magnitude"),
+                    "duration": entry.get("buff_duration", config.get("buff_duration")),
+                }
+                for entry in mod_config
+            }
+
+            for stat, entry in mod_expectations.items():
+                assert stat in mod_actual, f"{stat} missing from stat_mods for {skill_id}"
+                assert mod_actual[stat]["magnitude"] == entry["magnitude"]
+                assert mod_actual[stat]["duration"] == entry["duration"]
         if "rage_gain" in expectations:
             assert config.get("rage_gain") == expectations["rage_gain"]

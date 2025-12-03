@@ -119,6 +119,21 @@ def test_new_command_mount_skills_registered():
             for stat, entry in mod_expectations.items():
                 assert stat in mod_actual, f"{stat} missing from stat_mods for {skill_id}"
                 assert mod_actual[stat]["magnitude"] == entry["magnitude"]
-                assert mod_actual[stat]["duration"] == entry["duration"]
+            assert mod_actual[stat]["duration"] == entry["duration"]
         if "rage_gain" in expectations:
             assert config.get("rage_gain") == expectations["rage_gain"]
+
+
+def test_mount_skill_overrides_apply_to_heroes():
+    damage_factor = 1337.0
+    cfg = copy.deepcopy(_BASE_CFG)
+    cfg["heroes"][0]["mount_skill_ids"] = ["mount_crippling_strike"]
+    cfg["heroes"][0]["skill_overrides"] = {
+        "mount_crippling_strike": {"config": {"damage_factor": damage_factor}}
+    }
+
+    army = create_armies_from_data([cfg])[0]
+    hero = army.heroes[0]
+    mount_skill = next(s for s in hero.skills if s.get("id") == "mount_crippling_strike")
+
+    assert mount_skill.get("config", {}).get("damage_factor") == damage_factor

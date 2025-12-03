@@ -1200,8 +1200,11 @@ class Army:
                         if rage_to_gain > 0:
                             self.add_rage(rage_to_gain, effect.source_skill_id)
 
-            # Handle Olena's Concentration Rage Gain
-            elif effect.name == EFFECT_NAME_CONCENTRATION_RAGE_GAIN and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+            # Handle multi-round rage gain effects
+            elif effect.name in (
+                EFFECT_NAME_CONCENTRATION_RAGE_GAIN,
+                EFFECT_NAME_MOUNT_PERIODIC_RAGE_GAIN,
+            ) and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
                     current_sim_round = getattr(self, "army_round", self.simulator.round if self.simulator else 0)
                     effect_applied_in_round = effect.config.get("effect_applied_in_round", -1)
@@ -1209,32 +1212,33 @@ class Army:
                     bonus_rage = effect.config.get("bonus_rage_amount",
                                                    0)  # This is the pre-calculated bonus (200 or 0)
                     bonus_applied_round = effect.config.get("bonus_applied_round", -1)
+                    bonus_tick = effect.config.get("bonus_tick", 1)
+                    total_ticks = effect.config.get("ticks", 2)
 
                     gained_this_tick = 0
                     log_parts = []
 
-                    # Round N+1 processing (first round after cast)
-                    if current_sim_round == effect_applied_in_round + 1:
+                    tick_offset = current_sim_round - effect_applied_in_round
+                    if 1 <= tick_offset <= total_ticks:
                         if base_rage > 0:
                             gained = self.add_rage(base_rage, effect.source_skill_id)
                             gained_this_tick += gained
                             log_parts.append(f"{gained:.0f} base rage")
-                        if bonus_rage > 0 and bonus_applied_round == -1:  # Apply bonus only on the first tick if applicable
+                        if (
+                            bonus_rage > 0
+                            and bonus_applied_round == -1
+                            and tick_offset == bonus_tick
+                        ):  # Apply bonus only on the configured tick if applicable
                             gained_bonus = self.add_rage(bonus_rage, effect.source_skill_id)
                             gained_this_tick += gained_bonus
                             effect.config["bonus_applied_round"] = current_sim_round  # Mark bonus as applied
                             log_parts.append(f"{gained_bonus:.0f} bonus rage")
 
-                    # Round N+2 processing (second round after cast)
-                    elif current_sim_round == effect_applied_in_round + 2:
-                        if base_rage > 0:
-                            gained = self.add_rage(base_rage, effect.source_skill_id)
-                            gained_this_tick += gained
-                            log_parts.append(f"{gained:.0f} base rage")
-
                     if gained_this_tick > 0:
                         self.simulator._log_skill_trigger(self, effect.name,
                                                           f"gains {', '.join(log_parts)} ({gained_this_tick} total this round). New rage: {self.current_rage:.0f}")
+                    if tick_offset >= total_ticks and effect in self.active_effects:
+                        self.active_effects.remove(effect)
 
             elif effect.name in (EFFECT_NAME_DELAYED_RAGE_GAIN, EFFECT_NAME_PAIN_N_FURY_RAGE_GAIN) and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round' and effect.duration <= 0:

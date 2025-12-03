@@ -308,6 +308,102 @@ def handle_mount_periodic_stat_boost(
     )]
 
 
+def handle_mount_periodic_damage_and_stat_boost(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+
+    damage_factor = cfg.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        calc_target = opponent_army
+        if event_data and event_data.get("actual_opponent_for_calc"):
+            calc_target = event_data["actual_opponent_for_calc"]
+
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army,
+            calc_target,
+            damage_factor,
+            source_skill_def=skill_def,
+            damage_application_target=opponent_army,
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage to {opponent_army.name} (Factor: {damage_factor}) due to {skill_def.get('name', 'Mount Skill')}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    stat_mods = cfg.get("stat_mods") or []
+    duration = cfg.get("buff_duration", 1)
+    default_effect_name = cfg.get("effect_name") or skill_def.get("name", "Mount Skill")
+    for mod_cfg in stat_mods:
+        stat_to_mod = mod_cfg.get("stat_to_mod")
+        magnitude = mod_cfg.get("buff_magnitude", 0.0)
+        if not stat_to_mod or magnitude == 0:
+            continue
+
+        buff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": mod_cfg.get("effect_name") or default_effect_name,
+            "stat_to_mod": stat_to_mod,
+            "magnitude": magnitude,
+            "duration": mod_cfg.get("duration", duration),
+            "activate_next_round": True,
+        }
+        created_buff = triggering_army._create_and_add_single_effect(
+            buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if not created_buff:
+            continue
+
+        an_effect_happened = True
+        log_stat = str(stat_to_mod).split(".")[-1].replace("_", " ").title()
+        log_details.append(
+            (
+                f"Gains {log_stat} boost of {magnitude * 100:.0f}% for {buff_data['duration'] + 1} rounds (starting next round).",
+                None,
+            )
+        )
+
+    rage_gain = cfg.get("rage_gain_per_round", 0)
+    rage_duration = cfg.get("rage_gain_duration", 0)
+    if rage_gain > 0 and rage_duration > 0:
+        rage_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": cfg.get("rage_effect_name", EFFECT_NAME_MOUNT_PERIODIC_RAGE_GAIN),
+            "duration": rage_duration,
+            "config": {
+                "base_rage_amount": rage_gain,
+                "bonus_rage_amount": 0,
+                "bonus_applied_round": -1,
+                "effect_applied_in_round": current_round,
+                "ticks": rage_duration,
+            },
+            "activate_next_round": True,
+        }
+        created_effect = triggering_army._create_and_add_single_effect(
+            rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_effect:
+            an_effect_happened = True
+            log_details.append((f"Recovers {rage_gain} rage for the next {rage_duration} rounds.", None))
+
+    return an_effect_happened, log_details
+
+
 def handle_mount_periodic_multi_stat_boost(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
@@ -369,6 +465,32 @@ def handle_mount_periodic_rage_gain(
     if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % interval == 0):
         return False, []
 
+    rage_gain = cfg.get("rage_gain", 0)
+    if rage_gain <= 0:
+        return False, []
+
+    rage_effect = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": cfg.get("effect_name", EFFECT_NAME_DELAYED_RAGE_GAIN),
+        "duration": 0,
+        "config": {"rage_amount": rage_gain},
+        "activate_next_round": True,
+    }
+    created_effect = triggering_army._create_and_add_single_effect(
+        rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+    )
+    if not created_effect:
+        return False, []
+
+    return True, [(f"Recovers {rage_gain} rage next round.", None)]
+
+
+def handle_mount_reactive_rage_gain(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
     rage_gain = cfg.get("rage_gain", 0)
     if rage_gain <= 0:
         return False, []

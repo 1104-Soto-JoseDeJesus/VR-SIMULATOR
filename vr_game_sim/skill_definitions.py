@@ -17,7 +17,8 @@ from .skill_logic.talent_handlers import (
     handle_talent_blade_counter, handle_talent_shield_of_resistance, handle_talent_revenge_echo,
     handle_talent_healing_hymn, handle_talent_hold_fast, handle_talent_determined_defense,
     handle_talent_tit_for_tat, handle_talent_serpents_rage, handle_mount_periodic_stat_boost,
-    handle_mount_periodic_multi_stat_boost, handle_mount_periodic_rage_gain, handle_talent_full_focus,
+    handle_mount_periodic_multi_stat_boost, handle_mount_periodic_rage_gain, handle_mount_periodic_damage_and_stat_boost,
+    handle_mount_reactive_rage_gain, handle_talent_full_focus,
     handle_talent_power_of_silence, handle_talent_deadly_raid,
     handle_talent_strategize, handle_talent_adaptable_to_changes,
     handle_talent_hunting_experience, handle_talent_targeted_strike,
@@ -4904,6 +4905,269 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
                 "activate_next_round": False,
                 "manual_bonus_stat": True,
                 "config_filter": {"skill_label": "COMMAND", "attack_type": "SKILL"},
+            }
+        ],
+    },
+    "mount_untamed_wilderness": {
+        "id": "mount_untamed_wilderness",
+        "name": "Untamed Wilderness",
+        "type": SkillType.MOUNT_SKILL,
+        "source": "mount",
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND,
+        "trigger_chance": 1.0,
+        "target": "ENEMY",
+        "logic_handler": handle_mount_periodic_damage_and_stat_boost,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {
+            "damage_factor": 390.0,
+            "trigger_interval": 6,
+            "rage_gain_per_round": 40,
+            "rage_gain_duration": 2,
+            "rage_effect_name": EFFECT_NAME_UNTAMED_WILDERNESS_RAGE_GAIN,
+        },
+        "passive_effects": [
+            {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
+                "magnitude": 0.02,
+                "duration": -1,
+                "activate_next_round": False,
+                "manual_bonus_stat": True,
+                "config_filter": {"skill_label": "COMMAND", "attack_type": "SKILL"},
+            }
+        ],
+    },
+    "mount_flame_serpent": {
+        "id": "mount_flame_serpent",
+        "name": "Flame Serpent",
+        "type": SkillType.MOUNT_SKILL,
+        "source": "mount",
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND,
+        "trigger_chance": 1.0,
+        "target": "ENEMY",
+        "logic_handler": handle_mount_periodic_damage_and_stat_boost,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {
+            "damage_factor": 390.0,
+            "trigger_interval": 6,
+            "buff_duration": 1,
+            "stat_mods": [
+                {
+                    "stat_to_mod": StatType.BURN_DAMAGE_BOOST,
+                    "buff_magnitude": 0.09,
+                    "effect_name": EFFECT_NAME_FLAME_SERPENT_BURN_BOOST,
+                }
+            ],
+        },
+        "passive_effects": [
+            {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
+                "magnitude": 0.02,
+                "duration": -1,
+                "activate_next_round": False,
+                "manual_bonus_stat": True,
+                "config_filter": {"skill_label": "COMMAND", "attack_type": "SKILL"},
+            }
+        ],
+    },
+    "mount_razor_fangs": {
+        "id": "mount_razor_fangs",
+        "name": "Razor Fangs",
+        "type": SkillType.MOUNT_SKILL,
+        "source": "mount",
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND,
+        "trigger_chance": 1.0,
+        "target": "ENEMY",
+        "logic_handler": handle_mount_periodic_damage_and_stat_boost,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {
+            "damage_factor": 390.0,
+            "trigger_interval": 6,
+            "buff_duration": 1,
+            "stat_mods": [
+                {
+                    "stat_to_mod": StatType.POISON_DAMAGE_BOOST,
+                    "buff_magnitude": 0.09,
+                    "effect_name": EFFECT_NAME_RAZOR_FANGS_POISON_BOOST,
+                }
+            ],
+        },
+        "passive_effects": [
+            {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
+                "magnitude": 0.02,
+                "duration": -1,
+                "activate_next_round": False,
+                "manual_bonus_stat": True,
+                "config_filter": {"skill_label": "COMMAND", "attack_type": "SKILL"},
+            }
+        ],
+    },
+    "mount_teeth_n_claws": {
+        "id": "mount_teeth_n_claws",
+        "name": "Teeth N Claws",
+        "type": SkillType.MOUNT_SKILL,
+        "source": "mount",
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND,
+        "trigger_chance": 1.0,
+        "target": "ENEMY",
+        "logic_handler": handle_mount_periodic_damage_and_stat_boost,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {
+            "damage_factor": 390.0,
+            "trigger_interval": 6,
+            "buff_duration": 1,
+            "stat_mods": [
+                {
+                    "stat_to_mod": StatType.GENERAL_DAMAGE_MODIFIER,
+                    "buff_magnitude": 0.08,
+                    "effect_name": EFFECT_NAME_TEETH_N_CLAWS_GENERAL_BOOST,
+                }
+            ],
+        },
+        "passive_effects": [
+            {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
+                "magnitude": 0.02,
+                "duration": -1,
+                "activate_next_round": False,
+                "manual_bonus_stat": True,
+                "config_filter": {"skill_label": "COMMAND", "attack_type": "SKILL"},
+            }
+        ],
+    },
+    "mount_dragon_venomfire": {
+        "id": "mount_dragon_venomfire",
+        "name": "Dragon Venomfire",
+        "type": SkillType.MOUNT_SKILL,
+        "source": "mount",
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND,
+        "trigger_chance": 1.0,
+        "target": "SELF",
+        "logic_handler": handle_mount_periodic_multi_stat_boost,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {
+            "trigger_interval": 6,
+            "buff_duration": 1,
+            "stat_mods": [
+                {
+                    "stat_to_mod": StatType.BURN_DAMAGE_BOOST,
+                    "buff_magnitude": 0.35,
+                    "effect_name": EFFECT_NAME_DRAGON_VENOMFIRE_BURN_BOOST,
+                },
+                {
+                    "stat_to_mod": StatType.POISON_DAMAGE_BOOST,
+                    "buff_magnitude": 0.35,
+                    "effect_name": EFFECT_NAME_DRAGON_VENOMFIRE_POISON_BOOST,
+                },
+            ],
+        },
+        "passive_effects": [
+            {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
+                "magnitude": 0.02,
+                "duration": -1,
+                "activate_next_round": False,
+                "manual_bonus_stat": True,
+                "config_filter": {"skill_label": "COMMAND", "attack_type": "SKILL"},
+            }
+        ],
+    },
+    "mount_ragebeast_soul": {
+        "id": "mount_ragebeast_soul",
+        "name": "Ragebeast Soul",
+        "type": SkillType.MOUNT_SKILL,
+        "source": "mount",
+        "trigger": SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE,
+        "trigger_chance": 1.0,
+        "target": "SELF",
+        "logic_handler": handle_mount_reactive_rage_gain,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {
+            "rage_gain": 105,
+            "effect_name": EFFECT_NAME_RAGEBEAST_SOUL_RAGE_GAIN,
+            "cooldown_rounds": 4,
+        },
+        "passive_effects": [
+            {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
+                "magnitude": 0.02,
+                "duration": -1,
+                "activate_next_round": False,
+                "manual_bonus_stat": True,
+                "config_filter": {"skill_label": "REACTIVE", "attack_type": "SKILL"},
+            }
+        ],
+    },
+    "mount_retaliation_fangs": {
+        "id": "mount_retaliation_fangs",
+        "name": "Retaliation Fangs",
+        "type": SkillType.MOUNT_SKILL,
+        "source": "mount",
+        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+        "trigger_chance": 1.0,
+        "target": "SELF",
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"cooldown_rounds": 4},
+        "sub_effects": [
+            {
+                "name_suffix": "Counterattack Boost",
+                "chance": 0.15,
+                "effect_to_apply": {
+                    "effect_type": EffectType.STAT_MOD,
+                    "name": EFFECT_NAME_RETALIATION_FANGS_COUNTER_BOOST,
+                    "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+                    "magnitude": 1.5,
+                    "duration": 1,
+                    "activate_next_round": True,
+                },
+            }
+        ],
+        "passive_effects": [
+            {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
+                "magnitude": 0.02,
+                "duration": -1,
+                "activate_next_round": False,
+                "manual_bonus_stat": True,
+                "config_filter": {"skill_label": "REACTIVE", "attack_type": "SKILL"},
+            }
+        ],
+    },
+    "mount_pincer_strike": {
+        "id": "mount_pincer_strike",
+        "name": "Pincer Strike",
+        "type": SkillType.MOUNT_SKILL,
+        "source": "mount",
+        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK,
+        "trigger_chance": 0.15,
+        "target": "ENEMY",
+        "logic_handler": handle_generic_single_damage_skill,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 650.0, "cooldown_rounds": 4},
+        "passive_effects": [
+            {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
+                "magnitude": 0.02,
+                "duration": -1,
+                "activate_next_round": False,
+                "manual_bonus_stat": True,
+                "config_filter": {"skill_label": "REACTIVE", "attack_type": "SKILL"},
             }
         ],
     },

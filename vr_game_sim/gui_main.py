@@ -1895,18 +1895,24 @@ class JewelSkillsDialog(QtWidgets.QDialog):
 
 
 class MountSkillsDialog(QtWidgets.QDialog):
-    """Dialog for assigning up to two mount skills per hero."""
+    """Dialog for assigning up to two mount skills per hero.
+
+    Mount skills can have their parameters tweaked temporarily using the same
+    override controls as other skill types.
+    """
 
     def __init__(
         self,
         selected: dict[int, list[str]] | None,
         hero_names: dict[int, str],
+        overrides: dict[int, dict[str, dict]] | None = None,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Mount Skills")
         self.setModal(True)
         self._slot_boxes: dict[tuple[int, int], QtWidgets.QComboBox] = {}
+        self._param_editors: dict[tuple[int, int], SkillParamEditor] = {}
 
         layout = QtWidgets.QVBoxLayout(self)
         info = QtWidgets.QLabel(
@@ -1954,13 +1960,29 @@ class MountSkillsDialog(QtWidgets.QDialog):
                     if idx >= 0:
                         combo.setCurrentIndex(idx)
 
+                param_editor = SkillParamEditor()
+                current_overrides = (overrides or {}).get(hero_idx, {}).get(
+                    selected_ids[slot_idx] if slot_idx < len(selected_ids) else "",
+                    None,
+                )
+                param_editor.set_skill(
+                    selected_ids[slot_idx] if slot_idx < len(selected_ids) else "",
+                    current_overrides,
+                )
+                combo.currentIndexChanged.connect(
+                    lambda _i, c=combo, e=param_editor: e.set_skill(c.currentData())
+                )
+
                 label_text = f"{hero_display} • Slot {slot_idx + 1}:"
                 form.addRow(label_text, combo)
+                form.addRow("", param_editor)
                 self._slot_boxes[(hero_idx, slot_idx)] = combo
+                self._param_editors[(hero_idx, slot_idx)] = param_editor
 
             if hero_display in {"", "None"}:
                 for slot_idx in range(2):
                     self._slot_boxes[(hero_idx, slot_idx)].setEnabled(False)
+                    self._param_editors[(hero_idx, slot_idx)].setEnabled(False)
 
         scroll.setWidget(container)
         layout.addWidget(scroll)
@@ -1973,17 +1995,22 @@ class MountSkillsDialog(QtWidgets.QDialog):
         btn_box.rejected.connect(self.reject)
         layout.addWidget(btn_box)
 
-    def result(self) -> dict[int, list[str]]:
+    def result(self) -> tuple[dict[int, list[str]], dict[int, dict[str, dict]]]:
         selections: dict[int, list[str]] = {1: [], 2: []}
+        overrides: dict[int, dict[str, dict]] = {1: {}, 2: {}}
         for hero_idx in (1, 2):
             for slot_idx in range(2):
                 combo = self._slot_boxes.get((hero_idx, slot_idx))
-                if combo is None or not combo.isEnabled():
+                editor = self._param_editors.get((hero_idx, slot_idx))
+                if combo is None or editor is None or not combo.isEnabled():
                     continue
                 sid = combo.currentData()
                 if isinstance(sid, str) and sid:
                     selections[hero_idx].append(sid)
-        return selections
+                    ov = editor.get_overrides()
+                    if ov:
+                        overrides[hero_idx][sid] = ov
+        return selections, overrides
 
 
 class GearSelectionDialog(QtWidgets.QDialog):
@@ -2124,14 +2151,17 @@ class HeroEditDialog(QtWidgets.QDialog):
         self.talent_boxes: list[QtWidgets.QComboBox] = []
         self.base_boxes: list[QtWidgets.QComboBox] = []
         self.plugin_boxes: list[QtWidgets.QComboBox] = []
+        self.mount_boxes: list[QtWidgets.QComboBox] = []
         self.talent_param_editors: list[SkillParamEditor] = []
         self.base_param_editors: list[SkillParamEditor] = []
         self.plugin_param_editors: list[SkillParamEditor] = []
+        self.mount_param_editors: list[SkillParamEditor] = []
         overrides_map = hero_config.get("skill_overrides", {}) if hero_config else {}
 
         talent_opts = _skill_options(SkillType.TALENT)
         base_opts = _skill_options(SkillType.BASE_SKILL)
         plugin_opts = _skill_options(SkillType.PLUGIN_SKILL)
+        mount_opts = _skill_options(SkillType.MOUNT_SKILL)
 
         for i in range(3):
             box = QtWidgets.QComboBox()
@@ -2208,6 +2238,31 @@ class HeroEditDialog(QtWidgets.QDialog):
             layout.addRow(f"Plugin Skill {i+1}:", box)
             layout.addRow("", param_editor)
 
+        for i in range(2):
+            box = QtWidgets.QComboBox()
+            for name, sid in mount_opts:
+                box.addItem(name, sid)
+            box.setEditable(True)
+            completer = QtWidgets.QCompleter([n for n, _ in mount_opts], box)
+            completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+            box.setCompleter(completer)
+            param_editor = SkillParamEditor()
+            sid = ""
+            if hero_config and i < len(hero_config.get("mount_skill_ids", [])):
+                sid = hero_config["mount_skill_ids"][i]
+                name = SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", "None")
+                idx = box.findText(name)
+                if idx >= 0:
+                    box.setCurrentIndex(idx)
+            self.mount_boxes.append(box)
+            self.mount_param_editors.append(param_editor)
+            param_editor.set_skill(sid, overrides_map.get(sid))
+            box.currentIndexChanged.connect(
+                lambda _i, b=box, e=param_editor: e.set_skill(b.currentData())
+            )
+            layout.addRow(f"Mount Skill {i+1}:", box)
+            layout.addRow("", param_editor)
+
         btns = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
         )
@@ -2237,11 +2292,18 @@ class HeroEditDialog(QtWidgets.QDialog):
                 ov = editor.get_overrides()
                 if ov:
                     overrides[sid] = ov
+        for box, editor in zip(self.mount_boxes, self.mount_param_editors):
+            sid = box.currentData() or ""
+            if sid and box.currentText() != "None":
+                ov = editor.get_overrides()
+                if ov:
+                    overrides[sid] = ov
         return {
             "hero_name_or_preset": self.name_edit.text().strip(),
             "talent_ids": [box.currentData() or "" for box in self.talent_boxes],
             "base_skill_ids": [box.currentData() or "" for box in self.base_boxes if box.currentText() != "None"],
             "plugin_skill_ids": [box.currentData() or "" for box in self.plugin_boxes if box.currentText() != "None"],
+            "mount_skill_ids": [box.currentData() or "" for box in self.mount_boxes if box.currentText() != "None"],
             "skill_overrides": overrides,
         }
 
@@ -2675,6 +2737,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
         if slot_plugins is not None:
             current_cfg = dict(current_cfg or {"hero_name_or_preset": hero_name})
             current_cfg["plugin_skill_ids"] = list(slot_plugins)
+        slot_mounts = self._mount_skills.get(slot)
+        if slot_mounts is not None:
+            current_cfg = dict(current_cfg or {"hero_name_or_preset": hero_name})
+            current_cfg["mount_skill_ids"] = list(slot_mounts)
         overrides = self.hero_overrides.get(slot)
         if overrides:
             current_cfg = dict(current_cfg or {"hero_name_or_preset": hero_name})
@@ -2689,6 +2755,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 name = cfg["hero_name_or_preset"]
                 self._cache_overrides(name, overrides)
                 self._set_plugin_loadout(slot, cfg.get("plugin_skill_ids", []), update_ui=False)
+                mount_skills = cfg.get("mount_skill_ids")
+                if mount_skills is not None:
+                    self._set_mount_skills({slot: mount_skills})
                 preset = HERO_PRESETS.get(name.lower())
                 if (
                     preset
@@ -3109,12 +3178,17 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
     def _open_mount_skills_dialog(self) -> None:
         hero_names = {1: self.hero1_combo.currentText(), 2: self.hero2_combo.currentText()}
-        dlg = MountSkillsDialog(self._mount_skills, hero_names, self)
+        dlg = MountSkillsDialog(self._mount_skills, hero_names, self.hero_overrides, self)
         if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-            self._set_mount_skills(dlg.result())
+            mount_skills, mount_overrides = dlg.result()
+            self._set_mount_skills(mount_skills)
+            self._apply_mount_overrides(mount_skills, mount_overrides)
 
     def _set_mount_skills(self, mount_skills: dict[int, list[str]] | None) -> None:
-        normalized: dict[int, list[str]] = {1: [], 2: []}
+        normalized: dict[int, list[str]] = {
+            1: list(self._mount_skills.get(1, [])),
+            2: list(self._mount_skills.get(2, [])),
+        }
         if mount_skills:
             for hero_idx, skills in mount_skills.items():
                 if hero_idx not in normalized or not isinstance(skills, (list, tuple)):
@@ -3132,6 +3206,24 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 normalized[hero_idx] = cleaned
         self._mount_skills = normalized
         self._update_mount_skills_button()
+
+    def _apply_mount_overrides(
+        self,
+        mount_skills: dict[int, list[str]],
+        overrides: dict[int, dict[str, dict]],
+    ) -> None:
+        for slot in (1, 2):
+            current_overrides = self.hero_overrides.get(slot) or {}
+            merged: dict[str, dict] = {
+                sid: ov for sid, ov in current_overrides.items() if not _is_mount_skill(sid)
+            }
+            selected_skills = mount_skills.get(slot, []) if isinstance(mount_skills, dict) else []
+            slot_overrides = overrides.get(slot, {}) if isinstance(overrides, dict) else {}
+            for sid in selected_skills:
+                ov = slot_overrides.get(sid) or current_overrides.get(sid)
+                if ov:
+                    merged[sid] = ov
+            self.hero_overrides[slot] = merged
 
     def _update_mount_skills_button(self) -> None:
         if not hasattr(self, "mount_skills_btn"):

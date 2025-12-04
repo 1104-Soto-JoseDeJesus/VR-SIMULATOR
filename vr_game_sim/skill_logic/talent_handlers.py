@@ -511,6 +511,167 @@ def handle_mount_reactive_rage_gain(
     return True, [(f"Recovers {rage_gain} rage next round.", None)]
 
 
+def handle_mount_periodic_dot_with_condition(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {}) or {}
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    if not opponent_army or opponent_army.current_troop_count <= 0:
+        return False, []
+
+    status_type = cfg.get("status_type", DoTType.BURN)
+    base_factor = float(cfg.get("status_factor", 0.0))
+    if base_factor <= 0:
+        return False, []
+
+    factor_to_apply = base_factor
+    if cfg.get("boost_if_more_troops") and triggering_army.current_troop_count > opponent_army.current_troop_count:
+        factor_to_apply = float(cfg.get("boosted_status_factor", base_factor))
+
+    duration = int(round(float(cfg.get("status_duration", 1))))
+    effect_name = cfg.get("effect_name", skill_def.get("name", "Mount Skill"))
+
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    dot_effect = {
+        "effect_type": EffectType.DAMAGE_OVER_TIME,
+        "name": effect_name,
+        "dot_type": status_type,
+        "status_effect_factor": factor_to_apply,
+        "duration": duration,
+        "activate_next_round": True,
+    }
+    created_dot = opponent_army._create_and_add_single_effect(
+        dot_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
+    )
+    if created_dot:
+        an_effect_happened = True
+        log_details.append((
+            f"Inflicts '{effect_name}' on {opponent_army.name} (Factor: {factor_to_apply}) for {duration + 1} rounds (starting next round).",
+            None,
+        ))
+
+    heal_factor = 0.0
+    if cfg.get("heal_if_lower_troops") and triggering_army.current_troop_count < opponent_army.current_troop_count:
+        heal_factor = float(cfg.get("heal_factor", 0.0))
+
+    if heal_factor > 0:
+        healed_amount = triggering_army.calculate_and_add_pending_healing(
+            heal_factor,
+            triggering_army,
+            opponent_army,
+            source_skill_id=skill_def.get("id", ""),
+        )
+        if healed_amount > 0:
+            an_effect_happened = True
+            log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    if not an_effect_happened:
+        return False, []
+
+    return True, log_details
+
+
+def handle_mount_periodic_damage_rage_and_condition(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {}) or {}
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    if not opponent_army or opponent_army.current_troop_count <= 0:
+        return False, []
+
+    base_damage_factor = float(cfg.get("damage_factor", 0.0))
+    conditional_damage_factor = float(cfg.get("conditional_damage_factor", base_damage_factor))
+    conditional_dot_type = cfg.get("conditional_dot_type")
+    heal_if_dot_factor = float(cfg.get("heal_if_dot_factor", 0.0))
+    rage_gain = float(cfg.get("rage_gain", 0.0))
+    effect_name = cfg.get("effect_name") or skill_def.get("name", "Mount Skill")
+
+    enemy_matches_condition = False
+    if conditional_dot_type:
+        enemy_matches_condition = any(
+            eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == conditional_dot_type
+            for eff in opponent_army.active_effects
+        )
+
+    damage_factor_to_use = conditional_damage_factor if enemy_matches_condition else base_damage_factor
+
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    if damage_factor_to_use > 0 and simulator:
+        target_for_calc = opponent_army
+        if event_data and event_data.get("actual_opponent_for_calc"):
+            target_for_calc = event_data["actual_opponent_for_calc"]
+
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army,
+            target_for_calc,
+            damage_factor_to_use,
+            source_skill_def=skill_def,
+            damage_application_target=opponent_army,
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append((
+            f"Deals damage to {opponent_army.name} (Factor: {damage_factor_to_use}).",
+            {
+                "damage_done_hp": round(raw_logged_damage),
+                "absorbed_hp": round(absorbed),
+                "potential_kills": kills,
+            },
+        ))
+
+    if heal_if_dot_factor > 0 and enemy_matches_condition:
+        healed_amount = triggering_army.calculate_and_add_pending_healing(
+            heal_if_dot_factor,
+            triggering_army,
+            opponent_army,
+            source_skill_id=skill_def.get("id", ""),
+        )
+        if healed_amount > 0:
+            an_effect_happened = True
+            log_details.append((
+                f"Heals self for {healed_amount:.0f} HP (Factor: {heal_if_dot_factor}).",
+                None,
+            ))
+
+    if rage_gain > 0:
+        rage_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": cfg.get("rage_effect_name", EFFECT_NAME_DELAYED_RAGE_GAIN),
+            "duration": 0,
+            "config": {"rage_amount": rage_gain},
+            "activate_next_round": True,
+        }
+        created_rage = triggering_army._create_and_add_single_effect(
+            rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_rage:
+            an_effect_happened = True
+            log_details.append((f"Recovers {rage_gain:.0f} rage next round.", None))
+
+    if not an_effect_happened:
+        return False, []
+
+    return True, log_details
+
+
 def handle_talent_full_focus(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],

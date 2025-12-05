@@ -1518,3 +1518,134 @@ def handle_rage_showdown(
 
     return an_effect_happened, log_details, damage_dealt_flag
 
+
+def handle_rage_blizzard_spear(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    damage_dealt_flag = False
+
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    damage_factor = skill_config.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            damage_dealt_flag = True
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    broken_blade_active = any(
+        eff.name == EFFECT_NAME_BROKEN_BLADE_DEBUFF for eff in opponent_army.active_effects
+    )
+    shield_factor = (
+        skill_config.get("boosted_shield_factor", 0.0)
+        if broken_blade_active
+        else skill_config.get("shield_factor", 0.0)
+    )
+    shield_duration = skill_config.get("shield_duration", 1)
+    if shield_factor > 0:
+        shield_effect_data = {
+            "effect_type": EffectType.SHIELD,
+            "name": EFFECT_NAME_BLIZZARD_SPEAR_SHIELD,
+            "duration": shield_duration,
+            "magnitude_calc_type": "dynamic_shield_resistance_v1",
+            "shield_factor": shield_factor,
+            "activate_next_round": True,
+        }
+        created_shield = triggering_army._create_and_add_single_effect(
+            shield_effect_data, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created_shield:
+            an_effect_happened = True
+            est_mag = (
+                simulator._calculate_shield_magnitude_for_logging(triggering_army, opponent_army, float(shield_factor))
+                if simulator
+                else created_shield.magnitude
+            )
+            log_details.append(
+                (
+                    f"Gains '{EFFECT_NAME_BLIZZARD_SPEAR_SHIELD}' ({created_shield.get_functionality_description()}), active for {created_shield.duration + 1} rounds. Est. Mag: {est_mag:.0f}",
+                    {"shield_hp_gained": round(est_mag)},
+                )
+            )
+
+    return an_effect_happened, log_details, damage_dealt_flag
+
+
+def handle_rage_indomitable_spirit(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    damage_dealt_flag = False
+
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    potential_targets = [opponent_army]
+    additional_targets = event_data.get("additional_targets") or []
+    for extra in additional_targets:
+        if extra and extra not in potential_targets and extra.current_troop_count > 0:
+            potential_targets.append(extra)
+
+    for target in potential_targets:
+        if not target or target.current_troop_count <= 0:
+            continue
+        below_half_troops = target.current_troop_count < (0.5 * float(target.unit.initial_count))
+        damage_factor = (
+            skill_config.get("boosted_damage_factor", 0.0) if below_half_troops else skill_config.get("damage_factor", 0.0)
+        )
+        if damage_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army, target, damage_factor, source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                target.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                damage_dealt_flag = True
+                an_effect_happened = True
+            log_details.append(
+                (
+                    f"Deals damage (Factor: {damage_factor}) to {target.name}.",
+                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                )
+            )
+
+        debuff_duration = skill_config.get("debuff_duration", 1)
+        debuff_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_BROKEN_BLADE_DEBUFF,
+            "duration": debuff_duration,
+            "config": {"prevents_counterattack": True},
+            "activate_next_round": True,
+        }
+        created_debuff = target._create_and_add_single_effect(
+            debuff_data, skill_id, triggering_army, target, triggering_army
+        )
+        if created_debuff:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_BROKEN_BLADE_DEBUFF}' on {target.name} for {created_debuff.duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    return an_effect_happened, log_details, damage_dealt_flag
+

@@ -57,7 +57,10 @@ from .skill_logic.talent_handlers import (
     handle_talent_heroic_blessing, handle_talent_battle_chime, handle_talent_flames_judgment,
     # LEANDRA & MARGIT TALENT HANDLERS
     handle_talent_flexible_strike, handle_talent_opportune_strike,
-    handle_talent_thirst_for_blood, handle_talent_seas_grace
+    handle_talent_thirst_for_blood, handle_talent_seas_grace,
+    handle_talent_forceful_ambush, handle_talent_trapped_beasts_struggle,
+    handle_talent_bear_spirit_protection, handle_talent_assassination_raid,
+    handle_talent_scale_armor_shield, handle_talent_feigned_death_strike
 )
 from .skill_logic.base_skill_handlers import (
     handle_base_skill_planned_attack, handle_base_skill_flame_guardian,
@@ -85,7 +88,8 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_judgements_fury,
     handle_base_skill_shield_breaker,
     handle_base_skill_plague, handle_base_skill_fatal_flying_axe,
-    handle_base_skill_vengeful_fury, handle_base_skill_ride_the_waves
+    handle_base_skill_vengeful_fury, handle_base_skill_ride_the_waves,
+    handle_base_skill_nayas_hunting_instinct, handle_base_skill_inspiration_arrives
 )
 from .skill_logic.plugin_skill_handlers import (
     handle_plugin_divine_blessing, handle_plugin_shield_support, handle_plugin_freyas_blessing,
@@ -138,7 +142,8 @@ from .skill_logic.rage_skill_handlers import (
     # ROSKY RAGE SKILL HANDLER
     handle_rage_spirit_battleship,
     # LEANDRA & MARGIT RAGE HANDLERS
-    handle_rage_serrated_flourish, handle_rage_raging_tide
+    handle_rage_serrated_flourish, handle_rage_raging_tide,
+    handle_rage_blizzard_spear, handle_rage_indomitable_spirit
 )
 from .skill_logic.utility_skill_handlers import (
     handle_generic_single_damage_skill,
@@ -563,6 +568,56 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "config": {"damage_chance": 0.20, "damage_factor": 500.0}
     },
 
+    "talent_forceful_ambush": {
+        "id": "talent_forceful_ambush", "name": "Forceful Ambush", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_RECEIVING_HEALING, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_talent_forceful_ambush,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {
+            "buff_magnitude": 0.25,
+            "buff_duration": 0,
+            "shield_chance": 0.20,
+            "shield_factor": 650.0,
+            "shield_duration": 1,
+            "cooldown_rounds": 3
+        }
+    },
+    "talent_trapped_beasts_struggle": {
+        "id": "talent_trapped_beasts_struggle", "name": "Trapped Beast's Struggle", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_talent_trapped_beasts_struggle,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 600.0, "boosted_damage_factor": 1000.0, "cooldown_rounds": 3}
+    },
+    "talent_bear_spirit_protection": {
+        "id": "talent_bear_spirit_protection", "name": "Bear Spirit Protection", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_RECEIVING_HEALING, "trigger_chance": 0.50, "target": "ENEMY",
+        "logic_handler": handle_talent_bear_spirit_protection,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 500.0, "debuff_duration": 0}
+    },
+    "talent_assassination_raid": {
+        "id": "talent_assassination_raid", "name": "Assassination Raid", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_assassination_raid,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 400.0, "conditional_heal_factor": 650.0}
+    },
+    "talent_scale_armor_shield": {
+        "id": "talent_scale_armor_shield", "name": "Scale Armor Shield", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.25, "target": "SELF",
+        "logic_handler": handle_talent_scale_armor_shield,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"shield_factor": 650.0, "shield_duration": 1, "cooldown_rounds": 2}
+    },
+    "talent_feigned_death_strike": {
+        "id": "talent_feigned_death_strike", "name": "Feigned Death Strike", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 0.25, "target": "ENEMY",
+        "logic_handler": handle_talent_feigned_death_strike,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 650.0, "conditional_heal_factor": 650.0, "cooldown_rounds": 2}
+    },
+
     # --- Base Skills ---
     # ... (All existing base skills for other heroes) ...
     "base_skill_snake_eyes": {
@@ -602,6 +657,12 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "config": {"damage_factor_hit1": 300.0, "damage_factor_hit2": 600.0,
                    "rage_reduction": 50, "silence_chance": 0.50, "silence_duration": 1}
     },
+    "base_skill_blizzard_spear": {
+        "id": "base_skill_blizzard_spear", "name": "Blizzard Spear", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_blizzard_spear,
+        "config": {"damage_factor": 2000.0, "shield_factor": 900.0, "boosted_shield_factor": 1200.0, "shield_duration": 1}
+    },
     "base_skill_unyielding_will": {
         "id": "base_skill_unyielding_will", "name": "Unyielding Will", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 1.0, "target": "SELF",
@@ -610,11 +671,24 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "config": {"h2_rage_buff_magnitude": 0.20, "h2_rage_buff_duration": 2,
                    "heal_chance": 0.15, "heal_factor": 800.0}
     },
+    "base_skill_inspiration_arrives": {
+        "id": "base_skill_inspiration_arrives", "name": "Inspiration Arrives", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_RECEIVING_HEALING, "trigger_chance": 0.50, "target": "ENEMY",
+        "logic_handler": handle_base_skill_inspiration_arrives,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 400.0, "buff_magnitude": 1.0, "buff_duration": 0}
+    },
     "base_skill_viking_sage": {
         "id": "base_skill_viking_sage", "name": "Viking Sage", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_skill_viking_sage,
         "config": {"damage_factor": 1400.0, "atk_reduction_magnitude": -0.20, "atk_reduction_duration": 3}
+    },
+    "base_skill_indomitable_spirit": {
+        "id": "base_skill_indomitable_spirit", "name": "Indomitable Spirit", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_indomitable_spirit,
+        "config": {"damage_factor": 2000.0, "boosted_damage_factor": 2500.0, "debuff_duration": 1}
     },
     "base_skill_sharp_pursuit": {
         "id": "base_skill_sharp_pursuit", "name": "Sharp Pursuit", "type": SkillType.BASE_SKILL,
@@ -628,6 +702,13 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_base_skill_planned_attack,
         "labels": [PluginSkillLabel.REACTIVE],
         "config": {"hit1_damage_factor": 300.0, "hit2_damage_factor": 420.0}
+    },
+    "base_skill_nayas_hunting_instinct": {
+        "id": "base_skill_nayas_hunting_instinct", "name": "Naya's Hunting Instinct", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_base_skill_nayas_hunting_instinct,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 600.0, "boosted_damage_factor": 1000.0, "debuff_duration": 0}
     },
     "base_skill_flame_guardian": {
         "id": "base_skill_flame_guardian", "name": "Flame Guardian", "type": SkillType.BASE_SKILL,

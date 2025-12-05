@@ -822,6 +822,108 @@ def handle_base_skill_shield_breaker(
                 logs.append((f"Gains '{EFFECT_NAME_SHIELD_BREAKER_BASIC_BUFF}' for {buff_dur + 1} rounds (starting next round).", None))
     return happened, logs
 
+
+def handle_base_skill_nayas_hunting_instinct(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    damage_factor = (
+        skill_config.get("boosted_damage_factor", 0.0)
+        if triggering_army.started_round_with_active_shield
+        else skill_config.get("damage_factor", 0.0)
+    )
+
+    if damage_factor > 0 and simulator:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    debuff_duration = skill_config.get("debuff_duration", 0)
+    debuff_data = {
+        "effect_type": EffectType.DEBUFF,
+        "name": EFFECT_NAME_BROKEN_BLADE_DEBUFF,
+        "duration": debuff_duration,
+        "config": {"prevents_counterattack": True},
+        "activate_next_round": True,
+    }
+    created_debuff = opponent_army._create_and_add_single_effect(
+        debuff_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+    )
+    if created_debuff:
+        an_effect_happened = True
+        log_details.append(
+            (
+                f"Inflicts '{EFFECT_NAME_BROKEN_BLADE_DEBUFF}' on {opponent_army.name} for {created_debuff.duration + 1} rounds (starting next round).",
+                None,
+            )
+        )
+    return an_effect_happened, log_details
+
+
+def handle_base_skill_inspiration_arrives(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+
+    damage_factor = skill_config.get("damage_factor", 0.0)
+    if damage_factor > 0 and simulator:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    buff_magnitude = skill_config.get("buff_magnitude", 0.0)
+    buff_duration = skill_config.get("buff_duration", 0)
+    if buff_magnitude != 0:
+        buff_effect_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_INSPIRATION_ARRIVES_COUNTER_BOOST,
+            "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+            "magnitude": buff_magnitude,
+            "duration": buff_duration,
+            "activate_next_round": True,
+        }
+        created_buff = triggering_army._create_and_add_single_effect(
+            buff_effect_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_buff:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Gains '{EFFECT_NAME_INSPIRATION_ARRIVES_COUNTER_BOOST}' for {created_buff.duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    return an_effect_happened, log_details
+
 def handle_rage_bloody_pillage(triggering_army: ArmyRef, opponent_army: ArmyRef,
                                skill_def: SkillDefinition, event_data: Dict[str, Any],
                                simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:

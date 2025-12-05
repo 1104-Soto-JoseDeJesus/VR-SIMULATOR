@@ -198,6 +198,16 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_crippling_pursuit", "base_skill_lethal_fracture"],
         'plugin_skills': [],
     },
+    'naya': {
+        'talents': ["talent_forceful_ambush", "talent_trapped_beasts_struggle", "talent_bear_spirit_protection"],
+        'base_skills': ["base_skill_nayas_hunting_instinct", "base_skill_blizzard_spear"],
+        'plugin_skills': [],
+    },
+    'rolfe': {
+        'talents': ["talent_assassination_raid", "talent_scale_armor_shield", "talent_feigned_death_strike"],
+        'base_skills': ["base_skill_inspiration_arrives", "base_skill_indomitable_spirit"],
+        'plugin_skills': [],
+    },
     'hobert': {
         'talents': ["talent_bold_shieldaxe", "talent_fearless_pursuit", "talent_steadfast_armor"],
         'base_skills': ["base_skill_berserk_fury", "base_skill_brutal_blow"],

@@ -55,6 +55,10 @@ from .skill_logic.talent_handlers import (
     handle_talent_godly_wrath, handle_talent_divine_punishment,
     # FREYDIS TALENT HANDLERS
     handle_talent_heroic_blessing, handle_talent_battle_chime, handle_talent_flames_judgment,
+    # ALF TALENT HANDLERS
+    handle_talent_fiery_poison_bomb, handle_talent_agile_missile,
+    # SASHA TALENT HANDLERS
+    handle_talent_natures_killer, handle_talent_life_cycle,
     # LEANDRA & MARGIT TALENT HANDLERS
     handle_talent_flexible_strike, handle_talent_opportune_strike,
     handle_talent_thirst_for_blood, handle_talent_seas_grace,
@@ -70,7 +74,7 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_heart_of_tolerance,
     # ROSKY BASE SKILL HANDLER
     handle_base_skill_flurry,
-    handle_base_skill_rapid_fire,
+    handle_base_skill_rapid_fire, handle_base_skill_huginns_slingshot,
     # OLENA BASE SKILL HANDLER
     handle_base_skill_enchanted_arrow,
     # ARTUR BASE SKILL HANDLER
@@ -88,7 +92,7 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_judgements_fury,
     handle_base_skill_shield_breaker,
     handle_base_skill_plague, handle_base_skill_fatal_flying_axe,
-    handle_base_skill_vengeful_fury, handle_base_skill_ride_the_waves,
+    handle_base_skill_vengeful_fury, handle_base_skill_ride_the_waves, handle_base_skill_nature_blessing,
     handle_base_skill_nayas_hunting_instinct, handle_base_skill_inspiration_arrives
 )
 from .skill_logic.plugin_skill_handlers import (
@@ -125,6 +129,7 @@ from .skill_logic.rage_skill_handlers import (
     handle_rage_skill_intimidation, handle_rage_skill_viking_sage,
     handle_rage_holy_enlightenment,
     handle_rage_raining_arrows,
+    handle_rage_chain_meteor,
     # OLENA RAGE SKILL HANDLER
     handle_rage_concentration,
     # ARTUR RAGE SKILL HANDLER
@@ -139,6 +144,7 @@ from .skill_logic.rage_skill_handlers import (
     handle_rage_showdown,
     handle_rage_undead_harvest,
     handle_rage_slaughter_feast,
+    handle_rage_floral_burial,
     # ROSKY RAGE SKILL HANDLER
     handle_rage_spirit_battleship,
     # LEANDRA & MARGIT RAGE HANDLERS
@@ -960,6 +966,91 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_rage_skill_heavenly_descent,
         "config": {"damage_factor": 825.0, "vulnerability_magnitude": 0.10, "vulnerability_duration": 3,
                    "bleed_factor": 0}
+    },
+
+    # --- Alf Base & Talent Skills ---
+    "base_skill_huginns_slingshot": {
+        "id": "base_skill_huginns_slingshot", "name": "Huginn's Slingshot", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_base_skill_huginns_slingshot,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"damage_factor": 400.0, "burn_damage_factor": 800.0}
+    },
+    "base_skill_chain_meteor": {
+        "id": "base_skill_chain_meteor", "name": "Chain Meteor", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_chain_meteor,
+        "config": {"damage_factor": 1400.0, "burn_chance": 0.40, "burn_factor": 600.0, "burn_duration": 2,
+                   "poison_chance": 0.40, "poison_factor": 600.0, "poison_duration": 2}
+    },
+    "talent_fiery_poison_bullet": {
+        "id": "talent_fiery_poison_bullet", "name": "Fiery Poison Bullet", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
+        "effects_to_apply": [
+            {"effect_type": EffectType.STAT_MOD, "name": "Fiery Poison Bullet Burn Boost",
+             "stat_to_mod": StatType.BURN_DAMAGE_BOOST, "magnitude": 0.15, "duration": -1},
+            {"effect_type": EffectType.STAT_MOD, "name": "Fiery Poison Bullet Poison Boost",
+             "stat_to_mod": StatType.POISON_DAMAGE_BOOST, "magnitude": 0.15, "duration": -1}
+        ]
+    },
+    "talent_fiery_poison_bomb": {
+        "id": "talent_fiery_poison_bomb", "name": "Fiery Poison Bomb", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_fiery_poison_bomb,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 9, "poison_factor": 575.0, "poison_duration": 1, "rage_gain": 200}
+    },
+    "talent_agile_missile": {
+        "id": "talent_agile_missile", "name": "Agile Missile", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_agile_missile,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 6, "burn_factor": 450.0, "burn_duration": 1,
+                   "evasion_chance": 1.0, "evasion_duration": 0}
+    },
+
+    # --- Sasha Base & Talent Skills ---
+    "base_skill_nature_blessing": {
+        "id": "base_skill_nature_blessing", "name": "Nature Blessing", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_base_skill_nature_blessing,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 9, "mark_stacks": 1, "heal_factor": 700.0,
+                   "damage_threshold": 5, "damage_factor": 700.0,
+                   "evasion_threshold": 15, "evasion_magnitude": 1.0, "evasion_duration": 1}
+    },
+    "base_skill_floral_burial": {
+        "id": "base_skill_floral_burial", "name": "Floral Burial", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_floral_burial,
+        "config": {"poison_factor": 700.0, "poison_duration": 2, "damage_threshold": 5, "damage_factor": 900.0,
+                   "heal_threshold": 10, "heal_conversion": 0.50}
+    },
+    "talent_forest_force": {
+        "id": "talent_forest_force", "name": "Forest Force", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
+        "effects_to_apply": [
+            {"effect_type": EffectType.STAT_MOD, "name": "Forest Force Rage Damage Boost",
+             "stat_to_mod": StatType.RAGE_SKILL_DAMAGE_MODIFIER, "magnitude": 0.20, "duration": -1},
+            {"effect_type": EffectType.STAT_MOD, "name": "Forest Force Poison Boost",
+             "stat_to_mod": StatType.POISON_DAMAGE_BOOST, "magnitude": 0.20, "duration": -1}
+        ]
+    },
+    "talent_natures_killer": {
+        "id": "talent_natures_killer", "name": "Nature's Killer", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_natures_killer,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 6, "mark_stacks": 1, "poison_threshold": 5,
+                   "poison_factor": 250.0, "poison_duration": 2,
+                   "burn_threshold": 10, "burn_factor": 400.0, "burn_duration": 2}
+    },
+    "talent_life_cycle": {
+        "id": "talent_life_cycle", "name": "Life Cycle", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_life_cycle,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"mark_stacks": 2, "damage_factor": 900.0, "heal_factor": 900.0}
     },
 
     # --- Rollo Skills ---

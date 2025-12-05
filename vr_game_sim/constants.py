@@ -296,3 +296,17 @@ EFFECT_NAME_POISON_ARROW_POISON = "Poison Arrow Poison"
 EFFECT_NAME_POISON_ARROW_ATK_REDUCTION = "Poison Arrow Attack Reduction"
 EFFECT_NAME_DIVINE_SHIELD_STRENGTH = "Divine Shield Shield Boost"
 EFFECT_NAME_DIVINE_SHIELD_IMMUNITY = "Divine Shield Debuff Immunity"
+
+# --- Alf Skill Effect Names ---
+EFFECT_NAME_CHAIN_METEOR_BURN = "Chain Meteor Burn"
+EFFECT_NAME_CHAIN_METEOR_POISON = "Chain Meteor Poison"
+EFFECT_NAME_FIERY_POISON_BOMB_POISON = "Fiery Poison Bomb Poison"
+EFFECT_NAME_AGILE_MISSILE_BURN = "Agile Missile Burn"
+EFFECT_NAME_AGILE_MISSILE_EVASION = "Agile Missile Evasion"
+
+# --- Sasha Skill Effect Names ---
+EFFECT_NAME_NATURE_MARK = "Nature Mark"
+EFFECT_NAME_NATURE_BLESSING_EVASION = "Nature Blessing Evasion"
+EFFECT_NAME_FLORAL_BURIAL_POISON = "Floral Burial Poison"
+EFFECT_NAME_NATURES_KILLER_POISON = "Nature's Killer Poison"
+EFFECT_NAME_NATURES_KILLER_BURN = "Nature's Killer Burn"

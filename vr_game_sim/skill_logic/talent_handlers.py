@@ -66,6 +66,26 @@ def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
     return simulator.round if simulator else 0
 
 
+def _count_effects_by_name(army: ArmyRef, effect_name: str) -> int:
+    return sum(1 for eff in army.active_effects if eff.name == effect_name)
+
+
+def _add_nature_mark_stacks(
+    army: ArmyRef, opponent_army: ArmyRef, skill_def: SkillDefinition, count: int
+) -> int:
+    created = 0
+    for _ in range(max(0, count)):
+        mark_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_NATURE_MARK,
+            "duration": -1,
+            "activate_next_round": True,
+        }
+        if army._create_and_add_single_effect(mark_effect, skill_def["id"], army, army, opponent_army):
+            created += 1
+    return created
+
+
 def _evaluate_mount_condition(condition: Optional[str], triggering_army: ArmyRef, opponent_army: Optional[ArmyRef]) -> bool:
     if not condition:
         return False
@@ -4097,3 +4117,226 @@ def handle_talent_feigned_death_strike(
             log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
 
     return an_effect_happened, log_details
+
+
+# --- Alf Talent Handlers ---
+def handle_talent_fiery_poison_bomb(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    interval = cfg.get("trigger_interval", 9)
+
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % interval == 0):
+        return False, []
+
+    poison_factor = cfg.get("poison_factor", 0.0)
+    poison_duration = cfg.get("poison_duration", 1)
+    if poison_factor > 0:
+        poison_effect = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_FIERY_POISON_BOMB_POISON,
+            "dot_type": DoTType.POISON,
+            "status_effect_factor": poison_factor,
+            "duration": poison_duration,
+            "activate_next_round": True,
+        }
+        created_poison = opponent_army._create_and_add_single_effect(
+            poison_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_poison:
+            happened = True
+            logs.append((
+                f"Inflicts '{EFFECT_NAME_FIERY_POISON_BOMB_POISON}' on {opponent_army.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    rage_gain = cfg.get("rage_gain", 0)
+    if rage_gain > 0:
+        pending_rage = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+            "duration": 0,
+            "config": {"rage_amount": rage_gain},
+            "activate_next_round": True,
+        }
+        created_rage = triggering_army._create_and_add_single_effect(
+            pending_rage, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_rage:
+            happened = True
+            logs.append((f"Gains {rage_gain:.0f} rage next round.", None))
+
+    return happened, logs
+
+
+def handle_talent_agile_missile(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    interval = cfg.get("trigger_interval", 6)
+
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % interval == 0):
+        return False, []
+
+    burn_factor = cfg.get("burn_factor", 0.0)
+    burn_duration = cfg.get("burn_duration", 1)
+    if burn_factor > 0:
+        burn_effect = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_AGILE_MISSILE_BURN,
+            "dot_type": DoTType.BURN,
+            "status_effect_factor": burn_factor,
+            "duration": burn_duration,
+            "activate_next_round": True,
+        }
+        created_burn = opponent_army._create_and_add_single_effect(
+            burn_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_burn:
+            happened = True
+            logs.append((
+                f"Inflicts '{EFFECT_NAME_AGILE_MISSILE_BURN}' on {opponent_army.name} (Factor: {burn_factor}) for {burn_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    enemy_poisoned = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.POISON
+        for eff in opponent_army.active_effects
+    )
+    if enemy_poisoned:
+        evasion_duration = cfg.get("evasion_duration", 0)
+        evasion_buff = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_AGILE_MISSILE_EVASION,
+            "duration": evasion_duration,
+            "activate_next_round": True,
+            "config": {
+                "evasion_chance": cfg.get("evasion_chance", 1.0),
+                "applies_to": ["BASIC", "COUNTER", "SKILL"],
+                "is_dispellable": False,
+            },
+        }
+        created_buff = triggering_army._create_and_add_single_effect(
+            evasion_buff, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_buff:
+            happened = True
+            logs.append((
+                f"Gains evasion buff for {evasion_duration + 1} round(s) (starting next round).",
+                None,
+            ))
+
+    return happened, logs
+
+
+# --- Sasha Talent Handlers ---
+def handle_talent_natures_killer(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    interval = cfg.get("trigger_interval", 6)
+
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % interval == 0):
+        return False, []
+
+    mark_gain = int(cfg.get("mark_stacks", 1))
+    created = _add_nature_mark_stacks(triggering_army, opponent_army, skill_def, mark_gain)
+    if created:
+        happened = True
+        logs.append((f"Gains {created} Nature Mark stack(s) next round.", None))
+
+    current_marks = _count_effects_by_name(triggering_army, EFFECT_NAME_NATURE_MARK)
+    if current_marks >= cfg.get("poison_threshold", 5):
+        poison_factor = cfg.get("poison_factor", 0.0)
+        poison_duration = cfg.get("poison_duration", 2)
+        if poison_factor > 0:
+            poison_effect = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": EFFECT_NAME_NATURES_KILLER_POISON,
+                "dot_type": DoTType.POISON,
+                "status_effect_factor": poison_factor,
+                "duration": poison_duration,
+                "activate_next_round": True,
+            }
+            created_poison = opponent_army._create_and_add_single_effect(
+                poison_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
+            )
+            if created_poison:
+                happened = True
+                logs.append((
+                    f"Inflicts '{EFFECT_NAME_NATURES_KILLER_POISON}' on {opponent_army.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                    None,
+                ))
+
+    if current_marks >= cfg.get("burn_threshold", 10):
+        burn_factor = cfg.get("burn_factor", 0.0)
+        burn_duration = cfg.get("burn_duration", 2)
+        if burn_factor > 0:
+            burn_effect = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": EFFECT_NAME_NATURES_KILLER_BURN,
+                "dot_type": DoTType.BURN,
+                "status_effect_factor": burn_factor,
+                "duration": burn_duration,
+                "activate_next_round": True,
+            }
+            created_burn = opponent_army._create_and_add_single_effect(
+                burn_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
+            )
+            if created_burn:
+                happened = True
+                logs.append((
+                    f"Inflicts '{EFFECT_NAME_NATURES_KILLER_BURN}' on {opponent_army.name} (Factor: {burn_factor}) for {burn_duration + 1} rounds (starting next round).",
+                    None,
+                ))
+
+    return happened, logs
+
+
+def handle_talent_life_cycle(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+
+    created = _add_nature_mark_stacks(triggering_army, opponent_army, skill_def, cfg.get("mark_stacks", 2))
+    if created:
+        happened = True
+        logs.append((f"Gains {created} Nature Mark stack(s) next round.", None))
+
+    if any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BURN
+        for eff in opponent_army.active_effects
+    ):
+        damage_factor = cfg.get("damage_factor", 0.0)
+        if damage_factor > 0:
+            did_damage = _apply_damage_with_logging(
+                triggering_army, opponent_army, simulator, damage_factor, skill_def, logs
+            )
+            happened = happened or did_damage
+
+    if any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.POISON
+        for eff in opponent_army.active_effects
+    ):
+        heal_factor = cfg.get("heal_factor", 0.0)
+        if heal_factor > 0:
+            healed_amount = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
+            )
+            if healed_amount > 0:
+                happened = True
+                logs.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    return happened, logs

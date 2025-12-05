@@ -248,4 +248,14 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_throwing_axe", "rage_skill_all_kill"],
         'plugin_skills': [],
     },
+    'alf': {
+        'talents': ["talent_fiery_poison_bullet", "talent_fiery_poison_bomb", "talent_agile_missile"],
+        'base_skills': ["base_skill_huginns_slingshot", "base_skill_chain_meteor"],
+        'plugin_skills': [],
+    },
+    'sasha': {
+        'talents': ["talent_forest_force", "talent_natures_killer", "talent_life_cycle"],
+        'base_skills': ["base_skill_nature_blessing", "base_skill_floral_burial"],
+        'plugin_skills': [],
+    },
 }

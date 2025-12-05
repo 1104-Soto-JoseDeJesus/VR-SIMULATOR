@@ -1029,6 +1029,7 @@ class Army:
                 EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
                 EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
                 EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
+                EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP,
             ]
             if (
                 effect.applied_this_round

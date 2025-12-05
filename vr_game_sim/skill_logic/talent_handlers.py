@@ -3882,3 +3882,218 @@ def handle_talent_seas_grace(
                 ))
 
     return happened, logs
+
+
+def handle_talent_forceful_ambush(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    buff_magnitude = skill_config.get("buff_magnitude", 0.0)
+    buff_duration = skill_config.get("buff_duration", 0)
+    if buff_magnitude != 0:
+        buff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_FORCEFUL_AMBUSH_COUNTER_BOOST,
+            "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+            "magnitude": buff_magnitude,
+            "duration": buff_duration,
+            "activate_next_round": True,
+        }
+        created_buff = triggering_army._create_and_add_single_effect(
+            buff_data, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created_buff:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Gains '{EFFECT_NAME_FORCEFUL_AMBUSH_COUNTER_BOOST}' for {created_buff.duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    if random.random() < skill_config.get("shield_chance", 0.0):
+        shield_factor = skill_config.get("shield_factor", 0.0)
+        shield_duration = skill_config.get("shield_duration", 1)
+        if shield_factor > 0:
+            shield_data = {
+                "effect_type": EffectType.SHIELD,
+                "name": EFFECT_NAME_FORCEFUL_AMBUSH_SHIELD,
+                "duration": shield_duration,
+                "magnitude_calc_type": "dynamic_shield_resistance_v1",
+                "shield_factor": shield_factor,
+                "activate_next_round": True,
+            }
+            created_shield = triggering_army._create_and_add_single_effect(
+                shield_data, skill_id, triggering_army, triggering_army, opponent_army
+            )
+            if created_shield:
+                an_effect_happened = True
+                est_mag = (
+                    simulator._calculate_shield_magnitude_for_logging(triggering_army, opponent_army, float(shield_factor))
+                    if simulator
+                    else created_shield.magnitude
+                )
+                log_details.append(
+                    (
+                        f"Gains '{EFFECT_NAME_FORCEFUL_AMBUSH_SHIELD}' ({created_shield.get_functionality_description()}), active for {created_shield.duration + 1} rounds. Est. Mag: {est_mag:.0f}",
+                        {"shield_hp_gained": round(est_mag)},
+                    )
+                )
+
+    return an_effect_happened, log_details
+
+
+def handle_talent_trapped_beasts_struggle(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    damage_factor = skill_config.get("damage_factor", 0.0)
+    boosted_damage_factor = skill_config.get("boosted_damage_factor", damage_factor)
+
+    enemy_broken_blade = any(eff.name == EFFECT_NAME_BROKEN_BLADE_DEBUFF for eff in opponent_army.active_effects)
+    final_damage = boosted_damage_factor if enemy_broken_blade else damage_factor
+
+    did_damage = _apply_damage_with_logging(triggering_army, opponent_army, simulator, final_damage, skill_def, log_details)
+    return did_damage, log_details
+
+
+def handle_talent_bear_spirit_protection(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    damage_factor = skill_config.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        did_damage = _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details)
+        an_effect_happened = an_effect_happened or did_damage
+
+    debuff_duration = skill_config.get("debuff_duration", 0)
+    debuff_data = {
+        "effect_type": EffectType.DEBUFF,
+        "name": EFFECT_NAME_BROKEN_BLADE_DEBUFF,
+        "duration": debuff_duration,
+        "config": {"prevents_counterattack": True},
+        "activate_next_round": True,
+    }
+    created_debuff = opponent_army._create_and_add_single_effect(
+        debuff_data, skill_id, triggering_army, opponent_army, triggering_army
+    )
+    if created_debuff:
+        an_effect_happened = True
+        log_details.append(
+            (
+                f"Inflicts '{EFFECT_NAME_BROKEN_BLADE_DEBUFF}' on {opponent_army.name} for {created_debuff.duration + 1} rounds (starting next round).",
+                None,
+            )
+        )
+
+    return an_effect_happened, log_details
+
+
+def handle_talent_assassination_raid(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+
+    damage_factor = skill_config.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        did_damage = _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details)
+        an_effect_happened = an_effect_happened or did_damage
+
+    enemy_has_broken_blade = any(eff.name == EFFECT_NAME_BROKEN_BLADE_DEBUFF for eff in opponent_army.active_effects)
+    heal_factor = skill_config.get("conditional_heal_factor", 0.0) if enemy_has_broken_blade else 0.0
+    if heal_factor > 0:
+        healed_amount = triggering_army._receive_healing_from_skill(
+            heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
+        )
+        if healed_amount > 0:
+            an_effect_happened = True
+            log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_talent_scale_armor_shield(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    shield_factor = skill_config.get("shield_factor", 0.0)
+    shield_duration = skill_config.get("shield_duration", 1)
+    if shield_factor > 0:
+        shield_data = {
+            "effect_type": EffectType.SHIELD,
+            "name": EFFECT_NAME_SCALE_ARMOR_SHIELD,
+            "duration": shield_duration,
+            "magnitude_calc_type": "dynamic_shield_resistance_v1",
+            "shield_factor": shield_factor,
+            "activate_next_round": True,
+        }
+        created_shield = triggering_army._create_and_add_single_effect(
+            shield_data, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created_shield:
+            an_effect_happened = True
+            est_mag = (
+                simulator._calculate_shield_magnitude_for_logging(triggering_army, opponent_army, float(shield_factor))
+                if simulator
+                else created_shield.magnitude
+            )
+            log_details.append(
+                (
+                    f"Gains '{EFFECT_NAME_SCALE_ARMOR_SHIELD}' ({created_shield.get_functionality_description()}), active for {created_shield.duration + 1} rounds. Est. Mag: {est_mag:.0f}",
+                    {"shield_hp_gained": round(est_mag)},
+                )
+            )
+
+    return an_effect_happened, log_details
+
+
+def handle_talent_feigned_death_strike(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+
+    damage_factor = skill_config.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        did_damage = _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details)
+        an_effect_happened = an_effect_happened or did_damage
+
+    enemy_has_broken_blade = any(eff.name == EFFECT_NAME_BROKEN_BLADE_DEBUFF for eff in opponent_army.active_effects)
+    heal_factor = skill_config.get("conditional_heal_factor", 0.0) if enemy_has_broken_blade else 0.0
+    if heal_factor > 0:
+        healed_amount = triggering_army._receive_healing_from_skill(
+            heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
+        )
+        if healed_amount > 0:
+            an_effect_happened = True
+            log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    return an_effect_happened, log_details

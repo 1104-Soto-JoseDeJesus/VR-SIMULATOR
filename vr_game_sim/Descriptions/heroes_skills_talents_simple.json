@@ -534,7 +534,7 @@
         "description": "Deal direct damage 1 time (Damage Factor 1600) to the target and grant deployed Troops a shield (Shield Factor 600) for 2 seconds"
       },
       {
-        "name": "Hunting Instinct",
+        "name": "Naya's Hunting Instinct",
         "description": "When deployed Troop launches a counterattack, there is a 20% chance of dealing direct damage (Damage Factor 600) 1 time to target. If deployed Troop is shielded, this damage is increased (Damage Factor 1,000), and the target is inflicted with Broken Blade for 1 seconds. Triggers up to 1 time every 3 seconds."
       },
       {

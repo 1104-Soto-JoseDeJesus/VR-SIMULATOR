@@ -672,6 +672,491 @@ def handle_mount_periodic_damage_rage_and_condition(
     return True, log_details
 
 
+def _schedule_shield_strip(
+        triggering_army: ArmyRef,
+        opponent_army: ArmyRef,
+        skill_def: SkillDefinition,
+        effect_name: str,
+) -> Tuple[bool, Optional[Tuple[str, Optional[Dict[str, Any]]]]]:
+    if not opponent_army:
+        return False, None
+
+    shield_ids = [
+        eff.id for eff in opponent_army.active_effects if eff.effect_type == EffectType.SHIELD
+    ]
+    pending_strip = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": effect_name,
+        "duration": 0,
+        "config": {
+            "buff_ids_to_remove": shield_ids,
+            "targeted_buff_names_initial_log": [eff.name for eff in opponent_army.active_effects if eff.id in shield_ids],
+        },
+        "activate_next_round": True,
+    }
+    created = opponent_army._create_and_add_single_effect(
+        pending_strip, skill_def["id"], triggering_army, opponent_army, triggering_army
+    )
+    if not created:
+        return False, None
+
+    log_text = "Attempts to strip enemy shields next round (none active)." if not shield_ids else "Strips enemy shields next round."
+    return True, (log_text, None)
+
+
+def handle_mount_periodic_rage_strip_and_buff(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {}) or {}
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    rage_gain = float(cfg.get("rage_gain", 0.0))
+    if rage_gain > 0:
+        rage_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": cfg.get("rage_effect_name", EFFECT_NAME_DELAYED_RAGE_GAIN),
+            "duration": 0,
+            "config": {"rage_amount": rage_gain},
+            "activate_next_round": True,
+        }
+        created_rage = triggering_army._create_and_add_single_effect(
+            rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_rage:
+            an_effect_happened = True
+            log_details.append((f"Recovers {rage_gain:.0f} rage next round.", None))
+
+    buff_magnitude = float(cfg.get("buff_magnitude", 0.0))
+    if buff_magnitude != 0:
+        buff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": cfg.get("buff_effect_name") or skill_def.get("name", "Mount Skill"),
+            "stat_to_mod": cfg.get("buff_stat", StatType.GENERAL_DAMAGE_MODIFIER),
+            "magnitude": buff_magnitude,
+            "duration": int(round(float(cfg.get("buff_duration", 1)))),
+            "activate_next_round": True,
+        }
+        created_buff = triggering_army._create_and_add_single_effect(
+            buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_buff:
+            an_effect_happened = True
+            duration_for_log = created_buff.duration + 1
+            stat_label = str(buff_data["stat_to_mod"]).split(".")[-1].replace("_", " ").title()
+            log_details.append(
+                (
+                    f"Gains {stat_label} boost of {buff_magnitude * 100:+.0f}% for {duration_for_log} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    if (
+        cfg.get("strip_shields_if_more_troops")
+        and opponent_army
+        and triggering_army.current_troop_count > opponent_army.current_troop_count
+    ):
+        stripped, strip_log = _schedule_shield_strip(
+            triggering_army, opponent_army, skill_def, cfg.get("shield_strip_effect_name", EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP)
+        )
+        if stripped:
+            an_effect_happened = True
+            if strip_log:
+                log_details.append(strip_log)
+
+    if not an_effect_happened:
+        return False, []
+
+    return True, log_details
+
+
+def handle_mount_periodic_rage_heal_and_condition(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {}) or {}
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    heal_factor = float(cfg.get("heal_factor", 0.0))
+    if heal_factor > 0:
+        healed_amount = triggering_army.calculate_and_add_pending_healing(
+            heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
+        )
+        if healed_amount > 0:
+            an_effect_happened = True
+            log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    rage_gain = float(cfg.get("rage_gain", 0.0))
+    if rage_gain > 0:
+        rage_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": cfg.get("rage_effect_name", EFFECT_NAME_DELAYED_RAGE_GAIN),
+            "duration": 0,
+            "config": {"rage_amount": rage_gain},
+            "activate_next_round": True,
+        }
+        created_rage = triggering_army._create_and_add_single_effect(
+            rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_rage:
+            an_effect_happened = True
+            log_details.append((f"Recovers {rage_gain:.0f} rage next round.", None))
+
+    if (
+        cfg.get("apply_reduction_if_lower_troops")
+        and opponent_army
+        and triggering_army.current_troop_count < opponent_army.current_troop_count
+    ):
+        reduction_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": cfg.get("reduction_effect_name") or skill_def.get("name", "Mount Skill"),
+            "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+            "magnitude": float(cfg.get("reduction_magnitude", 0.0)),
+            "duration": int(round(float(cfg.get("reduction_duration", 1)))),
+            "activate_next_round": True,
+        }
+        created_reduction = triggering_army._create_and_add_single_effect(
+            reduction_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_reduction:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Gains general damage reduction of {abs(reduction_data['magnitude'] * 100):.0f}% for {reduction_data['duration'] + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    if not an_effect_happened:
+        return False, []
+
+    return True, log_details
+
+
+def handle_mount_periodic_damage_conditional_dot_or_buff(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {}) or {}
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    if not opponent_army or opponent_army.current_troop_count <= 0:
+        return False, []
+
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    damage_factor = float(cfg.get("damage_factor", 0.0))
+    if damage_factor > 0 and simulator:
+        target_for_calc = opponent_army
+        if event_data and event_data.get("actual_opponent_for_calc"):
+            target_for_calc = event_data["actual_opponent_for_calc"]
+
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army,
+            target_for_calc,
+            damage_factor,
+            source_skill_def=skill_def,
+            damage_application_target=opponent_army,
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage to {opponent_army.name} (Factor: {damage_factor}).",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    status_type = cfg.get("status_type", DoTType.BURN)
+    status_factor = float(cfg.get("status_factor", 0.0))
+    status_duration = int(round(float(cfg.get("status_duration", 1))))
+    buff_magnitude = float(cfg.get("buff_magnitude", 0.0))
+
+    enemy_has_status = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == status_type
+        for eff in opponent_army.active_effects
+    )
+
+    if not enemy_has_status and status_factor > 0:
+        dot_effect = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": cfg.get("status_effect_name") or skill_def.get("name", "Mount Skill"),
+            "dot_type": status_type,
+            "status_effect_factor": status_factor,
+            "duration": status_duration,
+            "activate_next_round": True,
+        }
+        created_dot = opponent_army._create_and_add_single_effect(
+            dot_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_dot:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Inflicts '{dot_effect['name']}' on {opponent_army.name} (Factor: {status_factor}) for {status_duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+    elif enemy_has_status and buff_magnitude != 0:
+        buff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": cfg.get("buff_effect_name") or skill_def.get("name", "Mount Skill"),
+            "stat_to_mod": StatType.GENERAL_DAMAGE_MODIFIER,
+            "magnitude": buff_magnitude,
+            "duration": int(round(float(cfg.get("buff_duration", 1)))),
+            "activate_next_round": True,
+        }
+        created_buff = triggering_army._create_and_add_single_effect(
+            buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_buff:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Gains general damage boost of {buff_magnitude * 100:+.0f}% for {buff_data['duration'] + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    if not an_effect_happened:
+        return False, []
+
+    return True, log_details
+
+
+def handle_mount_periodic_damage_and_shield_strip(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {}) or {}
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    if not opponent_army or opponent_army.current_troop_count <= 0:
+        return False, []
+
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    damage_factor = float(cfg.get("damage_factor", 0.0))
+    boosted_damage_factor = float(cfg.get("boosted_damage_factor", damage_factor))
+    use_boost_if_more = bool(cfg.get("use_boost_if_more", False))
+
+    damage_factor_to_use = damage_factor
+    if use_boost_if_more and triggering_army.current_troop_count > opponent_army.current_troop_count:
+        damage_factor_to_use = boosted_damage_factor
+
+    if damage_factor_to_use > 0 and simulator:
+        target_for_calc = opponent_army
+        if event_data and event_data.get("actual_opponent_for_calc"):
+            target_for_calc = event_data["actual_opponent_for_calc"]
+
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army,
+            target_for_calc,
+            damage_factor_to_use,
+            source_skill_def=skill_def,
+            damage_application_target=opponent_army,
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage to {opponent_army.name} (Factor: {damage_factor_to_use}).",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    if cfg.get("strip_shields", False):
+        stripped, strip_log = _schedule_shield_strip(
+            triggering_army, opponent_army, skill_def, cfg.get("shield_strip_effect_name", EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP)
+        )
+        if stripped:
+            an_effect_happened = True
+            if strip_log:
+                log_details.append(strip_log)
+
+    if (
+        cfg.get("heal_if_lower_troops")
+        and opponent_army
+        and triggering_army.current_troop_count < opponent_army.current_troop_count
+    ):
+        heal_factor = float(cfg.get("heal_factor", 0.0))
+        if heal_factor > 0:
+            healed_amount = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
+            )
+            if healed_amount > 0:
+                an_effect_happened = True
+                log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    if not an_effect_happened:
+        return False, []
+
+    return True, log_details
+
+
+def handle_mount_periodic_status_or_heal_by_troop_pct(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {}) or {}
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    troop_threshold = triggering_army.unit.initial_count * 0.5
+    has_more_than_half = triggering_army.current_troop_count > troop_threshold
+
+    if has_more_than_half:
+        status_type = cfg.get("status_type", DoTType.BURN)
+        status_factor = float(cfg.get("status_factor", 0.0))
+        status_duration = int(round(float(cfg.get("status_duration", 1))))
+        if status_factor > 0 and opponent_army and opponent_army.current_troop_count > 0:
+            dot_effect = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": cfg.get("status_effect_name") or skill_def.get("name", "Mount Skill"),
+                "dot_type": status_type,
+                "status_effect_factor": status_factor,
+                "duration": status_duration,
+                "activate_next_round": True,
+            }
+            created_dot = opponent_army._create_and_add_single_effect(
+                dot_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
+            )
+            if created_dot:
+                an_effect_happened = True
+                log_details.append(
+                    (
+                        f"Inflicts '{dot_effect['name']}' on {opponent_army.name} (Factor: {status_factor}) for {status_duration + 1} rounds (starting next round).",
+                        None,
+                    )
+                )
+    else:
+        heal_factor = float(cfg.get("heal_factor", 0.0))
+        if heal_factor > 0:
+            healed_amount = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
+            )
+            if healed_amount > 0:
+                an_effect_happened = True
+                log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    if not an_effect_happened:
+        return False, []
+
+    return True, log_details
+
+
+def handle_mount_periodic_conditional_damage_and_reduction(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {}) or {}
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    if not opponent_army or opponent_army.current_troop_count <= 0:
+        return False, []
+
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    is_enemy_burning = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BURN
+        for eff in opponent_army.active_effects
+    )
+    is_enemy_poisoned = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.POISON
+        for eff in opponent_army.active_effects
+    )
+
+    damage_factor = float(cfg.get("damage_factor", 0.0))
+    if is_enemy_burning and damage_factor > 0 and simulator:
+        target_for_calc = opponent_army
+        if event_data and event_data.get("actual_opponent_for_calc"):
+            target_for_calc = event_data["actual_opponent_for_calc"]
+
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army,
+            target_for_calc,
+            damage_factor,
+            source_skill_def=skill_def,
+            damage_application_target=opponent_army,
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append(
+            (
+                f"Deals damage to {opponent_army.name} (Factor: {damage_factor}).",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    reduction_magnitude = float(cfg.get("reduction_magnitude", 0.0))
+    if is_enemy_poisoned and reduction_magnitude != 0:
+        reduction_effect = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": cfg.get("reduction_effect_name") or skill_def.get("name", "Mount Skill"),
+            "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+            "magnitude": reduction_magnitude,
+            "duration": int(round(float(cfg.get("reduction_duration", 0)))),
+            "activate_next_round": True,
+        }
+        created_reduction = triggering_army._create_and_add_single_effect(
+            reduction_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_reduction:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Gains general damage reduction of {abs(reduction_magnitude * 100):.0f}% for {reduction_effect['duration'] + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    if not an_effect_happened:
+        return False, []
+
+    return True, log_details
+
+
 def handle_talent_full_focus(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],

@@ -4021,7 +4021,7 @@ def handle_talent_assassination_raid(
     enemy_has_broken_blade = any(eff.name == EFFECT_NAME_BROKEN_BLADE_DEBUFF for eff in opponent_army.active_effects)
     heal_factor = skill_config.get("conditional_heal_factor", 0.0) if enemy_has_broken_blade else 0.0
     if heal_factor > 0:
-        healed_amount = triggering_army._receive_healing_from_skill(
+        healed_amount = triggering_army.calculate_and_add_pending_healing(
             heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
         )
         if healed_amount > 0:
@@ -4089,7 +4089,7 @@ def handle_talent_feigned_death_strike(
     enemy_has_broken_blade = any(eff.name == EFFECT_NAME_BROKEN_BLADE_DEBUFF for eff in opponent_army.active_effects)
     heal_factor = skill_config.get("conditional_heal_factor", 0.0) if enemy_has_broken_blade else 0.0
     if heal_factor > 0:
-        healed_amount = triggering_army._receive_healing_from_skill(
+        healed_amount = triggering_army.calculate_and_add_pending_healing(
             heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
         )
         if healed_amount > 0:

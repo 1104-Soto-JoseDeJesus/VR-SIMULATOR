@@ -9,6 +9,56 @@ from ..constants import *
 from .utility_skill_handlers import handle_generic_single_damage_skill
 
 
+def _collect_harmful_debuff_ids(army: ArmyRef) -> List[str]:
+    debuff_ids = []
+    for eff in army.active_effects:
+        is_debuff = (
+            eff.effect_type == EffectType.DEBUFF
+            or (
+                eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                and eff.config.get("dot_type")
+                in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
+            )
+            or eff.config.get("prevents_counterattack")
+            or eff.config.get("prevents_basic_attack")
+            or eff.config.get("prevents_rage_skill_cast")
+            or eff.name == EFFECT_NAME_SILENCE_DEBUFF
+            or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
+            or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
+        )
+        if is_debuff:
+            debuff_ids.append(eff.id)
+    return debuff_ids
+
+
+def _apply_damage_with_logging(
+        triggering_army: ArmyRef,
+        opponent_army: ArmyRef,
+        simulator: GameSimulatorRef,
+        damage_factor: float,
+        skill_def: SkillDefinition,
+        log_details: List[Tuple[str, Optional[Dict[str, Any]]]],
+) -> bool:
+    if damage_factor <= 0 or not simulator or not opponent_army or opponent_army.current_troop_count <= 0:
+        return False
+
+    hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        triggering_army,
+        opponent_army,
+        damage_factor,
+        source_skill_def=skill_def,
+    )
+    if hp_damage > 0:
+        opponent_army.pending_hp_damage_this_round += hp_damage
+    log_details.append(
+        (
+            f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+        )
+    )
+    return hp_damage > 0 or absorbed > 0
+
+
 def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
     """Return the round counter for ``army`` with a simulator fallback."""
     if hasattr(army, "army_round"):
@@ -1420,6 +1470,771 @@ def handle_mount_periodic_conditional_damage_and_reduction(
         return False, []
 
     return True, log_details
+
+
+def handle_mount_ripping_claws(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    bleed_factor = float(cfg.get("bleed_factor", 0.0))
+    if cfg.get("boost_if_more_troops") and _evaluate_mount_condition("more_troops", triggering_army, opponent_army):
+        bleed_factor = float(cfg.get("boosted_bleed_factor", bleed_factor))
+
+    if bleed_factor <= 0 or not opponent_army:
+        return False, []
+
+    bleed_data = {
+        "effect_type": EffectType.DAMAGE_OVER_TIME,
+        "name": cfg.get("bleed_effect_name", skill_def.get("name", "Mount Bleed")),
+        "dot_type": DoTType.BLEED,
+        "status_effect_factor": bleed_factor,
+        "duration": int(round(float(cfg.get("bleed_duration", 1)))),
+        "activate_next_round": True,
+    }
+    created_bleed = opponent_army._create_and_add_single_effect(
+        bleed_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+    )
+    if not created_bleed:
+        return False, []
+
+    log_details.append((
+        f"Inflicts '{bleed_data['name']}' on {opponent_army.name} (Factor: {bleed_factor}) for {bleed_data['duration'] + 1} rounds (starting next round).",
+        None,
+    ))
+    return True, log_details
+
+
+def handle_mount_deer_redemption(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    slow_duration = int(round(float(cfg.get("slow_duration", 1))))
+    slow_data = {
+        "effect_type": EffectType.DEBUFF,
+        "name": EFFECT_NAME_SLOW_DEBUFF,
+        "duration": slow_duration,
+        "activate_next_round": True,
+        "config": {},
+    }
+    created_slow = opponent_army._create_and_add_single_effect(
+        slow_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+    )
+    if created_slow:
+        an_effect_happened = True
+        log_details.append((
+            f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {opponent_army.name} for {slow_duration + 1} rounds (starting next round).",
+            None,
+        ))
+
+    if _evaluate_mount_condition("less_troops", triggering_army, opponent_army):
+        heal_factor = float(cfg.get("heal_factor", 0.0))
+        if heal_factor > 0:
+            healed_amount = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
+            )
+            if healed_amount > 0:
+                an_effect_happened = True
+                log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+        debuff_ids = _collect_harmful_debuff_ids(triggering_army)
+        if debuff_ids:
+            cleanse_effect = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": cfg.get("cleanse_effect_name", EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE),
+                "duration": 0,
+                "config": {"debuff_ids_to_remove": debuff_ids},
+                "activate_next_round": True,
+            }
+            created_cleanse = triggering_army._create_and_add_single_effect(
+                cleanse_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+            )
+            if created_cleanse:
+                an_effect_happened = True
+                log_details.append((
+                    f"Schedules self-cleanse for {len(debuff_ids)} debuff(s) next round.",
+                    None,
+                ))
+        else:
+            log_details.append(("Attempted self-cleanse, but no active debuffs found.", None))
+    elif _evaluate_mount_condition("more_troops", triggering_army, opponent_army):
+        damage_factor = float(cfg.get("damage_factor", 0.0))
+        if _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details):
+            an_effect_happened = True
+
+    return an_effect_happened, log_details
+
+
+def handle_mount_slaughter_n_heal(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+
+    if enemy_has_slow:
+        damage_factor = float(cfg.get("damage_factor", 0.0))
+        return _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details), log_details
+
+    heal_factor = float(cfg.get("heal_factor", 0.0))
+    healed_amount = triggering_army.calculate_and_add_pending_healing(
+        heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
+    ) if heal_factor > 0 else 0
+    if healed_amount > 0:
+        log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+        return True, log_details
+    return False, log_details
+
+
+def handle_mount_spiked_shield(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    enemy_bleeding = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in opponent_army.active_effects
+    )
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+
+    if enemy_bleeding:
+        damage_factor = float(cfg.get("damage_factor", 0.0))
+        return _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details), log_details
+
+    shield_factor = float(cfg.get("shield_factor", 0.0))
+    shield_duration = int(round(float(cfg.get("shield_duration", 1))))
+    if shield_factor <= 0:
+        return False, []
+
+    shield_data = {
+        "effect_type": EffectType.SHIELD,
+        "name": cfg.get("shield_effect_name", skill_def.get("name", "Mount Shield")),
+        "duration": shield_duration,
+        "magnitude_calc_type": "dynamic_shield_resistance_v1",
+        "shield_factor": shield_factor,
+        "activate_next_round": True,
+    }
+    created_shield = triggering_army._create_and_add_single_effect(
+        shield_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+    )
+    if not created_shield:
+        return False, []
+
+    est_mag = simulator._calculate_shield_magnitude_for_logging(triggering_army, opponent_army, shield_factor) if simulator else created_shield.magnitude
+    log_details.append((
+        f"Gains Shield for {shield_duration + 1} rounds (starting next round).",
+        {"shield_hp_gained": round(est_mag)},
+    ))
+    return True, log_details
+
+
+def handle_mount_icedrake_breath(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    damage_factor = float(cfg.get("damage_factor", 0.0))
+    if cfg.get("boost_if_more_troops") and _evaluate_mount_condition("more_troops", triggering_army, opponent_army):
+        damage_factor = float(cfg.get("boosted_damage_factor", damage_factor))
+        slow_duration = int(round(float(cfg.get("slow_duration", 1))))
+        slow_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_SLOW_DEBUFF,
+            "duration": slow_duration,
+            "activate_next_round": True,
+            "config": {},
+        }
+        created_slow = opponent_army._create_and_add_single_effect(
+            slow_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_slow:
+            log_details.append((
+                f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {opponent_army.name} for {slow_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    an_effect_happened = _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details)
+
+    rage_gain = int(cfg.get("rage_gain", 0))
+    if rage_gain > 0:
+        rage_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": cfg.get("rage_effect_name", EFFECT_NAME_MOUNT_PERIODIC_RAGE_GAIN),
+            "duration": 0,
+            "config": {"rage_amount": rage_gain},
+            "activate_next_round": True,
+        }
+        created_effect = triggering_army._create_and_add_single_effect(
+            rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_effect:
+            an_effect_happened = True
+            log_details.append((f"Recovers {rage_gain} rage next round.", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_mount_frostwing_fury(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    damage_applied = _apply_damage_with_logging(
+        triggering_army, opponent_army, simulator, float(cfg.get("damage_factor", 0.0)), skill_def, log_details
+    )
+    an_effect_happened = an_effect_happened or damage_applied
+
+    rage_gain = int(cfg.get("rage_gain", 0))
+    if rage_gain > 0:
+        rage_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": cfg.get("rage_effect_name", EFFECT_NAME_MOUNT_PERIODIC_RAGE_GAIN),
+            "duration": 0,
+            "config": {"rage_amount": rage_gain},
+            "activate_next_round": True,
+        }
+        created_effect = triggering_army._create_and_add_single_effect(
+            rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_effect:
+            an_effect_happened = True
+            log_details.append((f"Recovers {rage_gain} rage next round.", None))
+
+    if _evaluate_mount_condition("less_troops", triggering_army, opponent_army):
+        silence_duration = int(round(float(cfg.get("silence_duration", 0))))
+        silence_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_SILENCE_DEBUFF,
+            "duration": silence_duration,
+            "config": {"prevents_rage_skill_cast": True},
+            "activate_next_round": True,
+        }
+        created_silence = opponent_army._create_and_add_single_effect(
+            silence_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_silence:
+            an_effect_happened = True
+            log_details.append((
+                f"Inflicts '{EFFECT_NAME_SILENCE_DEBUFF}' on {opponent_army.name} for {silence_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+        reduction_mag = float(cfg.get("reduction_magnitude", 0.0))
+        reduction_duration = int(round(float(cfg.get("reduction_duration", 0))))
+        if reduction_mag != 0:
+            reduction_data = {
+                "effect_type": EffectType.STAT_MOD,
+                "name": cfg.get("reduction_effect_name", skill_def.get("name", "Mount Reduction")),
+                "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+                "magnitude": reduction_mag,
+                "duration": reduction_duration,
+                "activate_next_round": True,
+            }
+            created_reduction = triggering_army._create_and_add_single_effect(
+                reduction_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+            )
+            if created_reduction:
+                an_effect_happened = True
+                log_details.append((
+                    f"Gains damage reduction for {reduction_duration + 1} rounds (starting next round).",
+                    None,
+                ))
+
+    return an_effect_happened, log_details
+
+
+def handle_mount_kraken_touch(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
+    damage_factor = float(cfg.get("damage_factor", 0.0))
+    if enemy_has_slow:
+        damage_factor = float(cfg.get("boosted_damage_factor", damage_factor))
+    damage_done = _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details)
+    an_effect_happened = damage_done
+
+    if not enemy_has_slow:
+        reduction_mag = float(cfg.get("reduction_magnitude", 0.0))
+        reduction_duration = int(round(float(cfg.get("reduction_duration", 0))))
+        if reduction_mag != 0:
+            reduction_data = {
+                "effect_type": EffectType.STAT_MOD,
+                "name": cfg.get("reduction_effect_name", skill_def.get("name", "Mount Reduction")),
+                "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+                "magnitude": reduction_mag,
+                "duration": reduction_duration,
+                "activate_next_round": True,
+            }
+            created_reduction = triggering_army._create_and_add_single_effect(
+                reduction_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+            )
+            if created_reduction:
+                an_effect_happened = True
+                log_details.append((
+                    f"Gains damage reduction for {reduction_duration + 1} rounds (starting next round).",
+                    None,
+                ))
+
+    return an_effect_happened, log_details
+
+
+def handle_mount_fatal_chomp(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = _apply_damage_with_logging(
+        triggering_army, opponent_army, simulator, float(cfg.get("damage_factor", 0.0)), skill_def, log_details
+    )
+
+    enemy_bleeding = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in opponent_army.active_effects
+    )
+    if enemy_bleeding:
+        buff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": cfg.get("basic_buff_name", skill_def.get("name", "Mount Basic Buff")),
+            "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
+            "magnitude": float(cfg.get("basic_buff_magnitude", 0.0)),
+            "duration": int(round(float(cfg.get("basic_buff_duration", 1)))),
+            "activate_next_round": True,
+        }
+        created_buff = triggering_army._create_and_add_single_effect(
+            buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_buff:
+            an_effect_happened = True
+            log_details.append((
+                f"Gains basic attack damage buff for {buff_data['duration'] + 1} rounds (starting next round).",
+                None,
+            ))
+    else:
+        bleed_factor = float(cfg.get("bleed_factor", 0.0))
+        bleed_duration = int(round(float(cfg.get("bleed_duration", 1))))
+        if bleed_factor > 0:
+            bleed_data = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": cfg.get("bleed_effect_name", skill_def.get("name", "Mount Bleed")),
+                "dot_type": DoTType.BLEED,
+                "status_effect_factor": bleed_factor,
+                "duration": bleed_duration,
+                "activate_next_round": True,
+            }
+            created_bleed = opponent_army._create_and_add_single_effect(
+                bleed_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+            )
+            if created_bleed:
+                an_effect_happened = True
+                log_details.append((
+                    f"Inflicts '{bleed_data['name']}' on {opponent_army.name} (Factor: {bleed_factor}) for {bleed_duration + 1} rounds (starting next round).",
+                    None,
+                ))
+
+    return an_effect_happened, log_details
+
+
+def handle_mount_agonizing_frost(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+
+    enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
+    damage_factor = float(cfg.get("damage_factor", 0.0))
+
+    if enemy_has_slow:
+        damage_done = _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details)
+        buff_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": cfg.get("basic_buff_name", skill_def.get("name", "Mount Basic Buff")),
+            "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST,
+            "magnitude": float(cfg.get("basic_buff_magnitude", 0.0)),
+            "duration": int(round(float(cfg.get("basic_buff_duration", 1)))),
+            "activate_next_round": True,
+        }
+        created_buff = triggering_army._create_and_add_single_effect(
+            buff_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_buff:
+            log_details.append((
+                f"Gains basic attack damage buff for {buff_data['duration'] + 1} rounds (starting next round).",
+                None,
+            ))
+        return damage_done or bool(created_buff), log_details
+
+    damage_factor = float(cfg.get("boosted_damage_factor", damage_factor))
+    damage_done = _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details)
+    slow_duration = int(round(float(cfg.get("slow_duration", 1))))
+    slow_data = {
+        "effect_type": EffectType.DEBUFF,
+        "name": EFFECT_NAME_SLOW_DEBUFF,
+        "duration": slow_duration,
+        "activate_next_round": True,
+        "config": {},
+    }
+    created_slow = opponent_army._create_and_add_single_effect(
+        slow_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+    )
+    if created_slow:
+        log_details.append((
+            f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {opponent_army.name} for {slow_duration + 1} rounds (starting next round).",
+            None,
+        ))
+    return damage_done or bool(created_slow), log_details
+
+
+def handle_mount_divine_awe(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    debuff_ids = _collect_harmful_debuff_ids(triggering_army)
+    if debuff_ids:
+        cleanse_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": cfg.get("cleanse_effect_name", EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE),
+            "duration": 0,
+            "config": {"debuff_ids_to_remove": debuff_ids},
+            "activate_next_round": True,
+        }
+        created_cleanse = triggering_army._create_and_add_single_effect(
+            cleanse_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_cleanse:
+            an_effect_happened = True
+            log_details.append((
+                f"Schedules self-cleanse for {len(debuff_ids)} debuff(s) next round.",
+                None,
+            ))
+    else:
+        log_details.append(("Attempted self-cleanse, but no active debuffs found.", None))
+
+    damage_factor = float(cfg.get("damage_factor", 0.0))
+    if _evaluate_mount_condition("more_troops", triggering_army, opponent_army):
+        damage_factor = float(cfg.get("boosted_damage_factor", damage_factor))
+        silence_duration = int(round(float(cfg.get("silence_duration", 1))))
+        silence_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_SILENCE_DEBUFF,
+            "duration": silence_duration,
+            "config": {"prevents_rage_skill_cast": True},
+            "activate_next_round": True,
+        }
+        created_silence = opponent_army._create_and_add_single_effect(
+            silence_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_silence:
+            an_effect_happened = True
+            log_details.append((
+                f"Inflicts '{EFFECT_NAME_SILENCE_DEBUFF}' on {opponent_army.name} for {silence_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    if _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details):
+        an_effect_happened = True
+
+    return an_effect_happened, log_details
+
+
+def handle_mount_blessed_dew(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    debuff_ids = _collect_harmful_debuff_ids(triggering_army)
+    if debuff_ids:
+        cleanse_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": cfg.get("cleanse_effect_name", EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE),
+            "duration": 0,
+            "config": {"debuff_ids_to_remove": debuff_ids},
+            "activate_next_round": True,
+        }
+        created_cleanse = triggering_army._create_and_add_single_effect(
+            cleanse_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_cleanse:
+            an_effect_happened = True
+            log_details.append((
+                f"Schedules self-cleanse for {len(debuff_ids)} debuff(s) next round.",
+                None,
+            ))
+    else:
+        log_details.append(("Attempted self-cleanse, but no active debuffs found.", None))
+
+    if _apply_damage_with_logging(triggering_army, opponent_army, simulator, float(cfg.get("damage_factor", 0.0)), skill_def, log_details):
+        an_effect_happened = True
+
+    if _evaluate_mount_condition("less_troops", triggering_army, opponent_army):
+        heal_factor = float(cfg.get("heal_factor", 0.0))
+        if heal_factor > 0:
+            healed_amount = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
+            )
+            if healed_amount > 0:
+                an_effect_happened = True
+                log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_mount_icicle_armor(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    initial = getattr(triggering_army.unit, "initial_count", 0) or 0
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+
+    if initial > 0 and triggering_army.current_troop_count > initial * 0.5:
+        bleed_factor = float(cfg.get("bleed_factor", 0.0))
+        bleed_duration = int(round(float(cfg.get("bleed_duration", 1))))
+        if bleed_factor <= 0:
+            return False, []
+        bleed_data = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": cfg.get("bleed_effect_name", skill_def.get("name", "Mount Bleed")),
+            "dot_type": DoTType.BLEED,
+            "status_effect_factor": bleed_factor,
+            "duration": bleed_duration,
+            "activate_next_round": True,
+        }
+        created_bleed = opponent_army._create_and_add_single_effect(
+            bleed_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_bleed:
+            log_details.append((
+                f"Inflicts '{bleed_data['name']}' on {opponent_army.name} (Factor: {bleed_factor}) for {bleed_duration + 1} rounds (starting next round).",
+                None,
+            ))
+            return True, log_details
+        return False, []
+
+    shield_factor = float(cfg.get("shield_factor", 0.0))
+    shield_duration = int(round(float(cfg.get("shield_duration", 1))))
+    if shield_factor <= 0:
+        return False, []
+
+    shield_data = {
+        "effect_type": EffectType.SHIELD,
+        "name": cfg.get("shield_effect_name", skill_def.get("name", "Mount Shield")),
+        "duration": shield_duration,
+        "magnitude_calc_type": "dynamic_shield_resistance_v1",
+        "shield_factor": shield_factor,
+        "activate_next_round": True,
+    }
+    created_shield = triggering_army._create_and_add_single_effect(
+        shield_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+    )
+    if not created_shield:
+        return False, []
+    est_mag = simulator._calculate_shield_magnitude_for_logging(triggering_army, opponent_army, shield_factor) if simulator else created_shield.magnitude
+    log_details.append((
+        f"Gains Shield for {shield_duration + 1} rounds (starting next round).",
+        {"shield_hp_gained": round(est_mag)},
+    ))
+    return True, log_details
+
+
+def handle_mount_bloodwing_assault(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    enemy_bleeding = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in opponent_army.active_effects
+    )
+    damage_factor = float(cfg.get("damage_factor", 0.0))
+    if enemy_bleeding:
+        damage_factor = float(cfg.get("boosted_damage_factor", damage_factor))
+    an_effect_happened = _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details)
+
+    if not enemy_bleeding:
+        duration = int(round(float(cfg.get("debuff_duration", 1))))
+        disarm_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_DISARM_DEBUFF,
+            "duration": duration,
+            "activate_next_round": True,
+            "config": {"prevents_basic_attack": True},
+        }
+        silence_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_SILENCE_DEBUFF,
+            "duration": duration,
+            "config": {"prevents_rage_skill_cast": True},
+            "activate_next_round": True,
+        }
+        created_disarm = opponent_army._create_and_add_single_effect(
+            disarm_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        created_silence = opponent_army._create_and_add_single_effect(
+            silence_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_disarm or created_silence:
+            an_effect_happened = True
+            if created_disarm:
+                log_details.append((
+                    f"Inflicts '{EFFECT_NAME_DISARM_DEBUFF}' on {opponent_army.name} for {duration + 1} rounds (starting next round).",
+                    None,
+                ))
+            if created_silence:
+                log_details.append((
+                    f"Inflicts '{EFFECT_NAME_SILENCE_DEBUFF}' on {opponent_army.name} for {duration + 1} rounds (starting next round).",
+                    None,
+                ))
+
+    return an_effect_happened, log_details
+
+
+def handle_mount_biting_chill(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    enemy_bleeding = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in opponent_army.active_effects
+    )
+    an_effect_happened = False
+
+    if enemy_bleeding:
+        damage_factor = float(cfg.get("damage_factor", 0.0))
+        if _apply_damage_with_logging(triggering_army, opponent_army, simulator, damage_factor, skill_def, log_details):
+            return True, log_details
+
+    enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
+    if not enemy_has_slow:
+        heal_factor = float(cfg.get("heal_factor", 0.0))
+        healed_amount = triggering_army.calculate_and_add_pending_healing(
+            heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
+        ) if heal_factor > 0 else 0
+        if healed_amount > 0:
+            an_effect_happened = True
+            log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_mount_steel_scale(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+
+    damage_done = _apply_damage_with_logging(
+        triggering_army, opponent_army, simulator, float(cfg.get("damage_factor", 0.0)), skill_def, log_details
+    )
+    an_effect_happened = damage_done
+
+    if _evaluate_mount_condition("less_troops", triggering_army, opponent_army):
+        shield_factor = float(cfg.get("shield_factor", 0.0))
+        shield_duration = int(round(float(cfg.get("shield_duration", 1))))
+        if shield_factor > 0:
+            shield_data = {
+                "effect_type": EffectType.SHIELD,
+                "name": cfg.get("shield_effect_name", skill_def.get("name", "Mount Shield")),
+                "duration": shield_duration,
+                "magnitude_calc_type": "dynamic_shield_resistance_v1",
+                "shield_factor": shield_factor,
+                "activate_next_round": True,
+            }
+            created_shield = triggering_army._create_and_add_single_effect(
+                shield_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+            )
+            if created_shield:
+                an_effect_happened = True
+                est_mag = simulator._calculate_shield_magnitude_for_logging(triggering_army, opponent_army, shield_factor) if simulator else created_shield.magnitude
+                log_details.append((
+                    f"Gains Shield for {shield_duration + 1} rounds (starting next round).",
+                    {"shield_hp_gained": round(est_mag)},
+                ))
+
+    return an_effect_happened, log_details
+
+
+def handle_mount_bloodthirst_recovery(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef,
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    cfg = skill_def.get("config", {})
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    an_effect_happened = False
+
+    bleed_factor = float(cfg.get("bleed_factor", 0.0))
+    bleed_duration = int(round(float(cfg.get("bleed_duration", 1))))
+    if bleed_factor > 0:
+        bleed_data = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": cfg.get("bleed_effect_name", skill_def.get("name", "Mount Bleed")),
+            "dot_type": DoTType.BLEED,
+            "status_effect_factor": bleed_factor,
+            "duration": bleed_duration,
+            "activate_next_round": True,
+        }
+        created_bleed = opponent_army._create_and_add_single_effect(
+            bleed_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_bleed:
+            an_effect_happened = True
+            log_details.append((
+                f"Inflicts '{bleed_data['name']}' on {opponent_army.name} (Factor: {bleed_factor}) for {bleed_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    if _evaluate_mount_condition("less_troops", triggering_army, opponent_army):
+        heal_factor = float(cfg.get("heal_factor", 0.0))
+        if heal_factor > 0:
+            healed_amount = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
+            )
+            if healed_amount > 0:
+                an_effect_happened = True
+                log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    return an_effect_happened, log_details
 
 
 def handle_talent_full_focus(

@@ -15,6 +15,10 @@ def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
     return simulator.round if simulator else 0
 
 
+def _count_effects_by_name(army: ArmyRef, effect_name: str) -> int:
+    return sum(1 for eff in army.active_effects if eff.name == effect_name)
+
+
 def handle_rage_sharp_pursuit(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinition, ev_data: Dict[str, Any],
                               sim: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
     eff_hpnd, logs, dmg_dealt_flag = False, [], False;
@@ -1648,4 +1652,139 @@ def handle_rage_indomitable_spirit(
             )
 
     return an_effect_happened, log_details, damage_dealt_flag
+
+
+# --- Alf Rage Skill Handler ---
+def handle_rage_chain_meteor(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    damage_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    is_hero2 = event_data.get("is_hero2_delayed_rage", False)
+
+    damage_factor = cfg.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, is_hero2_rage_skill=is_hero2, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((
+            f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+        ))
+
+    if random.random() < cfg.get("burn_chance", 0.0):
+        burn_factor = cfg.get("burn_factor", 0.0)
+        burn_duration = cfg.get("burn_duration", 2)
+        if burn_factor > 0:
+            burn_effect = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": EFFECT_NAME_CHAIN_METEOR_BURN,
+                "dot_type": DoTType.BURN,
+                "status_effect_factor": burn_factor,
+                "duration": burn_duration,
+                "activate_next_round": True,
+            }
+            created_burn = opponent_army._create_and_add_single_effect(
+                burn_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
+            )
+            if created_burn:
+                happened = True
+                logs.append((
+                    f"Inflicts '{EFFECT_NAME_CHAIN_METEOR_BURN}' on {opponent_army.name} (Factor: {burn_factor}) for {burn_duration + 1} rounds (starting next round).",
+                    None,
+                ))
+
+    if random.random() < cfg.get("poison_chance", 0.0):
+        poison_factor = cfg.get("poison_factor", 0.0)
+        poison_duration = cfg.get("poison_duration", 2)
+        if poison_factor > 0:
+            poison_effect = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": EFFECT_NAME_CHAIN_METEOR_POISON,
+                "dot_type": DoTType.POISON,
+                "status_effect_factor": poison_factor,
+                "duration": poison_duration,
+                "activate_next_round": True,
+            }
+            created_poison = opponent_army._create_and_add_single_effect(
+                poison_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
+            )
+            if created_poison:
+                happened = True
+                logs.append((
+                    f"Inflicts '{EFFECT_NAME_CHAIN_METEOR_POISON}' on {opponent_army.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                    None,
+                ))
+
+    return happened, logs, damage_flag
+
+
+# --- Sasha Rage Skill Handler ---
+def handle_rage_floral_burial(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    damage_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    is_hero2 = event_data.get("is_hero2_delayed_rage", False)
+
+    poison_factor = cfg.get("poison_factor", 0.0)
+    poison_duration = cfg.get("poison_duration", 2)
+    if poison_factor > 0:
+        poison_effect = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_FLORAL_BURIAL_POISON,
+            "dot_type": DoTType.POISON,
+            "status_effect_factor": poison_factor,
+            "duration": poison_duration,
+            "activate_next_round": True,
+        }
+        created_poison = opponent_army._create_and_add_single_effect(
+            poison_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_poison:
+            happened = True
+            logs.append((
+                f"Inflicts '{EFFECT_NAME_FLORAL_BURIAL_POISON}' on {opponent_army.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    current_marks = _count_effects_by_name(triggering_army, EFFECT_NAME_NATURE_MARK)
+    damage_factor = cfg.get("damage_factor", 0.0) if current_marks >= cfg.get("damage_threshold", 5) else 0.0
+    heal_conversion = cfg.get("heal_conversion", 0.5) if current_marks >= cfg.get("heal_threshold", 10) else 0.0
+
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, is_hero2_rage_skill=is_hero2, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((
+            f"Deals Floral Burial damage to {opponent_army.name} (Factor: {damage_factor}).",
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+        ))
+
+        if heal_conversion > 0 and hp_damage > 0:
+            heal_amount = hp_damage * heal_conversion
+            triggering_army.pending_hp_healing_this_round += heal_amount
+            happened = True
+            logs.append((
+                f"Converts {heal_conversion * 100:.0f}% of damage into healing ({heal_amount:.0f} HP).",
+                None,
+            ))
+
+    return happened, logs, damage_flag
 

@@ -21,6 +21,34 @@ def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
     return simulator.round if simulator else 0
 
 
+def _count_effects_by_name(army: ArmyRef, effect_name: str) -> int:
+    return sum(1 for eff in army.active_effects if eff.name == effect_name)
+
+
+def _add_nature_mark_stacks(
+    army: ArmyRef, opponent_army: ArmyRef, skill_def: SkillDefinition, count: int
+) -> int:
+    created = 0
+    for _ in range(max(0, count)):
+        mark_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_NATURE_MARK,
+            "duration": -1,
+            "activate_next_round": True,
+        }
+        if army._create_and_add_single_effect(mark_effect, skill_def["id"], army, army, opponent_army):
+            created += 1
+    return created
+
+
+def _remove_all_effects_by_name(army: ArmyRef, effect_name: str) -> int:
+    removed = [eff for eff in army.active_effects if eff.name == effect_name]
+    for eff in removed:
+        if eff in army.active_effects:
+            army.active_effects.remove(eff)
+    return len(removed)
+
+
 def handle_base_skill_planned_attack(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: SkillDefinition,
                                      ev_data: Optional[Dict[str, Any]], sim: GameSimulatorRef) -> Tuple[
     bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
@@ -434,6 +462,39 @@ def handle_base_skill_enchanted_arrow(
             ))
 
     return an_effect_happened, log_details
+
+
+def handle_base_skill_huginns_slingshot(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+
+    base_damage = cfg.get("damage_factor", 0.0)
+    burn_damage = cfg.get("burn_damage_factor", base_damage)
+    enemy_burned = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BURN
+        for eff in opponent_army.active_effects
+    )
+    chosen_factor = burn_damage if enemy_burned else base_damage
+
+    if chosen_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, chosen_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        condition_note = " (burned target)" if enemy_burned else ""
+        logs.append((
+            f"Deals damage{condition_note} to {opponent_army.name} (Factor: {chosen_factor}).",
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+        ))
+
+    return happened, logs
 
 
 def handle_base_skill_rapid_fire(  # Verdandi's skill, already exists
@@ -1372,6 +1433,81 @@ def handle_base_skill_ride_the_waves(
                         f"for {buff_dur + 1} rounds (starting next round).",
                         None,
                     ))
+    return happened, logs
+
+# --- Sasha Base Skill Handlers ---
+def handle_base_skill_nature_blessing(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    trigger_interval = cfg.get("trigger_interval", 9)
+
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+        return False, []
+
+    mark_gain = int(cfg.get("mark_stacks", 1))
+    created = _add_nature_mark_stacks(triggering_army, opponent_army, skill_def, mark_gain)
+    if created:
+        happened = True
+        logs.append((f"Gains {created} Nature Mark stack(s) next round.", None))
+
+    heal_factor = cfg.get("heal_factor", 0.0)
+    if heal_factor > 0:
+        healed_amount = triggering_army.calculate_and_add_pending_healing(
+            heal_factor, triggering_army, opponent_army, source_skill_id=skill_def["id"]
+        )
+        if healed_amount > 0:
+            happened = True
+            logs.append((f"Heals self (Factor: {heal_factor}) for {healed_amount:.0f} HP.", None))
+
+    current_stacks = _count_effects_by_name(triggering_army, EFFECT_NAME_NATURE_MARK)
+    damage_threshold = cfg.get("damage_threshold", 5)
+    evasion_threshold = cfg.get("evasion_threshold", 15)
+
+    if current_stacks >= damage_threshold:
+        damage_factor = cfg.get("damage_factor", 0.0)
+        if damage_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append((
+                f"Nature Blessing damage triggers on {opponent_army.name} (Factor: {damage_factor}).",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            ))
+
+    if current_stacks >= evasion_threshold:
+        evasion_duration = cfg.get("evasion_duration", 1)
+        evasion_buff = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_NATURE_BLESSING_EVASION,
+            "duration": evasion_duration,
+            "activate_next_round": True,
+            "config": {
+                "evasion_chance": cfg.get("evasion_magnitude", 1.0),
+                "applies_to": ["BASIC", "COUNTER", "SKILL"],
+                "is_dispellable": False,
+            },
+        }
+        created_buff = triggering_army._create_and_add_single_effect(
+            evasion_buff, skill_def["id"], triggering_army, triggering_army, opponent_army
+        )
+        if created_buff:
+            happened = True
+            logs.append((
+                f"Gains evasion buff for {evasion_duration + 1} round(s) (starting next round).",
+                None,
+            ))
+        removed_count = _remove_all_effects_by_name(triggering_army, EFFECT_NAME_NATURE_MARK)
+        if removed_count > 0:
+            logs.append((f"Removes all Nature Mark stacks ({removed_count} removed).", None))
+
     return happened, logs
 
 # --- Helgar Base Skill Handlers ---

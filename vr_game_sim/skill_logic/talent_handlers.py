@@ -461,8 +461,10 @@ def handle_mount_periodic_damage_and_stat_boost(
                 "bonus_applied_round": -1,
                 "effect_applied_in_round": current_round,
                 "ticks": rage_duration,
+                "source_skill_id_override": skill_def.get("id"),
             },
             "activate_next_round": True,
+            "source_skill_id_override": skill_def.get("id"),
         }
         created_effect = triggering_army._create_and_add_single_effect(
             rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
@@ -971,8 +973,12 @@ def handle_mount_periodic_damage_rage_and_condition(
             "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
             "name": cfg.get("rage_effect_name", EFFECT_NAME_DELAYED_RAGE_GAIN),
             "duration": 0,
-            "config": {"rage_amount": rage_gain},
+            "config": {
+                "rage_amount": rage_gain,
+                "source_skill_id_override": skill_def.get("id"),
+            },
             "activate_next_round": True,
+            "source_skill_id_override": skill_def.get("id"),
         }
         created_rage = triggering_army._create_and_add_single_effect(
             rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
@@ -1039,8 +1045,12 @@ def handle_mount_periodic_rage_strip_and_buff(
             "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
             "name": cfg.get("rage_effect_name", EFFECT_NAME_DELAYED_RAGE_GAIN),
             "duration": 0,
-            "config": {"rage_amount": rage_gain},
+            "config": {
+                "rage_amount": rage_gain,
+                "source_skill_id_override": skill_def.get("id"),
+            },
             "activate_next_round": True,
+            "source_skill_id_override": skill_def.get("id"),
         }
         created_rage = triggering_army._create_and_add_single_effect(
             rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
@@ -1121,8 +1131,12 @@ def handle_mount_periodic_rage_heal_and_condition(
             "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
             "name": cfg.get("rage_effect_name", EFFECT_NAME_DELAYED_RAGE_GAIN),
             "duration": 0,
-            "config": {"rage_amount": rage_gain},
+            "config": {
+                "rage_amount": rage_gain,
+                "source_skill_id_override": skill_def.get("id"),
+            },
             "activate_next_round": True,
+            "source_skill_id_override": skill_def.get("id"),
         }
         created_rage = triggering_army._create_and_add_single_effect(
             rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
@@ -1673,8 +1687,12 @@ def handle_mount_icedrake_breath(
             "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
             "name": cfg.get("rage_effect_name", EFFECT_NAME_MOUNT_PERIODIC_RAGE_GAIN),
             "duration": 0,
-            "config": {"rage_amount": rage_gain},
+            "config": {
+                "rage_amount": rage_gain,
+                "source_skill_id_override": skill_def.get("id"),
+            },
             "activate_next_round": True,
+            "source_skill_id_override": skill_def.get("id"),
         }
         created_effect = triggering_army._create_and_add_single_effect(
             rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
@@ -1706,8 +1724,12 @@ def handle_mount_frostwing_fury(
             "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
             "name": cfg.get("rage_effect_name", EFFECT_NAME_MOUNT_PERIODIC_RAGE_GAIN),
             "duration": 0,
-            "config": {"rage_amount": rage_gain},
+            "config": {
+                "rage_amount": rage_gain,
+                "source_skill_id_override": skill_def.get("id"),
+            },
             "activate_next_round": True,
+            "source_skill_id_override": skill_def.get("id"),
         }
         created_effect = triggering_army._create_and_add_single_effect(
             rage_effect, skill_def["id"], triggering_army, triggering_army, opponent_army

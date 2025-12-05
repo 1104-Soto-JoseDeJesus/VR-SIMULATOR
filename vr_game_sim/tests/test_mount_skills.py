@@ -1,5 +1,7 @@
 import copy
 
+import pytest
+
 from vr_game_sim.enums import SkillType
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
 from vr_game_sim.main import create_armies_from_data, get_setup_data_for_saving
@@ -137,3 +139,40 @@ def test_mount_skill_overrides_apply_to_heroes():
     mount_skill = next(s for s in hero.skills if s.get("id") == "mount_crippling_strike")
 
     assert mount_skill.get("config", {}).get("damage_factor") == damage_factor
+
+
+def test_mount_rage_effects_map_to_skill_summary_and_html():
+    pytest.importorskip("PyQt6")
+    try:
+        from vr_game_sim.gui_main import build_army_skill_summary
+    except ImportError:
+        pytest.skip("PyQt6 dependencies not available")
+
+    cfg = copy.deepcopy(_BASE_CFG)
+    mount_id = "mount_pain_n_fury"
+    cfg["heroes"][0]["mount_skill_ids"] = [mount_id]
+
+    army = create_armies_from_data([cfg])[0]
+
+    rage_effect_name = (
+        SKILL_REGISTRY_GLOBAL.get(mount_id, {}).get("config", {}).get("effect_name")
+        or "Mount Periodic Rage Gain"
+    )
+    expected_rage = 120
+    army.skill_rage_totals[rage_effect_name] = expected_rage
+    army.skill_source_overrides[rage_effect_name] = mount_id
+
+    summary = build_army_skill_summary(army, cfg, team="red")
+    hero_entries = summary["skills"][0]
+    mount_entries = [entry for entry in hero_entries if entry.get("id") == mount_id]
+
+    assert mount_entries, "Mount skill entry missing from summary"
+    assert mount_entries[0]["rage"] == expected_rage
+
+    html_rows = [
+        f"<div class='skill-card' data-skill-id='{entry['id']}'>{entry['rage']}</div>"
+        for entry in hero_entries
+    ]
+    html_output = "".join(html_rows)
+
+    assert str(expected_rage) in html_output

@@ -4123,6 +4123,7 @@ def _skill_stats_entry(
     name: str,
     *,
     casts_override: Any | None = None,
+    rage_totals: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """Return aggregated statistics for ``skill_id`` from ``army``."""
 
@@ -4160,6 +4161,8 @@ def _skill_stats_entry(
     if boosted_other_kills < 0:
         boosted_other_kills = 0.0
 
+    rage_map = rage_totals if rage_totals is not None else army.skill_rage_totals
+
     entry = {
         "id": skill_id,
         "name": name,
@@ -4167,7 +4170,7 @@ def _skill_stats_entry(
         "kills": int(round(army.skill_kill_totals.get(skill_id, 0.0))),
         "heals": int(round(army.skill_heal_totals.get(skill_id, 0.0))),
         "shielded": int(round(army.skill_shield_totals.get(skill_id, 0.0))),
-        "rage": int(round(army.skill_rage_totals.get(skill_id, 0.0))),
+        "rage": int(round(rage_map.get(skill_id, 0.0))),
         "rage_reduced": int(round(army.skill_rage_reduction_totals.get(skill_id, 0.0))),
         "damage_reduced": int(round(army.skill_damage_reduction_totals.get(skill_id, 0.0))),
         "boosted_kills": int(round(total_boosted_kills)),
@@ -4189,6 +4192,21 @@ def _skill_stats_entry(
     if casts_override is not None:
         entry["casts"] = casts_override
     return entry
+
+
+def _normalize_rage_totals(
+    rage_totals: dict[str, float], overrides: dict[str, str] | None
+) -> dict[str, float]:
+    """Merge rage totals that were tracked under non-canonical identifiers."""
+
+    normalized: dict[str, float] = {}
+    for key, value in (rage_totals or {}).items():
+        target = overrides.get(key, key) if overrides else key
+        try:
+            normalized[target] = normalized.get(target, 0.0) + float(value)
+        except (TypeError, ValueError):
+            continue
+    return normalized
 
 
 def _is_mount_skill(skill_id: str) -> bool:
@@ -4242,22 +4260,38 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
     portrait1, portrait2 = _resolve_portraits(cfg)
     heroes_cfg = cfg.get("heroes", []) or []
     hero_names = [h.get("hero_name_or_preset", "").capitalize() for h in heroes_cfg]
+    rage_totals = _normalize_rage_totals(
+        army.skill_rage_totals, getattr(army, "skill_source_overrides", {})
+    )
 
     skill_lists: list[list[dict[str, Any]]] = []
     hero_mount_skill_ids: list[set[str]] = []
     for hero_idx, hero in enumerate(army.heroes):
         hero_entries: list[dict[str, Any]] = []
         hero_entries.append(
-            _skill_stats_entry(army, "base_rage", "Base Rage", casts_override="")
+            _skill_stats_entry(
+                army,
+                "base_rage",
+                "Base Rage",
+                casts_override="",
+                rage_totals=rage_totals,
+            )
         )
         for sid, sname in (("basic_attack", "Basic Attack"), ("counter_attack", "Counterattack")):
-            hero_entries.append(_skill_stats_entry(army, sid, sname))
+            hero_entries.append(
+                _skill_stats_entry(army, sid, sname, rage_totals=rage_totals)
+            )
         for skill_def in getattr(hero, "skills", []) or []:
             if skill_def.get("id") == "dummy_talent_empty":
                 continue
             sid = skill_def.get("id", "")
             hero_entries.append(
-                _skill_stats_entry(army, sid, skill_def.get("name", sid))
+                _skill_stats_entry(
+                    army,
+                    sid,
+                    skill_def.get("name", sid),
+                    rage_totals=rage_totals,
+                )
             )
         cfg_mount_ids: set[str] = set()
         hero_cfg = heroes_cfg[hero_idx] if hero_idx < len(heroes_cfg) else {}
@@ -4294,6 +4328,7 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
                 army,
                 skill_id,
                 skill_def.get("name", skill_id),
+                rage_totals=rage_totals,
             )
             config = skill_def.get("config", {}) or {}
             entry["rarity"] = config.get("rarity")
@@ -4320,7 +4355,7 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
         army.skill_kill_totals,
         army.skill_heal_totals,
         army.skill_shield_totals,
-        army.skill_rage_totals,
+        rage_totals,
         army.skill_rage_reduction_totals,
         army.skill_damage_reduction_totals,
         army.skill_kill_boost_totals,
@@ -4373,6 +4408,7 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
             army,
             skill_id,
             skill_def.get("name", skill_id),
+            rage_totals=rage_totals,
         )
         entry["is_mount"] = True
         entry["source"] = skill_def.get("source") or skill_def.get("origin") or "mount"

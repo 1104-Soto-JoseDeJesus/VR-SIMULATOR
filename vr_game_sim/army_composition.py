@@ -164,6 +164,7 @@ class Army:
     skill_heal_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_shield_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_rage_totals: Dict[str, float] = field(init=False, default_factory=dict)
+    skill_source_overrides: Dict[str, str] = field(init=False, default_factory=dict)
     skill_damage_reduction_totals: Dict[str, float] = field(init=False, default_factory=dict)
     skill_rage_reduction_totals: Dict[str, float] = field(init=False, default_factory=dict)
     # Totals contributed indirectly via boost effects
@@ -972,9 +973,14 @@ class Army:
 
         if owner_army:
             final_config.setdefault("source_army_name", owner_army.name)
+        source_for_effect = effect_data.get("source_skill_id_override") or source_skill_id
+        if source_for_effect and isinstance(source_for_effect, str):
+            owner_army.skill_source_overrides[canonical_effect_name] = source_for_effect
+            target_army.skill_source_overrides[canonical_effect_name] = source_for_effect
+
         inst = EffectInstance(
             id=uuid.uuid4(),
-            source_skill_id=source_skill_id,
+            source_skill_id=source_for_effect,
             name=canonical_effect_name,
             effect_type=effect_data["effect_type"],
             duration=new_effect_duration,
@@ -1207,7 +1213,8 @@ class Army:
                     if start_gain_round <= current_round <= end_gain_round:
                         rage_to_gain = effect.config.get("rage_per_round", 0)
                         if rage_to_gain > 0:
-                            self.add_rage(rage_to_gain, effect.source_skill_id)
+                            source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
+                            self.add_rage(rage_to_gain, source_id)
 
             # Handle multi-round rage gain effects
             elif effect.name in (
@@ -1231,7 +1238,8 @@ class Army:
                     tick_offset = current_sim_round - effect_applied_in_round
                     if 1 <= tick_offset <= total_ticks:
                         if base_rage > 0:
-                            gained = self.add_rage(base_rage, effect.source_skill_id)
+                            source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
+                            gained = self.add_rage(base_rage, source_id)
                             gained_this_tick += gained
                             log_parts.append(f"{gained:.0f} base rage")
                         if (
@@ -1239,7 +1247,8 @@ class Army:
                             and bonus_applied_round == -1
                             and tick_offset == bonus_tick
                         ):  # Apply bonus only on the configured tick if applicable
-                            gained_bonus = self.add_rage(bonus_rage, effect.source_skill_id)
+                            source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
+                            gained_bonus = self.add_rage(bonus_rage, source_id)
                             gained_this_tick += gained_bonus
                             effect.config["bonus_applied_round"] = current_sim_round  # Mark bonus as applied
                             log_parts.append(f"{gained_bonus:.0f} bonus rage")
@@ -1258,7 +1267,8 @@ class Army:
                 if phase == 'start_of_round' and effect.duration <= 0:
                     rage_amt = effect.config.get("rage_amount", 0)
                     if rage_amt > 0:
-                        gained = self.add_rage(rage_amt, effect.source_skill_id)
+                        source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
+                        gained = self.add_rage(rage_amt, source_id)
                         if self.simulator:
                             self.simulator._log_skill_trigger(
                                 self, effect.name,
@@ -1582,6 +1592,7 @@ class Army:
         self.skill_heal_totals.clear()
         self.skill_shield_totals.clear()
         self.skill_rage_totals.clear()
+        self.skill_source_overrides.clear()
         self.skill_damage_reduction_totals.clear()
         self.skill_rage_reduction_totals.clear()
         self.skill_kill_boost_totals.clear()

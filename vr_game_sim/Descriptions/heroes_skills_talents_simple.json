@@ -544,11 +544,11 @@
     ],
     "talents": [
       {
-        "name": "Forcefull Ambush",
+        "name": "Forceful Ambush",
         "description": "When deployed Troops are healed, counterattack damage is increased by 25% for 1 seconds. There is an additional 20% chance for deployed Troops to gain a shield (Shield Factor 650) for 2 seconds. Triggers up to 1 time every 3 seconds."
       },
       {
-        "name": "Trapped Beast Struggle",
+        "name": "Trapped Beast's Struggle",
         "description": "When deployed Troop receives a basic attack, there is a 20% chance of dealing direct damage 1 time (Damage Factor 600) to target. If the target is inflicted with Broken Blade, this damage is increased (Damage Factor 1000). Triggers up to 1 time every 3 seconds."
       },
       {
@@ -755,7 +755,7 @@
         "description": "Every 9s, grant deployed Troop 1 stacks of Nature Mark and 1 time healing (Heal Factor 700). When Nature Mark reaches 5 stacks, deal direct damage (Damage Factor 700) once to the target. When Nature Mark reaches 15 stacks, deployed Troops evasion increases by 100% for 2s, and the Mark is removed."
       },
       {
-        "name": "Froral Burial",
+        "name": "Floral Burial",
         "description": "Inflict Poison on the target, dealing continuous damage (Damage Factor 700) every second for 3s. If Nature Mark of deployed Troop reaches 5 stacks, deal additional direct damage (Damage Factor 900) once. If Nature Mark of deployed Troop reaches 10 stacks, trigger Life Drain, converting 50% of the damage dealt to heal deployed Troop."
       }
     ],
@@ -765,7 +765,7 @@
         "description": "The active skill damage of deployed Troop is increased by 20%. And Poison damage is increased by 20%."
       },
       {
-        "name": "Natures Killer",
+        "name": "Nature's Killer",
         "description": "Every 6s, grant 1 stacks of Nature Mark to deployed Troop. When Nature Mark reaches 5 stacks, inflict Poison on the target, dealing continuous damage (Damage Factor 250) per second for 3s. When Nature Mark reaches 10 stacks, inflict Burning on the target, dealing continuous damage (Damage Factor 400) per second for 3s."
       },
       {
@@ -782,7 +782,7 @@
         "description": "Deal direct damage (Damage Factor 1,120) once to the target. There is a 32% chance to trigger Burst once, inflict Burning on tarnet and deal continuous damage (Damage Factor 480) every second for 3s."
       },
       {
-        "name": "Hugginns Slingshot",
+        "name": "Huginn's Slingshot",
         "description": "Deployed Troops basic attacks have a 20% chance to deal direct damage (Damage Factor 400) once to the target. If the target is inflicted with Burning, this damage is increased (Damage Factor 800)."
       },
       {

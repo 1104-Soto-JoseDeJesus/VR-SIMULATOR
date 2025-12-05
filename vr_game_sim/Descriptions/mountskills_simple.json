@@ -261,31 +261,31 @@
   },
   {
     "name": "Ripping Claws",
-    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to inflict Bleed on target, dealing continuous damage (Damage Factor 575) for 2s. If deployed Troop has more units than target, damage dealt is increased (Damage Factor 850)."
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, there is a 15% chance to inflict Bleed on target, dealing continuous damage (Damage Factor 575) for 2s. If deployed Troop has more units than target, damage dealt is increased (Damage Factor 850)."
   },
   {
     "name": "Deer Redemption",
-    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to inflict Slow on target, decreasing March Speed by 20% for 2s. If deployed Troop has less units than target, deployed Troop receives healing (Heal Factor 750) 1 time and all Debuffs are removed. It deployed Troop has more units than target, deal direct damage (Damage Factor 1,500) 1 time to target."
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, there is a 15% chance to inflict Slow on target, decreasing March Speed by 20% for 2s. If deployed Troop has less units than target, deployed Troop receives healing (Heal Factor 750) 1 time and all Debuffs are removed. It deployed Troop has more units than target, deal direct damage (Damage Factor 1,500) 1 time to target."
   },
   {
     "name": "Slaughter N Heal",
-    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, if target is inflicted with Slow, there is a 15% chance to deal direct damage (Damage Factor 1,550) 1 time to target. If target is not inflicted with Slow, there is a 15% chance for deployed Troop to receive healing (Heal Factor 800) 1 time."
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, if target is inflicted with Slow, there is a 15% chance to deal direct damage (Damage Factor 1,550) 1 time to target. If target is not inflicted with Slow, there is a 15% chance for deployed Troop to receive healing (Heal Factor 800) 1 time."
   },
   {
     "name": "Spiked Shield",
-    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, if target is inflicted with Bleed, there is a 15% chance to deal direct damage (Damage Factor 1,550) 1 time to target. If target is not inflicted with Bleed, there is a 15% chance for deployed Troop to gain a shield (Shield Factor 725) for 2s."
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, if target is inflicted with Bleed, there is a 15% chance to deal direct damage (Damage Factor 1,550) 1 time to target. If target is not inflicted with Bleed, there is a 15% chance for deployed Troop to gain a shield (Shield Factor 725) for 2s."
   },
   {
     "name": "Icedrake Breath",
-    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, deployed Troop has a 15% chance to recover 100 Rage, and deal direct damage (Damage Factor 700) 1 time to target. If deployed Troop has more units than target, the damage dealt is increased (Damage Factor 1,200), and target is inflicted with Slow, decreasing March Speed by 20% for 2s."
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, deployed Troop has a 15% chance to recover 100 Rage, and deal direct damage (Damage Factor 700) 1 time to target. If deployed Troop has more units than target, the damage dealt is increased (Damage Factor 1,200), and target is inflicted with Slow, decreasing March Speed by 20% for 2s."
   },
   {
     "name": "Frostwing Fury",
-    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, deployed Troop has a 15% chance to recover 100 Rage, and deal direct damage (Damage Factor 700) 1 time to target. If deployed Troop has less units than target, there is a 100% chance to inflict Silence on the target for 1s, and decrease damage received by deployed Troop by 20% for 1s."
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, deployed Troop has a 15% chance to recover 100 Rage, and deal direct damage (Damage Factor 700) 1 time to target. If deployed Troop has less units than target, there is a 100% chance to inflict Silence on the target for 1s, and decrease damage received by deployed Troop by 20% for 1s."
   },
   {
     "name": "Kraken Touch",
-    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to deal direct damage (Damage Factor 700) 1 time to target. If target is inflicted with Slow, the damage dealt is increased (Damage Factor 1,400). If target is not inflicted with Slow, decrease damage received by deployed Troop by 30% for 1s."
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, there is a 15% chance to deal direct damage (Damage Factor 700) 1 time to target. If target is inflicted with Slow, the damage dealt is increased (Damage Factor 1,400). If target is not inflicted with Slow, decrease damage received by deployed Troop by 30% for 1s."
   },
   {
     "name": "Fatal Chomp",
@@ -321,6 +321,6 @@
   },
   {
     "name": "Bloodthirst Recovery",
-    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop receives a basic attack, there is a 15% chance to inflict Bleed on target, dealing continuous damage (Damage Factor 575) for 2s. If deployed Troop has less units than target, deployed Troop receives healing (Heal Factor 550) 1 time."
+    "description": "Deployed Troops Cooperation Skill Critical Rate increases by 3%. When deployed Troop launches a basic attack, there is a 15% chance to inflict Bleed on target, dealing continuous damage (Damage Factor 575) for 2s. If deployed Troop has less units than target, deployed Troop receives healing (Heal Factor 550) 1 time."
   }
 ]

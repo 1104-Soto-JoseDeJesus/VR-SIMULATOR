@@ -1177,9 +1177,17 @@ class Army:
                     log_msg += f" Potential: {dot_damage_after_target_debuffs:.0f}"
                     if is_special_dot:
                         log_msg += f" (Base: {base_dot_damage_for_log:.0f}, SpecificMult: {final_dot_multiplier_for_log:.2f})"
+                    skill_registry = getattr(
+                        self.simulator,
+                        "SKILL_REGISTRY_GLOBAL",
+                        SKILL_REGISTRY_GLOBAL,
+                    )
+                    source_skill_name = skill_registry.get(
+                        effect.source_skill_id, {}
+                    ).get("name", effect.source_skill_id)
                     self.simulator._log_skill_trigger(
                         self,
-                        effect.name,
+                        source_skill_name or effect.name,
                         log_msg,
                         damage_details={
                             "damage_done_hp": round(dot_damage_after_target_debuffs),

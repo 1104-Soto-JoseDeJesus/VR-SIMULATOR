@@ -47,6 +47,7 @@ from .constants import (
     EFFECT_NAME_BLESSED_BY_FATE_ENEMY_DMG_TAKEN_DEBUFF,
     EFFECT_NAME_RAGEBEAST_SOUL_RAGE_GAIN,
     EFFECT_NAME_UNTAMED_WILDERNESS_RAGE_GAIN,
+    EFFECT_NAME_NATURE_MARK,
 )
 
 GameSimulatorRef = "GameSimulator"  # Forward reference
@@ -1434,6 +1435,7 @@ class Army:
             allow_duplicates = new_effect.name in {
                 EFFECT_NAME_JUDGEMENT_MARKER,
                 EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
+                EFFECT_NAME_NATURE_MARK,
             }
             if not allow_duplicates:
                 replaced_in_active = False

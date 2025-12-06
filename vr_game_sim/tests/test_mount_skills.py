@@ -2,7 +2,8 @@ import copy
 
 import pytest
 
-from vr_game_sim.enums import SkillType
+from vr_game_sim.enums import SkillType, SkillTriggerType, StatType
+from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
 from vr_game_sim.main import create_armies_from_data, get_setup_data_for_saving
 
@@ -176,3 +177,44 @@ def test_mount_rage_effects_map_to_skill_summary_and_html():
     html_output = "".join(html_rows)
 
     assert str(expected_rage) in html_output
+
+
+def test_duplicate_mount_damage_and_buff_resolution():
+    cfg = copy.deepcopy(_BASE_CFG)
+    cfg["heroes"][0]["mount_skill_ids"] = ["mount_flame_serpent", "mount_flame_serpent"]
+
+    army, opponent = create_armies_from_data([cfg, cfg])[0:2]
+    hero = army.heroes[0]
+    mount_skills = [skill for skill in hero.skills if skill.get("id") == "mount_flame_serpent"]
+    assert len(mount_skills) == 2, "Expected duplicated mount skills for test setup"
+
+    low_magnitude = 0.05
+    high_magnitude = 0.12
+    for idx, skill in enumerate(mount_skills):
+        skill_config = skill.get("config", {})
+        skill_config.update({"trigger_interval": 1, "damage_factor": 50.0})
+        skill_config["stat_mods"] = [
+            {
+                "stat_to_mod": StatType.BURN_DAMAGE_BOOST,
+                "buff_magnitude": high_magnitude if idx else low_magnitude,
+            }
+        ]
+
+    simulator = GameSimulator(army, opponent, mode="battlefield")
+    army.army_round = 1
+    opponent.army_round = 1
+
+    simulator._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND)
+
+    damage_triggers = army.mount_skill_damage_triggers_this_round.get("mount_flame_serpent")
+    assert damage_triggers == 2, "Both mount skills should contribute direct damage"
+
+    relevant_effects = (
+        army.active_effects + army.effects_to_activate_next_round + army.upcoming_effects
+    )
+    burn_boosts = [
+        effect.magnitude
+        for effect in relevant_effects
+        if getattr(effect, "_stat_type_from_config", lambda: None)() == StatType.BURN_DAMAGE_BOOST
+    ]
+    assert burn_boosts == [high_magnitude]

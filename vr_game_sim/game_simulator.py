@@ -1,4 +1,5 @@
 # === File: game_simulator.py ===
+import copy
 import math
 import random
 import os
@@ -728,6 +729,90 @@ class GameSimulator:
 
         return round(base_shield_mag * shield_strength_multiplier)
 
+    def _mount_skill_has_direct_damage(self, skill_def: SkillDefinition) -> bool:
+        cfg = skill_def.get("config", {}) or {}
+        return any(cfg.get(key, 0) > 0 for key in ("damage_factor", "instant_damage_factor", "conditional_damage_factor"))
+
+    def _extract_mount_skill_non_damage_components(self, skill_def: SkillDefinition) -> Dict[str, Any]:
+        cfg = copy.deepcopy(skill_def.get("config", {}) or {})
+        cfg.pop("damage_factor", None)
+        cfg.pop("instant_damage_factor", None)
+        cfg.pop("conditional_damage_factor", None)
+
+        stat_mods: Dict[str, Dict[str, Any]] = {}
+        for mod in cfg.get("stat_mods") or []:
+            stat = getattr(mod.get("stat_to_mod"), "value", mod.get("stat_to_mod"))
+            magnitude = mod.get("buff_magnitude", 0)
+            if stat is None:
+                continue
+            if stat not in stat_mods or magnitude > stat_mods[stat].get("buff_magnitude", 0):
+                stat_mods[stat] = mod
+        if stat_mods:
+            cfg["stat_mods"] = list(stat_mods.values())
+        elif "stat_mods" in cfg:
+            cfg["stat_mods"] = []
+
+        for key, value in list(cfg.items()):
+            if key == "stat_mods":
+                continue
+            if isinstance(value, (int, float)):
+                continue
+            cfg[key] = value
+
+        return cfg
+
+    def _merge_mount_skill_non_damage_configs(self, skill_defs: List[SkillDefinition]) -> Dict[str, Any]:
+        merged: Dict[str, Any] = {}
+        for skill_def in skill_defs:
+            components = self._extract_mount_skill_non_damage_components(skill_def)
+
+            if "stat_mods" in components:
+                merged.setdefault("stat_mods", [])
+                existing = {getattr(mod.get("stat_to_mod"), "value", mod.get("stat_to_mod")): mod for mod in merged["stat_mods"]}
+                for mod in components["stat_mods"]:
+                    stat = getattr(mod.get("stat_to_mod"), "value", mod.get("stat_to_mod"))
+                    magnitude = mod.get("buff_magnitude", 0)
+                    if stat is None:
+                        continue
+                    if stat not in existing or magnitude > existing[stat].get("buff_magnitude", 0):
+                        existing[stat] = mod
+                merged["stat_mods"] = list(existing.values())
+
+            for key, value in components.items():
+                if key == "stat_mods":
+                    continue
+                if isinstance(value, (int, float)):
+                    current = merged.get(key, float("-inf"))
+                    if value > current:
+                        merged[key] = value
+                elif key not in merged:
+                    merged[key] = value
+
+        return merged
+
+    def _apply_mount_skill_non_damage_config(self, base_config: Dict[str, Any], merged_config: Dict[str, Any],
+                                             include_non_damage: bool) -> Dict[str, Any]:
+        cfg = copy.deepcopy(base_config)
+        if not include_non_damage:
+            cfg.pop("stat_mods", None)
+            for key in merged_config:
+                if key in ("damage_factor", "instant_damage_factor", "conditional_damage_factor"):
+                    continue
+                if key in ("trigger_interval",):
+                    continue
+                if isinstance(cfg.get(key), (int, float)):
+                    cfg[key] = 0
+                elif isinstance(cfg.get(key), list):
+                    cfg[key] = []
+            return cfg
+
+        for key, value in merged_config.items():
+            if key == "stat_mods":
+                cfg[key] = copy.deepcopy(value)
+            elif key not in ("damage_factor", "instant_damage_factor", "conditional_damage_factor"):
+                cfg[key] = value
+        return cfg
+
     def _process_skill_triggers(self, triggering_army: Army, opponent_army: Army, trigger_type: SkillTriggerType,
                                 event_data: Optional[Dict[str, Any]] = None):
         actual_effect_target = opponent_army
@@ -743,6 +828,20 @@ class GameSimulator:
             skill_definitions.extend(hero.skills)
         gem_skills = getattr(triggering_army, "gem_skills", []) or []
         skill_definitions.extend(gem_skills)
+
+        mount_skill_groups: Dict[str, List[SkillDefinition]] = {}
+        for skill_def in skill_definitions:
+            if skill_def.get("type") == SkillType.MOUNT_SKILL:
+                mount_skill_groups.setdefault(skill_def["id"], []).append(skill_def)
+
+        mount_skill_non_damage_configs = {
+            skill_id: self._merge_mount_skill_non_damage_configs(defs)
+            for skill_id, defs in mount_skill_groups.items()
+        }
+        mount_skill_damage_allowance = {
+            skill_id: sum(1 for sd in defs if self._mount_skill_has_direct_damage(sd))
+            for skill_id, defs in mount_skill_groups.items()
+        }
 
         for skill_def in skill_definitions:
             if skill_def["id"] == "dummy_talent_empty":
@@ -802,21 +901,37 @@ class GameSimulator:
                         ):
                             continue
                     else:
-                        if skill_id in triggering_army.triggered_skills_this_round:
+                        if skill_def.get("type") == SkillType.MOUNT_SKILL and skill_id in triggering_army.triggered_skills_this_round:
+                            damage_limit = mount_skill_damage_allowance.get(skill_id, 0)
+                            damage_used = triggering_army.mount_skill_damage_triggers_this_round.get(skill_id, 0)
+                            if not (self._mount_skill_has_direct_damage(skill_def) and damage_used < damage_limit):
+                                continue
+                        elif skill_id in triggering_army.triggered_skills_this_round:
                             continue
 
-                    logic_handler: Optional[SkillLogicHandler] = skill_def.get("logic_handler")
+                    effective_skill_def = skill_def
+                    include_non_damage = True
+                    if skill_def.get("type") == SkillType.MOUNT_SKILL:
+                        include_non_damage = skill_id not in triggering_army.mount_skill_non_damage_applied_this_round
+                        merged_cfg = mount_skill_non_damage_configs.get(skill_id, {})
+                        effective_skill_def = copy.deepcopy(skill_def)
+                        base_cfg = effective_skill_def.get("config", {}) or {}
+                        effective_skill_def["config"] = self._apply_mount_skill_non_damage_config(
+                            base_cfg, merged_cfg, include_non_damage
+                        )
+
+                    logic_handler: Optional[SkillLogicHandler] = effective_skill_def.get("logic_handler")
                     if logic_handler:
                         handler_event_data = (event_data or {}).copy()
                         handler_event_data["actual_opponent_for_calc"] = actual_opponent_for_calc
                         an_effect_truly_happened, log_details_current_skill = logic_handler(
-                            triggering_army, actual_effect_target, skill_def, handler_event_data, self
+                            triggering_army, actual_effect_target, effective_skill_def, handler_event_data, self
                         )
-                    elif "sub_effects" in skill_def:
-                        for sub_effect_data in skill_def["sub_effects"]:
+                    elif "sub_effects" in effective_skill_def:
+                        for sub_effect_data in effective_skill_def["sub_effects"]:
                             if random.random() < sub_effect_data.get("chance", 1.0):
                                 effect_to_apply = sub_effect_data["effect_to_apply"]
-                                target_sub = actual_effect_target if skill_def.get("target") == "ENEMY" else triggering_army
+                                target_sub = actual_effect_target if effective_skill_def.get("target") == "ENEMY" else triggering_army
                                 created_effect = triggering_army._create_and_add_single_effect(
                                     effect_to_apply.copy(),
                                     skill_id,
@@ -832,10 +947,10 @@ class GameSimulator:
                                             None,
                                         )
                                     )
-                    elif "effects_to_apply" in skill_def and skill_def["effects_to_apply"]:
-                        target_std = actual_effect_target if skill_def.get("target") == "ENEMY" else triggering_army
+                    elif "effects_to_apply" in effective_skill_def and effective_skill_def["effects_to_apply"]:
+                        target_std = actual_effect_target if effective_skill_def.get("target") == "ENEMY" else triggering_army
                         applied_details = triggering_army._add_effects_from_skill_def(
-                            skill_def, target_std, triggering_army, actual_opponent_for_calc
+                            effective_skill_def, target_std, triggering_army, actual_opponent_for_calc
                         )
                         if applied_details:
                             an_effect_truly_happened = True
@@ -843,10 +958,20 @@ class GameSimulator:
                                 log_details_current_skill.append((desc, None))
 
                     if an_effect_truly_happened:
-                        self._log_skill_trigger(triggering_army, skill_def["name"], "Triggered.")
+                        self._log_skill_trigger(triggering_army, effective_skill_def["name"], "Triggered.")
                         for desc_str, dmg_details in log_details_current_skill:
                             self._log_skill_trigger(triggering_army, f"  ↳", desc_str, damage_details=dmg_details)
                         triggering_army.increment_skill_trigger_count(skill_id)
+
+                        if include_non_damage and skill_def.get("type") == SkillType.MOUNT_SKILL:
+                            triggering_army.mount_skill_non_damage_applied_this_round.add(skill_id)
+
+                        if skill_def.get("type") == SkillType.MOUNT_SKILL and self._mount_skill_has_direct_damage(effective_skill_def):
+                            had_damage = any(details for _, details in log_details_current_skill if details and "damage_done_hp" in details)
+                            if had_damage:
+                                triggering_army.mount_skill_damage_triggers_this_round[skill_id] = (
+                                    triggering_army.mount_skill_damage_triggers_this_round.get(skill_id, 0) + 1
+                                )
 
                         if skill_def.get("trigger") == SkillTriggerType.CHANCE_PER_ROUND:
                             self._process_skill_triggers(
@@ -1462,6 +1587,8 @@ class GameSimulator:
                 army.triggered_skills_this_round.clear()
                 army.skill_trigger_counts_this_round.clear()
                 army.skill_triggers_against_this_round.clear()
+                army.mount_skill_damage_triggers_this_round.clear()
+                army.mount_skill_non_damage_applied_this_round.clear()
                 army.healing_hymn_triggered_this_round = False
                 army.base_rage_awarded_this_round = False
 

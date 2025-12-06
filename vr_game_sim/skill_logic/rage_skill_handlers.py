@@ -1780,6 +1780,13 @@ def handle_rage_floral_burial(
         if heal_conversion > 0 and hp_damage > 0:
             heal_amount = hp_damage * heal_conversion
             triggering_army.pending_hp_healing_this_round += heal_amount
+            healer_name = getattr(triggering_army, "name", None) or ""
+            skill_map = triggering_army.heal_contributors_this_round.setdefault(
+                healer_name, {}
+            )
+            skill_map[skill_def.get("id", "")] = skill_map.get(
+                skill_def.get("id", ""), 0.0
+            ) + heal_amount
             happened = True
             logs.append((
                 f"Converts {heal_conversion * 100:.0f}% of damage into healing ({heal_amount:.0f} HP).",

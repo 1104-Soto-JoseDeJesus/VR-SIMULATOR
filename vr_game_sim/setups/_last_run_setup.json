@@ -1,98 +1,139 @@
 [
     {
-        "army_name": "Rosky/Naya",
-        "unit_type": "pikemen",
+        "army_name": "Ivor/Lagertha",
+        "unit_type": "infantry",
         "tier": 7,
-        "count": 300000,
+        "count": 175000,
         "is_rally": false,
-        "atk_mod": 2.5,
-        "def_mod": 2.5,
-        "hp_mod": 1.0,
+        "atk_mod": 2.4394,
+        "def_mod": 1.8451,
+        "hp_mod": 0.8075,
         "unrevivable_ratio": 0.65,
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Rosky",
+                "hero_name_or_preset": "Ivor",
                 "talent_ids": [
-                    "talent_blade_wielder",
-                    "talent_maniacal",
-                    "talent_pirate_tricks"
+                    "talent_tactical_rules",
+                    "talent_specter_lycan_assault",
+                    "talent_amazing_attack"
                 ],
                 "base_skill_ids": [
-                    "base_skill_flurry",
-                    "rage_skill_spirit_battleship"
+                    "base_skill_throwing_axe",
+                    "rage_skill_all_kill"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_divine_shield",
-                    "plugin_freyas_blessing"
+                    "plugin_enrage",
+                    "plugin_breaking_free"
+                ],
+                "mount_skill_ids": [],
+                "skill_overrides": {
+                    "plugin_breaking_free": {
+                        "config": {
+                            "damage_buff_magnitude": 0.21,
+                            "counter_reduction_magnitude": -0.21
+                        }
+                    }
+                },
+                "plugin_star_counts": [
+                    6,
+                    3
                 ]
             },
             {
-                "hero_name_or_preset": "Naya",
+                "hero_name_or_preset": "Lagertha",
                 "talent_ids": [
-                    "talent_forceful_ambush",
-                    "talent_trapped_beasts_struggle",
-                    "talent_bear_spirit_protection"
+                    "talent_shieldaxe_attack",
+                    "talent_chiefs_might",
+                    ""
                 ],
                 "base_skill_ids": [
-                    "base_skill_nayas_hunting_instinct",
-                    "base_skill_blizzard_spear"
+                    "base_skill_shield_breaker",
+                    "rage_skill_showdown"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_rest_and_counterattack",
-                    "plugin_hymn_of_life"
+                    "plugin_divine_blessing",
+                    "plugin_first_strike"
                 ],
-                "mount_skill_ids": []
+                "mount_skill_ids": [],
+                "skill_overrides": {
+                    "talent_chiefs_might": {
+                        "config": {
+                            "bleed_factor": 190.0
+                        }
+                    },
+                    "rage_skill_showdown": {
+                        "config": {
+                            "damage_factor": 1000.0,
+                            "bleed_factor": 145.0,
+                            "shield_factor": 425.0
+                        }
+                    }
+                },
+                "star_count": 3
             }
         ]
     },
     {
-        "army_name": "Alf/Sasha",
-        "unit_type": "archers",
-        "tier": 7,
-        "count": 300000,
+        "army_name": "Lagertha/Hobert",
+        "unit_type": "infantry",
+        "tier": 6,
+        "count": 200000,
         "is_rally": false,
-        "atk_mod": 2.5,
-        "def_mod": 2.5,
-        "hp_mod": 1.0,
+        "atk_mod": 2.5168,
+        "def_mod": 1.6679,
+        "hp_mod": 0.9027,
         "unrevivable_ratio": 0.65,
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Alf",
+                "hero_name_or_preset": "Lagertha",
                 "talent_ids": [
-                    "talent_fiery_poison_bullet",
-                    "talent_fiery_poison_bomb",
-                    "talent_agile_missile"
+                    "talent_shieldaxe_attack",
+                    "talent_chiefs_might",
+                    "talent_fatal_strike"
                 ],
                 "base_skill_ids": [
-                    "base_skill_huginns_slingshot",
-                    "base_skill_chain_meteor"
+                    "base_skill_shield_breaker",
+                    "rage_skill_showdown"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_divine_blessing",
-                    "plugin_poison_arrow"
+                    "plugin_enrage",
+                    "plugin_trap_of_despair"
                 ],
-                "mount_skill_ids": []
+                "mount_skill_ids": [],
+                "skill_overrides": {
+                    "plugin_trap_of_despair": {
+                        "config": {
+                            "damage_factor": 1170.0,
+                            "slow_chance": 0.45
+                        }
+                    }
+                },
+                "plugin_star_counts": [
+                    6,
+                    5
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_epic"
+                }
             },
             {
-                "hero_name_or_preset": "Sasha",
+                "hero_name_or_preset": "Hobert",
                 "talent_ids": [
-                    "talent_forest_force",
-                    "talent_natures_killer",
-                    "talent_life_cycle"
+                    "talent_bold_shieldaxe",
+                    "talent_fearless_pursuit",
+                    "talent_steadfast_armor"
                 ],
                 "base_skill_ids": [
-                    "base_skill_nature_blessing",
-                    "base_skill_floral_burial"
+                    "base_skill_berserk_fury",
+                    "base_skill_brutal_blow"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_first_strike",
-                    "plugin_rage_leech"
+                    "plugin_bloodstained_icefield",
+                    "plugin_odins_asylum"
                 ],
-                "mount_skill_ids": [
-                    ""
-                ]
+                "mount_skill_ids": []
             }
         ]
     }

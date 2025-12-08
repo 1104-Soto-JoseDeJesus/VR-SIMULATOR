@@ -4476,6 +4476,7 @@ class SimulationWorker(QtCore.QThread):
         plugin_cooldowns_enabled: bool = True,
         gem_cooldowns_enabled: bool = True,
         mount_cooldowns_enabled: bool = True,
+        damage_reduction_affects_dots: bool = True,
     ) -> None:
         super().__init__()
         self.setup_data = setup_data
@@ -4491,6 +4492,7 @@ class SimulationWorker(QtCore.QThread):
         self.plugin_cooldowns_enabled: bool = bool(plugin_cooldowns_enabled)
         self.gem_cooldowns_enabled: bool = bool(gem_cooldowns_enabled)
         self.mount_cooldowns_enabled: bool = bool(mount_cooldowns_enabled)
+        self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
 
     def cancel(self) -> None:
         """Request the simulation to stop."""
@@ -10672,6 +10674,7 @@ class MainWindow(QtWidgets.QMainWindow):
             plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
             gem_cooldowns_enabled=self.gem_cooldowns_enabled,
             mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+            damage_reduction_affects_dots=self.damage_reduction_affects_dots,
         )
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))

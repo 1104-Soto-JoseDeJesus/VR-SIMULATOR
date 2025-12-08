@@ -4561,6 +4561,7 @@ class SimulationWorker(QtCore.QThread):
                 plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
                 gem_cooldowns_enabled=self.gem_cooldowns_enabled,
                 mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+                damage_reduction_affects_dots=self.damage_reduction_affects_dots,
             )
             report_text = sim.simulate_battle()
             rounds = report_builder.get_rounds()
@@ -5673,6 +5674,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plugin_cooldowns_enabled: bool = True
         self.gem_cooldowns_enabled: bool = True
         self.mount_cooldowns_enabled: bool = True
+        self.damage_reduction_affects_dots: bool = True
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
         self._troop_scalar_multiplier = troop_scalar_config.get_multiplier()
         main_layout = self._init_tabs()
@@ -5721,6 +5723,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_mount_cooldowns_toggled(self, checked: bool) -> None:
         self.mount_cooldowns_enabled = bool(checked)
+
+    def _on_dot_damage_reduction_toggled(self, checked: bool) -> None:
+        self.damage_reduction_affects_dots = bool(checked)
 
     def _open_gear_dialog(self, frame: ArmyFrame) -> None:
         hero_names = [frame.hero1_combo.currentText(), frame.hero2_combo.currentText()]
@@ -5796,6 +5801,10 @@ class MainWindow(QtWidgets.QMainWindow):
         mount_cooldowns_action.setCheckable(True)
         mount_cooldowns_action.setChecked(self.mount_cooldowns_enabled)
         mount_cooldowns_action.toggled.connect(self._on_mount_cooldowns_toggled)
+        dot_damage_reduction_action = dbg_menu.addAction("Damage reductions affect DoTs")
+        dot_damage_reduction_action.setCheckable(True)
+        dot_damage_reduction_action.setChecked(self.damage_reduction_affects_dots)
+        dot_damage_reduction_action.toggled.connect(self._on_dot_damage_reduction_toggled)
         star_action = dbg_menu.addAction("Star Layout")
         star_action.triggered.connect(self.open_star_overlay_tuner)
         debug_btn.setMenu(dbg_menu)

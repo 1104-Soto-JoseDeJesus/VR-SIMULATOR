@@ -29,6 +29,7 @@ def _run_round_start(sim: GameSimulator) -> None:
     for army, opponent in ((sim.army1, sim.army2), (sim.army2, sim.army1)):
         if army.current_troop_count <= 0:
             continue
+        army.army_round += 1
         army.activate_queued_effects()
         army.apply_start_of_round_rage_deductions()
         army.process_periodic_effects("start_of_round", opponent=opponent)
@@ -71,9 +72,22 @@ def _assert_effect_present(army: Army) -> None:
 def test_thors_determination_game_simulator():
     army, enemy = _prepare_armies()
     sim = GameSimulator(army, enemy, track_stats=False)
+    sim.parent_engine = type("DummyEngine", (), {"get_direct_attackers": lambda self, _: [enemy, object()]})()
     for _ in range(9):
         _run_round_start(sim)
     _assert_effect_present(army)
+
+
+def test_thors_determination_single_attacker_does_not_apply_reduction():
+    army, enemy = _prepare_armies()
+    sim = GameSimulator(army, enemy, track_stats=False)
+    for _ in range(9):
+        _run_round_start(sim)
+    dmg_red_effects = [
+        e for e in army.effects_to_activate_next_round
+        if e.name == EFFECT_NAME_THORS_DETERMINATION_DMG_REDUCTION
+    ]
+    assert not dmg_red_effects
 
 
 def test_thors_determination_battlefield_engine(monkeypatch):
@@ -86,6 +100,7 @@ def test_thors_determination_battlefield_engine(monkeypatch):
     engine = BattlefieldEngine()
     engine.add_army(army, "T1")
     engine.add_army(enemy, "T2")
+    engine.get_direct_attackers = lambda name: [enemy, object()]
     engine.engage(army.name, enemy.name)
     for _ in range(9):
         engine.tick(1.0)
@@ -102,6 +117,7 @@ def test_thors_determination_arena_engine(monkeypatch):
     engine = ArenaEngine()
     engine.add_army(army, "T1")
     engine.add_army(enemy, "T2")
+    engine.get_direct_attackers = lambda name: [enemy, object()]
     engine.engage(army.name, enemy.name)
     for _ in range(9):
         engine.tick(1.0)

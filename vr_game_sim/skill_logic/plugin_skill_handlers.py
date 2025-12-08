@@ -831,7 +831,15 @@ def handle_plugin_thors_determination(
                 (f"Gains buff: {created_buff.get_functionality_description()}, starting {activation_time} for {buff_duration + 1} rounds.",
                  None))
 
-        if opponent_army and triggering_army.current_troop_count < opponent_army.current_troop_count:
+        attacker_count = 1
+        engine = getattr(simulator, "parent_engine", None)
+        if engine and hasattr(engine, "get_direct_attackers"):
+            try:
+                attacker_count = len(engine.get_direct_attackers(triggering_army.name))
+            except Exception:
+                attacker_count = 1
+
+        if attacker_count > 1:
             dmg_red_name = skill_config.get("damage_reduction_name", EFFECT_NAME_THORS_DETERMINATION_DMG_REDUCTION)
             dmg_red_mag = skill_config.get("damage_reduction_magnitude", -0.15)
             dmg_red_dur = skill_config.get("damage_reduction_duration", 2)

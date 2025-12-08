@@ -1066,6 +1066,13 @@ class Army:
                 dot_damage_after_target_debuffs = 0.0
                 total_positive_dot = 0.0
 
+                general_damage_reduction = 0.0
+                if getattr(self.simulator, "damage_reduction_affects_dots", False):
+                    general_damage_reduction = self.get_sum_stat_magnitudes(
+                        StatType.DAMAGE_TAKEN_MULTIPLIER,
+                        attack_type_filter="status_effect",
+                    )
+
                 if is_special_dot:
                     snap_atk = effect.config.get('snapshotted_attacker_total_attack', 0.0)
                     snap_def = effect.config.get('snapshotted_defender_total_defense', 1.0)
@@ -1116,7 +1123,7 @@ class Army:
 
                     base_dot_damage_for_log = ((snap_atk / snap_def) * snap_scalar * (status_factor / 200.0))
                     snapshot_bonus = effect.config.get("holy_blessed_damage_taken_snapshot", 0.0)
-                    base_multiplier = 1.0 + current_specific_dot_boost + current_specific_dot_reduction
+                    base_multiplier = 1.0 + current_specific_dot_boost + current_specific_dot_reduction + general_damage_reduction
                     final_dot_multiplier_for_log = max(0.05, base_multiplier + snapshot_bonus)
                     potential_dot_damage_tick = base_dot_damage_for_log * final_dot_multiplier_for_log
                     dot_damage_after_target_debuffs = potential_dot_damage_tick  # For DoTs, this is the final pre-shield damage
@@ -1125,7 +1132,8 @@ class Army:
                 elif dot_type == DoTType.GENERIC and effect.config.get("dot_damage_per_round", 0) > 0:
                     base_dot_damage_for_log = effect.config["dot_damage_per_round"]
                     snapshot_bonus = effect.config.get("holy_blessed_damage_taken_snapshot", 0.0)
-                    final_dot_multiplier_for_log = max(0.05, 1.0 + snapshot_bonus)
+                    base_multiplier = 1.0 + general_damage_reduction
+                    final_dot_multiplier_for_log = max(0.05, base_multiplier + snapshot_bonus)
                     potential_dot_damage_tick = base_dot_damage_for_log * final_dot_multiplier_for_log
                     dot_damage_after_target_debuffs = potential_dot_damage_tick
 

@@ -123,6 +123,7 @@ class GameSimulator:
         plugin_cooldowns_enabled: bool | None = None,
         gem_cooldowns_enabled: bool | None = None,
         mount_cooldowns_enabled: bool | None = None,
+        damage_reduction_affects_dots: bool = True,
     ):
         self.army1: Army = army1
         self.army2: Army = army2
@@ -145,6 +146,7 @@ class GameSimulator:
         self.mount_cooldowns_enabled: bool = (
             base_cooldown_state if mount_cooldowns_enabled is None else bool(mount_cooldowns_enabled)
         )
+        self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
             self.army1.name: [], self.army2.name: []

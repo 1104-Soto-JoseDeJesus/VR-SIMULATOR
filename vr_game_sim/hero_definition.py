@@ -258,4 +258,14 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_nature_blessing", "base_skill_floral_burial"],
         'plugin_skills': [],
     },
+    'greta': {
+        'talents': ["talent_shattered_edge", "talent_oathbreakers_blade", "talent_exiled_bloodblade"],
+        'base_skills': ["base_skill_broken_blade_charge", "rage_skill_time_of_severance"],
+        'plugin_skills': [],
+    },
+    'sigrid': {
+        'talents': ["talent_northern_blood_feast", "talent_cold_iron_oath", "talent_royal_authority"],
+        'base_skills': ["base_skill_winters_coronation", "rage_skill_triumphant_presence"],
+        'plugin_skills': [],
+    },
 }

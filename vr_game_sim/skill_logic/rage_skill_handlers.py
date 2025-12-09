@@ -931,6 +931,201 @@ def handle_rage_serrated_flourish(
     return happened, logs, damage_flag
 
 
+# --- Greta Rage Skill Handler ---
+def handle_rage_time_of_severance(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    damage_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+
+    damage_factor = cfg.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army,
+            opponent_army,
+            damage_factor,
+            is_hero2_rage_skill=event_data.get("is_hero2_delayed_rage", False),
+            source_skill_def=skill_def,
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append(
+            (
+                f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    if triggering_army.current_troop_count > opponent_army.current_troop_count:
+        bleed_factor = cfg.get("bleed_factor", 0.0)
+        bleed_duration = cfg.get("bleed_duration", 1)
+        if bleed_factor > 0:
+            bleed_data = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": EFFECT_NAME_TIME_OF_SEVERANCE_BLEED,
+                "dot_type": DoTType.BLEED,
+                "status_effect_factor": bleed_factor,
+                "duration": bleed_duration,
+                "activate_next_round": True,
+            }
+            created_bleed = opponent_army._create_and_add_single_effect(
+                bleed_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+            )
+            if created_bleed:
+                happened = True
+                damage_flag = True
+                logs.append(
+                    (
+                        f"Inflicts '{EFFECT_NAME_TIME_OF_SEVERANCE_BLEED}' on {opponent_army.name} (Factor: {bleed_factor}) "
+                        f"for {bleed_duration + 1} rounds (starting next round).",
+                        None,
+                    )
+                )
+    elif triggering_army.current_troop_count < opponent_army.current_troop_count:
+        retribution_rate = cfg.get("retribution_rate", 0.0)
+        retribution_duration = cfg.get("retribution_duration", 1)
+        if retribution_rate > 0:
+            retribution_effect = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_TIME_OF_SEVERANCE_RETRIBUTION,
+                "duration": retribution_duration,
+                "activate_next_round": True,
+                "config": {"retribution_rate": retribution_rate, "is_dispellable": True},
+            }
+            if triggering_army._create_and_add_single_effect(
+                retribution_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+            ):
+                happened = True
+                logs.append(
+                    (
+                        f"Gains retribution ({retribution_rate * 100:.0f}%) for {retribution_duration + 1} rounds (starting next round).",
+                        None,
+                    )
+                )
+
+    if any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects):
+        extra_damage_factor = cfg.get("slow_damage_factor", 0.0)
+        if extra_damage_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army,
+                opponent_army,
+                extra_damage_factor,
+                is_hero2_rage_skill=event_data.get("is_hero2_delayed_rage", False),
+                source_skill_def=skill_def,
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+                damage_flag = True
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append(
+                (
+                    f"Deals additional damage (Factor: {extra_damage_factor}) to {opponent_army.name} because they are slowed.",
+                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                )
+            )
+
+    return happened, logs, damage_flag
+
+
+# --- Sigrid Rage Skill Handler ---
+def handle_rage_triumphant_presence(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    damage_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+
+    damage_factor = cfg.get("damage_factor", 0.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            triggering_army,
+            opponent_army,
+            damage_factor,
+            is_hero2_rage_skill=event_data.get("is_hero2_delayed_rage", False),
+            source_skill_def=skill_def,
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append(
+            (
+                f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            )
+        )
+
+    retribution_rate = cfg.get("retribution_rate", 0.0)
+    retribution_duration = cfg.get("retribution_duration", 1)
+    if retribution_rate > 0:
+        retribution_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_TRIUMPHANT_PRESENCE_RETRIBUTION,
+            "duration": retribution_duration,
+            "activate_next_round": True,
+            "config": {"retribution_rate": retribution_rate, "is_dispellable": True},
+        }
+        if triggering_army._create_and_add_single_effect(
+            retribution_effect, skill_def["id"], triggering_army, triggering_army, opponent_army
+        ):
+            happened = True
+            logs.append(
+                (
+                    f"Gains retribution ({retribution_rate * 100:.0f}%) for {retribution_duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    if any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in opponent_army.active_effects
+    ):
+        heal_factor = cfg.get("bleed_heal_factor", 0.0)
+        if heal_factor > 0:
+            healed = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_def["id"]
+            )
+            if healed > 0:
+                happened = True
+                logs.append((f"Heals for {healed:.0f} HP (Factor: {heal_factor}) because the enemy is bleeding.", None))
+
+    if any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects):
+        extra_damage = cfg.get("slow_damage_factor", 0.0)
+        if extra_damage > 0:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army,
+                opponent_army,
+                extra_damage,
+                is_hero2_rage_skill=event_data.get("is_hero2_delayed_rage", False),
+                source_skill_def=skill_def,
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+                damage_flag = True
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append(
+                (
+                    f"Deals additional damage (Factor: {extra_damage}) to {opponent_army.name} because they are slowed.",
+                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                )
+            )
+
+    return happened, logs, damage_flag
+
+
 def handle_rage_raging_tide(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Dict[str, Any],

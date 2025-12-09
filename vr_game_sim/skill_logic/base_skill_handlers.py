@@ -884,6 +884,227 @@ def handle_base_skill_shield_breaker(
     return happened, logs
 
 
+# --- Greta Base Skill Handlers ---
+def handle_base_skill_broken_blade_charge(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    has_retribution = any(
+        eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.config.get("retribution_rate", 0) > 0
+        for eff in triggering_army.active_effects
+    )
+    if not has_retribution:
+        return False, []
+
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+
+    if random.random() < cfg.get("shield_chance", 0.0):
+        shield_factor = cfg.get("shield_factor", 0.0)
+        shield_duration = cfg.get("shield_duration", 1)
+        if shield_factor > 0:
+            shield_data = {
+                "effect_type": EffectType.SHIELD,
+                "name": EFFECT_NAME_BROKEN_BLADE_CHARGE_SHIELD,
+                "duration": shield_duration,
+                "magnitude_calc_type": "dynamic_shield_resistance_v1",
+                "shield_factor": shield_factor,
+                "activate_next_round": True,
+            }
+            created_shield = triggering_army._create_and_add_single_effect(
+                shield_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+            )
+            if created_shield:
+                happened = True
+                est_mag = (
+                    simulator._calculate_shield_magnitude_for_logging(triggering_army, opponent_army, float(shield_factor))
+                    if simulator
+                    else created_shield.magnitude
+                )
+                logs.append(
+                    (
+                        f"Gains shield ({created_shield.get_functionality_description()}) for {shield_duration + 1} rounds "
+                        f"(starting next round). Est. Mag: {est_mag:.0f}",
+                        None,
+                    )
+                )
+
+    if random.random() < cfg.get("slow_chance", 0.0):
+        slow_duration = cfg.get("slow_duration", 1)
+        slow_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_SLOW_DEBUFF,
+            "duration": slow_duration,
+            "activate_next_round": True,
+        }
+        created_slow = opponent_army._create_and_add_single_effect(
+            slow_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_slow:
+            happened = True
+            logs.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {opponent_army.name} for {slow_duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    enemy_silenced = any(eff.name == EFFECT_NAME_SILENCE_DEBUFF for eff in opponent_army.active_effects)
+    if enemy_silenced and random.random() < cfg.get("silence_damage_chance", 0.0):
+        damage_factor = cfg.get("silence_damage_factor", 0.0)
+        if damage_factor > 0 and simulator:
+            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append(
+                (
+                    f"Deals bonus damage (Factor: {damage_factor}) to {opponent_army.name} because they are silenced.",
+                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                )
+            )
+
+    enemy_bleeding = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in opponent_army.active_effects
+    )
+    if enemy_bleeding and random.random() < cfg.get("bleed_heal_chance", 0.0):
+        heal_factor = cfg.get("bleed_heal_factor", 0.0)
+        if heal_factor > 0:
+            healed = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_def["id"]
+            )
+            if healed > 0:
+                happened = True
+                logs.append((f"Heals for {healed:.0f} HP (Factor: {heal_factor}) because the enemy is bleeding.", None))
+
+    return happened, logs
+
+
+def handle_base_skill_winters_coronation(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+
+    bleed_factor = cfg.get("bleed_factor", 0.0)
+    bleed_duration = cfg.get("bleed_duration", 1)
+    if bleed_factor > 0:
+        bleed_data = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_WINTERS_CORONATION_BLEED,
+            "dot_type": DoTType.BLEED,
+            "status_effect_factor": bleed_factor,
+            "duration": bleed_duration,
+            "activate_next_round": True,
+        }
+        created_bleed = opponent_army._create_and_add_single_effect(
+            bleed_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_bleed:
+            happened = True
+            logs.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_WINTERS_CORONATION_BLEED}' on {opponent_army.name} (Factor: {bleed_factor}) "
+                    f"for {bleed_duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    if triggering_army.current_troop_count > opponent_army.current_troop_count:
+        slow_duration = cfg.get("slow_duration", 1)
+        slow_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_SLOW_DEBUFF,
+            "duration": slow_duration,
+            "activate_next_round": True,
+        }
+        created_slow = opponent_army._create_and_add_single_effect(
+            slow_data, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_slow:
+            happened = True
+            logs.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {opponent_army.name} for {slow_duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+    elif triggering_army.current_troop_count < opponent_army.current_troop_count:
+        shield_factor = cfg.get("shield_factor", 0.0)
+        shield_duration = cfg.get("shield_duration", 1)
+        if shield_factor > 0:
+            shield_data = {
+                "effect_type": EffectType.SHIELD,
+                "name": EFFECT_NAME_WINTERS_CORONATION_SHIELD,
+                "duration": shield_duration,
+                "magnitude_calc_type": "dynamic_shield_resistance_v1",
+                "shield_factor": shield_factor,
+                "activate_next_round": True,
+            }
+            created_shield = triggering_army._create_and_add_single_effect(
+                shield_data, skill_def["id"], triggering_army, triggering_army, opponent_army
+            )
+            if created_shield:
+                happened = True
+                est_mag = (
+                    simulator._calculate_shield_magnitude_for_logging(triggering_army, opponent_army, float(shield_factor))
+                    if simulator
+                    else created_shield.magnitude
+                )
+                logs.append(
+                    (
+                        f"Gains shield ({created_shield.get_functionality_description()}) for {shield_duration + 1} rounds (starting next round). Est. Mag: {est_mag:.0f}",
+                        None,
+                    )
+                )
+
+        if cfg.get("purify_count", 0) > 0:
+            eligible_debuffs = [
+                eff
+                for eff in triggering_army.active_effects
+                if (
+                    eff.effect_type == EffectType.DEBUFF
+                    or (
+                        eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                        and eff.config.get("dot_type") in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
+                    )
+                    or eff.config.get("prevents_counterattack")
+                    or eff.config.get("prevents_basic_attack")
+                    or eff.config.get("prevents_rage_skill_cast")
+                )
+            ]
+            if eligible_debuffs:
+                selected = random.choice(eligible_debuffs)
+                pending_cleanse = {
+                    "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                    "name": EFFECT_NAME_WINTERS_CORONATION_PURIFY,
+                    "duration": 0,
+                    "config": {
+                        "debuff_ids_to_remove": [selected.id],
+                        "debuff_names_removed_log": [selected.name],
+                    },
+                    "activate_next_round": True,
+                }
+                if triggering_army._create_and_add_single_effect(
+                    pending_cleanse, skill_def["id"], triggering_army, triggering_army, opponent_army
+                ):
+                    happened = True
+                    logs.append((f"Purifies '{selected.name}' next round.", None))
+            else:
+                logs.append(("No debuffs to purify.", None))
+
+    return happened, logs
+
+
 def handle_base_skill_nayas_hunting_instinct(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],

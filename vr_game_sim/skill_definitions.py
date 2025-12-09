@@ -64,7 +64,9 @@ from .skill_logic.talent_handlers import (
     handle_talent_thirst_for_blood, handle_talent_seas_grace,
     handle_talent_forceful_ambush, handle_talent_trapped_beasts_struggle,
     handle_talent_bear_spirit_protection, handle_talent_assassination_raid,
-    handle_talent_scale_armor_shield, handle_talent_feigned_death_strike
+    handle_talent_scale_armor_shield, handle_talent_feigned_death_strike,
+    handle_talent_shattered_edge, handle_talent_oathbreakers_blade, handle_talent_exiled_bloodblade,
+    handle_talent_northern_blood_feast, handle_talent_cold_iron_oath, handle_talent_royal_authority
 )
 from .skill_logic.base_skill_handlers import (
     handle_base_skill_planned_attack, handle_base_skill_flame_guardian,
@@ -93,7 +95,8 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_shield_breaker,
     handle_base_skill_plague, handle_base_skill_fatal_flying_axe,
     handle_base_skill_vengeful_fury, handle_base_skill_ride_the_waves, handle_base_skill_nature_blessing,
-    handle_base_skill_nayas_hunting_instinct, handle_base_skill_inspiration_arrives
+    handle_base_skill_nayas_hunting_instinct, handle_base_skill_inspiration_arrives,
+    handle_base_skill_broken_blade_charge, handle_base_skill_winters_coronation
 )
 from .skill_logic.plugin_skill_handlers import (
     handle_plugin_divine_blessing, handle_plugin_shield_support, handle_plugin_freyas_blessing,
@@ -149,7 +152,8 @@ from .skill_logic.rage_skill_handlers import (
     handle_rage_spirit_battleship,
     # LEANDRA & MARGIT RAGE HANDLERS
     handle_rage_serrated_flourish, handle_rage_raging_tide,
-    handle_rage_blizzard_spear, handle_rage_indomitable_spirit
+    handle_rage_blizzard_spear, handle_rage_indomitable_spirit,
+    handle_rage_time_of_severance, handle_rage_triumphant_presence
 )
 from .skill_logic.utility_skill_handlers import (
     handle_generic_single_damage_skill,
@@ -1381,6 +1385,142 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_spirit_battleship,
         "config": {"damage_factor": 2800.0, "def_reduction_magnitude": -0.30, "def_reduction_duration": 3}
+    },
+
+    # --- Greta Skills ---
+    "base_skill_broken_blade_charge": {
+        "id": "base_skill_broken_blade_charge", "name": "Broken Blade Charge", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_base_skill_broken_blade_charge,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {
+            "shield_chance": 0.25,
+            "shield_factor": 400.0,
+            "shield_duration": 1,
+            "slow_chance": 0.25,
+            "slow_duration": 1,
+            "silence_damage_chance": 0.50,
+            "silence_damage_factor": 500.0,
+            "bleed_heal_chance": 0.20,
+            "bleed_heal_factor": 400.0,
+        },
+    },
+    "rage_skill_time_of_severance": {
+        "id": "rage_skill_time_of_severance", "name": "Time of Severance", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_time_of_severance,
+        "config": {
+            "damage_factor": 1600.0,
+            "bleed_factor": 400.0,
+            "bleed_duration": 1,
+            "retribution_rate": 0.50,
+            "retribution_duration": 1,
+            "slow_damage_factor": 600.0,
+        },
+    },
+    "talent_shattered_edge": {
+        "id": "talent_shattered_edge", "name": "Shattered Edge", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": handle_talent_shattered_edge,
+        "effects_to_apply": [],
+        "config": {"basic_damage_bonus": 0.20, "bleed_damage_bonus": 0.20},
+    },
+    "talent_oathbreakers_blade": {
+        "id": "talent_oathbreakers_blade", "name": "Oathbreaker's Blade", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_oathbreakers_blade,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {
+            "silence_duration": 0,
+            "damage_factor": 800.0,
+            "damage_reduction": -0.20,
+            "reduction_duration": 0,
+            "heal_factor": 600.0,
+        },
+    },
+    "talent_exiled_bloodblade": {
+        "id": "talent_exiled_bloodblade", "name": "Exiled Bloodblade", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_exiled_bloodblade,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {
+            "trigger_chance": 0.20,
+            "bleed_factor": 400.0,
+            "bleed_duration": 0,
+            "retribution_rate": 0.50,
+            "retribution_duration": 0,
+            "silence_duration": 0,
+            "shield_factor": 400.0,
+            "shield_duration": 0,
+        },
+    },
+
+    # --- Sigrid Skills ---
+    "base_skill_winters_coronation": {
+        "id": "base_skill_winters_coronation", "name": "Winter's Coronation", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_base_skill_winters_coronation,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {
+            "bleed_factor": 400.0,
+            "bleed_duration": 1,
+            "slow_duration": 1,
+            "shield_factor": 400.0,
+            "shield_duration": 1,
+            "purify_count": 1,
+        },
+    },
+    "rage_skill_triumphant_presence": {
+        "id": "rage_skill_triumphant_presence", "name": "Triumphant Presence", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_triumphant_presence,
+        "config": {
+            "damage_factor": 1800.0,
+            "retribution_rate": 0.50,
+            "retribution_duration": 1,
+            "bleed_heal_factor": 400.0,
+            "slow_damage_factor": 400.0,
+        },
+    },
+    "talent_northern_blood_feast": {
+        "id": "talent_northern_blood_feast", "name": "Northern Blood Feast", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_northern_blood_feast,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {
+            "basic_damage_bonus": 0.30,
+            "bleed_chance": 0.50,
+            "bleed_factor": 150.0,
+            "bleed_duration": 0,
+        },
+    },
+    "talent_cold_iron_oath": {
+        "id": "talent_cold_iron_oath", "name": "Cold Iron Oath", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_cold_iron_oath,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {
+            "trigger_chance": 0.20,
+            "damage_factor": 400.0,
+            "slow_damage_factor": 400.0,
+            "bleed_heal_chance": 0.50,
+            "heal_factor": 400.0,
+        },
+    },
+    "talent_royal_authority": {
+        "id": "talent_royal_authority", "name": "Royal Authority", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_royal_authority,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {
+            "trigger_chance": 0.15,
+            "retribution_rate": 0.50,
+            "retribution_duration": 1,
+            "silence_chance": 0.50,
+            "silence_duration": 0,
+            "damage_taken_chance": 0.50,
+            "damage_taken_magnitude": 0.20,
+            "damage_taken_duration": 0,
+        },
     },
 
 

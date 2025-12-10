@@ -182,6 +182,35 @@ def test_gem_retribution_counts_kills():
     assert defender.skill_kill_totals.get("gem_retribution", 0.0) > 0.0
 
 
+def test_retribution_rate_capped_at_100_percent():
+    attacker, defender, sim = _make_armies()
+
+    effect_data = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": "Gem Retribution",
+        "duration": -1,
+        "config": {"retribution_rate": 2.0},
+    }
+    effect = defender._create_and_add_single_effect(
+        effect_data,
+        "gem_retribution",
+        defender,
+        defender,
+        attacker,
+    )
+    assert effect is not None
+    defender.activate_queued_effects()
+
+    sim._apply_retribution_damage(
+        defender=defender,
+        attacker=attacker,
+        damage_taken=100.0,
+        context_desc="test",
+    )
+
+    assert attacker.pending_hp_damage_this_round == pytest.approx(100.0)
+
+
 def test_skill_summary_includes_gem_skills():
     gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
     build_army_skill_summary = gui_main.build_army_skill_summary

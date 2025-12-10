@@ -1058,13 +1058,13 @@ class GameSimulator:
                         f"Hero 1 rage skill deferred to Round {army.hero1_rage_skill_scheduled_round} due to Silence.",
                     )
                 elif hero_slot == 2:
-                    if army.hero2_rage_skill_primed_for_round == army.army_round:
-                        army.hero2_rage_skill_primed_for_round += 1
-                        self._log_skill_trigger(
-                            army,
-                            skill_def['name'],
-                            f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence.",
-                        )
+                    next_attempt_round = army.army_round + 1
+                    army.hero2_rage_skill_primed_for_round = next_attempt_round
+                    self._log_skill_trigger(
+                        army,
+                        skill_def['name'],
+                        f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence.",
+                    )
                 return
 
         log_prefix = f"(Delayed Hero 2) " if is_hero2_delayed_trigger else f"{hero_who_triggered_name}'s "

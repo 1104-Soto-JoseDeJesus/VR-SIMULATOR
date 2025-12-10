@@ -116,8 +116,6 @@ class EffectInstance:
             return False
         if not include_shields and self.effect_type == EffectType.SHIELD:
             return False
-        if self.effect_type == EffectType.HEAL_OVER_TIME:
-            return False
         if not self.config.get("is_dispellable", True):
             return False
         return self.is_beneficial_for_target()

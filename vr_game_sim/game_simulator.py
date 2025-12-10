@@ -691,6 +691,7 @@ class GameSimulator:
 
         for effect in retribution_effects:
             rate = float(effect.config.get("retribution_rate", 0))
+            rate = min(max(rate, 0.0), 1.0)
             if rate <= 0:
                 continue
             returned_hp = damage_taken * rate

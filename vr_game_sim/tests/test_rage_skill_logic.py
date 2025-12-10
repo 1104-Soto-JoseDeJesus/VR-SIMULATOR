@@ -106,6 +106,44 @@ def test_base_rage_granted_when_hero2_silenced():
     assert army1.base_rage_awarded_this_round
 
 
+def test_hero2_rage_skill_requeues_while_silenced():
+    hero1 = Hero("H1", [], ["base_skill_snakes_frenzy"], [], SKILL_REGISTRY_GLOBAL)
+    hero2 = Hero("H2", [], ["base_skill_snakes_frenzy"], [], SKILL_REGISTRY_GLOBAL)
+    unit = Unit("pikemen", 5, initial_count=10)
+    army1 = Army("A1", unit, heroes=[hero1, hero2])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+
+    sim = GameSimulator(army1, army2)
+    sim.round = 1
+    army1.army_round = sim.round
+
+    army1.current_rage = 1000
+    army1.hero2_rage_skill_primed_for_round = sim.round
+    silence = EffectInstance(
+        uuid.uuid4(),
+        "s",
+        EffectType.DEBUFF,
+        2,
+        config={"prevents_rage_skill_cast": True},
+        name=EFFECT_NAME_SILENCE_DEBUFF,
+    )
+    army1.active_effects.append(silence)
+
+    sim._execute_rage_skills(army1, army2, is_hero2_delayed_trigger=True)
+    assert army1.hero2_rage_skill_primed_for_round == 2
+
+    army1.army_round += 1
+    sim.round += 1
+    sim._execute_rage_skills(army1, army2, is_hero2_delayed_trigger=True)
+    assert army1.hero2_rage_skill_primed_for_round == 3
+
+    army1.active_effects.clear()
+    army1.army_round += 1
+    sim.round += 1
+    sim._execute_rage_skills(army1, army2, is_hero2_delayed_trigger=True)
+    assert army1.hero2_rage_skill_primed_for_round is None
+
+
 def test_rage_skill_resets_to_round_gain():
     army1 = make_army_with_rage_skill("A1")
     army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])

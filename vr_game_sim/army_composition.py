@@ -806,9 +806,7 @@ class Army:
             EFFECT_NAME_BROKEN_BLADE_DEBUFF,
             EFFECT_NAME_SILENCE_DEBUFF,
         }
-        if canonical_effect_name in debuff_limit_names:
-            if any(eff.name == canonical_effect_name for eff in target_army.active_effects):
-                return None
+        if target_army.is_rally and canonical_effect_name in debuff_limit_names:
             if target_army.simulator:
                 current_round = getattr(
                     target_army,

@@ -61,6 +61,8 @@ def test_debuffs_have_two_round_cooldown():
         EFFECT_NAME_DISARM_DEBUFF,
         EFFECT_NAME_BROKEN_BLADE_DEBUFF,
     ]
+    army2.is_rally = True
+
     for name in effect_names:
         data = {
             "effect_type": EffectType.DEBUFF,
@@ -83,3 +85,21 @@ def test_debuffs_have_two_round_cooldown():
         army2.upcoming_effects.clear()
         army2.effects_to_activate_next_round.clear()
         army2.debuff_last_applied_round.clear()
+
+
+def test_rally_only_debuff_cooldown(sim, army1, army2):
+    """Non-rally armies should not throttle duplicate debuff scheduling."""
+
+    data = {
+        "effect_type": EffectType.DEBUFF,
+        "name": EFFECT_NAME_SILENCE_DEBUFF,
+        "duration": 1,
+        "activate_next_round": True,
+    }
+
+    sim.round = 5
+    first = army2._create_and_add_single_effect(data, "s", army1, army2, army1)
+    assert first
+
+    second = army2._create_and_add_single_effect(data, "s", army1, army2, army1)
+    assert second

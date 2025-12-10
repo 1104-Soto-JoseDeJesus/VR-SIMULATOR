@@ -194,6 +194,41 @@ def test_mount_cooldowns_can_be_disabled(skill_registry_guard):
     assert log.count(("mount", 2)) == 1
 
 
+def test_counterattack_cooldown_respected_with_hero_toggle_disabled(skill_registry_guard):
+    log: list[tuple[str, int]] = []
+    counter_skill = {
+        "id": "counter_cd_skill",
+        "name": "Counter Cooldown",
+        "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_COUNTER_ATTACK,
+        "trigger_chance": 1.0,
+        "config": {"cooldown_rounds": 1},
+        "logic_handler": _logic_factory(log, "counter"),
+    }
+    _register_skill(counter_skill, skill_registry_guard)
+
+    army1 = _build_army_with_hero([counter_skill["id"]])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army1, army2, hero_cooldowns_enabled=False)
+
+    army1.army_round = 1
+    sim.round = 1
+    _reset_round_state(army1)
+
+    for _ in range(3):
+        sim._process_skill_triggers(army1, army2, SkillTriggerType.ON_COUNTER_ATTACK)
+
+    army1.army_round = 2
+    sim.round = 2
+    _reset_round_state(army1)
+
+    for _ in range(2):
+        sim._process_skill_triggers(army1, army2, SkillTriggerType.ON_COUNTER_ATTACK)
+
+    assert log.count(("counter", 1)) == 1
+    assert log.count(("counter", 2)) == 1
+
+
 def test_chance_per_round_ignores_cooldown_modifiers(skill_registry_guard):
     log: list[tuple[str, int]] = []
 

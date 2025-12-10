@@ -871,10 +871,11 @@ class GameSimulator:
                     skill_cfg = skill_def.get("config", {})
                     cooldown = None
                     if skill_def.get("trigger") != SkillTriggerType.CHANCE_PER_ROUND:
+                        cooldown_enabled = self._cooldown_enabled_for_skill(skill_def)
+                        if skill_def.get("trigger") == SkillTriggerType.ON_COUNTER_ATTACK:
+                            cooldown_enabled = True
                         cooldown = (
-                            skill_cfg.get("cooldown_rounds")
-                            if self._cooldown_enabled_for_skill(skill_def)
-                            else None
+                            skill_cfg.get("cooldown_rounds") if cooldown_enabled else None
                         )
                     an_effect_truly_happened = False
                     log_details_current_skill: List[Tuple[str, Optional[Dict[str, Any]]]] = []

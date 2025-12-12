@@ -116,7 +116,8 @@ from .skill_logic.plugin_skill_handlers import (
     handle_plugin_blessed_healing, handle_plugin_dampened_spirits, handle_plugin_rapid_defense,
     handle_plugin_rare_viking_hymn, handle_plugin_rare_defense_up,
     handle_plugin_rest_and_counterattack, handle_plugin_bloodstained_icefield,
-    handle_plugin_this_too_shall_pass,
+    handle_plugin_this_too_shall_pass, handle_plugin_silent_invasion,
+    handle_plugin_deadly_counterattack, handle_plugin_bone_corroding_arrow,
     # ROSKY PLUGIN SKILL HANDLERS
     handle_plugin_trap_of_despair, handle_plugin_poison_arrow, handle_plugin_divine_shield
 )
@@ -1908,6 +1909,36 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_plugin_this_too_shall_pass,
         "labels": [PluginSkillLabel.COMMAND],
         "config": {"damage_factor": 1000.0, "heal_factor": 1000.0, "trigger_interval": 9}
+    },
+    "plugin_silent_invasion": {
+        "id": "plugin_silent_invasion", "name": "Silent Invasion", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_silent_invasion,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {
+            "slow_trigger_chance": 0.25, "damage_factor": 650.0, "silence_duration": 0,
+            "no_slow_trigger_chance": 0.25, "bleed_factor": 325.0, "bleed_duration": 1,
+        }
+    },
+    "plugin_deadly_counterattack": {
+        "id": "plugin_deadly_counterattack", "name": "Deadly Counterattack", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_deadly_counterattack,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {
+            "damage_chance": 0.20, "damage_factor": 450.0, "heal_chance": 0.15,
+            "hot_factor": 200.0, "hot_duration": 1, "cooldown_rounds": 3,
+        }
+    },
+    "plugin_bone_corroding_arrow": {
+        "id": "plugin_bone_corroding_arrow", "name": "Bone-corroding Arrow", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_bone_corroding_arrow,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {
+            "damage_factor": 500.0, "trigger_interval": 6,
+            "reduction_magnitude": -0.30, "reduction_duration": 2,
+        }
     },
 
     # --- Additional Plugin Skills (Rosky) ---

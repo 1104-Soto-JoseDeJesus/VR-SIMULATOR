@@ -23,6 +23,7 @@
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/troop_difference.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/troop_difference.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/unrevivable_victory_distribution.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/unrevivable_victory_distribution.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/victory_distribution.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/victory_distribution.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/setups/_last_run_setup.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/setups/_last_run_setup.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

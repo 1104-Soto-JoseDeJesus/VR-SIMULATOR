@@ -1136,14 +1136,24 @@ def handle_mount_periodic_rage_heal_and_condition(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     an_effect_happened = False
 
+    has_lower_troops_than_opponent = bool(
+        opponent_army
+        and triggering_army.current_troop_count < opponent_army.current_troop_count
+    )
+
     heal_factor = float(cfg.get("heal_factor", 0.0))
-    if heal_factor > 0:
+    if heal_factor > 0 and has_lower_troops_than_opponent:
         healed_amount = triggering_army.calculate_and_add_pending_healing(
             heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
         )
         if healed_amount > 0:
             an_effect_happened = True
-            log_details.append((f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+            log_details.append(
+                (
+                    f"Heals self for {healed_amount:.0f} HP (Factor: {heal_factor}) while having fewer troops than the opponent.",
+                    None,
+                )
+            )
 
     rage_gain = float(cfg.get("rage_gain", 0.0))
     if rage_gain > 0:
@@ -1165,11 +1175,7 @@ def handle_mount_periodic_rage_heal_and_condition(
             an_effect_happened = True
             log_details.append((f"Recovers {rage_gain:.0f} rage next round.", None))
 
-    if (
-        cfg.get("apply_reduction_if_lower_troops")
-        and opponent_army
-        and triggering_army.current_troop_count < opponent_army.current_troop_count
-    ):
+    if cfg.get("apply_reduction_if_lower_troops") and has_lower_troops_than_opponent:
         reduction_data = {
             "effect_type": EffectType.STAT_MOD,
             "name": cfg.get("reduction_effect_name") or skill_def.get("name", "Mount Skill"),

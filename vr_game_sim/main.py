@@ -276,6 +276,7 @@ def _run_single_battle(
     dynamic_settings: Dict[str, float] | None = None,
     *,
     troop_scalar_multiplier: float | None = None,
+    advantage_mode: str = "multiplicative",
     return_report: bool = False,
     cooldowns_enabled: bool = True,
     hero_cooldowns_enabled: Optional[bool] = None,
@@ -338,6 +339,7 @@ def _run_single_battle(
         plugin_cooldowns_enabled=plugin_cd,
         gem_cooldowns_enabled=gem_cd,
         mount_cooldowns_enabled=mount_cd,
+        advantage_mode=advantage_mode,
     )
     with contextlib.redirect_stdout(io.StringIO()):
         sim.simulate_battle()
@@ -363,6 +365,7 @@ def _run_single_battle_with_multiplier(
     seed: int | None,
     dynamic_settings: Dict[str, float] | None,
     troop_scalar_multiplier: float,
+    advantage_mode: str,
     cooldowns_enabled: bool = True,
     hero_cooldowns_enabled: Optional[bool] = None,
     plugin_cooldowns_enabled: Optional[bool] = None,
@@ -374,6 +377,7 @@ def _run_single_battle_with_multiplier(
         seed=seed,
         dynamic_settings=dynamic_settings,
         troop_scalar_multiplier=troop_scalar_multiplier,
+        advantage_mode=advantage_mode,
         cooldowns_enabled=cooldowns_enabled,
         hero_cooldowns_enabled=hero_cooldowns_enabled,
         plugin_cooldowns_enabled=plugin_cooldowns_enabled,
@@ -396,6 +400,7 @@ def run_additional_simulations(
     plugin_cooldowns_enabled: Optional[bool] = None,
     gem_cooldowns_enabled: Optional[bool] = None,
     mount_cooldowns_enabled: Optional[bool] = None,
+    advantage_mode: str = "multiplicative",
 ) -> tuple[float, Optional[Dict[str, Any]]]:
     """Runs extra simulations and computes summary statistics.
 
@@ -444,6 +449,7 @@ def run_additional_simulations(
         ) as ex:
             settings_iter = repeat(dynamic_settings_payload, runs)
             multiplier_iter = repeat(current_multiplier, runs)
+            advantage_iter = repeat(advantage_mode, runs)
             cooldown_base_iter = repeat(bool(cooldowns_enabled), runs)
             hero_cd_iter = repeat(hero_cd, runs)
             plugin_cd_iter = repeat(plugin_cd, runs)
@@ -455,6 +461,7 @@ def run_additional_simulations(
                 seeds,
                 settings_iter,
                 multiplier_iter,
+                advantage_iter,
                 cooldown_base_iter,
                 hero_cd_iter,
                 plugin_cd_iter,
@@ -481,6 +488,7 @@ def run_additional_simulations(
                 seed=seed_val,
                 dynamic_settings=dynamic_settings_payload,
                 troop_scalar_multiplier=current_multiplier,
+                advantage_mode=advantage_mode,
                 cooldowns_enabled=cooldowns_enabled,
                 hero_cooldowns_enabled=hero_cd,
                 plugin_cooldowns_enabled=plugin_cd,
@@ -578,6 +586,7 @@ def run_additional_simulations(
             ),
             "dynamic_settings": dict(dynamic_settings_payload),
             "troop_scalar_multiplier": current_multiplier,
+            "advantage_mode": advantage_mode,
             "round_count": (
                 int(rounds_taken[best_idx]) if best_idx < len(rounds_taken) else None
             ),

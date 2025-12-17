@@ -4477,6 +4477,7 @@ class SimulationWorker(QtCore.QThread):
         gem_cooldowns_enabled: bool = True,
         mount_cooldowns_enabled: bool = True,
         damage_reduction_affects_dots: bool = True,
+        advantage_mode: str = "multiplicative",
     ) -> None:
         super().__init__()
         self.setup_data = setup_data
@@ -4493,6 +4494,7 @@ class SimulationWorker(QtCore.QThread):
         self.gem_cooldowns_enabled: bool = bool(gem_cooldowns_enabled)
         self.mount_cooldowns_enabled: bool = bool(mount_cooldowns_enabled)
         self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
+        self.advantage_mode: str = advantage_mode
 
     def cancel(self) -> None:
         """Request the simulation to stop."""
@@ -4520,6 +4522,7 @@ class SimulationWorker(QtCore.QThread):
                 plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
                 gem_cooldowns_enabled=self.gem_cooldowns_enabled,
                 mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+                advantage_mode=self.advantage_mode,
             )
             self.win_rate = float(win_rate)
             self.best_match = dict(best_match) if isinstance(best_match, dict) else None
@@ -4564,6 +4567,7 @@ class SimulationWorker(QtCore.QThread):
                 gem_cooldowns_enabled=self.gem_cooldowns_enabled,
                 mount_cooldowns_enabled=self.mount_cooldowns_enabled,
                 damage_reduction_affects_dots=self.damage_reduction_affects_dots,
+                advantage_mode=self.advantage_mode,
             )
             report_text = sim.simulate_battle()
             rounds = report_builder.get_rounds()
@@ -5677,6 +5681,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.gem_cooldowns_enabled: bool = True
         self.mount_cooldowns_enabled: bool = True
         self.damage_reduction_affects_dots: bool = True
+        self.troop_advantage_mode: str = "multiplicative"
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
         self._troop_scalar_multiplier = troop_scalar_config.get_multiplier()
         main_layout = self._init_tabs()
@@ -5728,6 +5733,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_dot_damage_reduction_toggled(self, checked: bool) -> None:
         self.damage_reduction_affects_dots = bool(checked)
+
+    def _set_troop_advantage_mode(self, mode: str) -> None:
+        self.troop_advantage_mode = mode
 
     def _open_gear_dialog(self, frame: ArmyFrame) -> None:
         hero_names = [frame.hero1_combo.currentText(), frame.hero2_combo.currentText()]
@@ -5803,6 +5811,22 @@ class MainWindow(QtWidgets.QMainWindow):
         mount_cooldowns_action.setCheckable(True)
         mount_cooldowns_action.setChecked(self.mount_cooldowns_enabled)
         mount_cooldowns_action.toggled.connect(self._on_mount_cooldowns_toggled)
+        dbg_menu.addSection("Troop advantage")
+        advantage_group = QtGui.QActionGroup(self)
+        advantage_group.setExclusive(True)
+        advantage_modes = [
+            ("Multiplicative", "multiplicative"),
+            ("Additive", "additive"),
+            ("Off", "off"),
+        ]
+        for label, mode in advantage_modes:
+            action = dbg_menu.addAction(label)
+            action.setCheckable(True)
+            action.setActionGroup(advantage_group)
+            action.setChecked(self.troop_advantage_mode == mode)
+            action.triggered.connect(
+                lambda checked, value=mode: checked and self._set_troop_advantage_mode(value)
+            )
         dot_damage_reduction_action = dbg_menu.addAction("Damage reductions affect DoTs")
         dot_damage_reduction_action.setCheckable(True)
         dot_damage_reduction_action.setChecked(self.damage_reduction_affects_dots)
@@ -10675,6 +10699,7 @@ class MainWindow(QtWidgets.QMainWindow):
             gem_cooldowns_enabled=self.gem_cooldowns_enabled,
             mount_cooldowns_enabled=self.mount_cooldowns_enabled,
             damage_reduction_affects_dots=self.damage_reduction_affects_dots,
+            advantage_mode=self.troop_advantage_mode,
         )
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))

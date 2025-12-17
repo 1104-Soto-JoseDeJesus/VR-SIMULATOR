@@ -72,6 +72,22 @@ class GameSimulator:
         if adv.get(def_type) == atk_type: return 0.95
         return 1.0
 
+    def _resolve_advantage_adjustment(
+        self, attacker_unit: Unit, defender_unit: Unit
+    ) -> tuple[float, float]:
+        base_multiplier = GameSimulator.advantage_adjust(attacker_unit, defender_unit)
+        normalized_mode = (self.advantage_mode or "multiplicative").lower()
+        if normalized_mode == "off":
+            return 1.0, 0.0
+        if normalized_mode == "additive":
+            advantage_bonus = 0.0
+            if base_multiplier > 1.0:
+                advantage_bonus = 0.05
+            elif base_multiplier < 1.0:
+                advantage_bonus = -0.05
+            return 1.0, advantage_bonus
+        return base_multiplier, 0.0
+
     def _is_mount_skill(self, skill_def: Dict[str, Any]) -> bool:
         skill_type = skill_def.get("type")
         mount_type = getattr(SkillType, "MOUNT_SKILL", None)
@@ -124,6 +140,7 @@ class GameSimulator:
         gem_cooldowns_enabled: bool | None = None,
         mount_cooldowns_enabled: bool | None = None,
         damage_reduction_affects_dots: bool = True,
+        advantage_mode: str = "multiplicative",
     ):
         self.army1: Army = army1
         self.army2: Army = army2
@@ -131,6 +148,7 @@ class GameSimulator:
         self.army2.register_simulator(self)
         self.round: int = 0
         self.mode: str = mode
+        self.advantage_mode: str = advantage_mode
         base_cooldown_state = bool(cooldowns_enabled)
         self.hero_cooldowns_enabled: bool = (
             base_cooldown_state if hero_cooldowns_enabled is None else bool(hero_cooldowns_enabled)
@@ -431,37 +449,38 @@ class GameSimulator:
             total_skill_percentage_points += 0.5
             crit_triggered = True
 
-        final_skill_damage_multiplier = max(0.05, 1.0 + total_skill_percentage_points)
+        advantage_multiplier, advantage_bonus = self._resolve_advantage_adjustment(
+            source_army.unit, calc_target.unit
+        )
+
+        def advantaged_multiplier(base_percentage_points: float) -> float:
+            return max(0.05, 1.0 + base_percentage_points + advantage_bonus) * advantage_multiplier
+
+        final_skill_damage_multiplier = advantaged_multiplier(total_skill_percentage_points)
 
         skill_hp_damage_potential = (own_total_attack / enemy_total_defense) * own_troop_scalar * (
             damage_factor / 200.0)
-        damage_after_percent_mods_no_advantage = skill_hp_damage_potential * final_skill_damage_multiplier
+        damage_after_percent_mods = skill_hp_damage_potential * final_skill_damage_multiplier
+        damage_after_all_mods = damage_after_percent_mods
 
-        advantage_multiplier = GameSimulator.advantage_adjust(
-            source_army.unit, calc_target.unit
+        dmg_multiplier_no_dr = advantaged_multiplier(
+            skill_damage_percent_boosts + defender_positive_mags
         )
-        damage_after_all_mods = damage_after_percent_mods_no_advantage * advantage_multiplier
+        damage_no_dr = skill_hp_damage_potential * dmg_multiplier_no_dr
 
-        dmg_multiplier_no_dr = max(
-            0.05,
-            1.0 + skill_damage_percent_boosts + defender_positive_mags,
-        )
-        damage_no_dr = skill_hp_damage_potential * dmg_multiplier_no_dr * advantage_multiplier
-
-        dmg_multiplier_no_boost = max(
-            0.05, 1.0 + attacker_negative_mags + damage_taken_percent_mods
+        dmg_multiplier_no_boost = advantaged_multiplier(
+            attacker_negative_mags + damage_taken_percent_mods
         )
         damage_no_boost = (
-            skill_hp_damage_potential * dmg_multiplier_no_boost * advantage_multiplier
+            skill_hp_damage_potential * dmg_multiplier_no_boost
         )
 
-        dmg_multiplier_no_defender_positive = max(
-            0.05, 1.0 + skill_damage_percent_boosts + total_dr_magnitude
+        dmg_multiplier_no_defender_positive = advantaged_multiplier(
+            skill_damage_percent_boosts + total_dr_magnitude
         )
         damage_no_defender_positive = (
             skill_hp_damage_potential
             * dmg_multiplier_no_defender_positive
-            * advantage_multiplier
         )
 
         preview_hp_damage_to_troops, preview_absorbed_by_shield = apply_target.preview_shield_absorption(
@@ -524,11 +543,10 @@ class GameSimulator:
         if enemy_hp_per_troop <= 0:
             enemy_hp_per_troop = 1
         if crit_triggered:
-            base_multiplier_no_crit = max(0.05, 1.0 + base_skill_percentage_points)
+            base_multiplier_no_crit = advantaged_multiplier(base_skill_percentage_points)
             damage_without_crit = (
                 skill_hp_damage_potential
                 * base_multiplier_no_crit
-                * advantage_multiplier
             )
             extra_hp_from_crit = max(0.0, damage_after_all_mods - damage_without_crit)
             crit_troops = (
@@ -1299,33 +1317,33 @@ class GameSimulator:
             sum_defender_reduction_magnitudes
         )
 
-        final_damage_multiplier = max(0.05, 1.0 + total_additive_percentage_points)
-        damage_with_percent_mods = raw_damage_potential * final_damage_multiplier
-
-        advantage_multiplier = GameSimulator.advantage_adjust(att.unit, dfd.unit)
-        damage_after_all_percent_mods = damage_with_percent_mods * advantage_multiplier
-
-        dmg_multiplier_no_dr = max(
-            0.05,
-            1.0 + sum_specific_attack_magnitudes + sum_general_attacker_magnitudes + defender_positive_mags,
+        advantage_multiplier, advantage_bonus = self._resolve_advantage_adjustment(
+            att.unit, dfd.unit
         )
-        damage_no_dr = raw_damage_potential * dmg_multiplier_no_dr * advantage_multiplier
 
-        dmg_multiplier_no_boost = max(
-            0.05,
-            1.0 + attacker_negative_mags + sum_defender_reduction_magnitudes,
+        def advantaged_multiplier(base_percentage_points: float) -> float:
+            return max(0.05, 1.0 + base_percentage_points + advantage_bonus) * advantage_multiplier
+
+        final_damage_multiplier = advantaged_multiplier(total_additive_percentage_points)
+        damage_after_all_percent_mods = raw_damage_potential * final_damage_multiplier
+
+        dmg_multiplier_no_dr = advantaged_multiplier(
+            sum_specific_attack_magnitudes + sum_general_attacker_magnitudes + defender_positive_mags,
         )
-        damage_no_boost = raw_damage_potential * dmg_multiplier_no_boost * advantage_multiplier
+        damage_no_dr = raw_damage_potential * dmg_multiplier_no_dr
 
-        dmg_multiplier_no_defender_positive = max(
-            0.05,
-            1.0
-            + sum_specific_attack_magnitudes
+        dmg_multiplier_no_boost = advantaged_multiplier(
+            attacker_negative_mags + sum_defender_reduction_magnitudes,
+        )
+        damage_no_boost = raw_damage_potential * dmg_multiplier_no_boost
+
+        dmg_multiplier_no_defender_positive = advantaged_multiplier(
+            sum_specific_attack_magnitudes
             + sum_general_attacker_magnitudes
             + total_dr_magnitude,
         )
         damage_no_defender_positive = (
-            raw_damage_potential * dmg_multiplier_no_defender_positive * advantage_multiplier
+            raw_damage_potential * dmg_multiplier_no_defender_positive
         )
 
         preview_hp_damage_to_troops, preview_absorbed_by_shield = dfd.preview_shield_absorption(

@@ -110,7 +110,7 @@ def test_judgements_fury_queues_marker_for_next_round():
         army.upcoming_effects.extend(army.effects_to_activate_next_round)
         army.effects_to_activate_next_round.clear()
     army.activate_queued_effects()
-    army.process_periodic_effects('end_of_round', opponent=enemy)
+    army.process_periodic_effects('start_of_round', opponent=enemy)
     army.activate_queued_effects()
     assert sum(1 for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER) == 1
 
@@ -134,7 +134,7 @@ def test_judgements_fury_only_one_marker_per_round():
         army.upcoming_effects.extend(army.effects_to_activate_next_round)
         army.effects_to_activate_next_round.clear()
     army.activate_queued_effects()
-    army.process_periodic_effects('end_of_round', opponent=enemy)
+    army.process_periodic_effects('start_of_round', opponent=enemy)
     army.activate_queued_effects()
     markers = [e for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER]
     assert len(markers) == 1
@@ -154,7 +154,7 @@ def test_war_blessing_queues_marker_for_next_round():
         army.upcoming_effects.extend(army.effects_to_activate_next_round)
         army.effects_to_activate_next_round.clear()
     army.activate_queued_effects()
-    army.process_periodic_effects('end_of_round', opponent=enemy)
+    army.process_periodic_effects('start_of_round', opponent=enemy)
     army.activate_queued_effects()
     assert sum(1 for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER) == 1
 
@@ -174,7 +174,7 @@ def test_judgement_mark_queues_markers_for_next_round():
         army.upcoming_effects.extend(army.effects_to_activate_next_round)
         army.effects_to_activate_next_round.clear()
     army.activate_queued_effects()
-    army.process_periodic_effects('end_of_round', opponent=enemy)
+    army.process_periodic_effects('start_of_round', opponent=enemy)
     army.activate_queued_effects()
     assert sum(1 for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER) == 3
 

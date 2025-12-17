@@ -1324,7 +1324,7 @@ class Army:
                         self.active_effects.remove(effect)
 
             elif effect.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
-                if phase == 'end_of_round':
+                if phase == 'start_of_round':
                     cnt = int(effect.config.get("marker_count", 1))
                     for _ in range(cnt):
                         marker_data = {

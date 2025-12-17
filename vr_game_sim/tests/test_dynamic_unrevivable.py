@@ -250,6 +250,7 @@ def test_run_additional_simulations_propagates_dynamic_settings(monkeypatch: pyt
         dynamic_settings: dict | None = None,
         *,
         troop_scalar_multiplier: float | None = None,
+        advantage_mode: str = "multiplicative",
         return_report: bool = False,
     ):
         captured.append((dynamic_settings, troop_scalar_multiplier))

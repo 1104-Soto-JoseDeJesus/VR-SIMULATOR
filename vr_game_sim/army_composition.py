@@ -858,6 +858,8 @@ class Army:
             final_config['dot_type'] = dot_type_value
             final_config['status_effect_factor'] = float(effect_data.get("status_effect_factor", 0.0))
             final_config['original_caster_army_name'] = owner_army.name
+            final_config['original_caster_army_ref'] = owner_army
+            final_config['effect_owner_army_ref'] = owner_army
 
             if self.simulator and opponent_of_owner_for_calc:
                 final_config['snapshotted_attacker_total_attack'] = owner_army.unit.effective_attack(
@@ -1078,11 +1080,13 @@ class Army:
                     snap_scalar = effect.config.get('snapshotted_attacker_troop_scalar', 0.0)
                     status_factor = effect.config.get('status_effect_factor', 0.0)
                     original_caster_name = effect.config.get('original_caster_army_name')
-                    caster_army = None
-                    if original_caster_name == self.simulator.army1.name:
-                        caster_army = self.simulator.army1
-                    elif original_caster_name == self.simulator.army2.name:
-                        caster_army = self.simulator.army2
+                    caster_army = effect.config.get('original_caster_army_ref')
+                    if caster_army is None and original_caster_name:
+                        caster_army = self._find_army_by_name(original_caster_name)
+                    if caster_army is None:
+                        caster_army = effect.config.get('effect_owner_army_ref')
+                    if caster_army is None and original_caster_name == self.name:
+                        caster_army = self
 
                     current_specific_dot_boost = 0.0
                     positive_dot_effects: list[EffectInstance] = []

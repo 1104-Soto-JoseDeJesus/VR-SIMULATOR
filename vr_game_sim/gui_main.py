@@ -6103,6 +6103,9 @@ class MainWindow(QtWidgets.QMainWindow):
         export_html_sample_summary_action.triggered.connect(
             self.export_summary_with_sample_summary_html
         )
+        export_debug_html_action = QtGui.QAction("Export Debug HTML", self)
+        export_debug_html_action.setShortcut(QtGui.QKeySequence("Ctrl+Alt+D"))
+        export_debug_html_action.triggered.connect(self.export_debug_html)
         export_pdf_action = QtGui.QAction("Export PDF", self)
         export_pdf_action.triggered.connect(self.export_pdf)
         for act in (
@@ -6112,6 +6115,7 @@ class MainWindow(QtWidgets.QMainWindow):
             export_html_action,
             export_html_sample_action,
             export_html_sample_summary_action,
+            export_debug_html_action,
             export_pdf_action,
         ):
             self.addAction(act)
@@ -7104,6 +7108,7 @@ class MainWindow(QtWidgets.QMainWindow):
         include_sample_log: bool = True,
         dialog_title: str,
         filename_suffix: str,
+        debug_mode: bool = False,
     ) -> None:
         """Export the latest battle summary as an interactive HTML bundle."""
 
@@ -7457,6 +7462,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if not filename:
                 continue
             histogram_lookup[filename.lower()] = ensure_asset(hist_path)
+
+        debug_enabled = bool(debug_mode)
 
         summary_data = payload.get("summary") or []
         win_rate = float(payload.get("win_rate", 0.0) or 0.0)
@@ -8639,14 +8646,47 @@ class MainWindow(QtWidgets.QMainWindow):
                 text = normalize_metadata_text(value)
                 return ansi_escape_re.sub("", text)
 
-            def format_log_text(value: Any, preserve_breaks: bool = False) -> str:
-                raw = strip_ansi_text(value).strip()
-                if not raw:
-                    return ""
-                if preserve_breaks:
-                    normalized = raw.replace("\r\n", "\n").replace("\r", "\n")
-                    return "<br>".join(html.escape(part) for part in normalized.split("\n"))
-                return html.escape(raw)
+        def format_log_text(value: Any, preserve_breaks: bool = False) -> str:
+            raw = strip_ansi_text(value).strip()
+            if not raw:
+                return ""
+            if preserve_breaks:
+                normalized = raw.replace("\r\n", "\n").replace("\r", "\n")
+                return "<br>".join(html.escape(part) for part in normalized.split("\n"))
+            return html.escape(raw)
+
+        def render_calc_steps(steps_data: Any) -> str:
+            if not debug_enabled:
+                return ""
+            steps: list[tuple[str, Any]] = []
+            if isinstance(steps_data, dict):
+                steps.extend((normalize_metadata_text(k), v) for k, v in steps_data.items())
+            elif isinstance(steps_data, list):
+                for entry in steps_data:
+                    if isinstance(entry, dict):
+                        label = normalize_metadata_text(entry.get("label") or entry.get("name") or "Step")
+                        value = entry.get("value")
+                        note = normalize_metadata_text(entry.get("note") or entry.get("description"))
+                        steps.append((label if label else "Step", f"{value} ({note})" if note else value))
+                    else:
+                        steps.append(("Step", entry))
+            if not steps:
+                return ""
+
+            def format_value(val: Any) -> str:
+                numeric_val = coerce_numeric(val)
+                if numeric_val is not None:
+                    return html.escape(fmt_int(numeric_val))
+                return html.escape(normalize_metadata_text(val))
+
+            items = [
+                "<li><span class=\"calc-label\">{label}</span><span class=\"calc-value\">{value}</span></li>".format(
+                    label=html.escape(label or "Step"),
+                    value=format_value(val),
+                )
+                for label, val in steps
+            ]
+            return "<details class=\"calc-steps\"><summary>Calculation Steps</summary><ul>" + "".join(items) + "</ul></details>"
 
             battle_log_markup = ""
             if include_sample_log:
@@ -8783,6 +8823,9 @@ class MainWindow(QtWidgets.QMainWindow):
                             combat_row_html += (
                                 "<div class=\"combat-metrics\">" + "".join(metrics_html) + "</div>"
                             )
+                        calc_html = render_calc_steps(action.get("calculation_steps"))
+                        if calc_html:
+                            combat_row_html += calc_html
                         combat_row_html += "</div>"
                         combat_rows.append(combat_row_html)
                     if combat_rows:
@@ -8853,6 +8896,9 @@ class MainWindow(QtWidgets.QMainWindow):
                                         entry_html_parts.append(
                                             "<div class=\"skill-detail\">" + "".join(detail_badges) + "</div>"
                                         )
+                                    calc_html = render_calc_steps(trig.get("calculation_steps"))
+                                    if calc_html:
+                                        entry_html_parts.append(calc_html)
                                     entry_html_parts.append("</div>")
                                     entries.append("".join(entry_html_parts))
                             if entries:
@@ -9400,6 +9446,40 @@ class MainWindow(QtWidgets.QMainWindow):
             border-radius: 12px;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.05);
+        }}
+        .calc-steps {{
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 10px;
+        }}
+        .calc-steps summary {{
+            cursor: pointer;
+            color: var(--accent);
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }}
+        .calc-steps ul {{
+            list-style: none;
+            margin: 8px 0 0;
+            padding: 0;
+            display: grid;
+            gap: 6px;
+        }}
+        .calc-steps li {{
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }}
+        .calc-label {{
+            color: var(--muted);
+            font-weight: 600;
+        }}
+        .calc-value {{
+            color: var(--text);
+            font-weight: 700;
         }}
         .combat-header {{
             display: flex;
@@ -10624,6 +10704,15 @@ class MainWindow(QtWidgets.QMainWindow):
             filename_suffix="overall_performance_sample_summary",
         )
 
+    def export_debug_html(self) -> None:
+        self._export_summary_html(
+            include_sample_details=True,
+            include_sample_log=True,
+            dialog_title="Export Debug HTML",
+            filename_suffix="debug",
+            debug_mode=True,
+        )
+
     def export_pdf(self) -> None:
         """Export a multi-page PDF using the configured layout."""
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -10798,7 +10887,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if summary and win_rate is not None:
             export_payload = {
                 "report_text": text,
-                "rounds": rounds,
+                "rounds": copy.deepcopy(rounds),
                 "summary": copy.deepcopy(summary),
                 "win_rate": float(win_rate),
                 "runs": int(runs),

@@ -710,6 +710,7 @@ class Army:
         opponent_of_healer: 'Army',
         skill_heal_adjustment_magnitude: float = 0.0,
         source_skill_id: str | None = None,
+        calculation_steps: Optional[list[dict[str, Any]]] = None,
     ) -> float:
         if not self.simulator or healer_army.current_troop_count <= 0: return 0.0
 
@@ -740,6 +741,18 @@ class Army:
             * (heal_factor / 200.0)
             * heal_adj_mult
         )
+
+        if calculation_steps is not None:
+            calculation_steps.extend(
+                [
+                    {"label": "Healer ATK", "value": healer_atk},
+                    {"label": "Opponent DEF", "value": opp_def_calc},
+                    {"label": "Troop scalar", "value": healer_troop_scalar},
+                    {"label": "Heal factor", "value": heal_factor},
+                    {"label": "Heal multiplier", "value": heal_adj_mult},
+                    {"label": "Healed HP", "value": hp_healed_raw},
+                ]
+            )
 
         if hp_healed_raw > 0 and total_positive_heal_adj > 0:
             base_mult = 1.0 + total_negative_heal_adj + skill_heal_adjustment_magnitude
@@ -1201,12 +1214,19 @@ class Army:
                     ).get("name", effect.source_skill_id)
                     self.simulator._log_skill_trigger(
                         self,
-                        source_skill_name or effect.name,
+                        effect.name or source_skill_name,
                         log_msg,
                         damage_details={
                             "damage_done_hp": round(dot_damage_after_target_debuffs),
                             "absorbed_hp": round(absorbed_by_shield_dot),
                             "potential_kills": int(potential_kills),
+                            "calculation_steps": [
+                                {"label": "Base DoT", "value": base_dot_damage_for_log},
+                                {"label": "Multiplier", "value": final_dot_multiplier_for_log},
+                                {"label": "After debuffs", "value": dot_damage_after_target_debuffs},
+                                {"label": "Shield absorbed", "value": absorbed_by_shield_dot},
+                                {"label": "HP damage", "value": hp_damage_to_troops_dot},
+                            ],
                         },
                     )
 
@@ -1214,17 +1234,21 @@ class Army:
                 if phase != "start_of_round":
                     continue
                 if opponent:
+                    heal_trace: list[dict[str, Any]] = []
                     hot_amount_this_tick = self.calculate_and_add_pending_healing(
                         heal_factor=effect.magnitude,
                         healer_army=self,
                         opponent_of_healer=opponent,
                         source_skill_id=effect.source_skill_id,
+                        calculation_steps=heal_trace,
                     )
                     if hot_amount_this_tick > 0 and self.simulator:
                         self.simulator._log_skill_trigger(
                             self,
                             effect.name,
                             f"heals for {hot_amount_this_tick:.0f} HP (pending) from HoT (Factor: {effect.magnitude:.0f}).",
+                            calculation_steps=heal_trace,
+                            damage_details={"healed_hp": round(hot_amount_this_tick)},
                         )
 
             elif effect.name == EFFECT_NAME_FIRST_STRIKE_RAGE_AURA and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:

@@ -211,6 +211,7 @@ class GameSimulator:
         is_counter: bool,
         action_type: Optional[str] = None,
         skill_id: str | None = None,
+        calculation_steps: Optional[list[dict[str, Any]]] = None,
     ):
         action_type_str = action_type or ("Counter Attack" if is_counter else "Basic Attack")
         log_entry = {
@@ -222,6 +223,8 @@ class GameSimulator:
             "final_hp_damage": final_hp_damage,
             "potential_kills": potential_kills,
         }
+        if calculation_steps:
+            log_entry["calculation_steps"] = copy.deepcopy(calculation_steps)
         self.round_combat_actions_log.append(log_entry)
         sid = skill_id or ("counter_attack" if is_counter else "basic_attack")
         attacker.increment_skill_trigger_count(sid)
@@ -235,10 +238,34 @@ class GameSimulator:
             )
             skill_map[sid] = skill_map.get(sid, 0.0) + final_hp_damage
 
-    def _log_skill_trigger(self, triggered_army: Army, skill_name: str, effect_description: str,
-                           damage_details: Optional[Dict[str, Any]] = None):
+    def _log_skill_trigger(
+        self,
+        triggered_army: Army,
+        skill_name: str,
+        effect_description: str,
+        damage_details: Optional[Dict[str, Any]] = None,
+        calculation_steps: Optional[list[dict[str, Any]]] = None,
+    ):
         log_entry = {"skill_name": skill_name, "effect_description": effect_description}
-        if damage_details: log_entry.update(damage_details)
+        details_copy = copy.deepcopy(damage_details) if damage_details else None
+        calc_steps = copy.deepcopy(calculation_steps) if calculation_steps else None
+        if details_copy:
+            embedded_steps = details_copy.pop("calculation_steps", None)
+            if embedded_steps and calc_steps is None:
+                calc_steps = embedded_steps
+            log_entry.update(details_copy)
+        if calc_steps:
+            log_entry["calculation_steps"] = calc_steps
+        elif any(key in log_entry for key in ("damage_done_hp", "shield_hp_gained", "healed_hp")):
+            auto_steps: list[dict[str, Any]] = []
+            if "damage_done_hp" in log_entry:
+                auto_steps.append({"label": "Final damage", "value": log_entry["damage_done_hp"]})
+            if "shield_hp_gained" in log_entry:
+                auto_steps.append({"label": "Shield applied", "value": log_entry["shield_hp_gained"]})
+            if "healed_hp" in log_entry:
+                auto_steps.append({"label": "Healing applied", "value": log_entry["healed_hp"]})
+            if auto_steps:
+                log_entry["calculation_steps"] = auto_steps
         self.round_skill_triggers_log[triggered_army.name].append(log_entry)
 
     def _calculate_generic_skill_damage(
@@ -1445,6 +1472,20 @@ class GameSimulator:
             potential_units_killed_this_hit_rounded = round(potential_units_killed_this_hit_float)
 
         sid = "counter_attack" if is_counter else "basic_attack"
+        calc_steps = [
+            {"label": "Effective ATK", "value": attacker_effective_atk},
+            {"label": "Effective DEF", "value": defender_effective_def},
+            {"label": "Troop scalar", "value": troop_count_scalar},
+            {"label": "Raw potential", "value": raw_damage_potential},
+            {"label": "Total % mods", "value": total_additive_percentage_points},
+            {"label": "Advantage bonus", "value": advantage_bonus},
+            {"label": "Advantage multiplier", "value": advantage_multiplier},
+            {"label": "Final multiplier", "value": final_damage_multiplier},
+            {"label": "After mods", "value": damage_after_all_percent_mods},
+            {"label": "Shield absorbed", "value": absorbed_by_shield},
+            {"label": "HP damage", "value": hp_damage_to_troops},
+        ]
+
         self._log_combat_action(
             attacker=att,
             defender=dfd,
@@ -1454,6 +1495,7 @@ class GameSimulator:
             potential_kills=potential_units_killed_this_hit_rounded,
             is_counter=is_counter,
             skill_id=sid,
+            calculation_steps=calc_steps,
         )
 
         if hp_damage_to_troops > 0:

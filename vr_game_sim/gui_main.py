@@ -6103,6 +6103,9 @@ class MainWindow(QtWidgets.QMainWindow):
         export_html_sample_summary_action.triggered.connect(
             self.export_summary_with_sample_summary_html
         )
+        export_debug_html_action = QtGui.QAction("Export Debug HTML", self)
+        export_debug_html_action.setShortcut(QtGui.QKeySequence("Ctrl+Alt+D"))
+        export_debug_html_action.triggered.connect(self.export_debug_html)
         export_pdf_action = QtGui.QAction("Export PDF", self)
         export_pdf_action.triggered.connect(self.export_pdf)
         for act in (
@@ -6112,6 +6115,7 @@ class MainWindow(QtWidgets.QMainWindow):
             export_html_action,
             export_html_sample_action,
             export_html_sample_summary_action,
+            export_debug_html_action,
             export_pdf_action,
         ):
             self.addAction(act)
@@ -7104,6 +7108,7 @@ class MainWindow(QtWidgets.QMainWindow):
         include_sample_log: bool = True,
         dialog_title: str,
         filename_suffix: str,
+        debug_mode: bool = False,
     ) -> None:
         """Export the latest battle summary as an interactive HTML bundle."""
 
@@ -7457,6 +7462,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if not filename:
                 continue
             histogram_lookup[filename.lower()] = ensure_asset(hist_path)
+
+        debug_enabled = bool(debug_mode)
 
         summary_data = payload.get("summary") or []
         win_rate = float(payload.get("win_rate", 0.0) or 0.0)
@@ -8639,269 +8646,308 @@ class MainWindow(QtWidgets.QMainWindow):
                 text = normalize_metadata_text(value)
                 return ansi_escape_re.sub("", text)
 
-            def format_log_text(value: Any, preserve_breaks: bool = False) -> str:
-                raw = strip_ansi_text(value).strip()
-                if not raw:
-                    return ""
-                if preserve_breaks:
-                    normalized = raw.replace("\r\n", "\n").replace("\r", "\n")
-                    return "<br>".join(html.escape(part) for part in normalized.split("\n"))
-                return html.escape(raw)
+        def format_log_text(value: Any, preserve_breaks: bool = False) -> str:
+            raw = strip_ansi_text(value).strip()
+            if not raw:
+                return ""
+            if preserve_breaks:
+                normalized = raw.replace("\r\n", "\n").replace("\r", "\n")
+                return "<br>".join(html.escape(part) for part in normalized.split("\n"))
+            return html.escape(raw)
 
-            battle_log_markup = ""
-            if include_sample_log:
-                troop_history_meta: list[tuple[str, list[int]]] = []
-                if sample_histories:
-                    for idx, history in enumerate(sample_histories):
-                        label_text = strip_ansi_text(history.get("name"))
-                        label_text = label_text.strip()
-                        if not label_text:
-                            label_text = (
-                                army_names[idx]
-                                if idx < len(army_names)
-                                else f"Army {idx + 1}"
-                            )
-                        troops_series = history.get("troops") or []
-                        troop_history_meta.append((label_text, troops_series))
-                elif army_names:
-                    for idx, label in enumerate(army_names):
-                        troop_history_meta.append(
-                            (strip_ansi_text(label).strip() or f"Army {idx + 1}", [])
-                        )
-
-                round_blocks: list[str] = []
-                for idx, round_data in enumerate(round_details):
-                    if not isinstance(round_data, dict):
-                        continue
-                    round_no = idx + 1
-                    raw_round = round_data.get("round")
-                    if isinstance(raw_round, (int, float)):
-                        try:
-                            round_no = int(round(float(raw_round)))
-                        except (TypeError, ValueError):
-                            round_no = idx + 1
+        def render_calc_steps(steps_data: Any) -> str:
+            if not debug_enabled:
+                return ""
+            steps: list[tuple[str, Any]] = []
+            if isinstance(steps_data, dict):
+                steps.extend((normalize_metadata_text(k), v) for k, v in steps_data.items())
+            elif isinstance(steps_data, list):
+                for entry in steps_data:
+                    if isinstance(entry, dict):
+                        label = normalize_metadata_text(entry.get("label") or entry.get("name") or "Step")
+                        value = entry.get("value")
+                        note = normalize_metadata_text(entry.get("note") or entry.get("description"))
+                        steps.append((label if label else "Step", f"{value} ({note})" if note else value))
                     else:
-                        try:
-                            round_no = int(round(float(raw_round)))
-                        except (TypeError, ValueError):
-                            round_no = idx + 1
-                    if round_no < 1:
+                        steps.append(("Step", entry))
+            if not steps:
+                return ""
+
+            def format_value(val: Any) -> str:
+                numeric_val = coerce_numeric(val)
+                if numeric_val is not None:
+                    return html.escape(fmt_int(numeric_val))
+                return html.escape(normalize_metadata_text(val))
+
+            items = [
+                "<li><span class=\"calc-label\">{label}</span><span class=\"calc-value\">{value}</span></li>".format(
+                    label=html.escape(label or "Step"),
+                    value=format_value(val),
+                )
+                for label, val in steps
+            ]
+            return "<details class=\"calc-steps\"><summary>Calculation Steps</summary><ul>" + "".join(items) + "</ul></details>"
+
+        battle_log_markup = ""
+        if include_sample_log:
+            troop_history_meta: list[tuple[str, list[int]]] = []
+            if sample_histories:
+                for idx, history in enumerate(sample_histories):
+                    label_text = strip_ansi_text(history.get("name"))
+                    label_text = label_text.strip()
+                    if not label_text:
+                        label_text = (
+                            army_names[idx]
+                            if idx < len(army_names)
+                            else f"Army {idx + 1}"
+                        )
+                    troops_series = history.get("troops") or []
+                    troop_history_meta.append((label_text, troops_series))
+            elif army_names:
+                for idx, label in enumerate(army_names):
+                    troop_history_meta.append(
+                        (strip_ansi_text(label).strip() or f"Army {idx + 1}", [])
+                    )
+
+            round_blocks: list[str] = []
+            for idx, round_data in enumerate(round_details):
+                if not isinstance(round_data, dict):
+                    continue
+                round_no = idx + 1
+                raw_round = round_data.get("round")
+                if isinstance(raw_round, (int, float)):
+                    try:
+                        round_no = int(round(float(raw_round)))
+                    except (TypeError, ValueError):
                         round_no = idx + 1
-                    troop_badges: list[str] = []
-                    for label_text, series in troop_history_meta:
-                        start_value = 0.0
-                        if series:
-                            pos = idx if idx < len(series) else len(series) - 1
-                            try:
-                                raw_start = series[pos]
-                            except (IndexError, TypeError, ValueError):
-                                raw_start = 0
-                            numeric_start = coerce_numeric(raw_start)
-                            start_value = numeric_start if numeric_start is not None else 0.0
-                        badge = (
-                            "<span class=\"round-army\">"
-                            + f"<span class=\"round-army-name\">{html.escape(label_text)}</span>"
-                            + f"<strong>{html.escape(fmt_int(start_value))}</strong>"
-                            + "</span>"
-                        )
-                        troop_badges.append(badge)
-                    summary_html = "<summary><span class=\"round-label\">Round {}</span>".format(
-                        html.escape(str(round_no))
-                    )
-                    if troop_badges:
-                        summary_html += "<span class=\"round-counts\">" + "".join(troop_badges) + "</span>"
-                    summary_html += "</summary>"
-
-                    sections: list[str] = []
-
-                    active_items: list[str] = []
-                    for effect in round_data.get("active_effects") or []:
-                        effect_html = format_log_text(effect, preserve_breaks=True)
-                        if effect_html:
-                            active_items.append(f"<li>{effect_html}</li>")
-                    if active_items:
-                        sections.append(
-                            "<div class=\"log-section\"><details><summary><h4>Active Effects</h4></summary><ul>"
-                            + "".join(active_items)
-                            + "</ul></details></div>"
-                        )
-
-                    combat_rows: list[str] = []
-                    for action in round_data.get("combat_actions") or []:
-                        if not isinstance(action, dict):
-                            continue
-                        action_type_raw = strip_ansi_text(action.get("action_type", "")).strip()
-                        log_line_raw = strip_ansi_text(action.get("log_line", "")).strip()
-                        combined_checks = [
-                            action_type_raw.lower() if action_type_raw else "",
-                            log_line_raw.lower() if log_line_raw else "",
-                        ]
-                        if any("heavily wounded" in text for text in combined_checks if text):
-                            continue
-                        if any("damage commit" in text for text in combined_checks if text):
-                            continue
-                        attacker_raw = strip_ansi_text(action.get("attacker_name", "")).strip() or "Unknown"
-                        defender_raw = strip_ansi_text(action.get("defender_name", "")).strip() or "Unknown"
-                        metrics_html: list[str] = []
-                        for key, label in (
-                            ("damage_potential_hp", "Potential"),
-                            ("absorbed_hp", "Absorbed"),
-                            ("final_hp_damage", "Damage"),
-                        ):
-                            raw_val = action.get(key)
-                            numeric_val = coerce_numeric(raw_val)
-                            if numeric_val is None:
-                                continue
-                            metrics_html.append(
-                                "<span class=\"combat-metric\"><span class=\"metric-label\">{label}</span><strong>{value}</strong></span>".format(
-                                    label=html.escape(label),
-                                    value=html.escape(fmt_int(raw_val)),
-                                )
-                            )
-                        kills_val = coerce_numeric(action.get("potential_kills"))
-                        if kills_val is not None and kills_val > 0:
-                            metrics_html.append(
-                                "<span class=\"combat-metric\"><span class=\"metric-label\">Kills</span><strong>{value}</strong></span>".format(
-                                    value=html.escape(fmt_int(action.get("potential_kills")))
-                                )
-                            )
-                        header_html = (
-                            "<div class=\"combat-header\">"
-                            + "<span class=\"combat-actors\">"
-                            + f"<span class=\"combat-attacker\">{html.escape(attacker_raw)}</span>"
-                            + "<span class=\"combat-arrow\">→</span>"
-                            + f"<span class=\"combat-defender\">{html.escape(defender_raw)}</span>"
-                            + "</span>"
-                        )
-                        if action_type_raw:
-                            header_html += "<span class=\"combat-type\">{}</span>".format(
-                                html.escape(action_type_raw)
-                            )
-                        header_html += "</div>"
-                        combat_row_html = "<div class=\"combat-row\">" + header_html
-                        if metrics_html:
-                            combat_row_html += (
-                                "<div class=\"combat-metrics\">" + "".join(metrics_html) + "</div>"
-                            )
-                        combat_row_html += "</div>"
-                        combat_rows.append(combat_row_html)
-                    if combat_rows:
-                        sections.append(
-                            "<div class=\"log-section\"><h4>Combat</h4><div class=\"combat-rows\">"
-                            + "".join(combat_rows)
-                            + "</div></div>"
-                        )
-
-                    skill_groups: list[str] = []
-                    skill_data = round_data.get("skill_triggers")
-                    if isinstance(skill_data, dict):
-                        for army_label, triggers in skill_data.items():
-                            group_label = strip_ansi_text(army_label).strip() or "Army"
-                            entries: list[str] = []
-                            if triggers:
-                                for trig in triggers:
-                                    if not isinstance(trig, dict):
-                                        continue
-                                    skill_name_clean = (
-                                        strip_ansi_text(trig.get("skill_name", "")).strip()
-                                    )
-                                    effect_description_raw = trig.get("effect_description")
-                                    effect_desc_clean = strip_ansi_text(
-                                        effect_description_raw
-                                    ).strip()
-                                    if _should_skip_skill_trigger(
-                                        skill_name_clean, effect_desc_clean
-                                    ):
-                                        continue
-                                    skill_name = skill_name_clean or "Skill"
-                                    effect_desc_html = format_log_text(
-                                        effect_description_raw, preserve_breaks=True
-                                    )
-                                    detail_badges: list[str] = []
-                                    for key, label in (
-                                        ("damage_done_hp", "Damage"),
-                                        ("shield_hp_gained", "Shield"),
-                                        ("healed_hp", "Healed"),
-                                        ("rage_generated", "Rage"),
-                                        ("rage_reduced", "Rage Reduced"),
-                                        ("rage_spent", "Rage Spent"),
-                                        ("potential_kills", "Kills"),
-                                    ):
-                                        if key not in trig:
-                                            continue
-                                        raw_val = trig.get(key)
-                                        numeric_val = coerce_numeric(raw_val)
-                                        if numeric_val is None:
-                                            continue
-                                        if key == "potential_kills" and numeric_val <= 0:
-                                            continue
-                                        detail_badges.append(
-                                            "<span class=\"skill-badge\">{label} <strong>{value}</strong></span>".format(
-                                                label=html.escape(label),
-                                                value=html.escape(fmt_int(raw_val)),
-                                            )
-                                        )
-                                    entry_html_parts = [
-                                        "<div class=\"skill-entry\">",
-                                        f"<strong>{html.escape(skill_name)}</strong>",
-                                    ]
-                                    if effect_desc_html:
-                                        entry_html_parts.append(
-                                            f"<span class=\"skill-effect\">{effect_desc_html}</span>"
-                                        )
-                                    if detail_badges:
-                                        entry_html_parts.append(
-                                            "<div class=\"skill-detail\">" + "".join(detail_badges) + "</div>"
-                                        )
-                                    entry_html_parts.append("</div>")
-                                    entries.append("".join(entry_html_parts))
-                            if entries:
-                                skill_groups.append(
-                                    "<div class=\"skill-group\"><h5>{label}</h5>{entries}</div>".format(
-                                        label=html.escape(group_label),
-                                        entries="".join(entries),
-                                    )
-                                )
-                            else:
-                                skill_groups.append(
-                                    "<div class=\"skill-group\"><h5>{label}</h5><p class=\"empty-state\">No skill triggers.</p></div>".format(
-                                        label=html.escape(group_label)
-                                    )
-                                )
-                    if skill_groups:
-                        sections.append(
-                            "<div class=\"log-section\"><h4>Skill Effects</h4><div class=\"skill-groups\">"
-                            + "".join(skill_groups)
-                            + "</div></div>"
-                        )
-
-                    if sections:
-                        content_html = "<div class=\"round-content\">" + "".join(sections) + "</div>"
-                    else:
-                        content_html = (
-                            "<div class=\"round-content\"><p class=\"empty-state\">No events recorded for this round.</p></div>"
-                        )
-                    round_blocks.append("<details class=\"round-log\">" + summary_html + content_html + "</details>")
-
-                if round_blocks:
-                    battle_log_markup = (
-                        "<section class=\"card sample-log-card\"><h2>Sample Battle Log</h2><div class=\"round-log-list\">"
-                        + "".join(round_blocks)
-                        + "</div></section>"
-                    )
                 else:
-                    battle_log_markup = (
-                        "<section class=\"card sample-log-card\"><h2>Sample Battle Log</h2><p class=\"empty-state\">No round data available.</p></section>"
+                    try:
+                        round_no = int(round(float(raw_round)))
+                    except (TypeError, ValueError):
+                        round_no = idx + 1
+                if round_no < 1:
+                    round_no = idx + 1
+                troop_badges: list[str] = []
+                for label_text, series in troop_history_meta:
+                    start_value = 0.0
+                    if series:
+                        pos = idx if idx < len(series) else len(series) - 1
+                        try:
+                            raw_start = series[pos]
+                        except (IndexError, TypeError, ValueError):
+                            raw_start = 0
+                        numeric_start = coerce_numeric(raw_start)
+                        start_value = numeric_start if numeric_start is not None else 0.0
+                    badge = (
+                        "<span class=\"round-army\">"
+                        + f"<span class=\"round-army-name\">{html.escape(label_text)}</span>"
+                        + f"<strong>{html.escape(fmt_int(start_value))}</strong>"
+                        + "</span>"
+                    )
+                    troop_badges.append(badge)
+                summary_html = "<summary><span class=\"round-label\">Round {}</span>".format(
+                    html.escape(str(round_no))
+                )
+                if troop_badges:
+                    summary_html += "<span class=\"round-counts\">" + "".join(troop_badges) + "</span>"
+                summary_html += "</summary>"
+
+                sections: list[str] = []
+
+                active_items: list[str] = []
+                for effect in round_data.get("active_effects") or []:
+                    effect_html = format_log_text(effect, preserve_breaks=True)
+                    if effect_html:
+                        active_items.append(f"<li>{effect_html}</li>")
+                if active_items:
+                    sections.append(
+                        "<div class=\"log-section\"><details><summary><h4>Active Effects</h4></summary><ul>"
+                        + "".join(active_items)
+                        + "</ul></details></div>"
                     )
 
-            sample_markup = (
-                "<section class=\"card sample-card\">"
-                + "<h2>Sample Battle Details</h2>"
-                + summary_markup
-                + army_block_markup
-                + "</section>"
-                + battle_log_markup
-            )
+                combat_rows: list[str] = []
+                for action in round_data.get("combat_actions") or []:
+                    if not isinstance(action, dict):
+                        continue
+                    action_type_raw = strip_ansi_text(action.get("action_type", "")).strip()
+                    log_line_raw = strip_ansi_text(action.get("log_line", "")).strip()
+                    combined_checks = [
+                        action_type_raw.lower() if action_type_raw else "",
+                        log_line_raw.lower() if log_line_raw else "",
+                    ]
+                    if any("heavily wounded" in text for text in combined_checks if text):
+                        continue
+                    if any("damage commit" in text for text in combined_checks if text):
+                        continue
+                    attacker_raw = strip_ansi_text(action.get("attacker_name", "")).strip() or "Unknown"
+                    defender_raw = strip_ansi_text(action.get("defender_name", "")).strip() or "Unknown"
+                    metrics_html: list[str] = []
+                    for key, label in (
+                        ("damage_potential_hp", "Potential"),
+                        ("absorbed_hp", "Absorbed"),
+                        ("final_hp_damage", "Damage"),
+                    ):
+                        raw_val = action.get(key)
+                        numeric_val = coerce_numeric(raw_val)
+                        if numeric_val is None:
+                            continue
+                        metrics_html.append(
+                            "<span class=\"combat-metric\"><span class=\"metric-label\">{label}</span><strong>{value}</strong></span>".format(
+                                label=html.escape(label),
+                                value=html.escape(fmt_int(raw_val)),
+                            )
+                        )
+                    kills_val = coerce_numeric(action.get("potential_kills"))
+                    if kills_val is not None and kills_val > 0:
+                        metrics_html.append(
+                            "<span class=\"combat-metric\"><span class=\"metric-label\">Kills</span><strong>{value}</strong></span>".format(
+                                value=html.escape(fmt_int(action.get("potential_kills")))
+                            )
+                        )
+                    header_html = (
+                        "<div class=\"combat-header\">"
+                        + "<span class=\"combat-actors\">"
+                        + f"<span class=\"combat-attacker\">{html.escape(attacker_raw)}</span>"
+                        + "<span class=\"combat-arrow\">→</span>"
+                        + f"<span class=\"combat-defender\">{html.escape(defender_raw)}</span>"
+                        + "</span>"
+                    )
+                    if action_type_raw:
+                        header_html += "<span class=\"combat-type\">{}</span>".format(
+                            html.escape(action_type_raw)
+                        )
+                    header_html += "</div>"
+                    combat_row_html = "<div class=\"combat-row\">" + header_html
+                    if metrics_html:
+                        combat_row_html += (
+                            "<div class=\"combat-metrics\">" + "".join(metrics_html) + "</div>"
+                        )
+                    calc_html = render_calc_steps(action.get("calculation_steps"))
+                    if calc_html:
+                        combat_row_html += calc_html
+                    combat_row_html += "</div>"
+                    combat_rows.append(combat_row_html)
+                if combat_rows:
+                    sections.append(
+                        "<div class=\"log-section\"><h4>Combat</h4><div class=\"combat-rows\">"
+                        + "".join(combat_rows)
+                        + "</div></div>"
+                    )
+
+                skill_groups: list[str] = []
+                skill_data = round_data.get("skill_triggers")
+                if isinstance(skill_data, dict):
+                    for army_label, triggers in skill_data.items():
+                        group_label = strip_ansi_text(army_label).strip() or "Army"
+                        entries: list[str] = []
+                        if triggers:
+                            for trig in triggers:
+                                if not isinstance(trig, dict):
+                                    continue
+                                skill_name_clean = (
+                                    strip_ansi_text(trig.get("skill_name", "")).strip()
+                                )
+                                effect_description_raw = trig.get("effect_description")
+                                effect_desc_clean = strip_ansi_text(
+                                    effect_description_raw
+                                ).strip()
+                                if _should_skip_skill_trigger(
+                                    skill_name_clean, effect_desc_clean
+                                ):
+                                    continue
+                                skill_name = skill_name_clean or "Skill"
+                                effect_desc_html = format_log_text(
+                                    effect_description_raw, preserve_breaks=True
+                                )
+                                detail_badges: list[str] = []
+                                for key, label in (
+                                    ("damage_done_hp", "Damage"),
+                                    ("shield_hp_gained", "Shield"),
+                                    ("healed_hp", "Healed"),
+                                    ("rage_generated", "Rage"),
+                                    ("rage_reduced", "Rage Reduced"),
+                                    ("rage_spent", "Rage Spent"),
+                                    ("potential_kills", "Kills"),
+                                ):
+                                    if key not in trig:
+                                        continue
+                                    raw_val = trig.get(key)
+                                    numeric_val = coerce_numeric(raw_val)
+                                    if numeric_val is None:
+                                        continue
+                                    if key == "potential_kills" and numeric_val <= 0:
+                                        continue
+                                    detail_badges.append(
+                                        "<span class=\"skill-badge\">{label} <strong>{value}</strong></span>".format(
+                                            label=html.escape(label),
+                                            value=html.escape(fmt_int(raw_val)),
+                                        )
+                                    )
+                                entry_html_parts = [
+                                    "<div class=\"skill-entry\">",
+                                    f"<strong>{html.escape(skill_name)}</strong>",
+                                ]
+                                if effect_desc_html:
+                                    entry_html_parts.append(
+                                        f"<span class=\"skill-effect\">{effect_desc_html}</span>"
+                                    )
+                                if detail_badges:
+                                    entry_html_parts.append(
+                                        "<div class=\"skill-detail\">" + "".join(detail_badges) + "</div>"
+                                    )
+                                calc_html = render_calc_steps(trig.get("calculation_steps"))
+                                if calc_html:
+                                    entry_html_parts.append(calc_html)
+                                entry_html_parts.append("</div>")
+                                entries.append("".join(entry_html_parts))
+                        if entries:
+                            skill_groups.append(
+                                "<div class=\"skill-group\"><h5>{label}</h5>{entries}</div>".format(
+                                    label=html.escape(group_label),
+                                    entries="".join(entries),
+                                )
+                            )
+                        else:
+                            skill_groups.append(
+                                "<div class=\"skill-group\"><h5>{label}</h5><p class=\"empty-state\">No skill triggers.</p></div>".format(
+                                    label=html.escape(group_label)
+                                )
+                            )
+                if skill_groups:
+                    sections.append(
+                        "<div class=\"log-section\"><h4>Skill Effects</h4><div class=\"skill-groups\">"
+                        + "".join(skill_groups)
+                        + "</div></div>"
+                    )
+
+                if sections:
+                    content_html = "<div class=\"round-content\">" + "".join(sections) + "</div>"
+                else:
+                    content_html = (
+                        "<div class=\"round-content\"><p class=\"empty-state\">No events recorded for this round.</p></div>"
+                    )
+                round_blocks.append("<details class=\"round-log\">" + summary_html + content_html + "</details>")
+
+            if round_blocks:
+                battle_log_markup = (
+                    "<section class=\"card sample-log-card\"><h2>Sample Battle Log</h2><div class=\"round-log-list\">"
+                    + "".join(round_blocks)
+                    + "</div></section>"
+                )
+            else:
+                battle_log_markup = (
+                    "<section class=\"card sample-log-card\"><h2>Sample Battle Log</h2><p class=\"empty-state\">No round data available.</p></section>"
+                )
+
+        sample_markup = (
+            "<section class=\"card sample-card\">"
+            + "<h2>Sample Battle Details</h2>"
+            + summary_markup
+            + army_block_markup
+            + "</section>"
+            + battle_log_markup
+        )
 
         html_output = f"""<!DOCTYPE html>
 <html lang=\"en\">
@@ -9400,6 +9446,40 @@ class MainWindow(QtWidgets.QMainWindow):
             border-radius: 12px;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.05);
+        }}
+        .calc-steps {{
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 10px;
+        }}
+        .calc-steps summary {{
+            cursor: pointer;
+            color: var(--accent);
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }}
+        .calc-steps ul {{
+            list-style: none;
+            margin: 8px 0 0;
+            padding: 0;
+            display: grid;
+            gap: 6px;
+        }}
+        .calc-steps li {{
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }}
+        .calc-label {{
+            color: var(--muted);
+            font-weight: 600;
+        }}
+        .calc-value {{
+            color: var(--text);
+            font-weight: 700;
         }}
         .combat-header {{
             display: flex;
@@ -10624,6 +10704,15 @@ class MainWindow(QtWidgets.QMainWindow):
             filename_suffix="overall_performance_sample_summary",
         )
 
+    def export_debug_html(self) -> None:
+        self._export_summary_html(
+            include_sample_details=True,
+            include_sample_log=True,
+            dialog_title="Export Debug HTML",
+            filename_suffix="debug",
+            debug_mode=True,
+        )
+
     def export_pdf(self) -> None:
         """Export a multi-page PDF using the configured layout."""
         file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -10798,7 +10887,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if summary and win_rate is not None:
             export_payload = {
                 "report_text": text,
-                "rounds": rounds,
+                "rounds": copy.deepcopy(rounds),
                 "summary": copy.deepcopy(summary),
                 "win_rate": float(win_rate),
                 "runs": int(runs),

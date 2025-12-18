@@ -7528,6 +7528,22 @@ class MainWindow(QtWidgets.QMainWindow):
             percent = -value * 100 if invert else value * 100
             return f"{percent:+.1f}%"
 
+        def fmt_number(value: Any) -> str:
+            numeric_val = coerce_numeric(value)
+            if numeric_val is None:
+                return normalize_metadata_text(value)
+
+            abs_val = abs(numeric_val)
+            if abs_val >= 10000:
+                formatted = f"{numeric_val:,.0f}"
+            elif abs_val >= 1:
+                formatted = f"{numeric_val:,.3f}"
+            else:
+                formatted = f"{numeric_val:.6f}"
+
+            formatted = formatted.rstrip("0").rstrip(".")
+            return formatted if formatted else "0"
+
         def fmt_int(value: Any) -> str:
             try:
                 return f"{int(round(float(value))):,}"
@@ -8667,17 +8683,28 @@ class MainWindow(QtWidgets.QMainWindow):
                         label = normalize_metadata_text(entry.get("label") or entry.get("name") or "Step")
                         value = entry.get("value")
                         note = normalize_metadata_text(entry.get("note") or entry.get("description"))
-                        steps.append((label if label else "Step", f"{value} ({note})" if note else value))
+                        steps.append((label if label else "Step", {"value": value, "note": note} if note else value))
                     else:
                         steps.append(("Step", entry))
             if not steps:
                 return ""
 
             def format_value(val: Any) -> str:
+                note_html = ""
+                if isinstance(val, dict):
+                    raw_value = val.get("value")
+                    raw_note = normalize_metadata_text(val.get("note"))
+                    if raw_note:
+                        note_html = f"<span class=\"calc-note\">{html.escape(raw_note)}</span>"
+                    val = raw_value
                 numeric_val = coerce_numeric(val)
                 if numeric_val is not None:
-                    return html.escape(fmt_int(numeric_val))
-                return html.escape(normalize_metadata_text(val))
+                    value_html = html.escape(fmt_number(numeric_val))
+                else:
+                    value_html = html.escape(normalize_metadata_text(val))
+                if note_html:
+                    return value_html + note_html
+                return value_html
 
             items = [
                 "<li><span class=\"calc-label\">{label}</span><span class=\"calc-value\">{value}</span></li>".format(

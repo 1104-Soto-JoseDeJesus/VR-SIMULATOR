@@ -225,6 +225,24 @@ class GameSimulator:
         }
         if calculation_steps:
             log_entry["calculation_steps"] = copy.deepcopy(calculation_steps)
+        else:
+            auto_steps: list[dict[str, Any]] = []
+            detail_fields: list[tuple[str, Any, str]] = [
+                ("damage_potential_hp", damage_potential_hp, "Raw damage before shields"),
+                ("absorbed_hp", absorbed_hp, "Damage absorbed by shields"),
+                ("final_hp_damage", final_hp_damage, "Damage that reduced HP"),
+                ("potential_kills", potential_kills, "Estimated kills from this attack"),
+            ]
+            for key, value, note in detail_fields:
+                try:
+                    numeric_val = float(value)
+                except (TypeError, ValueError):
+                    numeric_val = None
+                if key == "potential_kills" and (numeric_val is None or numeric_val <= 0):
+                    continue
+                auto_steps.append({"label": key.replace("_", " ").title(), "value": value, "note": note})
+            if auto_steps:
+                log_entry["calculation_steps"] = auto_steps
         self.round_combat_actions_log.append(log_entry)
         sid = skill_id or ("counter_attack" if is_counter else "basic_attack")
         attacker.increment_skill_trigger_count(sid)
@@ -256,14 +274,32 @@ class GameSimulator:
             log_entry.update(details_copy)
         if calc_steps:
             log_entry["calculation_steps"] = calc_steps
-        elif any(key in log_entry for key in ("damage_done_hp", "shield_hp_gained", "healed_hp")):
+        else:
             auto_steps: list[dict[str, Any]] = []
-            if "damage_done_hp" in log_entry:
-                auto_steps.append({"label": "Final damage", "value": log_entry["damage_done_hp"]})
-            if "shield_hp_gained" in log_entry:
-                auto_steps.append({"label": "Shield applied", "value": log_entry["shield_hp_gained"]})
-            if "healed_hp" in log_entry:
-                auto_steps.append({"label": "Healing applied", "value": log_entry["healed_hp"]})
+            detail_fields: list[tuple[str, str, str]] = [
+                ("damage_done_hp", "Damage dealt", "Final damage applied to the target"),
+                ("absorbed_hp", "Damage absorbed", "Damage prevented by shields or mitigation"),
+                ("shield_hp_gained", "Shield gained", "Shield amount applied from this effect"),
+                ("healed_hp", "Healing applied", "Healing after all bonuses and reductions"),
+                ("rage_generated", "Rage generated", "Rage produced by this trigger"),
+                ("rage_reduced", "Rage reduced", "Rage removed from the opponent"),
+                ("rage_spent", "Rage spent", "Rage consumed to activate the skill"),
+                ("potential_kills", "Potential kills", "Troops this effect could defeat"),
+            ]
+            for key, label, note in detail_fields:
+                if key not in log_entry:
+                    continue
+                value = log_entry.get(key)
+                numeric_val: float | None
+                try:
+                    numeric_val = float(value)
+                except (TypeError, ValueError):
+                    numeric_val = None
+                if key == "potential_kills" and (numeric_val is None or numeric_val <= 0):
+                    continue
+                auto_steps.append({"label": label, "value": value, "note": note})
+            if effect_description:
+                auto_steps.append({"label": "Effect source", "value": effect_description})
             if auto_steps:
                 log_entry["calculation_steps"] = auto_steps
         self.round_skill_triggers_log[triggered_army.name].append(log_entry)

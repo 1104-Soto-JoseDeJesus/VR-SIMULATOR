@@ -4878,6 +4878,11 @@ class ArenaTab(QtWidgets.QWidget):
         super().__init__(parent)
         layout = QtWidgets.QVBoxLayout(self)
 
+        # Track an optional target outcome for seed selection before buttons are
+        # wired up.  This avoids attribute errors when the seed display is
+        # refreshed during initialization.
+        self.seed_target: ArenaSeedTarget | None = None
+
         controls = QtWidgets.QHBoxLayout()
         self.save_layout_btn = QtWidgets.QPushButton("Save Layout")
         self.load_layout_btn = QtWidgets.QPushButton("Load Layout")

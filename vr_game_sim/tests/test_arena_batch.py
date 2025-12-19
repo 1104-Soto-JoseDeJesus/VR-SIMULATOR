@@ -133,3 +133,60 @@ def test_arena_batch_seed_uses_single_process(monkeypatch):
 
     assert not created_pool["called"]
     assert worker.best_match is not None
+
+
+def test_arena_batch_pool_failure_falls_back(monkeypatch):
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    class _BrokenPool:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            raise RuntimeError("no process pool for testing")
+
+    monkeypatch.setattr(gui_main.concurrent.futures, "ProcessPoolExecutor", _BrokenPool)
+
+    calls: list[int | None] = []
+
+    def _fake_sim(
+        layout_entries: list[dict[str, object]],
+        targeting_mode: str,
+        simulator_options: dict[str, object],
+        seed: int | None,
+        *,
+        collect_skills: bool = False,
+    ) -> tuple[str, dict[str, float], list[dict[str, object]] | None]:
+        calls.append(seed)
+        winner = "red"
+        remaining = {str(entry.get("entry_id", "")): float(seed or 0) for entry in layout_entries}
+        summary: list[dict[str, object]] | None = [] if collect_skills else None
+        return winner, remaining, summary
+
+    monkeypatch.setattr(gui_main, "_simulate_arena_battle", _fake_sim)
+
+    layout_entries = [
+        {
+            "cfg": {},
+            "team": "red",
+            "position": (0.0, 0.0),
+            "column": 0,
+            "row": 0,
+            "speed": 50.0,
+            "entry_id": "slot",
+        }
+    ]
+
+    worker = gui_main.ArenaBatchWorker(
+        layout_entries,
+        runs=3,
+        num_workers=2,
+        targeting_mode="legacy",
+        simulator_options={},
+    )
+
+    payload: dict[str, object] = {}
+    worker.finished_dict.connect(lambda res: payload.update(res))
+    worker.run()
+
+    assert calls and len(calls) == 3
+    assert payload.get("distribution") == {"red": 3}
+    warnings = payload.get("warnings") or []
+    assert any("falling back" in str(text).lower() for text in warnings)

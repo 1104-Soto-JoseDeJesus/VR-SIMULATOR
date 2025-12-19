@@ -4839,36 +4839,51 @@ class ArenaBatchWorker(QtCore.QThread):
                 best_candidate = (diff, idx, dict(remaining))
 
         use_process_pool = self.num_workers > 1 and not self.seed_target
+        pool_error: Exception | None = None
+        warnings: list[str] = []
 
         if use_process_pool:
             ctx = multiprocessing.get_context("spawn")
-            with concurrent.futures.ProcessPoolExecutor(
-                max_workers=self.num_workers, mp_context=ctx
-            ) as pool:
-                futures: dict[concurrent.futures.Future, int] = {}
-                for idx, seed_val in enumerate(seeds):
-                    fut = pool.submit(
-                        _simulate_arena_battle,
-                        self.layout_entries,
-                        self.targeting_mode,
-                        self.simulator_options,
-                        seed_val,
-                        False,
-                    )
-                    futures[fut] = idx
+            try:
+                with concurrent.futures.ProcessPoolExecutor(
+                    max_workers=self.num_workers, mp_context=ctx
+                ) as pool:
+                    futures: dict[concurrent.futures.Future, int] = {}
+                    for idx, seed_val in enumerate(seeds):
+                        fut = pool.submit(
+                            _simulate_arena_battle,
+                            self.layout_entries,
+                            self.targeting_mode,
+                            self.simulator_options,
+                            seed_val,
+                            False,
+                        )
+                        futures[fut] = idx
 
-                completed = 0
-                for fut in concurrent.futures.as_completed(futures):
-                    completed += 1
-                    if self._cancelled.is_set():
-                        break
-                    winner, remaining, _, timed_out = fut.result()
-                    results[winner] = results.get(winner, 0) + 1
-                    if timed_out:
-                        timed_out_runs += 1
-                    _consider_candidate(futures.get(fut, completed - 1), winner, remaining)
-                    self.progress_update.emit(completed, self.runs)
-        else:
+                    completed = 0
+                    for fut in concurrent.futures.as_completed(futures):
+                        completed += 1
+                        if self._cancelled.is_set():
+                            break
+                        winner, remaining, _, timed_out = fut.result()
+                        results[winner] = results.get(winner, 0) + 1
+                        if timed_out:
+                            timed_out_runs += 1
+                        _consider_candidate(futures.get(fut, completed - 1), winner, remaining)
+                        self.progress_update.emit(completed, self.runs)
+            except Exception as exc:  # pragma: no cover - environment-specific fallback
+                # If multiprocessing fails (e.g., missing shared libraries or platform
+                # limitations), fall back to sequential execution so the batch still
+                # completes and the UI can display the win rate figure.
+                pool_error = exc
+                results.clear()
+                timed_out_runs = 0
+                best_candidate = None
+                warnings.append(
+                    "Multiprocessing failed; falling back to single-process execution."
+                )
+
+        if not use_process_pool or pool_error is not None:
             for i, seed_val in enumerate(seeds, 1):
                 if self._cancelled.is_set():
                     break
@@ -4906,9 +4921,11 @@ class ArenaBatchWorker(QtCore.QThread):
 
         payload: dict[str, Any] = {"distribution": results}
         if timed_out_runs:
-            payload["warnings"] = [
+            warnings.append(
                 f"{timed_out_runs} of {self.runs} arena battles reached the time limit and were decided by remaining troops."
-            ]
+            )
+        if warnings:
+            payload["warnings"] = warnings
         if self.best_match:
             payload["best_match"] = dict(self.best_match)
         self.finished_dict.emit(payload)

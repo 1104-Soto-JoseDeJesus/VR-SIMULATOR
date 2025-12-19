@@ -8714,28 +8714,125 @@ class MainWindow(QtWidgets.QMainWindow):
             if not steps:
                 return ""
 
-            def format_value(val: Any) -> str:
+            def _render_breakdown_items(items: Any) -> str:
+                parts: list[str] = []
+                if not isinstance(items, (list, tuple)):
+                    return ""
+                for item in items:
+                    if isinstance(item, dict):
+                        label_text = normalize_metadata_text(
+                            item.get("label")
+                            or item.get("source")
+                            or item.get("name")
+                            or "Source"
+                        )
+                        val_raw = (
+                            item.get("value")
+                            if "value" in item
+                            else item.get("amount")
+                        )
+                        if val_raw is None:
+                            val_raw = item.get("multiplier")
+                        val_display = (
+                            fmt_number(val_raw)
+                            if coerce_numeric(val_raw) is not None
+                            else normalize_metadata_text(val_raw)
+                        )
+                        note_text = normalize_metadata_text(
+                            item.get("note") or item.get("reason") or ""
+                        )
+                        note_html = (
+                            f"<span class=\"calc-note\">{html.escape(note_text)}</span>"
+                            if note_text
+                            else ""
+                        )
+                        parts.append(
+                            "<li><span class=\"calc-label\">{label}</span><span class=\"calc-value\">{value}{note}</span></li>".format(
+                                label=html.escape(label_text or "Source"),
+                                value=html.escape(val_display or ""),
+                                note=note_html,
+                            )
+                        )
+                    else:
+                        val_display = (
+                            fmt_number(item)
+                            if coerce_numeric(item) is not None
+                            else normalize_metadata_text(item)
+                        )
+                        parts.append(
+                            "<li><span class=\"calc-label\">Source</span><span class=\"calc-value\">{value}</span></li>".format(
+                                value=html.escape(val_display or "")
+                            )
+                        )
+                if not parts:
+                    return ""
+                return "<ul class=\"calc-breakdown-list\">" + "".join(parts) + "</ul>"
+
+            def format_value(val: Any) -> tuple[str, str]:
                 note_html = ""
+                breakdown_html = ""
+                raw_note: str | None = None
+                breakdown_data: Any = None
+
                 if isinstance(val, dict):
                     raw_value = val.get("value")
-                    raw_note = normalize_metadata_text(val.get("note"))
-                    if raw_note:
-                        note_html = f"<span class=\"calc-note\">{html.escape(raw_note)}</span>"
-                    val = raw_value
-                numeric_val = coerce_numeric(val)
-                if numeric_val is not None:
-                    value_html = html.escape(fmt_number(numeric_val))
+                    raw_note = normalize_metadata_text(val.get("note") or val.get("description"))
+                    breakdown_data = (
+                        val.get("sources")
+                        or val.get("mods")
+                        or val.get("components")
+                        or val.get("details")
+                        or val.get("breakdown")
+                    )
+                    numeric_val = None
+                    for key in ("value", "total", "amount", "multiplier", "final", "base"):
+                        numeric_val = coerce_numeric(val.get(key))
+                        if numeric_val is not None:
+                            break
+                    display_val = (
+                        fmt_number(numeric_val)
+                        if numeric_val is not None
+                        else normalize_metadata_text(val.get("display") or raw_value)
+                    )
                 else:
-                    value_html = html.escape(normalize_metadata_text(val))
+                    numeric_val = coerce_numeric(val)
+                    display_val = (
+                        fmt_number(numeric_val)
+                        if numeric_val is not None
+                        else normalize_metadata_text(val)
+                    )
+                    if isinstance(val, (list, tuple)):
+                        breakdown_data = val
+
+                if breakdown_data:
+                    breakdown_html = _render_breakdown_items(breakdown_data)
+
+                if raw_note:
+                    note_html = f"<span class=\"calc-note\">{html.escape(raw_note)}</span>"
+
+                if breakdown_html:
+                    value_html = (
+                        "<button class=\"calc-breakdown-toggle\" type=\"button\" aria-expanded=\"false\">"
+                        + html.escape(display_val or "View sources")
+                        + "<span class=\"calc-breakdown-hint\">Show sources</span></button>"
+                    )
+                    breakdown_html = (
+                        "<div class=\"calc-breakdown\" hidden>" + breakdown_html + "</div>"
+                    )
+                else:
+                    value_html = html.escape(display_val)
+
                 if note_html:
-                    return value_html + note_html
-                return value_html
+                    value_html += note_html
+
+                return value_html, breakdown_html
 
             items = [
-                "<li><span class=\"calc-label\">{label}</span><span class=\"calc-value\">{value}</span></li>".format(
+                (lambda formatted: "<li><span class=\"calc-label\">{label}</span><div class=\"calc-value\">{value}{breakdown}</div></li>".format(
                     label=html.escape(label or "Step"),
-                    value=format_value(val),
-                )
+                    value=formatted[0],
+                    breakdown=formatted[1],
+                ))(format_value(val))
                 for label, val in steps
             ]
             return "<details class=\"calc-steps\"><summary>Calculation Steps</summary><ul>" + "".join(items) + "</ul></details>"
@@ -9532,6 +9629,46 @@ class MainWindow(QtWidgets.QMainWindow):
         .calc-value {{
             color: var(--text);
             font-weight: 700;
+            display: grid;
+            gap: 6px;
+            align-items: start;
+        }}
+        .calc-breakdown-toggle {{
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        .calc-breakdown-toggle:hover {{
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
+        }}
+        .calc-breakdown-hint {{
+            font-size: 0.8rem;
+            color: var(--muted);
+            font-weight: 600;
+        }}
+        .calc-breakdown {{
+            border-left: 2px solid rgba(255, 255, 255, 0.12);
+            padding-left: 10px;
+            display: grid;
+            gap: 6px;
+        }}
+        .calc-breakdown[hidden] {{
+            display: none;
+        }}
+        .calc-breakdown-list {{
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 4px;
         }}
         .combat-header {{
             display: flex;
@@ -10432,6 +10569,39 @@ class MainWindow(QtWidgets.QMainWindow):
                 );
             }}
         }}
+        const initCalcBreakdowns = () => {{
+            const toggles = document.querySelectorAll('.calc-breakdown-toggle');
+            for (var idx = 0; idx < toggles.length; idx += 1) {{
+                const btn = toggles[idx];
+                const breakdown = btn && btn.nextElementSibling && btn.nextElementSibling.classList.contains('calc-breakdown')
+                    ? btn.nextElementSibling
+                    : null;
+                if (!btn || !breakdown) {{
+                    continue;
+                }}
+                const toggle = (event) => {{
+                    if (event) {{
+                        event.preventDefault();
+                    }}
+                    const isHidden = breakdown.hasAttribute('hidden');
+                    if (isHidden) {{
+                        breakdown.removeAttribute('hidden');
+                        btn.setAttribute('aria-expanded', 'true');
+                    }} else {{
+                        breakdown.setAttribute('hidden', '');
+                        btn.setAttribute('aria-expanded', 'false');
+                    }}
+                }};
+                btn.addEventListener('click', toggle);
+                btn.addEventListener('keydown', function (event) {{
+                    if (event.key === 'Enter' || event.key === ' ') {{
+                        event.preventDefault();
+                        toggle(event);
+                    }}
+                }});
+            }}
+        }};
+        initCalcBreakdowns();
         const initTroopHistory = () => {{
             const dataNode = document.getElementById('troop-history-data');
             if (!dataNode) {{

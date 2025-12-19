@@ -2,6 +2,7 @@ import os
 import pytest
 from PyQt6 import QtWidgets
 
+from vr_game_sim import game_simulator
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.army_composition import Army
 from vr_game_sim.arena_engine import ArenaEngine
@@ -336,3 +337,171 @@ def test_diagonal_backrow_engagement_time():
             break
         assert elapsed < 6.0
     assert elapsed == pytest.approx(5.1, abs=0.051)
+
+
+def test_arena_engine_respects_debug_settings(monkeypatch):
+    init_kwargs: list[dict[str, object]] = []
+    original_init = game_simulator.GameSimulator.__init__
+
+    def tracking_init(
+        self,
+        army1,
+        army2,
+        report_builder=None,
+        track_stats=True,
+        mode="standard",
+        cooldowns_enabled=True,
+        *,
+        hero_cooldowns_enabled=None,
+        plugin_cooldowns_enabled=None,
+        gem_cooldowns_enabled=None,
+        mount_cooldowns_enabled=None,
+        damage_reduction_affects_dots=True,
+        advantage_mode="multiplicative",
+    ):
+        init_kwargs.append(
+            {
+                "cooldowns_enabled": cooldowns_enabled,
+                "hero_cooldowns_enabled": hero_cooldowns_enabled,
+                "plugin_cooldowns_enabled": plugin_cooldowns_enabled,
+                "gem_cooldowns_enabled": gem_cooldowns_enabled,
+                "mount_cooldowns_enabled": mount_cooldowns_enabled,
+                "damage_reduction_affects_dots": damage_reduction_affects_dots,
+                "advantage_mode": advantage_mode,
+            }
+        )
+        return original_init(
+            self,
+            army1,
+            army2,
+            report_builder,
+            track_stats,
+            mode,
+            cooldowns_enabled,
+            hero_cooldowns_enabled=hero_cooldowns_enabled,
+            plugin_cooldowns_enabled=plugin_cooldowns_enabled,
+            gem_cooldowns_enabled=gem_cooldowns_enabled,
+            mount_cooldowns_enabled=mount_cooldowns_enabled,
+            damage_reduction_affects_dots=damage_reduction_affects_dots,
+            advantage_mode=advantage_mode,
+        )
+
+    monkeypatch.setattr(game_simulator.GameSimulator, "__init__", tracking_init)
+    engine = ArenaEngine(
+        cooldowns_enabled=False,
+        hero_cooldowns_enabled=False,
+        plugin_cooldowns_enabled=False,
+        damage_reduction_affects_dots=False,
+        advantage_mode="off",
+    )
+    a1 = make_army("A1")
+    a2 = make_army("A2")
+    layout = {
+        "red": [{"army": a1, "position": (0.0, 0.0), "column": 0, "row": 0}],
+        "blue": [
+            {
+                "army": a2,
+                "position": (0.0, ENGAGEMENT_DISTANCE - 1.0),
+                "column": 0,
+                "row": 0,
+            }
+        ],
+    }
+    engine.start_arena_battle(layout)
+    engine.tick(1.0)
+
+    assert init_kwargs
+    kwargs = init_kwargs[0]
+    assert kwargs["cooldowns_enabled"] is False
+    assert kwargs["hero_cooldowns_enabled"] is False
+    assert kwargs["plugin_cooldowns_enabled"] is False
+    assert kwargs["damage_reduction_affects_dots"] is False
+    assert kwargs["advantage_mode"] == "off"
+
+
+def test_arena_batch_uses_parent_debug_settings(monkeypatch):
+    app = _get_app()
+    init_kwargs: list[dict[str, object]] = []
+    original_init = game_simulator.GameSimulator.__init__
+
+    def tracking_init(
+        self,
+        army1,
+        army2,
+        report_builder=None,
+        track_stats=True,
+        mode="standard",
+        cooldowns_enabled=True,
+        *,
+        hero_cooldowns_enabled=None,
+        plugin_cooldowns_enabled=None,
+        gem_cooldowns_enabled=None,
+        mount_cooldowns_enabled=None,
+        damage_reduction_affects_dots=True,
+        advantage_mode="multiplicative",
+    ):
+        init_kwargs.append(
+            {
+                "cooldowns_enabled": cooldowns_enabled,
+                "plugin_cooldowns_enabled": plugin_cooldowns_enabled,
+                "damage_reduction_affects_dots": damage_reduction_affects_dots,
+                "advantage_mode": advantage_mode,
+            }
+        )
+        return original_init(
+            self,
+            army1,
+            army2,
+            report_builder,
+            track_stats,
+            mode,
+            cooldowns_enabled,
+            hero_cooldowns_enabled=hero_cooldowns_enabled,
+            plugin_cooldowns_enabled=plugin_cooldowns_enabled,
+            gem_cooldowns_enabled=gem_cooldowns_enabled,
+            mount_cooldowns_enabled=mount_cooldowns_enabled,
+            damage_reduction_affects_dots=damage_reduction_affects_dots,
+            advantage_mode=advantage_mode,
+        )
+
+    monkeypatch.setattr(game_simulator.GameSimulator, "__init__", tracking_init)
+
+    class DummyWindow(QtWidgets.QWidget):
+        def __init__(self) -> None:
+            super().__init__()
+            self.hero_cooldowns_enabled = False
+            self.plugin_cooldowns_enabled = False
+            self.gem_cooldowns_enabled = True
+            self.mount_cooldowns_enabled = True
+            self.damage_reduction_affects_dots = False
+            self.troop_advantage_mode = "additive"
+
+        def update_arena_figures(self, *_: object) -> None:
+            pass
+
+    from vr_game_sim.gui_main import ArenaTab
+
+    tab = ArenaTab(DummyWindow())
+    cfg_common = {
+        "unit_type": "infantry",
+        "tier": 5,
+        "count": 5,
+        "atk_mod": 0.0,
+        "def_mod": 0.0,
+        "hp_mod": 0.0,
+        "unrevivable_ratio": 0.5,
+        "heroes": [],
+    }
+    cfg1 = {"army_name": "Alpha", **cfg_common}
+    cfg2 = {"army_name": "Bravo", **cfg_common}
+    tab._slot_army[("team1", 0)] = {"config": cfg1, "team": "red", "speed": 50.0}
+    tab._slot_army[("team2", 0)] = {"config": cfg2, "team": "blue", "speed": 50.0}
+
+    tab._run_batch(count=1)
+
+    assert init_kwargs
+    kwargs = init_kwargs[0]
+    assert kwargs["cooldowns_enabled"] is False
+    assert kwargs["plugin_cooldowns_enabled"] is False
+    assert kwargs["damage_reduction_affects_dots"] is False
+    assert kwargs["advantage_mode"] == "additive"

@@ -2,6 +2,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6 import QtWidgets
 
+import vr_game_sim.gui_main as gui_main
 from vr_game_sim.gui_main import MainWindow, ArmyIcon, create_armies_from_data
 
 app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
@@ -78,3 +79,57 @@ def test_run_batch_generates_figure():
     pix = window.arena_fig_label.pixmap()
     assert pix is not None and not pix.isNull()
     window.close()
+
+
+def test_arena_batch_seed_uses_single_process(monkeypatch):
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+    created_pool: dict[str, bool] = {"called": False}
+
+    class _ForbiddenPool:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            created_pool["called"] = True
+            raise AssertionError("Process pool should not be used when seed targeting")
+
+    monkeypatch.setattr(gui_main.concurrent.futures, "ProcessPoolExecutor", _ForbiddenPool)
+
+    def _fake_sim(
+        layout_entries: list[dict[str, object]],
+        targeting_mode: str,
+        simulator_options: dict[str, object],
+        seed: int | None,
+        *,
+        collect_skills: bool = False,
+    ) -> tuple[str, dict[str, float], list[dict[str, object]] | None]:
+        winner = "red"
+        remaining = {str(entry.get("entry_id", "")): float(seed or 0) for entry in layout_entries}
+        summary: list[dict[str, object]] | None = [] if collect_skills else None
+        return winner, remaining, summary
+
+    monkeypatch.setattr(gui_main, "_simulate_arena_battle", _fake_sim)
+
+    layout_entries = [
+        {
+            "cfg": {},
+            "team": "red",
+            "position": (0.0, 0.0),
+            "column": 0,
+            "row": 0,
+            "speed": 50.0,
+            "entry_id": "slot",
+        }
+    ]
+
+    worker = gui_main.ArenaBatchWorker(
+        layout_entries,
+        runs=2,
+        num_workers=2,
+        targeting_mode="legacy",
+        simulator_options={},
+        seed_target={"winner": "red", "remaining": {"slot": 0}},
+    )
+
+    worker.run()
+
+    assert not created_pool["called"]
+    assert worker.best_match is not None

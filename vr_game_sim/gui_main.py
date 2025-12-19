@@ -4564,8 +4564,14 @@ def _simulate_arena_battle(
     seed: int | None,
     *,
     collect_skills: bool = False,
-) -> tuple[str, dict[str, float], list[dict[str, Any]] | None]:
-    """Run a single arena battle and collect the outcome."""
+) -> tuple[str, dict[str, float], list[dict[str, Any]] | None, bool]:
+    """Run a single arena battle and collect the outcome.
+
+    Returns
+    -------
+    tuple
+        (winner, remaining, summary, timed_out)
+    """
 
     if seed is not None:
         random.seed(int(seed))
@@ -4584,14 +4590,45 @@ def _simulate_arena_battle(
         )
     engine = ArenaEngine(**simulator_options)
     engine.start_arena_battle(battle_layout, targeting_mode=targeting_mode)
-    while True:
+
+    max_ticks = int(simulator_options.get("max_ticks") or 0)
+    if max_ticks <= 0:
+        max_duration = float(simulator_options.get("max_duration", 0.0) or 0.0)
+        if max_duration > 0:
+            max_ticks = max(1, int(max_duration / 0.016))
+        else:
+            max_ticks = int(15 * 60 / 0.016)  # 15 minutes of simulated time
+
+    tick_count = 0
+    alive: set[str] = set()
+    while tick_count < max_ticks:
         engine.tick(0.016)
+        tick_count += 1
         alive = {
             ctx.team for ctx in engine._armies.values() if ctx.army.current_troop_count > 0
         }
         if len(alive) <= 1:
             break
-    winner = next(iter(alive)) if alive else "None"
+
+    timed_out = len(alive) > 1
+    if not timed_out:
+        winner = next(iter(alive)) if alive else "None"
+    else:
+        team_totals: dict[str, float] = {}
+        for army, entry in zip(armies, layout_entries):
+            team = entry.get("team", "red")
+            team_totals[team] = team_totals.get(team, 0.0) + float(
+                getattr(army, "current_troop_count", 0.0)
+            )
+        if not team_totals:
+            winner = "draw"
+        else:
+            max_total = max(team_totals.values())
+            leading = [team for team, total in team_totals.items() if math.isclose(total, max_total)]
+            if max_total <= 0 or len(leading) != 1:
+                winner = "draw"
+            else:
+                winner = leading[0]
 
     remaining: dict[str, float] = {}
     summary: list[dict[str, Any]] | None = [] if collect_skills else None
@@ -4603,7 +4640,7 @@ def _simulate_arena_battle(
                 build_army_skill_summary(army, entry.get("cfg", {}), entry.get("team", "red"))
             )
 
-    return winner, remaining, summary
+    return winner, remaining, summary, timed_out
 
 
 class SimulationWorker(QtCore.QThread):
@@ -4789,6 +4826,7 @@ class ArenaBatchWorker(QtCore.QThread):
             }
 
         best_candidate: tuple[float, int, dict[str, float]] | None = None
+        timed_out_runs = 0
 
         def _consider_candidate(idx: int, winner: str, remaining: dict[str, float]) -> None:
             nonlocal best_candidate
@@ -4824,15 +4862,17 @@ class ArenaBatchWorker(QtCore.QThread):
                     completed += 1
                     if self._cancelled.is_set():
                         break
-                    winner, remaining, _ = fut.result()
+                    winner, remaining, _, timed_out = fut.result()
                     results[winner] = results.get(winner, 0) + 1
+                    if timed_out:
+                        timed_out_runs += 1
                     _consider_candidate(futures.get(fut, completed - 1), winner, remaining)
                     self.progress_update.emit(completed, self.runs)
         else:
             for i, seed_val in enumerate(seeds, 1):
                 if self._cancelled.is_set():
                     break
-                winner, remaining, _ = _simulate_arena_battle(
+                winner, remaining, _, timed_out = _simulate_arena_battle(
                     self.layout_entries,
                     self.targeting_mode,
                     self.simulator_options,
@@ -4840,6 +4880,8 @@ class ArenaBatchWorker(QtCore.QThread):
                     collect_skills=False,
                 )
                 results[winner] = results.get(winner, 0) + 1
+                if timed_out:
+                    timed_out_runs += 1
                 _consider_candidate(i - 1, winner, remaining)
                 self.progress_update.emit(i, self.runs)
 
@@ -4847,7 +4889,7 @@ class ArenaBatchWorker(QtCore.QThread):
             _, idx, remaining = best_candidate
             if 0 <= idx < len(seeds):
                 seed_val = seeds[idx]
-                winner, _, summary = _simulate_arena_battle(
+                winner, _, summary, timed_out = _simulate_arena_battle(
                     self.layout_entries,
                     self.targeting_mode,
                     self.simulator_options,
@@ -4859,9 +4901,14 @@ class ArenaBatchWorker(QtCore.QThread):
                     "winner": winner,
                     "remaining": remaining,
                     "summary": summary or [],
+                    "timed_out": bool(timed_out),
                 }
 
         payload: dict[str, Any] = {"distribution": results}
+        if timed_out_runs:
+            payload["warnings"] = [
+                f"{timed_out_runs} of {self.runs} arena battles reached the time limit and were decided by remaining troops."
+            ]
         if self.best_match:
             payload["best_match"] = dict(self.best_match)
         self.finished_dict.emit(payload)
@@ -5659,6 +5706,7 @@ class ArenaTab(QtWidgets.QWidget):
                 }
 
             best_candidate: tuple[float, int, dict[str, float]] | None = None
+            timed_out_runs = 0
 
             def _consider_candidate(idx: int, winner: str, remaining: dict[str, float]) -> None:
                 nonlocal best_candidate
@@ -5674,7 +5722,7 @@ class ArenaTab(QtWidgets.QWidget):
                     best_candidate = (diff, idx, dict(remaining))
 
             for idx, seed_val in enumerate(seeds):
-                winner, remaining, _ = _simulate_arena_battle(
+                winner, remaining, _, timed_out = _simulate_arena_battle(
                     layout_entries,
                     targeting_mode,
                     sim_settings,
@@ -5682,15 +5730,21 @@ class ArenaTab(QtWidgets.QWidget):
                     collect_skills=False,
                 )
                 results[winner] = results.get(winner, 0) + 1
+                if timed_out:
+                    timed_out_runs += 1
                 _consider_candidate(idx, winner, remaining)
             window = self.window()
             if window is not None and hasattr(window, "update_arena_figures"):
                 payload: dict[str, Any] = {"distribution": results}
+                if timed_out_runs:
+                    payload["warnings"] = [
+                        f"{timed_out_runs} of {count} arena battles reached the time limit and were decided by remaining troops."
+                    ]
                 if best_candidate is not None:
                     _, idx, remaining = best_candidate
                     if 0 <= idx < len(seeds):
                         seed_val = seeds[idx]
-                        winner, _, summary = _simulate_arena_battle(
+                        winner, _, summary, timed_out = _simulate_arena_battle(
                             layout_entries,
                             targeting_mode,
                             sim_settings,
@@ -5702,6 +5756,7 @@ class ArenaTab(QtWidgets.QWidget):
                             "winner": winner,
                             "remaining": remaining,
                             "summary": summary or [],
+                            "timed_out": bool(timed_out),
                         }
                 window.update_arena_figures(payload)
             return
@@ -6835,6 +6890,11 @@ class MainWindow(QtWidgets.QMainWindow):
         if not results:
             return
 
+        if not hasattr(self, "_arena_last_warning"):
+            self._arena_last_warning: str = ""
+
+        warning_text = ""
+
         if isinstance(results, dict):
             best_match = None
             distribution = results
@@ -6842,8 +6902,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 distribution = results.get("distribution", {}) or {}
                 if isinstance(results.get("best_match"), dict):
                     best_match = dict(results["best_match"])
+                warnings_val = results.get("warnings")
+                if isinstance(warnings_val, list):
+                    warning_text = " ".join(str(w) for w in warnings_val if w)
+                    self._arena_last_warning = warning_text
+                    if warning_text and hasattr(self, "status"):
+                        self.status.setText(warning_text)
             else:
                 self.arena_best_match_info = None
+                self._arena_last_warning = ""
 
             if best_match:
                 self.arena_best_match_info = best_match
@@ -6887,7 +6954,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if best_match and isinstance(best_match.get("summary"), list):
                 self.update_arena_figures(best_match.get("summary") or [])
             elif hasattr(self, "arena_best_match_label"):
-                self.arena_best_match_label.setText("")
+                self.arena_best_match_label.setText(warning_text)
             return
 
         # Otherwise render per-army summary after a normal run
@@ -6895,11 +6962,14 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.arena_best_match_info:
                 seed_val = self.arena_best_match_info.get("seed")
                 winner_text = str(self.arena_best_match_info.get("winner", "")).capitalize()
-                self.arena_best_match_label.setText(
-                    f"Best match seed: {seed_val} (Winner: {winner_text})"
-                )
+                message = f"Best match seed: {seed_val} (Winner: {winner_text})"
+                if self.arena_best_match_info.get("timed_out"):
+                    message += " (Timed out)"
+                if self._arena_last_warning and self._arena_last_warning not in message:
+                    message = f"{message}\n{self._arena_last_warning}"
+                self.arena_best_match_label.setText(message)
             else:
-                self.arena_best_match_label.setText("")
+                self.arena_best_match_label.setText(self._arena_last_warning)
         for i in reversed(range(self.arena_fig_summary_layout.count())):
             item = self.arena_fig_summary_layout.takeAt(i)
             widget = item.widget()

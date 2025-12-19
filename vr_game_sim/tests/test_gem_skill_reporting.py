@@ -136,7 +136,7 @@ def test_gem_evasion_counts_damage_reduction():
     defender.activate_queued_effects()
 
     random.seed(0)
-    damage, absorbed, kills, raw = sim._calculate_generic_skill_damage(
+    damage, absorbed, kills, raw, _calc_steps = sim._calculate_generic_skill_damage(
         attacker,
         defender,
         damage_factor=200.0,
@@ -168,7 +168,7 @@ def test_gem_retribution_counts_kills():
     defender.activate_queued_effects()
 
     random.seed(0)
-    damage, absorbed, kills, raw = sim._calculate_generic_skill_damage(
+    damage, absorbed, kills, raw, _calc_steps = sim._calculate_generic_skill_damage(
         attacker,
         defender,
         damage_factor=200.0,

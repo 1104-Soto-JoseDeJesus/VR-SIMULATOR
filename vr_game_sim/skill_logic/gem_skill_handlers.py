@@ -249,7 +249,7 @@ def _apply_composite_combat_effects(
         and opponent_army.current_troop_count > 0
         and simulator
     ):
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(  # type: ignore[attr-defined]
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(  # type: ignore[attr-defined]
             triggering_army,
             target_for_calc or opponent_army,
             damage_factor,
@@ -266,6 +266,7 @@ def _apply_composite_combat_effects(
                     "damage_done_hp": round(raw_logged_damage),
                     "absorbed_hp": round(absorbed),
                     "potential_kills": kills,
+                    "calculation_steps": calc_steps,
                 },
             )
         )

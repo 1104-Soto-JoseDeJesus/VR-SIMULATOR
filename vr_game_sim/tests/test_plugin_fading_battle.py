@@ -28,7 +28,7 @@ def test_fading_battle_hits_only_primary_in_duel(monkeypatch):
 
     def fake_calc(source, target, factor, **kwargs):
         recorded.append(target.name)
-        return 0, 0, 0, 0
+        return 0, 0, 0, 0, []
 
     monkeypatch.setattr(sim, "_calculate_generic_skill_damage", fake_calc)
     monkeypatch.setattr(random, "random", lambda: 0.0)
@@ -53,7 +53,7 @@ def test_fading_battle_splashes_to_additional_enemies(monkeypatch):
 
     def fake_calc(source, target, factor, **kwargs):
         recorded.append(target.name)
-        return 0, 0, 0, 0
+        return 0, 0, 0, 0, []
 
     monkeypatch.setattr(sim, "_calculate_generic_skill_damage", fake_calc)
     monkeypatch.setattr(random, "random", lambda: 0.0)

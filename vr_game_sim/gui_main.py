@@ -216,7 +216,14 @@ def iter_bonus_stat_entries(stats: dict[str, Any]) -> list[dict[str, Any]]:
     def add(label: str, value: float, invert: bool = False) -> None:
         if abs(value) <= 1e-9:
             return
-        entries.append({"label": label, "value": float(value), "invert": invert})
+        entries.append(
+            {
+                "label": label,
+                "value": float(value),
+                "invert": invert,
+                "source": "Manual bonus stats",
+            }
+        )
 
     dr = stats.get("damage_reduction", {}) if isinstance(stats, dict) else {}
     add("Damage Reduction", float(dr.get("all", 0.0)), True)
@@ -302,6 +309,11 @@ def iter_skill_bonus_entries_from_effects(
         if not config.get("manual_bonus_stat"):
             continue
         source_skill = getattr(effect, "source_skill_id", "") or ""
+        source_name = (
+            SKILL_REGISTRY_GLOBAL.get(source_skill, {}).get("name", source_skill)
+            if source_skill
+            else "Passive effect"
+        )
         if (
             source_skill == "manual_bonus_stats"
             or str(source_skill).startswith("gear::")
@@ -316,7 +328,14 @@ def iter_skill_bonus_entries_from_effects(
             magnitude = float(getattr(effect, "magnitude", 0.0))
         except (TypeError, ValueError):
             continue
-        entries.append({"label": label, "value": magnitude, "invert": invert})
+        entries.append(
+            {
+                "label": label,
+                "value": magnitude,
+                "invert": invert,
+                "source": source_name,
+            }
+        )
     return entries
 
 
@@ -8015,12 +8034,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 return normalize_metadata_text(value)
 
             abs_val = abs(numeric_val)
-            if abs_val >= 10000:
-                formatted = f"{numeric_val:,.0f}"
+            if debug_enabled:
+                formatted = f"{numeric_val:,.6f}" if abs_val >= 1 else f"{numeric_val:.8f}"
+            elif abs_val >= 1000000:
+                formatted = f"{numeric_val:,.2f}"
             elif abs_val >= 1:
-                formatted = f"{numeric_val:,.3f}"
+                formatted = f"{numeric_val:,.4f}"
             else:
-                formatted = f"{numeric_val:.6f}"
+                formatted = f"{numeric_val:.8f}"
 
             formatted = formatted.rstrip("0").rstrip(".")
             return formatted if formatted else "0"
@@ -8079,6 +8100,59 @@ class MainWindow(QtWidgets.QMainWindow):
                 return str(value)
             except Exception:
                 return ""
+
+        def build_bonus_entry(
+            label: Any,
+            value: Any,
+            *,
+            invert: bool = False,
+            source: str | None = None,
+            sources: Any = None,
+        ) -> dict[str, Any] | None:
+            label_text = normalize_metadata_text(label)
+            if not label_text:
+                return None
+
+            numeric_val = coerce_numeric(value)
+            display_val = (
+                fmt_percent(float(numeric_val), invert)
+                if numeric_val is not None
+                else normalize_metadata_text(value)
+            )
+            entry_payload: dict[str, Any] = {"label": label_text, "value": display_val or "—"}
+            if numeric_val is not None:
+                entry_payload["raw"] = float(numeric_val)
+
+            normalized_sources: list[dict[str, str]] = []
+            if isinstance(sources, (list, tuple)):
+                for src in sources:
+                    if not isinstance(src, dict):
+                        continue
+                    src_label = normalize_metadata_text(src.get("label") or src.get("source"))
+                    src_val_raw = src.get("value")
+                    src_numeric = coerce_numeric(src_val_raw)
+                    if src_numeric is not None:
+                        src_display = (
+                            fmt_percent(float(src_numeric), invert)
+                            if invert
+                            else fmt_number(src_numeric)
+                        )
+                    else:
+                        src_display = normalize_metadata_text(src_val_raw)
+                    if src_label or src_display:
+                        normalized_sources.append(
+                            {"label": src_label or "Source", "value": src_display or "—"}
+                        )
+            if normalized_sources:
+                entry_payload["sources"] = normalized_sources
+            elif source:
+                src_label = normalize_metadata_text(source)
+                if src_label:
+                    entry_payload["sources"] = [
+                        {"label": src_label, "value": display_val or "—"}
+                    ]
+
+            return entry_payload
 
         def build_skill_display(skill_id: str) -> tuple[str, str, dict[str, Any] | None]:
             if not skill_id:
@@ -8209,24 +8283,28 @@ class MainWindow(QtWidgets.QMainWindow):
             def_mod = float(cfg.get("def_mod", 0.0))
             hp_mod = float(cfg.get("hp_mod", 0.0))
             bonus_stats = merge_bonus_stats(default_bonus_stats(), cfg.get("bonus_stats"))
-            bonus_entries = [
-                {
-                    "label": entry["label"],
-                    "value": fmt_percent(entry["value"], entry["invert"]),
-                }
-                for entry in iter_bonus_stat_entries(bonus_stats)
-            ]
+            bonus_entries: list[dict[str, Any]] = []
+            for entry in iter_bonus_stat_entries(bonus_stats):
+                payload = build_bonus_entry(
+                    entry.get("label"),
+                    entry.get("value"),
+                    invert=bool(entry.get("invert", False)),
+                    source=entry.get("source") or "Manual bonus stats",
+                    sources=entry.get("sources"),
+                )
+                if payload:
+                    bonus_entries.append(payload)
+
             for entry in summary_entry.get("passive_bonus_entries", []) or []:
-                try:
-                    label = entry.get("label")
-                    value = fmt_percent(
-                        float(entry.get("value", 0.0)),
-                        bool(entry.get("invert", False)),
-                    )
-                except (TypeError, ValueError):
-                    continue
-                if label:
-                    bonus_entries.append({"label": str(label), "value": value})
+                payload = build_bonus_entry(
+                    entry.get("label"),
+                    entry.get("value"),
+                    invert=bool(entry.get("invert", False)),
+                    source=entry.get("source") or "Passive bonus",
+                    sources=entry.get("sources"),
+                )
+                if payload:
+                    bonus_entries.append(payload)
             stats_html = []
             for key, label in (("attack", "Attack"), ("defense", "Defense"), ("health", "Health")):
                 icon = stat_icons.get(key) or ""
@@ -8499,6 +8577,13 @@ class MainWindow(QtWidgets.QMainWindow):
                                 {
                                     "label": f"{gear_def.name} • {hero_label_text}",
                                     "value": short_desc,
+                                    "source": gear_def.name,
+                                    "sources": [
+                                        {
+                                            "label": gear_def.name,
+                                            "value": short_desc,
+                                        }
+                                    ],
                                 }
                             )
                         effects_markup = (
@@ -8623,7 +8708,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 value_text = normalize_metadata_text(entry.get("value"))
                 if not value_text:
                     value_text = str(entry.get("value", ""))
-                bonus_entries.append({"label": label_text, "value": value_text})
+                payload = build_bonus_entry(
+                    label_text,
+                    value_text,
+                    source=entry.get("source") or entry.get("label"),
+                    sources=entry.get("sources"),
+                )
+                if payload:
+                    bonus_entries.append(payload)
 
             bonus_button_label = "Bonus Stats"
             if bonus_entries:
@@ -9266,11 +9358,13 @@ class MainWindow(QtWidgets.QMainWindow):
                 if raw_note:
                     note_html = f"<span class=\"calc-note\">{html.escape(raw_note)}</span>"
 
+                display_val = display_val or "—"
                 if breakdown_html:
+                    value_text = html.escape(display_val)
                     value_html = (
                         "<button class=\"calc-breakdown-toggle\" type=\"button\" aria-expanded=\"false\">"
-                        + html.escape(display_val or "View sources")
-                        + "<span class=\"calc-breakdown-hint\">Show sources</span></button>"
+                        + f"<span class=\"calc-value-text\">{value_text}</span>"
+                        + "<span class=\"calc-breakdown-hint\">Show components</span></button>"
                     )
                     breakdown_html = (
                         "<div class=\"calc-breakdown\" hidden>" + breakdown_html + "</div>"
@@ -9291,7 +9385,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 ))(format_value(val))
                 for label, val in steps
             ]
-            return "<details class=\"calc-steps\"><summary>Calculation Steps</summary><ul>" + "".join(items) + "</ul></details>"
+            return "<details class=\"calc-steps\" open><summary>Calculation Steps (debug)</summary><ul>" + "".join(items) + "</ul></details>"
 
         battle_log_markup = ""
         if include_sample_log:
@@ -10062,6 +10156,9 @@ class MainWindow(QtWidgets.QMainWindow):
             font-weight: 600;
             letter-spacing: 0.02em;
         }}
+        .calc-steps[open] summary {{
+            color: var(--text);
+        }}
         .calc-steps ul {{
             list-style: none;
             margin: 8px 0 0;
@@ -10088,6 +10185,11 @@ class MainWindow(QtWidgets.QMainWindow):
             display: grid;
             gap: 6px;
             align-items: start;
+        }}
+        .calc-value-text {{
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }}
         .calc-breakdown-toggle {{
             color: var(--text);
@@ -10805,13 +10907,54 @@ class MainWindow(QtWidgets.QMainWindow):
             gap: 10px;
         }}
         .bonus-list li {{
-            display: flex;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 10px 14px;
+            display: grid;
+            gap: 8px;
+            padding: 12px 14px;
             background: var(--panel-alt);
             border-radius: 12px;
             border: 1px solid var(--border);
+        }}
+        .bonus-entry-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            font-weight: 600;
+            color: var(--text);
+        }}
+        .bonus-entry-header.has-sources {{
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            border-radius: 10px;
+        }}
+        .bonus-entry-header strong {{
+            color: var(--text);
+            font-weight: 700;
+        }}
+        .bonus-entry-header small {{
+            color: var(--muted);
+            font-weight: 500;
+        }}
+        .bonus-source-list {{
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 6px;
+            border-left: 2px solid rgba(255, 255, 255, 0.1);
+            padding-left: 12px;
+        }}
+        .bonus-source-list[hidden] {{
+            display: none;
+        }}
+        .bonus-source-list li {{
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            color: var(--muted);
         }}
         @media (max-width: 1100px) {{
             .victory-grid {{
@@ -10950,17 +11093,77 @@ class MainWindow(QtWidgets.QMainWindow):
                 li.textContent = 'No bonus stats configured.';
                 modalList.appendChild(li);
             }} else {{
-                for (var idx = 0; idx < entries.length; idx += 1) {{
-                    const entry = entries[idx];
+                entries.forEach((entry) => {{
                     const li = document.createElement('li');
+                    const hasSources = Array.isArray(entry.sources) && entry.sources.length > 0;
+                    const header = document.createElement(hasSources ? 'button' : 'div');
+                    header.className = 'bonus-entry-header';
+                    if (hasSources) {{
+                        header.type = 'button';
+                        header.classList.add('has-sources');
+                    }}
                     const label = document.createElement('span');
                     label.textContent = entry.label || 'Bonus';
                     const value = document.createElement('strong');
-                    value.textContent = entry.value || '0%';
-                    li.appendChild(label);
-                    li.appendChild(value);
+                    value.textContent = entry.value || '0';
+                    header.appendChild(label);
+                    header.appendChild(value);
+                    if (hasSources) {{
+                        const hint = document.createElement('small');
+                        hint.textContent = 'Show sources';
+                        header.appendChild(hint);
+                    }}
+                    li.appendChild(header);
+
+                    if (hasSources) {{
+                        const sourceList = document.createElement('ul');
+                        sourceList.className = 'bonus-source-list';
+                        sourceList.hidden = true;
+                        entry.sources.forEach((src) => {{
+                            if (!src) {{
+                                return;
+                            }}
+                            const row = document.createElement('li');
+                            const srcLabel = document.createElement('span');
+                            srcLabel.textContent = src.label || 'Source';
+                            const srcValue = document.createElement('strong');
+                            srcValue.textContent = src.value || '';
+                            row.appendChild(srcLabel);
+                            row.appendChild(srcValue);
+                            sourceList.appendChild(row);
+                        }});
+                        const toggleSources = (event) => {{
+                            if (event) {{
+                                event.preventDefault();
+                            }}
+                            const hidden = sourceList.hasAttribute('hidden');
+                            if (hidden) {{
+                                sourceList.removeAttribute('hidden');
+                                header.setAttribute('aria-expanded', 'true');
+                                const hintNode = header.querySelector('small');
+                                if (hintNode) {{
+                                    hintNode.textContent = 'Hide sources';
+                                }}
+                            }} else {{
+                                sourceList.setAttribute('hidden', '');
+                                header.setAttribute('aria-expanded', 'false');
+                                const hintNode = header.querySelector('small');
+                                if (hintNode) {{
+                                    hintNode.textContent = 'Show sources';
+                                }}
+                            }}
+                        };
+                        header.addEventListener('click', toggleSources);
+                        header.addEventListener('keydown', (event) => {{
+                            if (event.key === 'Enter' || event.key === ' ') {{
+                                toggleSources(event);
+                            }}
+                        }});
+                        li.appendChild(sourceList);
+                    }}
+
                     modalList.appendChild(li);
-                }}
+                }});
             }}
             modal.classList.add('active');
         }};

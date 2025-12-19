@@ -11152,7 +11152,7 @@ class MainWindow(QtWidgets.QMainWindow):
                                     hintNode.textContent = 'Show sources';
                                 }}
                             }}
-                        };
+                        }};
                         header.addEventListener('click', toggleSources);
                         header.addEventListener('keydown', (event) => {{
                             if (event.key === 'Enter' || event.key === ' ') {{

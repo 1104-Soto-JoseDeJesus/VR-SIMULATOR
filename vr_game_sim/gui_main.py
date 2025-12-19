@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import random
 import copy
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, TypedDict
 import threading
 import math
 import json
@@ -14,6 +14,7 @@ from functools import partial
 import time
 import re
 import concurrent.futures
+import multiprocessing
 import base64
 import mimetypes
 import difflib
@@ -449,6 +450,13 @@ class ThousandSepSpinBox(QtWidgets.QSpinBox):
             return 0
 
 
+class ArenaSeedTarget(TypedDict, total=False):
+    """User-selected outcome preferences for arena batch runs."""
+
+    winner: str
+    remaining: dict[str, int]
+
+
 class SeedOutcomeDialog(QtWidgets.QDialog):
     """Dialog that lets the user choose a preferred replay outcome."""
 
@@ -559,6 +567,94 @@ class SeedOutcomeDialog(QtWidgets.QDialog):
     def _on_round_toggle(self, checked: bool) -> None:
         self.rounds_spin.setEnabled(checked)
         self.round_tolerance_spin.setEnabled(checked)
+
+
+class ArenaSeedDialog(QtWidgets.QDialog):
+    """Dialog that lets the user choose an arena batch outcome target."""
+
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget | None,
+        armies: list[tuple[str, str, int, str]],
+        current: ArenaSeedTarget | None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Select Arena Seed Outcome")
+        self._target: ArenaSeedTarget | None = dict(current) if current else None
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        info = QtWidgets.QLabel(
+            "Choose the winning side and desired remaining troops for its armies."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        self.button_group = QtWidgets.QButtonGroup(self)
+        self.red_radio = QtWidgets.QRadioButton("Red Team")
+        self.blue_radio = QtWidgets.QRadioButton("Blue Team")
+        self.button_group.addButton(self.red_radio)
+        self.button_group.addButton(self.blue_radio)
+
+        radio_layout = QtWidgets.QHBoxLayout()
+        radio_layout.addWidget(self.red_radio)
+        radio_layout.addWidget(self.blue_radio)
+        layout.addLayout(radio_layout)
+
+        self._spin_boxes: dict[str, ThousandSepSpinBox] = {}
+        form = QtWidgets.QFormLayout()
+        remaining_defaults: dict[str, int] = {}
+        if current and isinstance(current.get("remaining"), dict):
+            remaining_defaults = {
+                str(key): int(value)
+                for key, value in current.get("remaining", {}).items()
+                if isinstance(value, (int, float))
+            }
+
+        for entry_id, name, default_remaining, team in armies:
+            spin = ThousandSepSpinBox(self)
+            spin.setRange(0, 2_000_000)
+            spin.setSingleStep(1_000)
+            spin.setValue(remaining_defaults.get(entry_id, default_remaining))
+            label = f"{name} ({team.capitalize()})"
+            form.addRow(label, spin)
+            self._spin_boxes[entry_id] = spin
+
+        layout.addLayout(form)
+
+        winner_team = str(current.get("winner", "")).lower() if current else ""
+        if winner_team == "blue":
+            self.blue_radio.setChecked(True)
+        else:
+            self.red_radio.setChecked(True)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            parent=self,
+        )
+        clear_btn = buttons.addButton(
+            "Clear", QtWidgets.QDialogButtonBox.ButtonRole.ResetRole
+        )
+        clear_btn.clicked.connect(self._clear)
+        buttons.accepted.connect(self._on_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _on_accept(self) -> None:
+        winner = "blue" if self.blue_radio.isChecked() else "red"
+        remaining = {key: int(spin.value()) for key, spin in self._spin_boxes.items()}
+        self._target = {"winner": winner, "remaining": remaining}
+        self.accept()
+
+    def _clear(self) -> None:
+        self._target = None
+        self.accept()
+
+    def target(self) -> ArenaSeedTarget | None:
+        """Return the selected outcome or ``None`` if cleared."""
+
+        return self._target
 
 
 class StarredImageLabel(QtWidgets.QLabel):
@@ -3670,6 +3766,8 @@ class BattlefieldTab(QtWidgets.QWidget):
         super().__init__(parent)
         layout = QtWidgets.QVBoxLayout(self)
 
+        self.seed_target: ArenaSeedTarget | None = None
+
         controls = QtWidgets.QHBoxLayout()
         self.add_army_btn = QtWidgets.QPushButton("Add Army")
         self.load_army_btn = QtWidgets.QPushButton("Load Army")
@@ -4459,6 +4557,55 @@ def build_skill_summaries(armies: list[Army], configs: list[dict]) -> list[dict[
     return summaries
 
 
+def _simulate_arena_battle(
+    layout_entries: list[dict[str, Any]],
+    targeting_mode: str,
+    simulator_options: dict[str, Any],
+    seed: int | None,
+    *,
+    collect_skills: bool = False,
+) -> tuple[str, dict[str, float], list[dict[str, Any]] | None]:
+    """Run a single arena battle and collect the outcome."""
+
+    if seed is not None:
+        random.seed(int(seed))
+
+    armies = create_armies_from_data([dict(e.get("cfg", {})) for e in layout_entries])
+    battle_layout: dict[str, list[dict[str, Any]]] = {}
+    for army, entry in zip(armies, layout_entries):
+        battle_layout.setdefault(entry.get("team", "red"), []).append(
+            {
+                "army": army,
+                "position": entry.get("position"),
+                "column": entry.get("column"),
+                "row": entry.get("row"),
+                "speed": entry.get("speed", 50.0),
+            }
+        )
+    engine = ArenaEngine(**simulator_options)
+    engine.start_arena_battle(battle_layout, targeting_mode=targeting_mode)
+    while True:
+        engine.tick(0.016)
+        alive = {
+            ctx.team for ctx in engine._armies.values() if ctx.army.current_troop_count > 0
+        }
+        if len(alive) <= 1:
+            break
+    winner = next(iter(alive)) if alive else "None"
+
+    remaining: dict[str, float] = {}
+    summary: list[dict[str, Any]] | None = [] if collect_skills else None
+    for idx, (army, entry) in enumerate(zip(armies, layout_entries)):
+        entry_id = str(entry.get("entry_id") or f"{entry.get('team', '')}:{idx}")
+        remaining[entry_id] = float(getattr(army, "current_troop_count", 0))
+        if summary is not None:
+            summary.append(
+                build_army_skill_summary(army, entry.get("cfg", {}), entry.get("team", "red"))
+            )
+
+    return winner, remaining, summary
+
+
 class SimulationWorker(QtCore.QThread):
     progress_update = QtCore.pyqtSignal(int, int)
     finished_text = QtCore.pyqtSignal(str, object, object)
@@ -4613,6 +4760,7 @@ class ArenaBatchWorker(QtCore.QThread):
         num_workers: int,
         targeting_mode: str,
         simulator_options: dict[str, Any] | None = None,
+        seed_target: ArenaSeedTarget | None = None,
     ) -> None:
         super().__init__()
         self.layout_entries = layout_entries
@@ -4621,49 +4769,100 @@ class ArenaBatchWorker(QtCore.QThread):
         self._cancelled = threading.Event()
         self.targeting_mode = targeting_mode or "legacy"
         self.simulator_options = dict(simulator_options) if simulator_options else {}
+        self.seed_target = dict(seed_target) if seed_target else None
+        self.best_match: dict[str, Any] | None = None
 
     def cancel(self) -> None:
         self._cancelled.set()
 
     def run(self) -> None:
         results: dict[str, int] = {}
+        seeds = [random.randrange(1 << 30) for _ in range(self.runs)]
+        target_winner = ""
+        target_remaining: dict[str, float] = {}
+        if self.seed_target:
+            target_winner = str(self.seed_target.get("winner", "")).lower()
+            target_remaining = {
+                str(key): float(val)
+                for key, val in (self.seed_target.get("remaining") or {}).items()
+                if isinstance(val, (int, float))
+            }
 
-        def _simulate(_: int) -> str:
-            armies = create_armies_from_data([dict(e["cfg"]) for e in self.layout_entries])
-            battle_layout: dict[str, list[dict[str, Any]]] = {}
-            for army, entry in zip(armies, self.layout_entries):
-                battle_layout.setdefault(entry["team"], []).append(
-                    {
-                        "army": army,
-                        "position": entry["position"],
-                        "column": entry["column"],
-                        "row": entry["row"],
-                        "speed": entry["speed"],
-                    }
-                )
-            engine = ArenaEngine(**self.simulator_options)
-            engine.start_arena_battle(battle_layout, targeting_mode=self.targeting_mode)
-            while True:
-                engine.tick(0.016)
-                alive = {
-                    ctx.team
-                    for ctx in engine._armies.values()
-                    if ctx.army.current_troop_count > 0
-                }
-                if len(alive) <= 1:
-                    break
-            return next(iter(alive)) if alive else "None"
+        best_candidate: tuple[float, int, dict[str, float]] | None = None
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.num_workers) as pool:
-            futures = [pool.submit(_simulate, i) for i in range(self.runs)]
-            for i, fut in enumerate(concurrent.futures.as_completed(futures), 1):
+        def _consider_candidate(idx: int, winner: str, remaining: dict[str, float]) -> None:
+            nonlocal best_candidate
+            if not target_winner or not target_remaining:
+                return
+            if winner.lower() != target_winner:
+                return
+            diff = sum(abs(remaining.get(key, 0.0) - target_remaining.get(key, 0.0)) for key in target_remaining)
+            if best_candidate is None or diff < best_candidate[0]:
+                best_candidate = (diff, idx, dict(remaining))
+
+        if self.num_workers > 1:
+            ctx = multiprocessing.get_context("spawn")
+            with concurrent.futures.ProcessPoolExecutor(
+                max_workers=self.num_workers, mp_context=ctx
+            ) as pool:
+                futures: dict[concurrent.futures.Future, int] = {}
+                for idx, seed_val in enumerate(seeds):
+                    fut = pool.submit(
+                        _simulate_arena_battle,
+                        self.layout_entries,
+                        self.targeting_mode,
+                        self.simulator_options,
+                        seed_val,
+                        False,
+                    )
+                    futures[fut] = idx
+
+                completed = 0
+                for fut in concurrent.futures.as_completed(futures):
+                    completed += 1
+                    if self._cancelled.is_set():
+                        break
+                    winner, remaining, _ = fut.result()
+                    results[winner] = results.get(winner, 0) + 1
+                    _consider_candidate(futures.get(fut, completed - 1), winner, remaining)
+                    self.progress_update.emit(completed, self.runs)
+        else:
+            for i, seed_val in enumerate(seeds, 1):
                 if self._cancelled.is_set():
                     break
-                winner = fut.result()
+                winner, remaining, _ = _simulate_arena_battle(
+                    self.layout_entries,
+                    self.targeting_mode,
+                    self.simulator_options,
+                    seed_val,
+                    collect_skills=False,
+                )
                 results[winner] = results.get(winner, 0) + 1
+                _consider_candidate(i - 1, winner, remaining)
                 self.progress_update.emit(i, self.runs)
 
-        self.finished_dict.emit(results)
+        if best_candidate is not None:
+            _, idx, remaining = best_candidate
+            if 0 <= idx < len(seeds):
+                seed_val = seeds[idx]
+                winner, _, summary = _simulate_arena_battle(
+                    self.layout_entries,
+                    self.targeting_mode,
+                    self.simulator_options,
+                    seed_val,
+                    collect_skills=True,
+                )
+                self.best_match = {
+                    "seed": seed_val,
+                    "winner": winner,
+                    "remaining": remaining,
+                    "summary": summary or [],
+                }
+
+        payload: dict[str, Any] = {"distribution": results}
+        if self.best_match:
+            payload["best_match"] = dict(self.best_match)
+        self.finished_dict.emit(payload)
 
 
 class ArenaTab(QtWidgets.QWidget):
@@ -4710,6 +4909,16 @@ class ArenaTab(QtWidgets.QWidget):
             self.speed_btn,
         ):
             controls.addWidget(btn)
+        self.seed_btn = QtWidgets.QToolButton()
+        self.seed_btn.setText("Seed…")
+        self.seed_btn.clicked.connect(self._choose_seed_target)
+        controls.addWidget(self.seed_btn)
+        self.seed_display = QtWidgets.QLabel()
+        self.seed_display.setTextInteractionFlags(
+            QtCore.Qt.TextInteractionFlag.NoTextInteraction
+        )
+        controls.addWidget(self.seed_display)
+        self._update_seed_display()
         controls.addWidget(self.time_label)
         controls.addStretch()
         layout.addLayout(controls)
@@ -5413,6 +5622,7 @@ class ArenaTab(QtWidgets.QWidget):
             col = idx % 4
             row = idx // 4
             pos = self.slot_coords[slot_team][idx]
+            entry_id = f"{slot_team}:{idx}"
             layout_entries.append(
                 {
                     "cfg": info["config"],
@@ -5421,6 +5631,7 @@ class ArenaTab(QtWidgets.QWidget):
                     "column": col,
                     "row": row,
                     "speed": info.get("speed", 50.0),
+                    "entry_id": entry_id,
                 }
             )
         if not layout_entries:
@@ -5429,35 +5640,63 @@ class ArenaTab(QtWidgets.QWidget):
         targeting_mode = self.targeting_combo.currentData()
         if count is not None:
             results: dict[str, int] = {}
-            for _ in range(count):
-                armies = create_armies_from_data([dict(e["cfg"]) for e in layout_entries])
-                battle_layout: dict[str, list[dict[str, Any]]] = {}
-                for army, entry in zip(armies, layout_entries):
-                    battle_layout.setdefault(entry["team"], []).append(
-                        {
-                            "army": army,
-                            "position": entry["position"],
-                            "column": entry["column"],
-                            "row": entry["row"],
-                            "speed": entry["speed"],
-                        }
-                    )
-                engine = ArenaEngine(**sim_settings)
-                engine.start_arena_battle(battle_layout, targeting_mode=targeting_mode)
-                while True:
-                    engine.tick(0.016)
-                    alive = {
-                        ctx.team
-                        for ctx in engine._armies.values()
-                        if ctx.army.current_troop_count > 0
-                    }
-                    if len(alive) <= 1:
-                        break
-                winner = next(iter(alive)) if alive else "None"
+            seeds = [random.randrange(1 << 30) for _ in range(count)]
+            target_winner = ""
+            target_remaining: dict[str, float] = {}
+            if self.seed_target:
+                target_winner = str(self.seed_target.get("winner", "")).lower()
+                target_remaining = {
+                    str(key): float(val)
+                    for key, val in (self.seed_target.get("remaining") or {}).items()
+                    if isinstance(val, (int, float))
+                }
+
+            best_candidate: tuple[float, int, dict[str, float]] | None = None
+
+            def _consider_candidate(idx: int, winner: str, remaining: dict[str, float]) -> None:
+                nonlocal best_candidate
+                if not target_winner or not target_remaining:
+                    return
+                if winner.lower() != target_winner:
+                    return
+                diff = sum(
+                    abs(remaining.get(key, 0.0) - target_remaining.get(key, 0.0))
+                    for key in target_remaining
+                )
+                if best_candidate is None or diff < best_candidate[0]:
+                    best_candidate = (diff, idx, dict(remaining))
+
+            for idx, seed_val in enumerate(seeds):
+                winner, remaining, _ = _simulate_arena_battle(
+                    layout_entries,
+                    targeting_mode,
+                    sim_settings,
+                    seed_val,
+                    collect_skills=False,
+                )
                 results[winner] = results.get(winner, 0) + 1
+                _consider_candidate(idx, winner, remaining)
             window = self.window()
             if window is not None and hasattr(window, "update_arena_figures"):
-                window.update_arena_figures(results)
+                payload: dict[str, Any] = {"distribution": results}
+                if best_candidate is not None:
+                    _, idx, remaining = best_candidate
+                    if 0 <= idx < len(seeds):
+                        seed_val = seeds[idx]
+                        winner, _, summary = _simulate_arena_battle(
+                            layout_entries,
+                            targeting_mode,
+                            sim_settings,
+                            seed_val,
+                            collect_skills=True,
+                        )
+                        payload["best_match"] = {
+                            "seed": seed_val,
+                            "winner": winner,
+                            "remaining": remaining,
+                            "summary": summary or [],
+                        }
+                window.update_arena_figures(payload)
             return
 
         window = self.window()
@@ -5470,7 +5709,12 @@ class ArenaTab(QtWidgets.QWidget):
         window.progress.setValue(0)
         self.run_batch_btn.setEnabled(False)
         worker = ArenaBatchWorker(
-            layout_entries, runs, workers, str(targeting_mode), sim_settings
+            layout_entries,
+            runs,
+            workers,
+            str(targeting_mode),
+            sim_settings,
+            seed_target=self.seed_target,
         )
         self._batch_worker = worker
         worker.progress_update.connect(
@@ -5487,6 +5731,44 @@ class ArenaTab(QtWidgets.QWidget):
 
         worker.finished.connect(_finished)
         worker.start()
+
+    def _choose_seed_target(self) -> None:
+        """Open a dialog for selecting the desired arena outcome."""
+
+        armies: list[tuple[str, str, int, str]] = []
+        for (slot_team, idx), info in self._slot_army.items():
+            if not info or not info.get("config"):
+                continue
+            cfg = info.get("config", {})
+            name = cfg.get("army_name") or cfg.get("unit_type") or "Army"
+            default_remaining = int(cfg.get("count") or cfg.get("unit", {}).get("initial_count", 0) or 50_000)
+            armies.append((f"{slot_team}:{idx}", str(name), default_remaining, slot_team))
+
+        if not armies:
+            QtWidgets.QMessageBox.information(
+                self,
+                "No Armies",
+                "Place at least one army before selecting a seed target.",
+            )
+            return
+
+        dlg = ArenaSeedDialog(self, armies, self.seed_target)
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            target = dlg.target()
+            self.seed_target = dict(target) if target else None
+            self._update_seed_display()
+
+    def _update_seed_display(self) -> None:
+        """Refresh the text next to the arena seed selection button."""
+
+        if not hasattr(self, "seed_display") or not self.seed_display:
+            return
+        if not self.seed_target:
+            self.seed_display.setText("Seed: Auto")
+            return
+        winner = str(self.seed_target.get("winner", "red")).capitalize()
+        count = len(self.seed_target.get("remaining") or {})
+        self.seed_display.setText(f"Seed: {winner} ({count} armies)")
 
     def _on_engine_state(self, name: str, state: dict) -> None:
         """Update bars in response to engine state broadcasts."""
@@ -5542,6 +5824,8 @@ class ArenaTab(QtWidgets.QWidget):
                 cfg = info.get("config", {})
                 team = info.get("team", "red")
                 summary.append(build_army_skill_summary(army, cfg, team))
+            if window is not None and hasattr(window, "arena_best_match_info"):
+                window.arena_best_match_info = None
             if window is not None and hasattr(window, "update_arena_figures"):
                 window.update_arena_figures(summary)
 
@@ -5755,6 +6039,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pdf_layout = load_pdf_layout()
         self._last_setup_data: list[dict] | None = None
         self._last_simulation_payload: dict[str, Any] | None = None
+        self.arena_best_match_info: dict[str, Any] | None = None
 
     def open_star_overlay_tuner(self) -> None:
         """Open the star overlay debug dialog."""
@@ -6067,6 +6352,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # --- Arena Figures tab ---
         self.arena_figures_tab = QtWidgets.QWidget()
         ar_fig_layout = QtWidgets.QVBoxLayout(self.arena_figures_tab)
+        self.arena_best_match_label = QtWidgets.QLabel()
+        self.arena_best_match_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        ar_fig_layout.addWidget(self.arena_best_match_label)
         self.arena_fig_stack = QtWidgets.QStackedWidget()
         self.arena_fig_label = QtWidgets.QLabel("Run Batch to generate figures")
         self.arena_fig_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -6541,6 +6829,23 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         if isinstance(results, dict):
+            best_match = None
+            distribution = results
+            if "distribution" in results:
+                distribution = results.get("distribution", {}) or {}
+                if isinstance(results.get("best_match"), dict):
+                    best_match = dict(results["best_match"])
+            else:
+                self.arena_best_match_info = None
+
+            if best_match:
+                self.arena_best_match_info = best_match
+            elif not isinstance(distribution, list):
+                self.arena_best_match_info = None
+
+            if not isinstance(distribution, dict):
+                return
+
             base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
             os.makedirs(base_hist_dir, exist_ok=True)
             path = os.path.join(base_hist_dir, "arena_victory_distribution.png")
@@ -6550,17 +6855,19 @@ class MainWindow(QtWidgets.QMainWindow):
             sizes: list[int] = []
             colors: list[str] = []
             for team in order:
-                count = results.get(team, 0)
+                count = distribution.get(team, 0)
                 if count:
                     labels.append(team.capitalize())
                     sizes.append(count)
                     colors.append(color_map[team])
-            for team, count in results.items():
+            for team, count in distribution.items():
                 if team not in order and count:
                     labels.append(team.capitalize())
                     sizes.append(count)
                     colors.append("#808080")
             if not sizes:
+                if best_match and isinstance(best_match.get("summary"), list):
+                    self.update_arena_figures(best_match.get("summary") or [])
                 return
             fig, ax = plt.subplots()
             ax.pie(sizes, labels=labels, colors=colors, autopct="%1.1f%%")
@@ -6569,9 +6876,23 @@ class MainWindow(QtWidgets.QMainWindow):
             plt.close(fig)
             self.arena_fig_label.setPixmap(QtGui.QPixmap(path))
             self.arena_fig_stack.setCurrentWidget(self.arena_fig_label)
+
+            if best_match and isinstance(best_match.get("summary"), list):
+                self.update_arena_figures(best_match.get("summary") or [])
+            elif hasattr(self, "arena_best_match_label"):
+                self.arena_best_match_label.setText("")
             return
 
         # Otherwise render per-army summary after a normal run
+        if hasattr(self, "arena_best_match_label"):
+            if self.arena_best_match_info:
+                seed_val = self.arena_best_match_info.get("seed")
+                winner_text = str(self.arena_best_match_info.get("winner", "")).capitalize()
+                self.arena_best_match_label.setText(
+                    f"Best match seed: {seed_val} (Winner: {winner_text})"
+                )
+            else:
+                self.arena_best_match_label.setText("")
         for i in reversed(range(self.arena_fig_summary_layout.count())):
             item = self.arena_fig_summary_layout.takeAt(i)
             widget = item.widget()

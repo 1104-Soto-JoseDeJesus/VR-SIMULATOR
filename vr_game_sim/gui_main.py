@@ -4800,7 +4800,9 @@ class ArenaBatchWorker(QtCore.QThread):
             if best_candidate is None or diff < best_candidate[0]:
                 best_candidate = (diff, idx, dict(remaining))
 
-        if self.num_workers > 1:
+        use_process_pool = self.num_workers > 1 and not self.seed_target
+
+        if use_process_pool:
             ctx = multiprocessing.get_context("spawn")
             with concurrent.futures.ProcessPoolExecutor(
                 max_workers=self.num_workers, mp_context=ctx

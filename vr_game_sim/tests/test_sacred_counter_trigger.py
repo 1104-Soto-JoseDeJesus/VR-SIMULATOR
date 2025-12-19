@@ -28,7 +28,7 @@ def test_sacred_counter_does_not_trigger_on_own_attack(monkeypatch):
 
     def fake_calc(source, target, factor, **kwargs):
         recorded.append((target.name, factor))
-        return 0, 0, 0, 0
+        return 0, 0, 0, 0, []
 
     monkeypatch.setattr(sim, "_calculate_generic_skill_damage", fake_calc)
     monkeypatch.setattr(random, "random", lambda: 0.0)
@@ -43,7 +43,7 @@ def test_sacred_counter_triggers_when_hit(monkeypatch):
 
     def fake_calc(source, target, factor, **kwargs):
         recorded.append((target.name, factor))
-        return 0, 0, 0, 0
+        return 0, 0, 0, 0, []
 
     monkeypatch.setattr(sim, "_calculate_generic_skill_damage", fake_calc)
     monkeypatch.setattr(random, "random", lambda: 0.0)

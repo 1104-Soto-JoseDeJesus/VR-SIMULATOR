@@ -202,7 +202,7 @@ def handle_plugin_chance_of_reversal(
         return False, []
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_dmg = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -210,7 +210,7 @@ def handle_plugin_chance_of_reversal(
         if hp_damage > 0 or absorbed > 0: an_effect_happened = True
         log_details.append((f"Deals damage to {opponent_army.name}.",
                             {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed),
-                             "potential_kills": kills}))
+                             "potential_kills": kills, "calculation_steps": calc_steps}))
     rage_gain = skill_config.get("rage_gain", 0.0)
     if rage_gain > 0:
         effect_data = {
@@ -246,7 +246,7 @@ def handle_plugin_trap_of_despair(
 
     dmg_factor = cfg.get("damage_factor", 0.0)
     if dmg_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, dmg_factor, source_skill_def=skill_def
         )
         if hp_damage > 0:
@@ -256,7 +256,7 @@ def handle_plugin_trap_of_despair(
         log_details.append(
             (
                 f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
             )
         )
 
@@ -382,7 +382,7 @@ def handle_plugin_divine_shield(
         if random.random() < cfg.get("damage_chance", 0.20):
             damage_factor = cfg.get("damage_factor", 0.0)
             if damage_factor > 0:
-                hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                     triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
                 )
                 if hp_damage > 0:
@@ -392,7 +392,7 @@ def handle_plugin_divine_shield(
                 log_details.append(
                     (
                         f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                        {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                        {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
                     )
                 )
         if random.random() < cfg.get("immunity_chance", 0.50):
@@ -516,7 +516,7 @@ def handle_plugin_shield_attacker(
         if random.random() < proc_chance:
             damage_factor = skill_config.get("damage_factor", 0.0)
             if damage_factor > 0:
-                hp_damage, absorbed, kills, raw_dmg = simulator._calculate_generic_skill_damage(
+                hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
                     triggering_army, opponent_army, damage_factor,
                     source_skill_def=skill_def
                 )
@@ -524,7 +524,7 @@ def handle_plugin_shield_attacker(
                 if hp_damage > 0 or absorbed > 0: an_effect_happened = True
                 log_details.append(
                     (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name} (shield was active, {proc_chance * 100:.0f}% chance met).",
-                     {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+                     {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}))
     return an_effect_happened, log_details
 
 
@@ -669,7 +669,7 @@ def handle_plugin_lokis_trick(
     damage_factor = skill_config.get("damage_factor", 0.0)
     damage_attempted_or_done = False
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_dmg = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -679,7 +679,7 @@ def handle_plugin_lokis_trick(
             damage_attempted_or_done = True
         log_details.append((f"Deals damage to {opponent_army.name}.",
                             {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed),
-                             "potential_kills": kills}))
+                             "potential_kills": kills, "calculation_steps": calc_steps}))
 
     if damage_attempted_or_done:  # Only proc secondary effects if damage was dealt or absorbed
         if random.random() < skill_config.get("rage_reduction_chance", 0.0):
@@ -759,7 +759,7 @@ def handle_plugin_odins_asylum(
     skill_id = skill_def["id"]
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_dmg = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -767,7 +767,7 @@ def handle_plugin_odins_asylum(
         if hp_damage > 0 or absorbed > 0: an_effect_happened = True
         log_details.append((f"Deals damage to {opponent_army.name} (Factor: {damage_factor}).",
                             {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed),
-                             "potential_kills": kills}))
+                             "potential_kills": kills, "calculation_steps": calc_steps}))
     shield_factor = skill_config.get("shield_factor", 0.0)
     if shield_factor > 0:
         shield_duration = skill_config.get("shield_duration", 1);
@@ -870,7 +870,7 @@ def handle_plugin_disarmament(
     skill_id = skill_def["id"]
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_dmg = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -878,7 +878,7 @@ def handle_plugin_disarmament(
         if hp_damage > 0 or absorbed > 0: an_effect_happened = True
         log_details.append((f"Deals damage to {opponent_army.name} (Factor: {damage_factor}).",
                             {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed),
-                             "potential_kills": kills}))
+                             "potential_kills": kills, "calculation_steps": calc_steps}))
 
     activate_debuffs_next = skill_config.get("activate_debuffs_next_round", True)
     activation_time_log = "next round" if activate_debuffs_next else "this round"
@@ -921,7 +921,7 @@ def handle_plugin_silencer(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -930,7 +930,7 @@ def handle_plugin_silencer(
         an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     silence_duration = skill_config.get("silence_duration", 1)
@@ -964,7 +964,7 @@ def handle_plugin_enrage(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -974,7 +974,7 @@ def handle_plugin_enrage(
             an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     rage_gain = skill_config.get("rage_gain", 0)
@@ -1012,7 +1012,7 @@ def handle_plugin_blessed_negation(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -1022,7 +1022,7 @@ def handle_plugin_blessed_negation(
             an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     buff_ids_to_target = []
@@ -1095,7 +1095,7 @@ def handle_plugin_wild_indulgence(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -1105,7 +1105,7 @@ def handle_plugin_wild_indulgence(
             an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     debuffs_to_target_ids = []
@@ -1280,7 +1280,7 @@ def handle_plugin_fading_battle(
         source_skill_def=skill_def,
         damage_application_target=opponent_army,
     )
-    hp_damage, absorbed, kills, raw_logged_damage = primary_damage
+    hp_damage, absorbed, kills, raw_logged_damage, calc_steps = primary_damage
     if hp_damage > 0:
         opponent_army.pending_hp_damage_this_round += hp_damage
     if hp_damage > 0 or absorbed > 0:
@@ -1292,13 +1292,14 @@ def handle_plugin_fading_battle(
                 "damage_done_hp": round(raw_logged_damage),
                 "absorbed_hp": round(absorbed),
                 "potential_kills": kills,
+                "calculation_steps": calc_steps,
             },
         )
     )
 
     # Secondary targets are processed using their own context
     for extra_target in targets[1:]:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army,
             extra_target,
             damage_factor,
@@ -1316,6 +1317,7 @@ def handle_plugin_fading_battle(
                     "damage_done_hp": round(raw_logged_damage),
                     "absorbed_hp": round(absorbed),
                     "potential_kills": kills,
+                    "calculation_steps": calc_steps,
                 },
             )
         )
@@ -1334,7 +1336,7 @@ def handle_plugin_battle_hymn(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -1344,7 +1346,7 @@ def handle_plugin_battle_hymn(
             an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     rage_gain = skill_config.get("rage_gain", 0)
@@ -1378,7 +1380,7 @@ def handle_plugin_rapid_attack(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -1388,7 +1390,7 @@ def handle_plugin_rapid_attack(
             an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     broken_blade_duration = skill_config.get("broken_blade_duration", 1)
@@ -1423,7 +1425,7 @@ def handle_plugin_rage_purge(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -1434,7 +1436,7 @@ def handle_plugin_rage_purge(
         log_details.append(
             (
                 f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
             )
         )
 
@@ -1563,7 +1565,7 @@ def handle_plugin_fiery_detonation(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -1573,7 +1575,7 @@ def handle_plugin_fiery_detonation(
             an_effect_happened = True
         log_details.append(
             (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
+             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps})
         )
 
     enemy_is_burning = any(
@@ -1582,7 +1584,7 @@ def handle_plugin_fiery_detonation(
     )
     if enemy_is_burning:
         if damage_factor > 0:
-            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                 triggering_army, opponent_army, damage_factor,
                 source_skill_def=skill_def
             )
@@ -1592,7 +1594,7 @@ def handle_plugin_fiery_detonation(
                 an_effect_happened = True
             log_details.append(
                 (f"Deals additional damage (Factor: {damage_factor}) to {opponent_army.name} (target burning).",
-                 {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
+                 {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps})
             )
 
         def_red_mag = skill_config.get("defense_reduction_magnitude", -0.15)
@@ -1735,7 +1737,7 @@ def handle_plugin_blow_of_chaos(
     if enemy_has_status:
         damage_factor = skill_config.get("damage_factor", 0.0)
         if damage_factor > 0:
-            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                 triggering_army, opponent_army, damage_factor,
                 source_skill_def=skill_def
             )
@@ -1745,7 +1747,7 @@ def handle_plugin_blow_of_chaos(
                 an_effect_happened = True
             log_details.append(
                 (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                 {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
+                 {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps})
             )
 
     return an_effect_happened, log_details
@@ -1888,7 +1890,7 @@ def handle_plugin_fearless(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -1898,7 +1900,7 @@ def handle_plugin_fearless(
             an_effect_happened = True
         log_details.append(
             (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
+             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps})
         )
 
     if random.random() < skill_config.get("buff_chance", 0.20):
@@ -1937,7 +1939,7 @@ def handle_plugin_joint_offense(
     if random.random() < skill_config.get("proc_chance", 0.50):
         damage_factor = skill_config.get("damage_factor", 0.0)
         if damage_factor > 0:
-            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                 triggering_army, opponent_army, damage_factor,
                 source_skill_def=skill_def
             )
@@ -1947,7 +1949,7 @@ def handle_plugin_joint_offense(
                 an_effect_happened = True
             log_details.append(
                 (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                 {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
+                 {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps})
             )
 
     return an_effect_happened, log_details
@@ -1967,7 +1969,7 @@ def handle_plugin_bloody_rage(
         if random.random() < skill_config.get("proc_chance", 0.20):
             damage_factor = skill_config.get("damage_factor", 500.0)
             if damage_factor > 0:
-                hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                     triggering_army, opponent_army, damage_factor,
                     source_skill_def=skill_def
                 )
@@ -1977,7 +1979,7 @@ def handle_plugin_bloody_rage(
                     an_effect_happened = True
                 log_details.append(
                     (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                     {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
+                     {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps})
                 )
 
     return an_effect_happened, log_details
@@ -2003,7 +2005,7 @@ def handle_plugin_tidal_attack(
         damage_factor = skill_config.get("damage_factor_h1", 370.0)
 
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
         )
         if hp_damage > 0:
@@ -2013,7 +2015,7 @@ def handle_plugin_tidal_attack(
         log_details.append(
             (
                 f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
             )
         )
 
@@ -2036,7 +2038,7 @@ def handle_plugin_splinter(
 
     damage_factor = skill_config.get("damage_factor", 800.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
         )
         if hp_damage > 0:
@@ -2046,7 +2048,7 @@ def handle_plugin_splinter(
         log_details.append(
             (
                 f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
             )
         )
 
@@ -2298,7 +2300,7 @@ def handle_plugin_dampened_spirits(
     if random.random() < skill_config.get("damage_proc_chance", 0.50):
         damage_factor = skill_config.get("damage_factor", 550.0)
         if damage_factor > 0:
-            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                 triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
             )
             if hp_damage > 0:
@@ -2308,7 +2310,7 @@ def handle_plugin_dampened_spirits(
             log_details.append(
                 (
                     f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
                 )
             )
 
@@ -2524,7 +2526,7 @@ def handle_plugin_this_too_shall_pass(
     if enemy_has_poison:
         damage_factor = skill_config.get("damage_factor", 1000.0)
         if damage_factor > 0:
-            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                 triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
             )
             if hp_damage > 0:
@@ -2533,7 +2535,7 @@ def handle_plugin_this_too_shall_pass(
                 an_effect_happened = True
             log_details.append((
                 f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
             ))
 
     if enemy_has_burn:
@@ -2566,7 +2568,7 @@ def handle_plugin_silent_invasion(
         if random.random() < skill_config.get("slow_trigger_chance", 0.25):
             damage_factor = skill_config.get("damage_factor", 650.0)
             if damage_factor > 0:
-                hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                     triggering_army, opponent_army, damage_factor,
                     source_skill_def=skill_def
                 )
@@ -2576,7 +2578,7 @@ def handle_plugin_silent_invasion(
                     an_effect_happened = True
                 log_details.append((
                     f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
                 ))
 
             silence_effect_data = {
@@ -2649,7 +2651,7 @@ def handle_plugin_deadly_counterattack(
     if random.random() < skill_config.get("damage_chance", 0.20):
         damage_factor = skill_config.get("damage_factor", 450.0)
         if damage_factor > 0:
-            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                 triggering_army, opponent_army, damage_factor,
                 source_skill_def=skill_def
             )
@@ -2659,7 +2661,7 @@ def handle_plugin_deadly_counterattack(
                 an_effect_happened = True
             log_details.append((
                 f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
             ))
 
     if random.random() < skill_config.get("heal_chance", 0.15):
@@ -2701,7 +2703,7 @@ def handle_plugin_bone_corroding_arrow(
 
     damage_factor = skill_config.get("damage_factor", 500.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             source_skill_def=skill_def
         )
@@ -2711,7 +2713,7 @@ def handle_plugin_bone_corroding_arrow(
             an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     enemy_has_poison = any(

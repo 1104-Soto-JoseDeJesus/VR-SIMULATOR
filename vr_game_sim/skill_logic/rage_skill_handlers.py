@@ -27,7 +27,7 @@ def handle_rage_sharp_pursuit(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefiniti
     sk_id = sk_def["id"]
     dmg_fctr = sk_cfg.get("damage_factor", 0.0)
     if dmg_fctr > 0:
-        hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(army, opp, dmg_fctr,
+        hp_dmg, absrb, kills, raw_log_dmg, calc_steps = sim._calculate_generic_skill_damage(army, opp, dmg_fctr,
                                                                                 is_hero2_rage_skill=is_h2_delay,
                                                                                 source_skill_def=sk_def)
         if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg
@@ -35,7 +35,7 @@ def handle_rage_sharp_pursuit(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefiniti
             eff_hpnd = True
             dmg_dealt_flag = True
         logs.append((f"Deals damage to {opp.name}.",
-                     {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
+                     {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills, "calculation_steps": calc_steps}))
     sh_fctr = sk_cfg.get("shield_factor", 0.0);
     self_sh_dur = sk_cfg.get("self_shield_duration", 1)
     if sh_fctr > 0:
@@ -61,7 +61,7 @@ def handle_rage_sacred_blade(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinitio
     sk_id = sk_def["id"];
     dmg_fctr = sk_cfg.get("damage_factor", 0.0)
     if dmg_fctr > 0:
-        hp_dmg, absrb, kills, raw_dmg = sim._calculate_generic_skill_damage(army, opp, dmg_fctr,
+        hp_dmg, absrb, kills, raw_dmg, calc_steps = sim._calculate_generic_skill_damage(army, opp, dmg_fctr,
                                                                            is_hero2_rage_skill=is_h2_delay,
                                                                            source_skill_def=sk_def)
         if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg
@@ -69,7 +69,7 @@ def handle_rage_sacred_blade(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinitio
             eff_hpnd = True
             dmg_dealt_flag = True
         logs.append((f"Deals damage to {opp.name}.",
-                     {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
+                     {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absrb), "potential_kills": kills, "calculation_steps": calc_steps}))
         if sim.mode in ("battlefield", "arena"):
             engine = getattr(sim, "parent_engine", None)
             if engine:
@@ -78,7 +78,7 @@ def handle_rage_sacred_blade(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinitio
                 if len(extras) > 2:
                     extras = random.sample(extras, 2)
                 for other in extras:
-                    hp_dmg2, absrb2, kills2, raw_dmg2 = sim._calculate_generic_skill_damage(
+                    hp_dmg2, absrb2, kills2, raw_dmg2, calc_steps2 = sim._calculate_generic_skill_damage(
                         army, other, dmg_fctr,
                         is_hero2_rage_skill=is_h2_delay,
                         source_skill_def=sk_def)
@@ -87,7 +87,7 @@ def handle_rage_sacred_blade(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinitio
                         eff_hpnd = True
                         dmg_dealt_flag = True
                     logs.append((f"Deals damage to {other.name}.",
-                                 {"damage_done_hp": round(raw_dmg2), "absorbed_hp": round(absrb2), "potential_kills": kills2}))
+                                 {"damage_done_hp": round(raw_dmg2), "absorbed_hp": round(absrb2), "potential_kills": kills2, "calculation_steps": calc_steps2}))
     buff_dets = sk_cfg.get("buff_details")
     if buff_dets and army.unit.unit_type == buff_dets.get("unit_type_condition"):
         buff_data_copy = buff_dets.copy()
@@ -168,7 +168,7 @@ def handle_rage_vanquishing_blade(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefi
              None))
     dmg_fctr_vb = sk_cfg.get("damage_factor", 0.0)
     if dmg_fctr_vb > 0:
-        hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(army, opp, dmg_fctr_vb,
+        hp_dmg, absrb, kills, raw_log_dmg, calc_steps = sim._calculate_generic_skill_damage(army, opp, dmg_fctr_vb,
                                                                                 is_hero2_rage_skill=is_h2_delay,
                                                                                 source_skill_def=sk_def)
         if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg
@@ -176,7 +176,7 @@ def handle_rage_vanquishing_blade(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefi
             eff_hpnd = True
             dmg_dealt_flag = True
         logs.append((f"Deals damage to {opp.name}.",
-                     {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
+                     {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills, "calculation_steps": calc_steps}))
     return eff_hpnd, logs, dmg_dealt_flag
 
 
@@ -188,7 +188,7 @@ def handle_generic_damage_rage_skill(army: ArmyRef, opp: ArmyRef, sk_def: SkillD
     sk_cfg = sk_def.get("config", {});
     dmg_fctr = sk_cfg.get("damage_factor", 0.0)
     if dmg_fctr > 0:
-        hp_dmg, absrb, kills, raw_log_dmg = sim._calculate_generic_skill_damage(army, opp, dmg_fctr,
+        hp_dmg, absrb, kills, raw_log_dmg, calc_steps = sim._calculate_generic_skill_damage(army, opp, dmg_fctr,
                                                                                 is_hero2_rage_skill=is_h2_delay,
                                                                                 source_skill_def=sk_def)
         if hp_dmg > 0: opp.pending_hp_damage_this_round += hp_dmg
@@ -196,7 +196,7 @@ def handle_generic_damage_rage_skill(army: ArmyRef, opp: ArmyRef, sk_def: SkillD
             eff_hpnd = True
             dmg_dealt_flag = True
         logs.append((f"Deals damage to {opp.name}.",
-                     {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills}))
+                     {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills, "calculation_steps": calc_steps}))
     return eff_hpnd, logs, dmg_dealt_flag
 
 
@@ -214,7 +214,7 @@ def handle_rage_skill_snakes_frenzy(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -227,7 +227,7 @@ def handle_rage_skill_snakes_frenzy(
             an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     buff_magnitude = skill_config.get("buff_magnitude", 0.0)
@@ -267,7 +267,7 @@ def handle_rage_skill_paralyzing_terror(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -280,7 +280,7 @@ def handle_rage_skill_paralyzing_terror(
             an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
         if simulator.mode in ("battlefield", "arena"):
             engine = getattr(simulator, "parent_engine", None)
@@ -306,7 +306,7 @@ def handle_rage_skill_paralyzing_terror(
                     if len(filtered) > 2:
                         filtered = random.sample(filtered, 2)
                     for other in filtered:
-                        hp_dmg2, absorbed2, kills2, raw2 = simulator._calculate_generic_skill_damage(
+                        hp_dmg2, absorbed2, kills2, raw2, calc_steps2 = simulator._calculate_generic_skill_damage(
                             triggering_army, other, damage_factor,
                             is_hero2_rage_skill=is_hero2_delayed_rage,
                             source_skill_def=skill_def
@@ -320,7 +320,7 @@ def handle_rage_skill_paralyzing_terror(
                         log_details.append(
                             (
                                 f"Deals damage (Factor: {damage_factor}) to {other.name}.",
-                                {"damage_done_hp": round(raw2), "absorbed_hp": round(absorbed2), "potential_kills": kills2}
+                                {"damage_done_hp": round(raw2), "absorbed_hp": round(absorbed2), "potential_kills": kills2, "calculation_steps": calc_steps2}
                             )
                         )
 
@@ -365,7 +365,7 @@ def handle_rage_skill_intimidation(
 
     damage_factor_hit1 = skill_config.get("damage_factor_hit1", 0.0)
     if damage_factor_hit1 > 0 and opponent_army.current_troop_count > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor_hit1,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -378,12 +378,12 @@ def handle_rage_skill_intimidation(
             an_effect_happened = True
         log_details.append((
             f"Hit 1 deals damage (Factor: {damage_factor_hit1}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     damage_factor_hit2 = skill_config.get("damage_factor_hit2", 0.0)
     if damage_factor_hit2 > 0 and opponent_army.current_troop_count > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor_hit2,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -396,7 +396,7 @@ def handle_rage_skill_intimidation(
             an_effect_happened = True
         log_details.append((
             f"Hit 2 deals damage (Factor: {damage_factor_hit2}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     rage_reduction = skill_config.get("rage_reduction", 0)
@@ -452,7 +452,7 @@ def handle_rage_skill_viking_sage(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -465,7 +465,7 @@ def handle_rage_skill_viking_sage(
             an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     atk_reduction_magnitude = skill_config.get("atk_reduction_magnitude", 0.0)
@@ -507,7 +507,7 @@ def handle_rage_holy_enlightenment(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -520,7 +520,7 @@ def handle_rage_holy_enlightenment(
             an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     if random.random() < skill_config.get("burn_chance", 0.0):
@@ -591,7 +591,7 @@ def handle_rage_raining_arrows(  # Verdandi's skill, already exists
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -604,7 +604,7 @@ def handle_rage_raining_arrows(  # Verdandi's skill, already exists
             an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     burn_factor = skill_config.get("burn_factor", 0.0)
@@ -649,7 +649,7 @@ def handle_rage_concentration(
     # 1. Deal direct damage
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -661,7 +661,7 @@ def handle_rage_concentration(
             an_effect_happened = True
         log_details.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
         ))
 
     # 2. Apply multi-round rage gain effect
@@ -728,7 +728,7 @@ def handle_rage_incineration(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -740,7 +740,7 @@ def handle_rage_incineration(
             an_effect_happened = True
         log_details.append(
             (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
+             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps})
         )
 
         if simulator.mode in ("battlefield", "arena"):
@@ -751,7 +751,7 @@ def handle_rage_incineration(
                 if len(extras) > 2:
                     extras = random.sample(extras, 2)
                 for other in extras:
-                    hp_dmg2, absorbed2, kills2, raw2 = simulator._calculate_generic_skill_damage(
+                    hp_dmg2, absorbed2, kills2, raw2, calc_steps2 = simulator._calculate_generic_skill_damage(
                         triggering_army, other, damage_factor,
                         is_hero2_rage_skill=is_hero2_delayed_rage,
                         source_skill_def=skill_def
@@ -764,7 +764,7 @@ def handle_rage_incineration(
                         an_effect_happened = True
                     log_details.append(
                         (f"Deals damage (Factor: {damage_factor}) to {other.name}.",
-                         {"damage_done_hp": round(raw2), "absorbed_hp": round(absorbed2), "potential_kills": kills2})
+                         {"damage_done_hp": round(raw2), "absorbed_hp": round(absorbed2), "potential_kills": kills2, "calculation_steps": calc_steps2})
                     )
 
     if random.random() < skill_config.get("burn_boost_chance", 0.0):
@@ -811,7 +811,7 @@ def handle_rage_desperate_strike(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -824,7 +824,7 @@ def handle_rage_desperate_strike(
         log_details.append(
             (
                 f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
             )
         )
 
@@ -868,7 +868,7 @@ def handle_rage_serrated_flourish(
 
     damage_factor = cfg.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=is_hero2,
             source_skill_def=skill_def,
@@ -880,7 +880,7 @@ def handle_rage_serrated_flourish(
             happened = True
         logs.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
         ))
 
         if random.random() < cfg.get("poison_chance", 0.0):
@@ -911,7 +911,7 @@ def handle_rage_serrated_flourish(
     extra_chance = cfg.get("extra_damage_chance", 0.0)
     extra_damage_factor = cfg.get("extra_damage_factor", 0.0)
     if extra_damage_factor > 0 and random.random() < extra_chance:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, extra_damage_factor,
             is_hero2_rage_skill=is_hero2,
             source_skill_def=skill_def,
@@ -923,7 +923,7 @@ def handle_rage_serrated_flourish(
             happened = True
         logs.append((
             f"Deals additional damage (Factor: {extra_damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
         ))
     elif extra_damage_factor > 0:
         logs.append((f"Follow-up damage chance ({extra_chance * 100:.0f}%) not met.", None))
@@ -944,7 +944,7 @@ def handle_rage_time_of_severance(
 
     damage_factor = cfg.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army,
             opponent_army,
             damage_factor,
@@ -959,7 +959,7 @@ def handle_rage_time_of_severance(
         logs.append(
             (
                 f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
             )
         )
 
@@ -1013,7 +1013,7 @@ def handle_rage_time_of_severance(
     if any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects):
         extra_damage_factor = cfg.get("slow_damage_factor", 0.0)
         if extra_damage_factor > 0:
-            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                 triggering_army,
                 opponent_army,
                 extra_damage_factor,
@@ -1028,7 +1028,7 @@ def handle_rage_time_of_severance(
             logs.append(
                 (
                     f"Deals additional damage (Factor: {extra_damage_factor}) to {opponent_army.name} because they are slowed.",
-                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
                 )
             )
 
@@ -1048,7 +1048,7 @@ def handle_rage_triumphant_presence(
 
     damage_factor = cfg.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army,
             opponent_army,
             damage_factor,
@@ -1063,7 +1063,7 @@ def handle_rage_triumphant_presence(
         logs.append(
             (
                 f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
             )
         )
 
@@ -1104,7 +1104,7 @@ def handle_rage_triumphant_presence(
     if any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects):
         extra_damage = cfg.get("slow_damage_factor", 0.0)
         if extra_damage > 0:
-            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                 triggering_army,
                 opponent_army,
                 extra_damage,
@@ -1119,7 +1119,7 @@ def handle_rage_triumphant_presence(
             logs.append(
                 (
                     f"Deals additional damage (Factor: {extra_damage}) to {opponent_army.name} because they are slowed.",
-                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
                 )
             )
 
@@ -1139,7 +1139,7 @@ def handle_rage_raging_tide(
 
     damage_factor = cfg.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=is_hero2,
             source_skill_def=skill_def,
@@ -1151,7 +1151,7 @@ def handle_rage_raging_tide(
             happened = True
         logs.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
         ))
 
     bleed_factor = cfg.get("bleed_factor", 0.0)
@@ -1211,7 +1211,7 @@ def handle_rage_spirit_battleship(
     skill_id = skill_def["id"]
     dmg_factor = cfg.get("damage_factor", 0.0)
     if dmg_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, dmg_factor, source_skill_def=skill_def
         )
         if hp_damage > 0:
@@ -1223,7 +1223,7 @@ def handle_rage_spirit_battleship(
         log_details.append(
             (
                 f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
             )
         )
 
@@ -1265,7 +1265,7 @@ def handle_rage_slaughter_feast(triggering_army: ArmyRef, opponent_army: ArmyRef
 
     if dmg_factor > 0:
         is_h2_delay = event_data.get("is_hero2_delayed_rage", False)
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, dmg_factor,
             is_hero2_rage_skill=is_h2_delay,
             source_skill_def=skill_def)
@@ -1277,7 +1277,7 @@ def handle_rage_slaughter_feast(triggering_army: ArmyRef, opponent_army: ArmyRef
             an_effect_happened = True
         log_details.append((f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
                            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed),
-                            "potential_kills": kills}))
+                            "potential_kills": kills, "calculation_steps": calc_steps}))
 
         if simulator.mode in ("battlefield", "arena"):
             engine = getattr(simulator, "parent_engine", None)
@@ -1303,7 +1303,7 @@ def handle_rage_slaughter_feast(triggering_army: ArmyRef, opponent_army: ArmyRef
                     if len(filtered) > 2:
                         filtered = random.sample(filtered, 2)
                     for other in filtered:
-                        hp_dmg2, absorbed2, kills2, raw2 = simulator._calculate_generic_skill_damage(
+                        hp_dmg2, absorbed2, kills2, raw2, calc_steps2 = simulator._calculate_generic_skill_damage(
                             triggering_army, other, dmg_factor,
                             is_hero2_rage_skill=is_h2_delay,
                             source_skill_def=skill_def
@@ -1317,7 +1317,7 @@ def handle_rage_slaughter_feast(triggering_army: ArmyRef, opponent_army: ArmyRef
                         log_details.append(
                             (
                                 f"Deals damage (Factor: {dmg_factor}) to {other.name}.",
-                                {"damage_done_hp": round(raw2), "absorbed_hp": round(absorbed2), "potential_kills": kills2}
+                                {"damage_done_hp": round(raw2), "absorbed_hp": round(absorbed2), "potential_kills": kills2, "calculation_steps": calc_steps2}
                             )
                         )
 
@@ -1351,7 +1351,7 @@ def handle_rage_undead_harvest(
     debuff_duration = cfg.get("debuff_duration", 1)
 
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=event_data.get("is_hero2_delayed_rage", False),
             source_skill_def=skill_def
@@ -1364,7 +1364,7 @@ def handle_rage_undead_harvest(
             an_effect_happened = True
         log_details.append(
             (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
+             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps})
         )
 
     if debuff_magnitude != 0:
@@ -1478,7 +1478,7 @@ def handle_rage_skill_heavenly_descent(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -1491,7 +1491,7 @@ def handle_rage_skill_heavenly_descent(
             an_effect_happened = True
         log_details.append(
             (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills})
+             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps})
         )
         if simulator.mode in ("battlefield", "arena"):
             engine = getattr(simulator, "parent_engine", None)
@@ -1513,7 +1513,7 @@ def handle_rage_skill_heavenly_descent(
                     if len(extras) > 4:
                         extras = random.sample(extras, 4)
                     for extra in extras:
-                        hp2, abs2, kills2, raw2 = simulator._calculate_generic_skill_damage(
+                        hp2, abs2, kills2, raw2, calc_steps2 = simulator._calculate_generic_skill_damage(
                             triggering_army, extra, damage_factor,
                             is_hero2_rage_skill=is_hero2_delayed_rage,
                             source_skill_def=skill_def
@@ -1525,7 +1525,7 @@ def handle_rage_skill_heavenly_descent(
                             an_effect_happened = True
                         log_details.append(
                             (f"Deals damage (Factor: {damage_factor}) to {extra.name}.",
-                             {"damage_done_hp": round(raw2), "absorbed_hp": round(abs2), "potential_kills": kills2})
+                             {"damage_done_hp": round(raw2), "absorbed_hp": round(abs2), "potential_kills": kills2, "calculation_steps": calc_steps2})
                         )
 
     vul_mag = skill_config.get("vulnerability_magnitude", 0.0)
@@ -1576,7 +1576,7 @@ def handle_rage_ruling_trial(
     dmg_factor = high_factor if enemy_ratio < threshold else base_factor
 
     if dmg_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, dmg_factor,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -1588,11 +1588,11 @@ def handle_rage_ruling_trial(
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
         log_details.append((f"Deals damage (Factor: {dmg_factor}) to {opponent_army.name}.",
-                           {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+                           {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}))
 
     marker_count = sum(1 for eff in triggering_army.active_effects if eff.name == EFFECT_NAME_JUDGEMENT_MARKER)
     if marker_count > 5 and extra_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, extra_factor,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -1604,7 +1604,7 @@ def handle_rage_ruling_trial(
         if hp_damage > 0 or absorbed > 0:
             an_effect_happened = True
         log_details.append((f"Deals extra damage (Factor: {extra_factor}) to {opponent_army.name}.",
-                           {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills}))
+                           {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}))
 
     # Apply base damage to up to three other direct attackers in battlefield/arena modes
     if simulator.mode in ("battlefield", "arena") and base_factor > 0:
@@ -1615,7 +1615,7 @@ def handle_rage_ruling_trial(
             if len(extras) > 3:
                 extras = random.sample(extras, 3)
             for other in extras:
-                hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+                hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                     triggering_army, other, base_factor,
                     is_hero2_rage_skill=is_hero2_delayed_rage,
                     source_skill_def=skill_def,
@@ -1628,7 +1628,7 @@ def handle_rage_ruling_trial(
                 log_details.append((f"Deals damage (Factor: {base_factor}) to {other.name}.",
                                    {"damage_done_hp": round(raw_logged_damage),
                                     "absorbed_hp": round(absorbed),
-                                    "potential_kills": kills}))
+                                    "potential_kills": kills, "calculation_steps": calc_steps}))
 
     return an_effect_happened, log_details, damage_dealt_flag
 
@@ -1649,7 +1649,7 @@ def handle_rage_showdown(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor,
             is_hero2_rage_skill=is_hero2_delayed_rage,
             source_skill_def=skill_def
@@ -1663,7 +1663,7 @@ def handle_rage_showdown(
         log_details.append(
             (
                 f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
             )
         )
 
@@ -1732,7 +1732,7 @@ def handle_rage_blizzard_spear(
 
     damage_factor = skill_config.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
         )
         if hp_damage > 0:
@@ -1743,7 +1743,7 @@ def handle_rage_blizzard_spear(
         log_details.append(
             (
                 f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
             )
         )
 
@@ -1811,7 +1811,7 @@ def handle_rage_indomitable_spirit(
             skill_config.get("boosted_damage_factor", 0.0) if below_half_troops else skill_config.get("damage_factor", 0.0)
         )
         if damage_factor > 0:
-            hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
                 triggering_army, target, damage_factor, source_skill_def=skill_def
             )
             if hp_damage > 0:
@@ -1822,7 +1822,7 @@ def handle_rage_indomitable_spirit(
             log_details.append(
                 (
                     f"Deals damage (Factor: {damage_factor}) to {target.name}.",
-                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+                    {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
                 )
             )
 
@@ -1862,7 +1862,7 @@ def handle_rage_chain_meteor(
 
     damage_factor = cfg.get("damage_factor", 0.0)
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor, is_hero2_rage_skill=is_hero2, source_skill_def=skill_def
         )
         if hp_damage > 0:
@@ -1872,7 +1872,7 @@ def handle_rage_chain_meteor(
             happened = True
         logs.append((
             f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
         ))
 
     if random.random() < cfg.get("burn_chance", 0.0):
@@ -1959,7 +1959,7 @@ def handle_rage_floral_burial(
     heal_conversion = cfg.get("heal_conversion", 0.5) if current_marks >= cfg.get("heal_threshold", 10) else 0.0
 
     if damage_factor > 0:
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, damage_factor, is_hero2_rage_skill=is_hero2, source_skill_def=skill_def
         )
         if hp_damage > 0:
@@ -1969,7 +1969,7 @@ def handle_rage_floral_burial(
             happened = True
         logs.append((
             f"Deals Floral Burial damage to {opponent_army.name} (Factor: {damage_factor}).",
-            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills},
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
         ))
 
         if heal_conversion > 0 and hp_damage > 0:

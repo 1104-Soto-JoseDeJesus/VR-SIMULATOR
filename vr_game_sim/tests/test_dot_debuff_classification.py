@@ -54,7 +54,7 @@ def test_dot_counts_as_debuff_for_condition(monkeypatch):
 
     def fake_calc(trig, opp, factor, **kwargs):
         recorded["factor"] = factor
-        return 0, 0, 0, 0
+        return 0, 0, 0, 0, []
 
     monkeypatch.setattr(sim, "_calculate_generic_skill_damage", fake_calc)
     monkeypatch.setattr(random, "random", lambda: 0.0)
@@ -71,7 +71,7 @@ def test_no_debuff_uses_base_damage(monkeypatch):
 
     def fake_calc(trig, opp, factor, **kwargs):
         recorded["factor"] = factor
-        return 0, 0, 0, 0
+        return 0, 0, 0, 0, []
 
     monkeypatch.setattr(sim, "_calculate_generic_skill_damage", fake_calc)
     monkeypatch.setattr(random, "random", lambda: 0.0)

@@ -25,7 +25,7 @@ def handle_generic_single_damage_skill(
         if event_data and event_data.get('actual_opponent_for_calc'):
             calc_target = event_data['actual_opponent_for_calc']
 
-        hp_damage, absorbed, kills, raw_logged_damage = simulator._calculate_generic_skill_damage(
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army,
             calc_target,
             damage_factor,
@@ -43,6 +43,7 @@ def handle_generic_single_damage_skill(
                     "damage_done_hp": round(raw_logged_damage),
                     "absorbed_hp": round(absorbed),
                     "potential_kills": kills,
+                    "calculation_steps": calc_steps,
                 },
             )
         )

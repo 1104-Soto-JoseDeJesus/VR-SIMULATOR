@@ -314,14 +314,15 @@ class GameSimulator:
         damage_application_target: Optional[Army] = None,
         *,
         damage_is_over_time: bool = False,
-    ) -> Tuple[float, float, int, float]:
+    ) -> Tuple[float, float, int, float, list[dict[str, Any]]]:
         if source_army.current_troop_count <= 0:
-            return 0.0, 0.0, 0, 0.0
+            return 0.0, 0.0, 0, 0.0, []
 
         calc_target = target_army
         apply_target = damage_application_target or target_army
 
         evasion_effect = None
+        calc_steps: list[dict[str, Any]] = []
         if apply_target and not damage_is_over_time:
             evasion_effect = self._attempt_evasion(
                 apply_target, source_army, "SKILL", source_skill_def
@@ -592,7 +593,7 @@ class GameSimulator:
                 evasion_effect.name,
                 f"evades the {attack_desc} from {attacker_name}{prevented_note}.",
             )
-            return 0.0, 0.0, 0, 0.0
+            return 0.0, 0.0, 0, 0.0, []
 
         damage_result_skill = apply_target.apply_shields_and_get_hp_damage(
             damage_after_all_mods
@@ -701,11 +702,44 @@ class GameSimulator:
         # basic and counter attacks while skill effects are reported solely in
         # the skill trigger section.
 
+        calc_steps.extend(
+            [
+                {"label": "Effective ATK", "value": own_total_attack},
+                {"label": "Effective DEF", "value": enemy_total_defense},
+                {"label": "Troop scalar", "value": own_troop_scalar},
+                {"label": "Damage factor", "value": damage_factor},
+                {"label": "Base potential", "value": skill_hp_damage_potential},
+                {
+                    "label": "Attacker modifiers",
+                    "value": skill_damage_percent_boosts,
+                    "note": "Total damage bonus from attacker",
+                },
+                {
+                    "label": "Defender modifiers",
+                    "value": damage_taken_percent_mods,
+                    "note": "Damage taken adjustments on defender",
+                },
+                {"label": "Advantage bonus", "value": advantage_bonus},
+                {"label": "Advantage multiplier", "value": advantage_multiplier},
+                {
+                    "label": "Crit applied",
+                    "value": crit_triggered,
+                    "note": f"Crit rate: {crit_rate:.2f}",
+                },
+                {"label": "Final multiplier", "value": final_skill_damage_multiplier},
+                {"label": "After mods", "value": damage_after_all_mods},
+                {"label": "Shield absorbed", "value": skill_damage_absorbed_by_shield},
+                {"label": "HP damage", "value": actual_skill_hp_damage_to_troops},
+                {"label": "Potential kills", "value": potential_skill_kills},
+            ]
+        )
+
         return (
             actual_skill_hp_damage_to_troops,
             skill_damage_absorbed_by_shield,
             potential_skill_kills,
             raw_damage_for_logging,
+            calc_steps,
         )
 
     def _attempt_evasion(

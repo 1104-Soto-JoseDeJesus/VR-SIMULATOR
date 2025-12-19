@@ -100,11 +100,12 @@ def test_arena_batch_seed_uses_single_process(monkeypatch):
         seed: int | None,
         *,
         collect_skills: bool = False,
-    ) -> tuple[str, dict[str, float], list[dict[str, object]] | None]:
+    ) -> tuple[str, dict[str, float], list[dict[str, object]] | None, bool]:
         winner = "red"
         remaining = {str(entry.get("entry_id", "")): float(seed or 0) for entry in layout_entries}
         summary: list[dict[str, object]] | None = [] if collect_skills else None
-        return winner, remaining, summary
+        timed_out = False
+        return winner, remaining, summary, timed_out
 
     monkeypatch.setattr(gui_main, "_simulate_arena_battle", _fake_sim)
 

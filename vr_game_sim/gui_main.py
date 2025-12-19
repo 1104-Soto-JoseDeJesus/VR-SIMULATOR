@@ -5318,7 +5318,32 @@ class ArenaTab(QtWidgets.QWidget):
         self._save_last_layout()
         self.engine.reset(report_builder=self.report_builder)
         targeting_mode = self.targeting_combo.currentData()
-        self.engine.start_arena_battle(layout, targeting_mode=targeting_mode)
+        try:
+            self.engine.start_arena_battle(layout, targeting_mode=targeting_mode)
+        except ValueError as exc:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Invalid Layout",
+                f"Unable to start battle due to layout issues:\n{exc}",
+            )
+            self._timer.stop()
+            self._running = False
+            self.run_btn.setEnabled(True)
+            for item in self._slot_items.values():
+                item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
+            return
+        except Exception as exc:  # pragma: no cover - GUI safeguard
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Arena Start Failed",
+                f"An unexpected error occurred while starting the battle:\n{exc}",
+            )
+            self._timer.stop()
+            self._running = False
+            self.run_btn.setEnabled(True)
+            for item in self._slot_items.values():
+                item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
+            return
         self._running = True
         self.run_btn.setEnabled(False)
         for item in self._slot_items.values():

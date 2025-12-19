@@ -104,10 +104,20 @@ class BattlefieldEngine:
     a defender are automatically visible to all attackers.
     """
 
+    _UNSET = object()
+
     def __init__(
         self,
         report_builder: Optional[BattlefieldReportBuilder] = None,
         mode: str = "battlefield",
+        *,
+        cooldowns_enabled: bool = True,
+        hero_cooldowns_enabled: bool | None = None,
+        plugin_cooldowns_enabled: bool | None = None,
+        gem_cooldowns_enabled: bool | None = None,
+        mount_cooldowns_enabled: bool | None = None,
+        damage_reduction_affects_dots: bool = True,
+        advantage_mode: str = "multiplicative",
     ) -> None:
         # Registry of armies keyed by name.
         self._armies: Dict[str, _ArmyContext] = {}
@@ -143,6 +153,24 @@ class BattlefieldEngine:
         self._pending_state_updates: Dict[str, Dict[str, Any]] = {}
         self._state_listeners: List[Callable[[str, Dict[str, Any]], None]] = []
 
+        self._simulator_kwargs = {
+            "cooldowns_enabled": bool(cooldowns_enabled),
+            "hero_cooldowns_enabled": None
+            if hero_cooldowns_enabled is None
+            else bool(hero_cooldowns_enabled),
+            "plugin_cooldowns_enabled": None
+            if plugin_cooldowns_enabled is None
+            else bool(plugin_cooldowns_enabled),
+            "gem_cooldowns_enabled": None
+            if gem_cooldowns_enabled is None
+            else bool(gem_cooldowns_enabled),
+            "mount_cooldowns_enabled": None
+            if mount_cooldowns_enabled is None
+            else bool(mount_cooldowns_enabled),
+            "damage_reduction_affects_dots": bool(damage_reduction_affects_dots),
+            "advantage_mode": advantage_mode,
+        }
+
     def get_engaged_enemies(self, army_name: str) -> List[Army]:
         """Return list of armies currently engaged with ``army_name``."""
         return [self._armies[nm].army for nm in self._graph.get(army_name, set()) if nm in self._armies]
@@ -150,6 +178,44 @@ class BattlefieldEngine:
     def get_direct_attackers(self, army_name: str) -> List[Army]:
         """Return armies whose direct target is ``army_name``."""
         return [ctx.army for ctx in self._armies.values() if ctx.direct_target == army_name]
+
+    def set_simulator_options(
+        self,
+        *,
+        cooldowns_enabled: Any = _UNSET,
+        hero_cooldowns_enabled: Any = _UNSET,
+        plugin_cooldowns_enabled: Any = _UNSET,
+        gem_cooldowns_enabled: Any = _UNSET,
+        mount_cooldowns_enabled: Any = _UNSET,
+        damage_reduction_affects_dots: Any = _UNSET,
+        advantage_mode: Any = _UNSET,
+    ) -> None:
+        """Update the default settings passed to new :class:`GameSimulator` instances."""
+
+        if cooldowns_enabled is not self._UNSET:
+            self._simulator_kwargs["cooldowns_enabled"] = bool(cooldowns_enabled)
+        if hero_cooldowns_enabled is not self._UNSET:
+            self._simulator_kwargs["hero_cooldowns_enabled"] = (
+                None if hero_cooldowns_enabled is None else bool(hero_cooldowns_enabled)
+            )
+        if plugin_cooldowns_enabled is not self._UNSET:
+            self._simulator_kwargs["plugin_cooldowns_enabled"] = (
+                None if plugin_cooldowns_enabled is None else bool(plugin_cooldowns_enabled)
+            )
+        if gem_cooldowns_enabled is not self._UNSET:
+            self._simulator_kwargs["gem_cooldowns_enabled"] = (
+                None if gem_cooldowns_enabled is None else bool(gem_cooldowns_enabled)
+            )
+        if mount_cooldowns_enabled is not self._UNSET:
+            self._simulator_kwargs["mount_cooldowns_enabled"] = (
+                None if mount_cooldowns_enabled is None else bool(mount_cooldowns_enabled)
+            )
+        if damage_reduction_affects_dots is not self._UNSET:
+            self._simulator_kwargs["damage_reduction_affects_dots"] = bool(
+                damage_reduction_affects_dots
+            )
+        if advantage_mode is not self._UNSET:
+            self._simulator_kwargs["advantage_mode"] = advantage_mode
 
     # ------------------------------------------------------------------
     # Reset
@@ -224,7 +290,14 @@ class BattlefieldEngine:
             rb = None
             if self._report_builder is not None:
                 rb = self._report_builder.get_builder(other_name, army.name)
-            sim = GameSimulator(other_ctx.army, ctx.army, rb, track_stats=False, mode=self.mode)
+            sim = GameSimulator(
+                other_ctx.army,
+                ctx.army,
+                rb,
+                track_stats=False,
+                mode=self.mode,
+                **self._simulator_kwargs,
+            )
             sim.parent_engine = self
             # Detach the temporary simulator; passive skills remain applied.
             for a in (other_ctx.army, ctx.army):
@@ -794,7 +867,14 @@ class BattlefieldEngine:
                 rb = None
                 if self._report_builder is not None:
                     rb = self._report_builder.get_builder(atk, dfd)
-                simulator = GameSimulator(atk_ctx.army, def_ctx.army, rb, track_stats=False, mode=self.mode)
+                simulator = GameSimulator(
+                    atk_ctx.army,
+                    def_ctx.army,
+                    rb,
+                    track_stats=False,
+                    mode=self.mode,
+                    **self._simulator_kwargs,
+                )
                 simulator.parent_engine = self
                 self._engagements[(atk, dfd)] = simulator
                 self._graph[atk].add(dfd)

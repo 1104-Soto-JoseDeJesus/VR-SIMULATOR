@@ -4612,6 +4612,7 @@ class ArenaBatchWorker(QtCore.QThread):
         runs: int,
         num_workers: int,
         targeting_mode: str,
+        simulator_options: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         self.layout_entries = layout_entries
@@ -4619,6 +4620,7 @@ class ArenaBatchWorker(QtCore.QThread):
         self.num_workers = num_workers
         self._cancelled = threading.Event()
         self.targeting_mode = targeting_mode or "legacy"
+        self.simulator_options = dict(simulator_options) if simulator_options else {}
 
     def cancel(self) -> None:
         self._cancelled.set()
@@ -4639,7 +4641,7 @@ class ArenaBatchWorker(QtCore.QThread):
                         "speed": entry["speed"],
                     }
                 )
-            engine = ArenaEngine()
+            engine = ArenaEngine(**self.simulator_options)
             engine.start_arena_battle(battle_layout, targeting_mode=self.targeting_mode)
             while True:
                 engine.tick(0.016)
@@ -4773,6 +4775,7 @@ class ArenaTab(QtWidgets.QWidget):
         # Prepare engine and tracking structures for armies placed in slots.
         self.report_builder = BattlefieldReportBuilder()
         self.engine = ArenaEngine(report_builder=self.report_builder)
+        self.engine.set_simulator_options(**self._get_debug_settings())
         self.engine.add_state_listener(self._on_engine_state)
         self._icons: dict[str, ArmyIcon] = {}
         self._slot_items: dict[tuple[str, int], SlotItem] = {}
@@ -4818,6 +4821,40 @@ class ArenaTab(QtWidgets.QWidget):
         self.run_btn.clicked.connect(self._run_arena)
         self.last_run_btn.clicked.connect(self._run_last_layout)
         self.speed_btn.clicked.connect(self._toggle_speed)
+
+    def _get_debug_settings(self) -> dict[str, Any]:
+        """Return simulator settings based on the parent window's debug toggles."""
+
+        window = self.window()
+        hero_cooldowns = True
+        plugin_cooldowns = True
+        gem_cooldowns = True
+        mount_cooldowns = True
+        damage_reduction = True
+        advantage_mode = "multiplicative"
+        if window is not None:
+            hero_cooldowns = bool(getattr(window, "hero_cooldowns_enabled", hero_cooldowns))
+            plugin_cooldowns = bool(
+                getattr(window, "plugin_cooldowns_enabled", plugin_cooldowns)
+            )
+            gem_cooldowns = bool(getattr(window, "gem_cooldowns_enabled", gem_cooldowns))
+            mount_cooldowns = bool(
+                getattr(window, "mount_cooldowns_enabled", mount_cooldowns)
+            )
+            damage_reduction = bool(
+                getattr(window, "damage_reduction_affects_dots", damage_reduction)
+            )
+            advantage_mode = getattr(window, "troop_advantage_mode", advantage_mode)
+
+        return {
+            "cooldowns_enabled": hero_cooldowns,
+            "hero_cooldowns_enabled": hero_cooldowns,
+            "plugin_cooldowns_enabled": plugin_cooldowns,
+            "gem_cooldowns_enabled": gem_cooldowns,
+            "mount_cooldowns_enabled": mount_cooldowns,
+            "damage_reduction_affects_dots": damage_reduction,
+            "advantage_mode": advantage_mode,
+        }
 
     # ------------------------------------------------------------------
     def _compute_slot_coords(self) -> dict[str, list[tuple[float, float]]]:
@@ -5316,6 +5353,7 @@ class ArenaTab(QtWidgets.QWidget):
         if not layout:
             return
         self._save_last_layout()
+        self.engine.set_simulator_options(**self._get_debug_settings())
         self.engine.reset(report_builder=self.report_builder)
         targeting_mode = self.targeting_combo.currentData()
         try:
@@ -5368,6 +5406,7 @@ class ArenaTab(QtWidgets.QWidget):
         """
 
         layout_entries: list[dict[str, Any]] = []
+        sim_settings = self._get_debug_settings()
         for (slot_team, idx), info in self._slot_army.items():
             if not info or not info.get("config"):
                 continue
@@ -5403,7 +5442,7 @@ class ArenaTab(QtWidgets.QWidget):
                             "speed": entry["speed"],
                         }
                     )
-                engine = ArenaEngine()
+                engine = ArenaEngine(**sim_settings)
                 engine.start_arena_battle(battle_layout, targeting_mode=targeting_mode)
                 while True:
                     engine.tick(0.016)
@@ -5430,7 +5469,9 @@ class ArenaTab(QtWidgets.QWidget):
         window.progress.setRange(0, runs)
         window.progress.setValue(0)
         self.run_batch_btn.setEnabled(False)
-        worker = ArenaBatchWorker(layout_entries, runs, workers, str(targeting_mode))
+        worker = ArenaBatchWorker(
+            layout_entries, runs, workers, str(targeting_mode), sim_settings
+        )
         self._batch_worker = worker
         worker.progress_update.connect(
             lambda d, t: (window.progress.setMaximum(t), window.progress.setValue(d))
@@ -5922,7 +5963,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.battlefield_tab = BattlefieldTab()
 
         # --- Arena tab ---
-        self.arena_tab = ArenaTab()
+        self.arena_tab = ArenaTab(self)
 
         # --- Battlefield Reports tab ---
         self.battlefield_report_tab = QtWidgets.QWidget()

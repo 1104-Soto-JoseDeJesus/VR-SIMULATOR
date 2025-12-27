@@ -401,6 +401,7 @@ def run_additional_simulations(
     gem_cooldowns_enabled: Optional[bool] = None,
     mount_cooldowns_enabled: Optional[bool] = None,
     advantage_mode: str = "multiplicative",
+    reporting_mode: str = "regular",
 ) -> tuple[float, Optional[Dict[str, Any]]]:
     """Runs extra simulations and computes summary statistics.
 
@@ -410,7 +411,13 @@ def run_additional_simulations(
     simulations are spread across multiple processes. ``progress_callback`` can
     be used to report completion status as ``(completed, total)``. The function
     returns a tuple of the win rate for Army 1 (between 0 and 1) and metadata
-    describing the battle chosen for replay."""
+    describing the battle chosen for replay.
+
+    When ``reporting_mode`` is set to ``"highest hw"`` or ``"highest remaining"``,
+    the win distribution is recomputed from the ten runs with the highest heavy
+    wounded inflicted on the opposing army or the highest remaining troops for
+    the winner respectively. The best-match replay and histogram generation
+    continue to use the full run set."""
     # Ensure any previous figures are closed before starting the additional runs
     plt.close("all")
 
@@ -432,6 +439,10 @@ def run_additional_simulations(
     winners: List[int] = []  # 1 -> army1, 2 -> army2, 0 -> draw
     army1_unrevivable_totals: List[float] = []
     army2_unrevivable_totals: List[float] = []
+    army1_heavy_wounded: List[float] = []
+    army2_heavy_wounded: List[float] = []
+    remaining_scores: List[float] = []
+    heavy_wounded_scores: List[float] = []
 
     army1_name = (
         setup_data[0].get("army_name", "Army 1") if len(setup_data) > 0 else "Army 1"
@@ -441,6 +452,23 @@ def run_additional_simulations(
     )
     battle_results: List[tuple] = []
     seeds = [random.randrange(1 << 30) for _ in range(runs)]
+    reporting_mode_normalized = (reporting_mode or "regular").strip().lower()
+    initial_counts: list[float] = [0.0, 0.0]
+    try:
+        initial_armies = create_armies_from_data(setup_data)
+        if initial_armies:
+            initial_counts[0] = float(
+                getattr(initial_armies[0].unit, "initial_count", 0.0)
+            )
+        if len(initial_armies) > 1:
+            initial_counts[1] = float(
+                getattr(initial_armies[1].unit, "initial_count", 0.0)
+            )
+    except Exception:
+        initial_counts = [
+            float(setup_data[0].get("count", 0.0)) if setup_data else 0.0,
+            float(setup_data[1].get("count", 0.0)) if len(setup_data) > 1 else 0.0,
+        ]
 
     worker_inputs = [setup_data] * runs
     if num_workers > 1:
@@ -473,14 +501,28 @@ def run_additional_simulations(
                 own_remaining.append(own)
                 enemy_remaining.append(enemy)
                 rounds_taken.append(r_taken)
-                diff_results.append(diff)
-                winners.append(winner)
-                army1_unrevivable_totals.append(army1_unrev)
-                army2_unrevivable_totals.append(army2_unrev)
-                battle_results.append((own, enemy))
-                completed += 1
-                if progress_callback:
-                    progress_callback(completed, runs)
+            diff_results.append(diff)
+            winners.append(winner)
+            army1_unrevivable_totals.append(army1_unrev)
+            army2_unrevivable_totals.append(army2_unrev)
+            battle_results.append((own, enemy))
+            army1_hw = max(initial_counts[0] - own - army1_unrev, 0.0)
+            army2_hw = max(initial_counts[1] - enemy - army2_unrev, 0.0)
+            army1_heavy_wounded.append(army1_hw)
+            army2_heavy_wounded.append(army2_hw)
+            remaining_scores.append(
+                own if winner == 1 else enemy if winner == 2 else max(own, enemy)
+            )
+            heavy_wounded_scores.append(
+                army2_hw
+                if winner == 1
+                else army1_hw
+                if winner == 2
+                else max(army1_hw, army2_hw)
+            )
+            completed += 1
+            if progress_callback:
+                progress_callback(completed, runs)
     else:
         for i, seed_val in enumerate(seeds):
             own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev = _run_single_battle(
@@ -503,8 +545,34 @@ def run_additional_simulations(
             army1_unrevivable_totals.append(army1_unrev)
             army2_unrevivable_totals.append(army2_unrev)
             battle_results.append((own, enemy))
+            army1_hw = max(initial_counts[0] - own - army1_unrev, 0.0)
+            army2_hw = max(initial_counts[1] - enemy - army2_unrev, 0.0)
+            army1_heavy_wounded.append(army1_hw)
+            army2_heavy_wounded.append(army2_hw)
+            remaining_scores.append(
+                own if winner == 1 else enemy if winner == 2 else max(own, enemy)
+            )
+            heavy_wounded_scores.append(
+                army2_hw
+                if winner == 1
+                else army1_hw
+                if winner == 2
+                else max(army1_hw, army2_hw)
+            )
             if progress_callback:
                 progress_callback(i + 1, runs)
+
+    selected_indices = list(range(len(winners)))
+    if reporting_mode_normalized in {"highest hw", "highest_hw"}:
+        sorted_indices = sorted(
+            enumerate(heavy_wounded_scores), key=lambda item: (-item[1], item[0])
+        )
+        selected_indices = [idx for idx, _ in sorted_indices[:10]]
+    elif reporting_mode_normalized in {"highest remaining", "highest_remaining"}:
+        sorted_indices = sorted(
+            enumerate(remaining_scores), key=lambda item: (-item[1], item[0])
+        )
+        selected_indices = [idx for idx, _ in sorted_indices[:10]]
 
     avg_own = sum(own_remaining) / len(own_remaining) if own_remaining else 0
     avg_enemy = (
@@ -838,8 +906,8 @@ def run_additional_simulations(
             plt.close(fig)
 
     # Pie chart for win percentages
-    wins_army1 = winners.count(1)
-    wins_army2 = winners.count(2)
+    wins_army1 = sum(1 for idx in selected_indices if winners[idx] == 1)
+    wins_army2 = sum(1 for idx in selected_indices if winners[idx] == 2)
     if generate_histograms and wins_army1 + wins_army2 > 0:
         with plt.style.context("default"):
             fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
@@ -874,9 +942,9 @@ def run_additional_simulations(
         unrevivable_wins_army1 = 0
         unrevivable_wins_army2 = 0
         unrevivable_ties = 0
-        for a1_unrev, a2_unrev in zip(
-            army1_unrevivable_totals, army2_unrevivable_totals
-        ):
+        for idx in selected_indices:
+            a1_unrev = army1_unrevivable_totals[idx]
+            a2_unrev = army2_unrevivable_totals[idx]
             if math.isclose(a1_unrev, a2_unrev, abs_tol=1e-6):
                 unrevivable_ties += 1
             elif a1_unrev < a2_unrev:
@@ -951,7 +1019,8 @@ def run_additional_simulations(
 
     # Final cleanup to ensure matplotlib does not keep figures open
     plt.close("all")
-    win_rate = wins_army1 / runs if runs else 0.0
+    total_considered = len(selected_indices) if selected_indices else runs
+    win_rate = wins_army1 / total_considered if total_considered else 0.0
     return win_rate, best_match
 
 

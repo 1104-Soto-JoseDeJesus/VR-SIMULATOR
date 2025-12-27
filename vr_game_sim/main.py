@@ -501,28 +501,28 @@ def run_additional_simulations(
                 own_remaining.append(own)
                 enemy_remaining.append(enemy)
                 rounds_taken.append(r_taken)
-            diff_results.append(diff)
-            winners.append(winner)
-            army1_unrevivable_totals.append(army1_unrev)
-            army2_unrevivable_totals.append(army2_unrev)
-            battle_results.append((own, enemy))
-            army1_hw = max(initial_counts[0] - own - army1_unrev, 0.0)
-            army2_hw = max(initial_counts[1] - enemy - army2_unrev, 0.0)
-            army1_heavy_wounded.append(army1_hw)
-            army2_heavy_wounded.append(army2_hw)
-            remaining_scores.append(
-                own if winner == 1 else enemy if winner == 2 else max(own, enemy)
-            )
-            heavy_wounded_scores.append(
-                army2_hw
-                if winner == 1
-                else army1_hw
-                if winner == 2
-                else max(army1_hw, army2_hw)
-            )
-            completed += 1
-            if progress_callback:
-                progress_callback(completed, runs)
+                diff_results.append(diff)
+                winners.append(winner)
+                army1_unrevivable_totals.append(army1_unrev)
+                army2_unrevivable_totals.append(army2_unrev)
+                battle_results.append((own, enemy))
+                army1_hw = max(initial_counts[0] - own - army1_unrev, 0.0)
+                army2_hw = max(initial_counts[1] - enemy - army2_unrev, 0.0)
+                army1_heavy_wounded.append(army1_hw)
+                army2_heavy_wounded.append(army2_hw)
+                remaining_scores.append(
+                    own if winner == 1 else enemy if winner == 2 else max(own, enemy)
+                )
+                heavy_wounded_scores.append(
+                    army2_hw
+                    if winner == 1
+                    else army1_hw
+                    if winner == 2
+                    else max(army1_hw, army2_hw)
+                )
+                completed += 1
+                if progress_callback:
+                    progress_callback(completed, runs)
     else:
         for i, seed_val in enumerate(seeds):
             own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev = _run_single_battle(
@@ -561,6 +561,27 @@ def run_additional_simulations(
             )
             if progress_callback:
                 progress_callback(i + 1, runs)
+
+    # Keep a lightweight integrity check so future indentation regressions in the
+    # multiprocessing branch are caught quickly by tests or during development.
+    expected_results = len(battle_results)
+    stats_vectors = [
+        own_remaining,
+        enemy_remaining,
+        rounds_taken,
+        diff_results,
+        winners,
+        army1_unrevivable_totals,
+        army2_unrevivable_totals,
+        army1_heavy_wounded,
+        army2_heavy_wounded,
+        remaining_scores,
+        heavy_wounded_scores,
+    ]
+    if any(len(vec) != expected_results for vec in stats_vectors):
+        raise RuntimeError(
+            "Simulation result accounting mismatch (possible multiprocessing regression)."
+        )
 
     selected_indices = list(range(len(winners)))
     if reporting_mode_normalized in {"highest hw", "highest_hw"}:

@@ -4681,6 +4681,7 @@ class SimulationWorker(QtCore.QThread):
         mount_cooldowns_enabled: bool = True,
         damage_reduction_affects_dots: bool = True,
         advantage_mode: str = "multiplicative",
+        reporting_mode: str = "Regular",
     ) -> None:
         super().__init__()
         self.setup_data = setup_data
@@ -4698,6 +4699,7 @@ class SimulationWorker(QtCore.QThread):
         self.mount_cooldowns_enabled: bool = bool(mount_cooldowns_enabled)
         self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
         self.advantage_mode: str = advantage_mode
+        self.reporting_mode: str = reporting_mode or "Regular"
 
     def cancel(self) -> None:
         """Request the simulation to stop."""
@@ -4726,6 +4728,7 @@ class SimulationWorker(QtCore.QThread):
                 gem_cooldowns_enabled=self.gem_cooldowns_enabled,
                 mount_cooldowns_enabled=self.mount_cooldowns_enabled,
                 advantage_mode=self.advantage_mode,
+                reporting_mode=self.reporting_mode,
             )
             self.win_rate = float(win_rate)
             self.best_match = dict(best_match) if isinstance(best_match, dict) else None
@@ -6691,6 +6694,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.runs_spin.setRange(1, 10000)
         self.runs_spin.setValue(300)
         opts_layout.addWidget(self.runs_spin)
+
+        opts_layout.addWidget(QtWidgets.QLabel("Reporting Mode:"))
+        self.reporting_mode_combo = QtWidgets.QComboBox()
+        self.reporting_mode_combo.addItems(
+            ["Regular", "Highest HW", "Highest Remaining"]
+        )
+        opts_layout.addWidget(self.reporting_mode_combo)
 
         opts_layout.addWidget(QtWidgets.QLabel("Worker Processes:"))
         self.workers_spin = QtWidgets.QSpinBox()
@@ -11652,6 +11662,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._last_simulation_payload = None
         runs = self.runs_spin.value()
         workers = self.workers_spin.value()
+        reporting_mode = self.reporting_mode_combo.currentText()
         self.status.setText("Running simulation...")
         self._set_skill_breakdown_message("Generating skill breakdowns…")
         self.progress.setRange(0, runs)
@@ -11670,6 +11681,7 @@ class MainWindow(QtWidgets.QMainWindow):
             mount_cooldowns_enabled=self.mount_cooldowns_enabled,
             damage_reduction_affects_dots=self.damage_reduction_affects_dots,
             advantage_mode=self.troop_advantage_mode,
+            reporting_mode=reporting_mode,
         )
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
@@ -11761,6 +11773,11 @@ class MainWindow(QtWidgets.QMainWindow):
         runs = getattr(worker, "runs", self.runs_spin.value())
         best_match = getattr(worker, "best_match", None) if worker else None
         sample_stats = getattr(worker, "sample_battle_stats", None) if worker else None
+        reporting_mode = (
+            getattr(worker, "reporting_mode", None)
+            if worker
+            else self.reporting_mode_combo.currentText()
+        )
         setup_data = self._last_setup_data or [
             self.army1_frame.build_config(),
             self.army2_frame.build_config(),
@@ -11780,6 +11797,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.army1_frame.name_edit.text() or "Army 1",
                     self.army2_frame.name_edit.text() or "Army 2",
                 ],
+                "reporting_mode": reporting_mode,
                 "cooldown_settings": {
                     "hero": self.hero_cooldowns_enabled,
                     "plugin": self.plugin_cooldowns_enabled,

@@ -1784,6 +1784,16 @@ class Army:
             "Lacerate Boost",
         )
         add_effect(
+            float(cfg.get("bleed_boost", 0.0)),
+            StatType.BLEED_DAMAGE_BOOST,
+            "Bleed Boost",
+        )
+        add_effect(
+            float(cfg.get("heal_boost", 0.0)),
+            StatType.HEAL_ADJUSTMENT,
+            "Heal Boost",
+        )
+        add_effect(
             float(cfg.get("basic_boost", 0.0)),
             StatType.BASIC_DAMAGE_ADJUST,
             "Basic Attack Boost",
@@ -1802,6 +1812,16 @@ class Army:
             float(cfg.get("rage_skill_boost", 0.0)),
             StatType.RAGE_SKILL_DAMAGE_MODIFIER,
             "Rage Skill Damage Boost",
+        )
+        add_effect(
+            float(cfg.get("hero1_rage_skill_boost", 0.0)),
+            StatType.HERO1_RAGE_SKILL_DAMAGE_MODIFIER,
+            "Main Hero Rage Skill Damage Boost",
+        )
+        add_effect(
+            float(cfg.get("hero2_rage_skill_boost", 0.0)),
+            StatType.HERO2_RAGE_SKILL_DAMAGE_MODIFIER,
+            "Secondary Hero Rage Skill Damage Boost",
         )
         add_effect(
             float(cfg.get("cooperation_skill_boost", 0.0)),

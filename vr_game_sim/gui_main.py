@@ -85,10 +85,14 @@ BONUS_STATS_TEMPLATE = {
     "burn_boost": 0.0,
     "poison_boost": 0.0,
     "lacerate_boost": 0.0,
+    "bleed_boost": 0.0,
+    "heal_boost": 0.0,
     "basic_boost": 0.0,
     "counter_boost": 0.0,
     "reactive_skill_boost": 0.0,
     "rage_skill_boost": 0.0,
+    "hero1_rage_skill_boost": 0.0,
+    "hero2_rage_skill_boost": 0.0,
     "cooperation_skill_boost": 0.0,
     "command_skill_boost": 0.0,
 }
@@ -273,6 +277,8 @@ def iter_bonus_stat_entries(stats: dict[str, Any]) -> list[dict[str, Any]]:
     add("Burn Boost", float(stats.get("burn_boost", 0.0)))
     add("Poison Boost", float(stats.get("poison_boost", 0.0)))
     add("Lacerate Boost", float(stats.get("lacerate_boost", 0.0)))
+    add("Bleed Boost", float(stats.get("bleed_boost", 0.0)))
+    add("Heal Boost", float(stats.get("heal_boost", 0.0)))
     add("Basic Attack Boost", float(stats.get("basic_boost", 0.0)))
     add("Counterattack Boost", float(stats.get("counter_boost", 0.0)))
     add(
@@ -280,6 +286,14 @@ def iter_bonus_stat_entries(stats: dict[str, Any]) -> list[dict[str, Any]]:
         float(stats.get("reactive_skill_boost", 0.0)),
     )
     add("Rage Skill Damage Boost", float(stats.get("rage_skill_boost", 0.0)))
+    add(
+        "Main Hero Rage Skill Damage Boost",
+        float(stats.get("hero1_rage_skill_boost", 0.0)),
+    )
+    add(
+        "Secondary Hero Rage Skill Damage Boost",
+        float(stats.get("hero2_rage_skill_boost", 0.0)),
+    )
     add(
         "Cooperation Skill Damage Boost",
         float(stats.get("cooperation_skill_boost", 0.0)),
@@ -1847,6 +1861,11 @@ class BonusStatsDialog(QtWidgets.QDialog):
                 ("Counterattack Boost", ("counter_boost",)),
                 ("Reactive Skill Damage Boost", ("reactive_skill_boost",)),
                 ("Rage Skill Damage Boost", ("rage_skill_boost",)),
+                ("Main Hero Rage Skill Damage Boost", ("hero1_rage_skill_boost",)),
+                (
+                    "Secondary Hero Rage Skill Damage Boost",
+                    ("hero2_rage_skill_boost",),
+                ),
                 ("Cooperation Skill Damage Boost", ("cooperation_skill_boost",)),
                 ("Command Skill Damage Boost", ("command_skill_boost",)),
                 (
@@ -1873,6 +1892,8 @@ class BonusStatsDialog(QtWidgets.QDialog):
                 ("Burn Boost", ("burn_boost",)),
                 ("Poison Boost", ("poison_boost",)),
                 ("Lacerate Boost", ("lacerate_boost",)),
+                ("Bleed Boost", ("bleed_boost",)),
+                ("Heal Boost", ("heal_boost",)),
             ],
             normalized,
         )

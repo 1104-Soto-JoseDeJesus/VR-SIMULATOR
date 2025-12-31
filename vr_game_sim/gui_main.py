@@ -3782,12 +3782,12 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
         """Return the bounding rectangle including health and rage bars."""
 
         # Extra margins for the vertical health bar on the left and the
-        # horizontal rage bar on top.
+        # rage squares on the right side.
         side_extra = 6  # health bar width (4px) + 2px spacing
-        top_extra = 6  # rage bar height (4px) + 2px spacing
-        width = self.main_pix.width() + side_extra
-        height = self.main_pix.height() + top_extra
-        return QtCore.QRectF(-side_extra, -top_extra, width, height)
+        right_extra = 10  # space for 4 rage squares (8px each with spacing) + 2px margin
+        width = self.main_pix.width() + side_extra + right_extra
+        height = self.main_pix.height()
+        return QtCore.QRectF(-side_extra, 0, width, height)
 
     def paint(  # type: ignore[override]
         self,
@@ -3801,15 +3801,6 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
             y = self.main_pix.height() - self.sec_pix.height()
             painter.drawPixmap(x, y, self.sec_pix)
 
-        # Draw horizontal rage bar above the main portrait
-        rage_bar_height = 4
-        rage_bar_y = -rage_bar_height - 1  # 1px gap above portrait
-        rage_width = self.main_pix.width()
-        painter.setPen(QtGui.QPen(QtCore.Qt.GlobalColor.white))
-        painter.setBrush(QtGui.QBrush(QtGui.QColor(255, 255, 0)))
-        rage_filled = int(rage_width * self.rage_ratio)
-        painter.drawRect(0, rage_bar_y, rage_filled, rage_bar_height)
-
         # Draw the vertical health bar to the *left* of the main image.  The
         # bounding rect has been shifted to expose a 6px wide strip on the left
         # which we can use for the bar and a 1px gap.
@@ -3820,6 +3811,49 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
         painter.setBrush(QtGui.QBrush(QtCore.Qt.GlobalColor.white))
         filled = int(bar_height * self.health_ratio)
         painter.drawRect(bar_x, bar_height - filled, bar_width, filled)
+
+        # Draw 4 rotated diamond squares on the right side for rage indicator
+        # Each square represents 250 rage (0-250, 250-500, 500-750, 750-1000)
+        square_size = 6
+        square_spacing = 2
+        rage_squares_x = self.main_pix.width() + 1  # 1px gap from portrait
+        rage_squares_start_y = (self.main_pix.height() - (4 * square_size + 3 * square_spacing)) // 2
+        
+        yellow_color = QtGui.QColor(255, 255, 0)
+        dark_grey_color = QtGui.QColor(64, 64, 64)
+        
+        # Determine which squares should be filled
+        # Square 1 (top): filled if rage >= 0.25
+        # Square 2: filled if rage >= 0.5
+        # Square 3: filled if rage >= 0.75
+        # Square 4 (bottom): filled if rage >= 1.0
+        thresholds = [0.25, 0.5, 0.75, 1.0]
+        
+        for i, threshold in enumerate(thresholds):
+            is_filled = self.rage_ratio >= threshold
+            square_y = rage_squares_start_y + i * (square_size + square_spacing)
+            
+            # Save painter state before rotation
+            painter.save()
+            
+            # Translate to center of square for rotation
+            center_x = rage_squares_x + square_size // 2
+            center_y = square_y + square_size // 2
+            painter.translate(center_x, center_y)
+            painter.rotate(45)  # Rotate 45 degrees to create diamond shape
+            
+            # Draw rotated square (diamond)
+            square_rect = QtCore.QRectF(-square_size // 2, -square_size // 2, square_size, square_size)
+            if is_filled:
+                painter.setPen(QtGui.QPen(yellow_color))
+                painter.setBrush(QtGui.QBrush(yellow_color))
+            else:
+                painter.setPen(QtGui.QPen(dark_grey_color))
+                painter.setBrush(QtGui.QBrush(dark_grey_color))
+            painter.drawRect(square_rect)
+            
+            # Restore painter state
+            painter.restore()
 
     def set_health(self, ratio: float) -> None:
         self.health_ratio = max(0.0, min(1.0, ratio))

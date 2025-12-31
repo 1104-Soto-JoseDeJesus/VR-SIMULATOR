@@ -32,8 +32,14 @@ class ArenaEngine(BattlefieldEngine):
         # Default targeting behaviour when no explicit preference is supplied
         # for a given arena battle.
         self.targeting_mode: str = "legacy"
+        # Custom targeting configuration: dict mapping team ("red"/"blue") -> list of army names in order
+        self._custom_targeting: Optional[Dict[str, List[str]]] = None
+        # Custom targeting configuration: dict mapping team ("red"/"blue") -> list of army names in order
+        self._custom_targeting: Optional[Dict[str, List[str]]] = None
 
-    def start_arena_battle(self, layout_slots: Any, *, targeting_mode: Optional[str] = None) -> None:
+    def start_arena_battle(
+        self, layout_slots: Any, *, targeting_mode: Optional[str] = None, custom_targeting: Optional[Dict[str, List[str]]] = None
+    ) -> None:
         """Register armies in ``layout_slots`` and queue march orders.
 
         Parameters
@@ -125,9 +131,10 @@ class ArenaEngine(BattlefieldEngine):
         team_names = list(columns.keys())
 
         mode = (targeting_mode or self.targeting_mode or "legacy").lower()
-        if mode not in {"legacy", "str", "frg"}:
+        if mode not in {"legacy", "str", "frg", "custom"}:
             mode = "legacy"
         self.targeting_mode = mode
+        self._custom_targeting = custom_targeting if mode == "custom" else None
 
         if mode == "legacy":
             # Derive default speeds for front and back rows so armies meet after
@@ -297,17 +304,60 @@ class ArenaEngine(BattlefieldEngine):
                         )
                     return [e["army"].name for e in enemies]
 
-                for team, opponent in ((t1, t2), (t2, t1)):
-                    order = _sorted_targets(team, opponent)
-                    for entry in team_entries[team]:
-                        if _has_explicit_target(entry):
+                if mode == "custom" and self._custom_targeting:
+                    # Use custom targeting order
+                    for team, opponent in ((t1, t2), (t2, t1)):
+                        # Get the team identifier (red/blue) from the first entry
+                        team_id = None
+                        for entry in team_entries[team]:
+                            team_id = entry.get("team")
+                            if team_id:
+                                break
+                        if not team_id:
+                            # Fallback: try to infer from team name
+                            team_id = "red" if team == t1 else "blue"
+                        
+                        # Get custom targeting order for this team
+                        custom_order = self._custom_targeting.get(team_id, [])
+                        if not custom_order:
+                            # If no custom order specified, fall back to auto
+                            for entry in team_entries[team]:
+                                if _has_explicit_target(entry):
+                                    continue
+                                attacker = entry["army"].name
+                                self._auto_select_closest_enemy(attacker)
                             continue
-                        attacker = entry["army"].name
-                        if order:
-                            self._row_fallbacks[attacker] = list(order)
-                            self.set_direct_target(attacker, order[0])
-                        else:
-                            self._auto_select_closest_enemy(attacker)
+                        
+                        # Filter custom order to only include armies that exist and are on the opponent team
+                        valid_order: List[str] = []
+                        opponent_army_names = {e["army"].name for e in team_entries[opponent]}
+                        for army_name in custom_order:
+                            if army_name in opponent_army_names:
+                                valid_order.append(army_name)
+                        
+                        # Apply targeting order to all armies in this team
+                        for entry in team_entries[team]:
+                            if _has_explicit_target(entry):
+                                continue
+                            attacker = entry["army"].name
+                            if valid_order:
+                                self._row_fallbacks[attacker] = list(valid_order)
+                                self.set_direct_target(attacker, valid_order[0])
+                            else:
+                                self._auto_select_closest_enemy(attacker)
+                else:
+                    # Use standard targeting modes (str/frg)
+                    for team, opponent in ((t1, t2), (t2, t1)):
+                        order = _sorted_targets(team, opponent)
+                        for entry in team_entries[team]:
+                            if _has_explicit_target(entry):
+                                continue
+                            attacker = entry["army"].name
+                            if order:
+                                self._row_fallbacks[attacker] = list(order)
+                                self.set_direct_target(attacker, order[0])
+                            else:
+                                self._auto_select_closest_enemy(attacker)
 
         row_map = {e["army"].name: e.get("row") for e in entries}
 

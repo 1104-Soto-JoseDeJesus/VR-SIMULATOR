@@ -1,0 +1,575 @@
+{
+  "targeting_mode": "legacy",
+  "entries": [
+    {
+      "army_name": "Hobert/Gregory 2",
+      "team": "team1",
+      "column": 0,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Hobert/Gregory 2",
+        "unit_type": "infantry",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "atk_mod": 2.33,
+        "def_mod": 2.16,
+        "hp_mod": 0.56,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Hobert",
+            "talent_ids": [
+              "talent_bold_shieldaxe",
+              "talent_fearless_pursuit",
+              "talent_steadfast_armor"
+            ],
+            "base_skill_ids": [
+              "base_skill_berserk_fury",
+              "base_skill_brutal_blow"
+            ],
+            "plugin_skill_ids": [
+              "plugin_enrage",
+              "plugin_trap_of_despair"
+            ],
+            "mount_skill_ids": []
+          },
+          {
+            "hero_name_or_preset": "Gregory",
+            "talent_ids": [
+              "talent_great_morale",
+              "talent_missing_beat",
+              "talent_excite"
+            ],
+            "base_skill_ids": [
+              "base_skill_drumming_disturbance",
+              "base_skill_inspiring_dance"
+            ],
+            "plugin_skill_ids": [
+              "plugin_blessed_negation",
+              "plugin_breaking_free"
+            ],
+            "mount_skill_ids": []
+          }
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Margit/Lagertha 2",
+      "team": "team1",
+      "column": 1,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Margit/Lagertha 2",
+        "unit_type": "infantry",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "atk_mod": 2.13,
+        "def_mod": 1.4,
+        "hp_mod": 0.4,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Margit",
+            "talent_ids": [
+              "talent_cutting_blade",
+              "talent_thirst_for_blood",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_ride_the_waves",
+              "base_skill_raging_tide"
+            ],
+            "plugin_skill_ids": [
+              "plugin_silencer",
+              "plugin_wild_indulgence"
+            ],
+            "mount_skill_ids": []
+          },
+          {
+            "hero_name_or_preset": "Lagertha",
+            "talent_ids": [
+              "talent_shieldaxe_attack",
+              "talent_chiefs_might",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_shield_breaker",
+              "rage_skill_showdown"
+            ],
+            "plugin_skill_ids": [
+              "plugin_divine_blessing",
+              "plugin_first_strike"
+            ],
+            "mount_skill_ids": []
+          }
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Verdandi/Olena 2",
+      "team": "team1",
+      "column": 2,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Verdandi/Olena 2",
+        "unit_type": "archers",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "atk_mod": 1.93,
+        "def_mod": 1.23,
+        "hp_mod": 0.43,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Verdandi",
+            "talent_ids": [
+              "talent_hunting_instinct",
+              "talent_hunting_experience",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_rapid_fire",
+              "base_skill_raining_arrows"
+            ],
+            "plugin_skill_ids": [
+              "plugin_helas_curse",
+              "plugin_odins_asylum"
+            ],
+            "mount_skill_ids": []
+          },
+          {
+            "hero_name_or_preset": "Olena",
+            "talent_ids": [
+              "talent_scorching_arrow",
+              "talent_multi_shot_arrow",
+              "talent_poised_shot"
+            ],
+            "base_skill_ids": [
+              "base_skill_enchanted_arrow",
+              "base_skill_concentration"
+            ],
+            "plugin_skill_ids": [
+              "plugin_dampened_spirits",
+              "plugin_rage_leech"
+            ],
+            "mount_skill_ids": []
+          }
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Rosky/Helgar 2",
+      "team": "team1",
+      "column": 3,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Rosky/Helgar 2",
+        "unit_type": "pikemen",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "atk_mod": 1.57,
+        "def_mod": 1.35,
+        "hp_mod": 0.3,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Rosky",
+            "talent_ids": [
+              "talent_blade_wielder",
+              "talent_maniacal",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_flurry",
+              "rage_skill_spirit_battleship"
+            ],
+            "plugin_skill_ids": [
+              "plugin_divine_shield",
+              "plugin_shield_reflector"
+            ],
+            "mount_skill_ids": []
+          },
+          {
+            "hero_name_or_preset": "Helgar",
+            "talent_ids": [
+              "talent_saintly_guardian",
+              "talent_war_blessing",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_judgements_fury",
+              "rage_skill_ruling_trial"
+            ],
+            "plugin_skill_ids": [
+              "plugin_hymn_of_life",
+              "plugin_rest_and_counterattack"
+            ],
+            "mount_skill_ids": []
+          }
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Ivana/Ivor 2",
+      "team": "team1",
+      "column": 3,
+      "row": 1,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Ivana/Ivor 2",
+        "unit_type": "infantry",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "atk_mod": 1.84,
+        "def_mod": 1.27,
+        "hp_mod": 0.45,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Ivana",
+            "talent_ids": [
+              "talent_power_of_silence",
+              "talent_combat_focus",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_threatening_blade",
+              "base_skill_intimidation"
+            ],
+            "plugin_skill_ids": [
+              "plugin_splinter",
+              "plugin_tidal_attack"
+            ],
+            "mount_skill_ids": []
+          },
+          {
+            "hero_name_or_preset": "Ivor",
+            "talent_ids": [
+              "talent_tactical_rules",
+              "talent_specter_lycan_assault",
+              "talent_amazing_attack"
+            ],
+            "base_skill_ids": [
+              "base_skill_throwing_axe",
+              "rage_skill_all_kill"
+            ],
+            "plugin_skill_ids": [
+              "plugin_enchanted_pursuit",
+              "plugin_thors_determination"
+            ],
+            "mount_skill_ids": []
+          }
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Hobert/Gregory",
+      "team": "team2",
+      "column": 0,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Hobert/Gregory",
+        "unit_type": "infantry",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "atk_mod": 2.33,
+        "def_mod": 2.16,
+        "hp_mod": 0.56,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Hobert",
+            "talent_ids": [
+              "talent_bold_shieldaxe",
+              "talent_fearless_pursuit",
+              "talent_steadfast_armor"
+            ],
+            "base_skill_ids": [
+              "base_skill_berserk_fury",
+              "base_skill_brutal_blow"
+            ],
+            "plugin_skill_ids": [
+              "plugin_enrage",
+              "plugin_trap_of_despair"
+            ],
+            "mount_skill_ids": []
+          },
+          {
+            "hero_name_or_preset": "Gregory",
+            "talent_ids": [
+              "talent_great_morale",
+              "talent_missing_beat",
+              "talent_excite"
+            ],
+            "base_skill_ids": [
+              "base_skill_drumming_disturbance",
+              "base_skill_inspiring_dance"
+            ],
+            "plugin_skill_ids": [
+              "plugin_blessed_negation",
+              "plugin_breaking_free"
+            ],
+            "mount_skill_ids": []
+          }
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Margit/Lagertha",
+      "team": "team2",
+      "column": 1,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Margit/Lagertha",
+        "unit_type": "infantry",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "atk_mod": 2.13,
+        "def_mod": 1.4,
+        "hp_mod": 0.4,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Margit",
+            "talent_ids": [
+              "talent_cutting_blade",
+              "talent_thirst_for_blood",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_ride_the_waves",
+              "base_skill_raging_tide"
+            ],
+            "plugin_skill_ids": [
+              "plugin_silencer",
+              "plugin_thors_determination"
+            ],
+            "mount_skill_ids": []
+          },
+          {
+            "hero_name_or_preset": "Lagertha",
+            "talent_ids": [
+              "talent_shieldaxe_attack",
+              "talent_chiefs_might",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_shield_breaker",
+              "rage_skill_showdown"
+            ],
+            "plugin_skill_ids": [
+              "plugin_odins_asylum",
+              "plugin_wild_indulgence"
+            ],
+            "mount_skill_ids": []
+          }
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Verdandi/Olena",
+      "team": "team2",
+      "column": 2,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Verdandi/Olena",
+        "unit_type": "archers",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "atk_mod": 1.93,
+        "def_mod": 1.23,
+        "hp_mod": 0.43,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Verdandi",
+            "talent_ids": [
+              "talent_hunting_instinct",
+              "talent_hunting_experience",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_rapid_fire",
+              "base_skill_raining_arrows"
+            ],
+            "plugin_skill_ids": [
+              "plugin_first_strike",
+              "plugin_divine_blessing"
+            ],
+            "mount_skill_ids": []
+          },
+          {
+            "hero_name_or_preset": "Olena",
+            "talent_ids": [
+              "talent_scorching_arrow",
+              "talent_multi_shot_arrow",
+              "talent_poised_shot"
+            ],
+            "base_skill_ids": [
+              "base_skill_enchanted_arrow",
+              "base_skill_concentration"
+            ],
+            "plugin_skill_ids": [
+              "plugin_rage_leech",
+              "plugin_dampened_spirits"
+            ],
+            "mount_skill_ids": []
+          }
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Rosky/Helgar",
+      "team": "team2",
+      "column": 3,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Rosky/Helgar",
+        "unit_type": "pikemen",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "atk_mod": 1.57,
+        "def_mod": 1.35,
+        "hp_mod": 0.3,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Rosky",
+            "talent_ids": [
+              "talent_blade_wielder",
+              "talent_maniacal",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_flurry",
+              "rage_skill_spirit_battleship"
+            ],
+            "plugin_skill_ids": [
+              "plugin_divine_shield",
+              "plugin_on_alert"
+            ],
+            "mount_skill_ids": []
+          },
+          {
+            "hero_name_or_preset": "Helgar",
+            "talent_ids": [
+              "talent_saintly_guardian",
+              "talent_war_blessing",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_judgements_fury",
+              "rage_skill_ruling_trial"
+            ],
+            "plugin_skill_ids": [
+              "plugin_shield_reflector",
+              "plugin_rest_and_counterattack"
+            ],
+            "mount_skill_ids": []
+          }
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Laird/Ivana",
+      "team": "team2",
+      "column": 3,
+      "row": 1,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Laird/Ivana",
+        "unit_type": "pikemen",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "atk_mod": 1.84,
+        "def_mod": 1.27,
+        "hp_mod": 0.45,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Laird",
+            "talent_ids": [
+              "talent_holy_shield",
+              "",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_flame_guardian",
+              "base_skill_sacred_blade"
+            ],
+            "plugin_skill_ids": [
+              "plugin_hale_of_thorns",
+              "plugin_halo_of_sacrifice"
+            ],
+            "mount_skill_ids": []
+          },
+          {
+            "hero_name_or_preset": "Ivana",
+            "talent_ids": [
+              "talent_power_of_silence",
+              "talent_combat_focus",
+              ""
+            ],
+            "base_skill_ids": [
+              "base_skill_threatening_blade",
+              "base_skill_intimidation"
+            ],
+            "plugin_skill_ids": [
+              "plugin_retaliate",
+              "plugin_lokis_trick"
+            ],
+            "mount_skill_ids": []
+          }
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
+    }
+  ]
+}

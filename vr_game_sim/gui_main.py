@@ -690,6 +690,136 @@ class ArenaSeedDialog(QtWidgets.QDialog):
         return self._target
 
 
+class CustomTargetingDialog(QtWidgets.QDialog):
+    """Dialog for configuring custom targeting order for each team."""
+
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget | None,
+        team1_armies: list[tuple[str, str]],  # (army_name, display_name)
+        team2_armies: list[tuple[str, str]],  # (army_name, display_name)
+        current_targeting: dict[str, list[str]] | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Custom Targeting Configuration")
+        self.setMinimumWidth(600)
+        
+        layout = QtWidgets.QVBoxLayout(self)
+        
+        info = QtWidgets.QLabel(
+            "Configure the targeting order for each team. Armies will target enemies in the order listed below."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        
+        # Create two columns for the two teams
+        teams_layout = QtWidgets.QHBoxLayout()
+        
+        # Team 1 (Red) targeting configuration
+        team1_group = QtWidgets.QGroupBox("Red Team Targets")
+        team1_layout = QtWidgets.QVBoxLayout()
+        self.team1_list = QtWidgets.QListWidget()
+        self.team1_list.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
+        for army_name, display_name in team2_armies:
+            item = QtWidgets.QListWidgetItem(display_name)
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, army_name)
+            self.team1_list.addItem(item)
+        team1_layout.addWidget(QtWidgets.QLabel("Target order (drag to reorder):"))
+        team1_layout.addWidget(self.team1_list)
+        team1_group.setLayout(team1_layout)
+        teams_layout.addWidget(team1_group)
+        
+        # Team 2 (Blue) targeting configuration
+        team2_group = QtWidgets.QGroupBox("Blue Team Targets")
+        team2_layout = QtWidgets.QVBoxLayout()
+        self.team2_list = QtWidgets.QListWidget()
+        self.team2_list.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
+        for army_name, display_name in team1_armies:
+            item = QtWidgets.QListWidgetItem(display_name)
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, army_name)
+            self.team2_list.addItem(item)
+        team2_layout.addWidget(QtWidgets.QLabel("Target order (drag to reorder):"))
+        team2_layout.addWidget(self.team2_list)
+        team2_group.setLayout(team2_layout)
+        teams_layout.addWidget(team2_group)
+        
+        layout.addLayout(teams_layout)
+        
+        # Restore previous configuration if provided
+        if current_targeting:
+            self._restore_targeting(current_targeting, team1_armies, team2_armies)
+        
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            parent=self,
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+    
+    def _restore_targeting(
+        self,
+        targeting: dict[str, list[str]],
+        team1_armies: list[tuple[str, str]],
+        team2_armies: list[tuple[str, str]],
+    ) -> None:
+        """Restore a previously saved targeting configuration."""
+        # Restore team1 (red) targeting order
+        if "red" in targeting or "team1" in targeting:
+            order = targeting.get("red") or targeting.get("team1", [])
+            self._restore_list_order(self.team1_list, order)
+        
+        # Restore team2 (blue) targeting order
+        if "blue" in targeting or "team2" in targeting:
+            order = targeting.get("blue") or targeting.get("team2", [])
+            self._restore_list_order(self.team2_list, order)
+    
+    def _restore_list_order(self, list_widget: QtWidgets.QListWidget, order: list[str]) -> None:
+        """Restore the order of items in a list widget."""
+        # Create a mapping of army_name -> item
+        items_by_army: dict[str, QtWidgets.QListWidgetItem] = {}
+        for i in range(list_widget.count()):
+            item = list_widget.item(i)
+            army_name = item.data(QtCore.Qt.ItemDataRole.UserRole)
+            if army_name:
+                items_by_army[str(army_name)] = item
+        
+        # Reorder items according to the saved order
+        for army_name in order:
+            if army_name in items_by_army:
+                row = list_widget.row(items_by_army[army_name])
+                if row >= 0:
+                    item = list_widget.takeItem(row)
+                    list_widget.addItem(item)
+    
+    def get_targeting(self) -> dict[str, list[str]]:
+        """Return the configured targeting order for each team."""
+        result: dict[str, list[str]] = {}
+        
+        # Get team1 (red) targeting order
+        team1_order: list[str] = []
+        for i in range(self.team1_list.count()):
+            item = self.team1_list.item(i)
+            army_name = item.data(QtCore.Qt.ItemDataRole.UserRole)
+            if army_name:
+                team1_order.append(str(army_name))
+        if team1_order:
+            result["red"] = team1_order
+        
+        # Get team2 (blue) targeting order
+        team2_order: list[str] = []
+        for i in range(self.team2_list.count()):
+            item = self.team2_list.item(i)
+            army_name = item.data(QtCore.Qt.ItemDataRole.UserRole)
+            if army_name:
+                team2_order.append(str(army_name))
+        if team2_order:
+            result["blue"] = team2_order
+        
+        return result
+
+
 class StarredImageLabel(QtWidgets.QLabel):
     """QLabel that can grey out stars based on a count.
 
@@ -4602,8 +4732,8 @@ def _simulate_arena_battle(
     targeting_mode: str,
     simulator_options: dict[str, Any],
     seed: int | None,
-    *,
     collect_skills: bool = False,
+    custom_targeting: dict[str, list[str]] | None = None,
 ) -> tuple[str, dict[str, float], list[dict[str, Any]] | None, bool]:
     """Run a single arena battle and collect the outcome.
 
@@ -4629,7 +4759,7 @@ def _simulate_arena_battle(
             }
         )
     engine = ArenaEngine(**simulator_options)
-    engine.start_arena_battle(battle_layout, targeting_mode=targeting_mode)
+    engine.start_arena_battle(battle_layout, targeting_mode=targeting_mode, custom_targeting=custom_targeting)
 
     max_ticks = int(simulator_options.get("max_ticks") or 0)
     if max_ticks <= 0:
@@ -4838,6 +4968,7 @@ class ArenaBatchWorker(QtCore.QThread):
         targeting_mode: str,
         simulator_options: dict[str, Any] | None = None,
         seed_target: ArenaSeedTarget | None = None,
+        custom_targeting: dict[str, list[str]] | None = None,
     ) -> None:
         super().__init__()
         self.layout_entries = layout_entries
@@ -4847,6 +4978,7 @@ class ArenaBatchWorker(QtCore.QThread):
         self.targeting_mode = targeting_mode or "legacy"
         self.simulator_options = dict(simulator_options) if simulator_options else {}
         self.seed_target = dict(seed_target) if seed_target else None
+        self.custom_targeting = custom_targeting
         self.best_match: dict[str, Any] | None = None
 
     def cancel(self) -> None:
@@ -4897,6 +5029,7 @@ class ArenaBatchWorker(QtCore.QThread):
                             self.simulator_options,
                             seed_val,
                             False,
+                            self.custom_targeting,
                         )
                         futures[fut] = idx
 
@@ -4933,6 +5066,7 @@ class ArenaBatchWorker(QtCore.QThread):
                     self.simulator_options,
                     seed_val,
                     collect_skills=False,
+                    custom_targeting=self.custom_targeting,
                 )
                 results[winner] = results.get(winner, 0) + 1
                 if timed_out:
@@ -4950,6 +5084,7 @@ class ArenaBatchWorker(QtCore.QThread):
                     self.simulator_options,
                     seed_val,
                     collect_skills=True,
+                    custom_targeting=self.custom_targeting,
                 )
                 self.best_match = {
                     "seed": seed_val,
@@ -4988,6 +5123,9 @@ class ArenaTab(QtWidgets.QWidget):
         # wired up.  This avoids attribute errors when the seed display is
         # refreshed during initialization.
         self.seed_target: ArenaSeedTarget | None = None
+        
+        # Store custom targeting configuration: dict mapping team ("red"/"blue") -> list of army names in order
+        self.custom_targeting: dict[str, list[str]] = {}
 
         controls = QtWidgets.QHBoxLayout()
         self.save_layout_btn = QtWidgets.QPushButton("Save Layout")
@@ -5001,6 +5139,11 @@ class ArenaTab(QtWidgets.QWidget):
         self.targeting_combo.addItem("Legacy", "legacy")
         self.targeting_combo.addItem("STR", "str")
         self.targeting_combo.addItem("FRG", "frg")
+        self.targeting_combo.addItem("Custom", "custom")
+        self.targeting_combo.currentIndexChanged.connect(self._on_targeting_mode_changed)
+        self.configure_targeting_btn = QtWidgets.QPushButton("Configure Targeting")
+        self.configure_targeting_btn.setEnabled(False)
+        self.configure_targeting_btn.clicked.connect(self._configure_custom_targeting)
         self.run_batch_btn = QtWidgets.QPushButton("Run Batch")
         self.run_btn = QtWidgets.QPushButton("Run Arena")
         self.last_run_btn = QtWidgets.QPushButton("Run Last")
@@ -5014,6 +5157,7 @@ class ArenaTab(QtWidgets.QWidget):
             self.refresh_btn,
             self.swap_btn,
             self.targeting_combo,
+            self.configure_targeting_btn,
             self.run_batch_btn,
             self.run_btn,
             self.last_run_btn,
@@ -5141,6 +5285,55 @@ class ArenaTab(QtWidgets.QWidget):
         self.run_btn.clicked.connect(self._run_arena)
         self.last_run_btn.clicked.connect(self._run_last_layout)
         self.speed_btn.clicked.connect(self._toggle_speed)
+    
+    def _on_targeting_mode_changed(self) -> None:
+        """Enable/disable configure button based on targeting mode selection."""
+        mode = self.targeting_combo.currentData()
+        self.configure_targeting_btn.setEnabled(mode == "custom")
+    
+    def _configure_custom_targeting(self) -> None:
+        """Open dialog to configure custom targeting order."""
+        # Collect armies for each team
+        team1_armies: list[tuple[str, str]] = []  # (army_name, display_name)
+        team2_armies: list[tuple[str, str]] = []
+        
+        for (slot_team, idx), info in self._slot_army.items():
+            if not info:
+                continue
+            army = info["army"]
+            army_name = army.name
+            # Create a display name from the army name or config
+            display_name = army_name
+            cfg = info.get("config", {})
+            if cfg:
+                # Try to get a better display name from config
+                config_name = cfg.get("army_name") or cfg.get("unit_type", "")
+                if config_name:
+                    display_name = config_name
+            
+            if slot_team == "team1":
+                team1_armies.append((army_name, display_name))
+            elif slot_team == "team2":
+                team2_armies.append((army_name, display_name))
+        
+        if not team1_armies or not team2_armies:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Insufficient Armies",
+                "Both teams must have at least one army to configure custom targeting."
+            )
+            return
+        
+        # Open the dialog with current configuration
+        dlg = CustomTargetingDialog(
+            self,
+            team1_armies,
+            team2_armies,
+            self.custom_targeting if self.custom_targeting else None,
+        )
+        
+        if dlg.exec() == int(QtWidgets.QDialog.DialogCode.Accepted):
+            self.custom_targeting = dlg.get_targeting()
 
     def _get_debug_settings(self) -> dict[str, Any]:
         """Return simulator settings based on the parent window's debug toggles."""
@@ -5404,10 +5597,14 @@ class ArenaTab(QtWidgets.QWidget):
             if cfg:
                 entry["config"] = cfg
             entries.append(entry)
-        return {
+        result = {
             "targeting_mode": self.targeting_combo.currentData(),
             "entries": entries,
         }
+        # Save custom targeting configuration if in custom mode
+        if self.targeting_combo.currentData() == "custom" and self.custom_targeting:
+            result["custom_targeting"] = self.custom_targeting
+        return result
 
     def _save_last_layout(self) -> None:
         """Persist the current layout for quick access later."""
@@ -5476,13 +5673,20 @@ class ArenaTab(QtWidgets.QWidget):
         self._refresh_arena()
         entries = layout_data
         targeting_mode = None
+        custom_targeting = None
         if isinstance(layout_data, dict):
             entries = layout_data.get("entries", [])
             targeting_mode = layout_data.get("targeting_mode")
+            custom_targeting = layout_data.get("custom_targeting")
         if targeting_mode:
             idx = self.targeting_combo.findData(targeting_mode)
             if idx != -1:
                 self.targeting_combo.setCurrentIndex(idx)
+        # Restore custom targeting configuration
+        if custom_targeting and isinstance(custom_targeting, dict):
+            self.custom_targeting = custom_targeting
+        else:
+            self.custom_targeting = {}
         for entry in entries:
             name = entry.get("army_name")
             team = entry.get("team")
@@ -5676,8 +5880,9 @@ class ArenaTab(QtWidgets.QWidget):
         self.engine.set_simulator_options(**self._get_debug_settings())
         self.engine.reset(report_builder=self.report_builder)
         targeting_mode = self.targeting_combo.currentData()
+        custom_targeting = self.custom_targeting if targeting_mode == "custom" else None
         try:
-            self.engine.start_arena_battle(layout, targeting_mode=targeting_mode)
+            self.engine.start_arena_battle(layout, targeting_mode=targeting_mode, custom_targeting=custom_targeting)
         except ValueError as exc:
             QtWidgets.QMessageBox.warning(
                 self,
@@ -5778,6 +5983,7 @@ class ArenaTab(QtWidgets.QWidget):
                 if best_candidate is None or diff < best_candidate[0]:
                     best_candidate = (diff, idx, dict(remaining))
 
+            custom_targeting = self.custom_targeting if targeting_mode == "custom" else None
             for idx, seed_val in enumerate(seeds):
                 winner, remaining, _, timed_out = _simulate_arena_battle(
                     layout_entries,
@@ -5785,6 +5991,7 @@ class ArenaTab(QtWidgets.QWidget):
                     sim_settings,
                     seed_val,
                     collect_skills=False,
+                    custom_targeting=custom_targeting,
                 )
                 results[winner] = results.get(winner, 0) + 1
                 if timed_out:
@@ -5807,6 +6014,7 @@ class ArenaTab(QtWidgets.QWidget):
                             sim_settings,
                             seed_val,
                             collect_skills=True,
+                            custom_targeting=custom_targeting if targeting_mode == "custom" else None,
                         )
                         payload["best_match"] = {
                             "seed": seed_val,
@@ -5834,6 +6042,7 @@ class ArenaTab(QtWidgets.QWidget):
             str(targeting_mode),
             sim_settings,
             seed_target=self.seed_target,
+            custom_targeting=custom_targeting,
         )
         self._batch_worker = worker
         worker.progress_update.connect(

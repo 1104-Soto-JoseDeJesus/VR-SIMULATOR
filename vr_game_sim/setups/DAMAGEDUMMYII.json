@@ -70,8 +70,8 @@
         "tier": 7,
         "count": 300000,
         "is_rally": false,
-        "atk_mod": 2.5,
-        "def_mod": 2.0,
+        "atk_mod": 3.02,
+        "def_mod": 2.51,
         "hp_mod": 0.9,
         "unrevivable_ratio": 0.65,
         "use_dynamic_unrevivable_ratio": true,
@@ -89,7 +89,7 @@
             ],
             "plugin_skill_ids": [
               "plugin_divine_blessing",
-              "plugin_rapid_defense"
+              "plugin_first_strike"
             ],
             "mount_skill_ids": []
           },
@@ -105,8 +105,8 @@
               "base_skill_concentration"
             ],
             "plugin_skill_ids": [
-              "plugin_enchanted_pursuit",
-              "plugin_fiery_rage"
+              "plugin_rage_leech",
+              "plugin_odins_asylum"
             ],
             "mount_skill_ids": []
           }
@@ -127,8 +127,8 @@
         "tier": 7,
         "count": 300000,
         "is_rally": false,
-        "atk_mod": 3.0,
-        "def_mod": 2.5,
+        "atk_mod": 2.55,
+        "def_mod": 1.95,
         "hp_mod": 0.91,
         "unrevivable_ratio": 0.65,
         "use_dynamic_unrevivable_ratio": true,
@@ -145,8 +145,8 @@
               "base_skill_holy_enlightenment"
             ],
             "plugin_skill_ids": [
-              "plugin_rage_leech",
-              "plugin_first_strike"
+              "plugin_fiery_rage",
+              "plugin_enchanted_pursuit"
             ],
             "mount_skill_ids": []
           },
@@ -162,7 +162,7 @@
               "base_skill_incineration"
             ],
             "plugin_skill_ids": [
-              "plugin_odins_asylum",
+              "plugin_dampened_spirits",
               "plugin_helas_curse"
             ],
             "mount_skill_ids": []
@@ -342,11 +342,15 @@
   ],
   "custom_targeting": {
     "red": [
-      "Army 1"
+      "Verdandi/Olena",
+      "Athelstan/Artur",
+      "Margit/Lagertha",
+      "Gregory/Ivor",
+      "Rosky/Helgar"
     ],
     "blue": [
-      "Athelstan/Artur 2",
       "Verdandi/Olena 2",
+      "Athelstan/Artur 2",
       "Margit/Lagertha 2",
       "Gregory/Ivor 2",
       "Rosky/Helgar 2"

@@ -342,11 +342,15 @@
   ],
   "custom_targeting": {
     "red": [
-      "Army 1"
+      "Verdandi/Olena",
+      "Athelstan/Artur",
+      "Margit/Lagertha",
+      "Gregory/Ivor",
+      "Rosky/Helgar"
     ],
     "blue": [
-      "Athelstan/Artur 2",
       "Verdandi/Olena 2",
+      "Athelstan/Artur 2",
       "Margit/Lagertha 2",
       "Gregory/Ivor 2",
       "Rosky/Helgar 2"

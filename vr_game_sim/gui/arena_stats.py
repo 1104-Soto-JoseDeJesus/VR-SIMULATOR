@@ -422,7 +422,11 @@ class ArenaStatsRow(QtWidgets.QWidget):
             )
         else:
             left_widget = QtWidgets.QWidget()
-        layout.addWidget(left_widget)
+            left_widget.setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Preferred,
+                QtWidgets.QSizePolicy.Policy.Preferred
+            )
+        layout.addWidget(left_widget, 1)  # Stretch factor of 1 to ensure 50% width
 
         if right:
             right_widget = HeroStatsWidget(
@@ -446,7 +450,11 @@ class ArenaStatsRow(QtWidgets.QWidget):
             )
         else:
             right_widget = QtWidgets.QWidget()
-        layout.addWidget(right_widget)
+            right_widget.setSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Preferred,
+                QtWidgets.QSizePolicy.Policy.Preferred
+            )
+        layout.addWidget(right_widget, 1)  # Stretch factor of 1 to ensure 50% width
 
 
 class SkillStatsRow(QtWidgets.QWidget):

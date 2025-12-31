@@ -2750,6 +2750,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self._mount_skills: dict[int, list[str]] = {1: [], 2: []}
         self._gem_skills: dict[str, str] = {slot: "" for slot, _ in JEWEL_SLOTS}
         self._hero_gear: dict[int, dict[str, str]] = {1: {}, 2: {}}
+        self.gear_btn.clicked.connect(self._open_gear_dialog)
         self.mount_skills_btn.clicked.connect(self._open_mount_skills_dialog)
         self.gem_skills_btn.clicked.connect(self._open_gem_skills_dialog)
         self.bonus_stats_btn.clicked.connect(self._open_bonus_stats_dialog)
@@ -3474,6 +3475,13 @@ class ArmyFrame(QtWidgets.QGroupBox):
                         lbl.set_star_count(int(count))
                     except Exception:
                         lbl.set_star_count(lbl.max_stars)
+
+    def _open_gear_dialog(self) -> None:
+        """Open the gear selection dialog."""
+        hero_names = [self.hero1_combo.currentText(), self.hero2_combo.currentText()]
+        dlg = GearSelectionDialog(hero_names, self.get_gear_config(), self)
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            self.set_gear_config(dlg.result())
 
     def _open_bonus_stats_dialog(self) -> None:
         dlg = BonusStatsDialog(self._bonus_stats, self)

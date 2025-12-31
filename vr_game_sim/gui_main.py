@@ -5135,6 +5135,7 @@ class ArenaTab(QtWidgets.QWidget):
         self.load_pos_layout_btn = QtWidgets.QPushButton("Load Position Layout")
         self.refresh_btn = QtWidgets.QPushButton("Refresh Arena")
         self.swap_btn = QtWidgets.QPushButton("Swap Teams")
+        self.duplicate_team_btn = QtWidgets.QPushButton("Duplicate Team")
         self.targeting_combo = QtWidgets.QComboBox()
         self.targeting_combo.addItem("Legacy", "legacy")
         self.targeting_combo.addItem("STR", "str")
@@ -5156,6 +5157,7 @@ class ArenaTab(QtWidgets.QWidget):
             self.load_pos_layout_btn,
             self.refresh_btn,
             self.swap_btn,
+            self.duplicate_team_btn,
             self.targeting_combo,
             self.configure_targeting_btn,
             self.run_batch_btn,
@@ -5281,6 +5283,7 @@ class ArenaTab(QtWidgets.QWidget):
         self.save_layout_btn.clicked.connect(self._save_layout)
         self.load_layout_btn.clicked.connect(self._load_layout)
         self.swap_btn.clicked.connect(self._swap_teams)
+        self.duplicate_team_btn.clicked.connect(self._duplicate_team)
         self.run_batch_btn.clicked.connect(self._run_batch)
         self.run_btn.clicked.connect(self._run_arena)
         self.last_run_btn.clicked.connect(self._run_last_layout)
@@ -5576,6 +5579,164 @@ class ArenaTab(QtWidgets.QWidget):
                     icon2.setPos(*self.slot_coords["team1"][idx])
                     self._assign_team(info2, "team1")
                     icon2.team = info2["team"]
+
+    def _duplicate_team(self) -> None:
+        """Duplicate the selected team to the other team."""
+        
+        if self._running:
+            return
+        
+        # Determine which team has armies to duplicate
+        team1_count = sum(1 for (team, _), info in self._slot_army.items() if team == "team1" and info)
+        team2_count = sum(1 for (team, _), info in self._slot_army.items() if team == "team2" and info)
+        
+        # Ask user which team to duplicate
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle("Duplicate Team")
+        layout = QtWidgets.QVBoxLayout(dlg)
+        
+        label = QtWidgets.QLabel("Select which team to duplicate:")
+        layout.addWidget(label)
+        
+        button_group = QtWidgets.QButtonGroup(dlg)
+        team1_radio = QtWidgets.QRadioButton("Team 1 (Red) → Team 2 (Blue)")
+        team2_radio = QtWidgets.QRadioButton("Team 2 (Blue) → Team 1 (Red)")
+        button_group.addButton(team1_radio, 0)
+        button_group.addButton(team2_radio, 1)
+        
+        if team1_count > 0 and team2_count == 0:
+            team1_radio.setChecked(True)
+        elif team2_count > 0 and team1_count == 0:
+            team2_radio.setChecked(True)
+        elif team1_count > team2_count:
+            team1_radio.setChecked(True)
+        else:
+            team2_radio.setChecked(True)
+        
+        layout.addWidget(team1_radio)
+        layout.addWidget(team2_radio)
+        
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            parent=dlg,
+        )
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        layout.addWidget(buttons)
+        
+        if dlg.exec() != int(QtWidgets.QDialog.DialogCode.Accepted):
+            return
+        
+        # Determine source and destination teams
+        duplicate_team1_to_team2 = team1_radio.isChecked()
+        source_team = "team1" if duplicate_team1_to_team2 else "team2"
+        dest_team = "team2" if duplicate_team1_to_team2 else "team1"
+        dest_team_color = "blue" if duplicate_team1_to_team2 else "red"
+        
+        # Check if source team has any armies
+        source_has_armies = any(
+            team == source_team and info
+            for (team, _), info in self._slot_army.items()
+        )
+        
+        if not source_has_armies:
+            QtWidgets.QMessageBox.information(
+                self,
+                "No Armies",
+                f"The source team ({source_team}) has no armies to duplicate."
+            )
+            return
+        
+        # Duplicate each army from source to destination
+        total = len(self.slot_coords[source_team])
+        for idx in range(total):
+            source_key = (source_team, idx)
+            dest_key = (dest_team, idx)
+            source_info = self._slot_army.get(source_key)
+            
+            if not source_info:
+                # Clear destination slot if source is empty
+                if dest_key in self._slot_army and self._slot_army[dest_key]:
+                    old_info = self._slot_army[dest_key]
+                    old_icon = self._icons.pop(old_info["army"].name, None)
+                    if old_icon:
+                        self.scene.removeItem(old_icon)
+                    self._slot_army[dest_key] = None
+                continue
+            
+            # Get the config and create a deep copy
+            source_cfg = source_info.get("config", {})
+            if not source_cfg:
+                continue
+            
+            # Create a copy of the config and update team
+            new_cfg = copy.deepcopy(source_cfg)
+            new_cfg["team"] = dest_team_color
+            
+            # Create new army from config
+            try:
+                new_army = create_armies_from_data([new_cfg])[0]
+            except Exception as exc:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "Duplication Error",
+                    f"Failed to create army at slot {idx}: {exc}"
+                )
+                continue
+            
+            # Remove existing army/icon at destination if present
+            existing_dest = self._slot_army.get(dest_key)
+            if existing_dest:
+                old_icon = self._icons.pop(existing_dest["army"].name, None)
+                if old_icon:
+                    self.scene.removeItem(old_icon)
+            
+            # Create new icon
+            pos = self.slot_coords[dest_team][idx]
+            heroes = new_cfg.get("heroes", [])
+            main_path = (
+                os.path.join(
+                    os.path.dirname(__file__),
+                    "Hero Images",
+                    f"{heroes[0]['hero_name_or_preset'].capitalize()}.png",
+                )
+                if heroes
+                else os.path.join(
+                    os.path.dirname(__file__),
+                    "Icons",
+                    f"{new_cfg['unit_type'].capitalize()}.png",
+                )
+            )
+            secondary_path = None
+            if len(heroes) > 1:
+                secondary_path = os.path.join(
+                    os.path.dirname(__file__),
+                    "Hero Images",
+                    f"{heroes[1]['hero_name_or_preset'].capitalize()}.png",
+                )
+            
+            icon = ArmyIcon(
+                main_path,
+                secondary_path,
+                1.0,
+                army_name=new_army.name,
+                team=dest_team_color,
+                max_size=self._icon_size,
+                on_drop=self._on_icon_drop,
+                on_double_click=self._icon_double_clicked,
+            )
+            icon.set_rage(new_army.current_rage / 1000.0)
+            icon.setPos(*pos)
+            self.scene.addItem(icon)
+            self._icons[new_army.name] = icon
+            
+            # Store the new army info
+            self._slot_army[dest_key] = {
+                "army": new_army,
+                "team": dest_team_color,
+                "speed": source_info.get("speed", 50.0),
+                "config": new_cfg,
+            }
 
     def _collect_layout_data(self) -> dict[str, Any]:
         """Return layout entries and metadata for all occupied slots."""
@@ -6187,7 +6348,7 @@ class ArenaTab(QtWidgets.QWidget):
     def _toggle_speed(self) -> None:
         """Cycle through speed multipliers for the arena simulation."""
 
-        speeds = [1.0, 2.0, 4.0, 6.0]
+        speeds = [1.0, 2.0, 4.0, 6.0, 10.0, 20.0]
         idx = speeds.index(self._speed_multiplier)
         self._speed_multiplier = speeds[(idx + 1) % len(speeds)]
         self.speed_btn.setText(f"Speed {int(self._speed_multiplier)}x")

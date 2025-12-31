@@ -4827,7 +4827,7 @@ class SimulationWorker(QtCore.QThread):
         dynamic_settings: dict[str, float] | None = None,
         *,
         hero_cooldowns_enabled: bool = True,
-        plugin_cooldowns_enabled: bool = True,
+        plugin_cooldowns_enabled: bool = False,
         gem_cooldowns_enabled: bool = True,
         mount_cooldowns_enabled: bool = True,
         damage_reduction_affects_dots: bool = True,
@@ -5268,11 +5268,11 @@ class ArenaTab(QtWidgets.QWidget):
                 self._slot_items[(team, idx)] = item
                 self._slot_army[(team, idx)] = None
 
-        # Attempt to load a persisted position layout called "MainLayout" so
+        # Attempt to load a persisted position layout called "default" so
         # the arena opens with a user customised formation if available.
         # Failing to load simply leaves the computed coordinates in place.
         try:
-            self._load_formation_layout("MainLayout")
+            self._load_formation_layout("default")
         except Exception:
             # Silently ignore any issues (missing file, JSON errors, etc.).
             pass
@@ -5343,7 +5343,7 @@ class ArenaTab(QtWidgets.QWidget):
 
         window = self.window()
         hero_cooldowns = True
-        plugin_cooldowns = True
+        plugin_cooldowns = False
         gem_cooldowns = True
         mount_cooldowns = True
         damage_reduction = True
@@ -6516,7 +6516,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.seed_target: SeedTarget | None = None
         self.seed_display: QtWidgets.QLabel | None = None
         self.hero_cooldowns_enabled: bool = True
-        self.plugin_cooldowns_enabled: bool = True
+        self.plugin_cooldowns_enabled: bool = False
         self.gem_cooldowns_enabled: bool = True
         self.mount_cooldowns_enabled: bool = True
         self.damage_reduction_affects_dots: bool = True

@@ -89,7 +89,7 @@
             ],
             "plugin_skill_ids": [
               "plugin_divine_blessing",
-              "plugin_first_strike"
+              "plugin_rapid_defense"
             ],
             "mount_skill_ids": []
           },
@@ -105,8 +105,8 @@
               "base_skill_concentration"
             ],
             "plugin_skill_ids": [
-              "plugin_rage_leech",
-              "plugin_odins_asylum"
+              "plugin_enchanted_pursuit",
+              "plugin_fiery_rage"
             ],
             "mount_skill_ids": []
           }
@@ -145,8 +145,8 @@
               "base_skill_holy_enlightenment"
             ],
             "plugin_skill_ids": [
-              "plugin_fiery_rage",
-              "plugin_enchanted_pursuit"
+              "plugin_rage_leech",
+              "plugin_first_strike"
             ],
             "mount_skill_ids": []
           },
@@ -162,7 +162,7 @@
               "base_skill_incineration"
             ],
             "plugin_skill_ids": [
-              "plugin_dampened_spirits",
+              "plugin_odins_asylum",
               "plugin_helas_curse"
             ],
             "mount_skill_ids": []

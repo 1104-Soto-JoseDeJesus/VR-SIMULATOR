@@ -3822,12 +3822,12 @@ class ArmyIcon(QtWidgets.QGraphicsItem):
         yellow_color = QtGui.QColor(255, 255, 0)
         dark_grey_color = QtGui.QColor(64, 64, 64)
         
-        # Determine which squares should be filled
-        # Square 1 (top): filled if rage >= 0.25
-        # Square 2: filled if rage >= 0.5
-        # Square 3: filled if rage >= 0.75
-        # Square 4 (bottom): filled if rage >= 1.0
-        thresholds = [0.25, 0.5, 0.75, 1.0]
+        # Determine which squares should be filled (fills from bottom to top)
+        # Square 4 (bottom): filled if rage >= 0.25
+        # Square 3: filled if rage >= 0.5
+        # Square 2: filled if rage >= 0.75
+        # Square 1 (top): filled if rage >= 1.0
+        thresholds = [1.0, 0.75, 0.5, 0.25]
         
         for i, threshold in enumerate(thresholds):
             is_filled = self.rage_ratio >= threshold

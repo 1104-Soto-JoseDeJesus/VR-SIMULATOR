@@ -1,6 +1,7 @@
 import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt6 import QtWidgets
+from typing import Mapping
 
 import vr_game_sim.gui_main as gui_main
 from vr_game_sim.gui_main import MainWindow, ArmyIcon, create_armies_from_data
@@ -100,6 +101,7 @@ def test_arena_batch_seed_uses_single_process(monkeypatch):
         seed: int | None,
         *,
         collect_skills: bool = False,
+        custom_targeting: Mapping[str, list[str]] | None = None,
     ) -> tuple[str, dict[str, float], list[dict[str, object]] | None]:
         winner = "red"
         remaining = {str(entry.get("entry_id", "")): float(seed or 0) for entry in layout_entries}
@@ -153,6 +155,7 @@ def test_arena_batch_pool_failure_falls_back(monkeypatch):
         seed: int | None,
         *,
         collect_skills: bool = False,
+        custom_targeting: Mapping[str, list[str]] | None = None,
     ) -> tuple[str, dict[str, float], list[dict[str, object]] | None]:
         calls.append(seed)
         winner = "red"

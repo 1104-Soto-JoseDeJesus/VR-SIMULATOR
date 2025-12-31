@@ -33,7 +33,13 @@ class ArenaEngine(BattlefieldEngine):
         # for a given arena battle.
         self.targeting_mode: str = "legacy"
 
-    def start_arena_battle(self, layout_slots: Any, *, targeting_mode: Optional[str] = None) -> None:
+    def start_arena_battle(
+        self,
+        layout_slots: Any,
+        *,
+        targeting_mode: Optional[str] = None,
+        custom_targeting: Optional[Mapping[str, List[str]]] = None,
+    ) -> None:
         """Register armies in ``layout_slots`` and queue march orders.
 
         Parameters
@@ -125,7 +131,7 @@ class ArenaEngine(BattlefieldEngine):
         team_names = list(columns.keys())
 
         mode = (targeting_mode or self.targeting_mode or "legacy").lower()
-        if mode not in {"legacy", "str", "frg"}:
+        if mode not in {"legacy", "str", "frg", "custom"}:
             mode = "legacy"
         self.targeting_mode = mode
 
@@ -196,6 +202,25 @@ class ArenaEngine(BattlefieldEngine):
 
         # Pair columns across teams to assign default targets and march orders
         self._row_fallbacks.clear()
+        custom_orders: Dict[str, List[str]] = {}
+        if mode == "custom":
+            supplied = custom_targeting or {}
+            for team in team_names:
+                preferred = [
+                    name
+                    for name in supplied.get(team, [])
+                    if name in self._armies and self._armies[name].team != team
+                ]
+                seen = set(preferred)
+                fallback: List[str] = list(preferred)
+                for entry in entries:
+                    name = entry["army"].name
+                    if name in seen or entry["team"] == team:
+                        continue
+                    fallback.append(name)
+                    seen.add(name)
+                custom_orders[team] = fallback
+
         if len(team_names) == 2:
             t1, t2 = team_names
             if mode == "legacy":
@@ -298,7 +323,10 @@ class ArenaEngine(BattlefieldEngine):
                     return [e["army"].name for e in enemies]
 
                 for team, opponent in ((t1, t2), (t2, t1)):
-                    order = _sorted_targets(team, opponent)
+                    if mode == "custom":
+                        order = custom_orders.get(team, [])
+                    else:
+                        order = _sorted_targets(team, opponent)
                     for entry in team_entries[team]:
                         if _has_explicit_target(entry):
                             continue

@@ -221,6 +221,40 @@ def test_frg_targeting_prioritises_fragile_and_advances():
     assert engine._armies[attacker.name].direct_target == sturdy.name
 
 
+def test_custom_targeting_uses_manual_order():
+    engine = ArenaEngine()
+    attacker = make_army("attacker")
+    finisher = make_army("finisher")
+    first = make_army("first")
+    second = make_army("second")
+    fallback = make_army("fallback")
+
+    layout = {
+        "red": [
+            {"army": attacker, "position": (0.0, 0.0), "column": 0, "row": 0},
+            {"army": finisher, "position": (-50.0, 0.0), "column": 1, "row": 0},
+        ],
+        "blue": [
+            {"army": fallback, "position": (0.0, 200.0), "column": 0, "row": 0},
+            {"army": first, "position": (100.0, 200.0), "column": 1, "row": 0},
+            {"army": second, "position": (-100.0, 200.0), "column": 2, "row": 0},
+        ],
+    }
+
+    engine.start_arena_battle(
+        layout,
+        targeting_mode="custom",
+        custom_targeting={"red": [first.name, second.name]},
+    )
+
+    assert engine._armies[attacker.name].direct_target == first.name
+    engine._remove_army(first.name)
+    assert engine._armies[attacker.name].direct_target == second.name
+    engine._remove_army(second.name)
+    assert engine._armies[attacker.name].direct_target == fallback.name
+    assert engine._armies[finisher.name].direct_target == first.name
+
+
 def test_arena_retains_initial_direct_target():
     engine = ArenaEngine()
     a = make_army("A")

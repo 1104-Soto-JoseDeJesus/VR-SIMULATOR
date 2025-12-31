@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import random
 import copy
-from typing import Any, Callable, Iterable, TypedDict
+from typing import Any, Callable, Iterable, Mapping, TypedDict
 import threading
 import math
 import json
@@ -4604,6 +4604,7 @@ def _simulate_arena_battle(
     seed: int | None,
     *,
     collect_skills: bool = False,
+    custom_targeting: Mapping[str, list[str]] | None = None,
 ) -> tuple[str, dict[str, float], list[dict[str, Any]] | None, bool]:
     """Run a single arena battle and collect the outcome.
 
@@ -4629,7 +4630,11 @@ def _simulate_arena_battle(
             }
         )
     engine = ArenaEngine(**simulator_options)
-    engine.start_arena_battle(battle_layout, targeting_mode=targeting_mode)
+    engine.start_arena_battle(
+        battle_layout,
+        targeting_mode=targeting_mode,
+        custom_targeting=custom_targeting,
+    )
 
     max_ticks = int(simulator_options.get("max_ticks") or 0)
     if max_ticks <= 0:
@@ -4681,6 +4686,56 @@ def _simulate_arena_battle(
             )
 
     return winner, remaining, summary, timed_out
+
+
+class CustomTargetingDialog(QtWidgets.QDialog):
+    """Dialog allowing users to reorder custom arena target priorities."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None, targets: Mapping[str, list[str]]) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Custom Targeting Order")
+
+        layout = QtWidgets.QVBoxLayout(self)
+        info = QtWidgets.QLabel(
+            "Reorder each list to choose which opposing armies are targeted first.\n"
+            "Drag items to change priority; top entries are targeted before lower ones."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        self._lists: dict[str, QtWidgets.QListWidget] = {}
+        grid = QtWidgets.QGridLayout()
+        for col, (team, names) in enumerate(sorted(targets.items())):
+            group = QtWidgets.QGroupBox(f"{team.capitalize()} targets")
+            inner = QtWidgets.QVBoxLayout(group)
+            lst = QtWidgets.QListWidget()
+            lst.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
+            lst.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
+            lst.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)
+            for name in names:
+                lst.addItem(name)
+            inner.addWidget(lst)
+            group.setLayout(inner)
+            grid.addWidget(group, 0, col)
+            self._lists[team] = lst
+
+        layout.addLayout(grid)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def get_targets(self) -> dict[str, list[str]]:
+        """Return the reordered targeting map."""
+
+        result: dict[str, list[str]] = {}
+        for team, lst in self._lists.items():
+            result[team] = [lst.item(i).text() for i in range(lst.count())]
+        return result
 
 
 class SimulationWorker(QtCore.QThread):
@@ -4836,6 +4891,7 @@ class ArenaBatchWorker(QtCore.QThread):
         runs: int,
         num_workers: int,
         targeting_mode: str,
+        custom_targeting: Mapping[str, list[str]] | None,
         simulator_options: dict[str, Any] | None = None,
         seed_target: ArenaSeedTarget | None = None,
     ) -> None:
@@ -4845,6 +4901,7 @@ class ArenaBatchWorker(QtCore.QThread):
         self.num_workers = num_workers
         self._cancelled = threading.Event()
         self.targeting_mode = targeting_mode or "legacy"
+        self.custom_targeting = dict(custom_targeting) if custom_targeting else None
         self.simulator_options = dict(simulator_options) if simulator_options else {}
         self.seed_target = dict(seed_target) if seed_target else None
         self.best_match: dict[str, Any] | None = None
@@ -4896,7 +4953,8 @@ class ArenaBatchWorker(QtCore.QThread):
                             self.targeting_mode,
                             self.simulator_options,
                             seed_val,
-                            False,
+                            collect_skills=False,
+                            custom_targeting=self.custom_targeting,
                         )
                         futures[fut] = idx
 
@@ -4933,6 +4991,7 @@ class ArenaBatchWorker(QtCore.QThread):
                     self.simulator_options,
                     seed_val,
                     collect_skills=False,
+                    custom_targeting=self.custom_targeting,
                 )
                 results[winner] = results.get(winner, 0) + 1
                 if timed_out:
@@ -4950,6 +5009,7 @@ class ArenaBatchWorker(QtCore.QThread):
                     self.simulator_options,
                     seed_val,
                     collect_skills=True,
+                    custom_targeting=self.custom_targeting,
                 )
                 self.best_match = {
                     "seed": seed_val,
@@ -5001,6 +5061,9 @@ class ArenaTab(QtWidgets.QWidget):
         self.targeting_combo.addItem("Legacy", "legacy")
         self.targeting_combo.addItem("STR", "str")
         self.targeting_combo.addItem("FRG", "frg")
+        self.targeting_combo.addItem("Custom", "custom")
+        self.custom_target_btn = QtWidgets.QPushButton("Custom Targets…")
+        self.custom_target_btn.clicked.connect(self._open_custom_targeting)
         self.run_batch_btn = QtWidgets.QPushButton("Run Batch")
         self.run_btn = QtWidgets.QPushButton("Run Arena")
         self.last_run_btn = QtWidgets.QPushButton("Run Last")
@@ -5014,6 +5077,7 @@ class ArenaTab(QtWidgets.QWidget):
             self.refresh_btn,
             self.swap_btn,
             self.targeting_combo,
+            self.custom_target_btn,
             self.run_batch_btn,
             self.run_btn,
             self.last_run_btn,
@@ -5100,6 +5164,7 @@ class ArenaTab(QtWidgets.QWidget):
         self._icons: dict[str, ArmyIcon] = {}
         self._slot_items: dict[tuple[str, int], SlotItem] = {}
         self._slot_army: dict[tuple[str, int], dict[str, Any] | None] = {}
+        self.custom_targeting: dict[str, list[str]] = {}
 
         self._running = False
         self._last_tick = time.perf_counter()
@@ -5141,6 +5206,8 @@ class ArenaTab(QtWidgets.QWidget):
         self.run_btn.clicked.connect(self._run_arena)
         self.last_run_btn.clicked.connect(self._run_last_layout)
         self.speed_btn.clicked.connect(self._toggle_speed)
+        self.targeting_combo.currentIndexChanged.connect(self._on_targeting_changed)
+        self._update_custom_target_btn_state()
 
     def _get_debug_settings(self) -> dict[str, Any]:
         """Return simulator settings based on the parent window's debug toggles."""
@@ -5295,6 +5362,62 @@ class ArenaTab(QtWidgets.QWidget):
         if cfg is not None:
             cfg["team"] = new_team
 
+    def _on_targeting_changed(self, index: int) -> None:
+        """Enable or disable custom targeting controls based on selection."""
+
+        self._update_custom_target_btn_state()
+
+    def _update_custom_target_btn_state(self) -> None:
+        """Disable the custom button unless the mode is active."""
+
+        self.custom_target_btn.setEnabled(
+            self.targeting_combo.currentData() == "custom"
+        )
+
+    def _current_army_names_by_team(self) -> dict[str, list[str]]:
+        """Return armies currently placed in the arena grouped by team."""
+
+        teams: dict[str, list[str]] = {}
+        for info in self._slot_army.values():
+            if not info:
+                continue
+            team = info.get("team", "red")
+            teams.setdefault(team, []).append(info["army"].name)
+        return teams
+
+    def _build_custom_targeting_map(self) -> dict[str, list[str]]:
+        """Combine saved preferences with current armies for the engine."""
+
+        mapping: dict[str, list[str]] = {}
+        current = self._current_army_names_by_team()
+        for team, names in current.items():
+            preferred = [n for n in self.custom_targeting.get(team, []) if n in names]
+            seen = set(preferred)
+            ordered: list[str] = list(preferred)
+            for name in names:
+                if name not in seen:
+                    ordered.append(name)
+                    seen.add(name)
+            mapping[team] = ordered
+        return mapping
+
+    def _open_custom_targeting(self) -> None:
+        """Open a dialog to edit manual target priorities for each team."""
+
+        teams = self._current_army_names_by_team()
+        if not teams:
+            QtWidgets.QMessageBox.information(
+                self, "No Armies", "Place armies before configuring custom targeting."
+            )
+            return
+        initial: dict[str, list[str]] = {}
+        for team, names in teams.items():
+            preferred = [n for n in self.custom_targeting.get(team, []) if n in names]
+            initial[team] = preferred + [n for n in names if n not in preferred]
+        dlg = CustomTargetingDialog(self, initial)
+        if dlg.exec() == int(QtWidgets.QDialog.DialogCode.Accepted):
+            self.custom_targeting = dlg.get_targets()
+
     def _icon_double_clicked(self, army_name: str) -> None:
         """Open the setup dialog for the army's slot when its icon is double-clicked."""
 
@@ -5404,10 +5527,14 @@ class ArenaTab(QtWidgets.QWidget):
             if cfg:
                 entry["config"] = cfg
             entries.append(entry)
-        return {
+        data: dict[str, Any] = {
             "targeting_mode": self.targeting_combo.currentData(),
             "entries": entries,
         }
+        custom_targets = self._build_custom_targeting_map()
+        if custom_targets:
+            data["custom_targeting"] = custom_targets
+        return data
 
     def _save_last_layout(self) -> None:
         """Persist the current layout for quick access later."""
@@ -5476,13 +5603,23 @@ class ArenaTab(QtWidgets.QWidget):
         self._refresh_arena()
         entries = layout_data
         targeting_mode = None
+        custom_targeting = None
         if isinstance(layout_data, dict):
             entries = layout_data.get("entries", [])
             targeting_mode = layout_data.get("targeting_mode")
+            custom_targeting = layout_data.get("custom_targeting")
         if targeting_mode:
             idx = self.targeting_combo.findData(targeting_mode)
             if idx != -1:
                 self.targeting_combo.setCurrentIndex(idx)
+        if isinstance(custom_targeting, Mapping):
+            self.custom_targeting = {
+                str(team): [str(name) for name in names]
+                for team, names in custom_targeting.items()
+                if isinstance(names, list)
+            }
+        else:
+            self.custom_targeting.clear()
         for entry in entries:
             name = entry.get("army_name")
             team = entry.get("team")
@@ -5676,8 +5813,13 @@ class ArenaTab(QtWidgets.QWidget):
         self.engine.set_simulator_options(**self._get_debug_settings())
         self.engine.reset(report_builder=self.report_builder)
         targeting_mode = self.targeting_combo.currentData()
+        custom_targets = (
+            self._build_custom_targeting_map() if targeting_mode == "custom" else None
+        )
         try:
-            self.engine.start_arena_battle(layout, targeting_mode=targeting_mode)
+            self.engine.start_arena_battle(
+                layout, targeting_mode=targeting_mode, custom_targeting=custom_targets
+            )
         except ValueError as exc:
             QtWidgets.QMessageBox.warning(
                 self,
@@ -5749,6 +5891,9 @@ class ArenaTab(QtWidgets.QWidget):
             return
 
         targeting_mode = self.targeting_combo.currentData()
+        custom_targets = (
+            self._build_custom_targeting_map() if targeting_mode == "custom" else None
+        )
         if count is not None:
             results: dict[str, int] = {}
             seeds = [random.randrange(1 << 30) for _ in range(count)]
@@ -5785,6 +5930,7 @@ class ArenaTab(QtWidgets.QWidget):
                     sim_settings,
                     seed_val,
                     collect_skills=False,
+                    custom_targeting=custom_targets,
                 )
                 results[winner] = results.get(winner, 0) + 1
                 if timed_out:
@@ -5807,6 +5953,7 @@ class ArenaTab(QtWidgets.QWidget):
                             sim_settings,
                             seed_val,
                             collect_skills=True,
+                            custom_targeting=custom_targets,
                         )
                         payload["best_match"] = {
                             "seed": seed_val,
@@ -5832,6 +5979,7 @@ class ArenaTab(QtWidgets.QWidget):
             runs,
             workers,
             str(targeting_mode),
+            custom_targets,
             sim_settings,
             seed_target=self.seed_target,
         )
@@ -5965,6 +6113,7 @@ class ArenaTab(QtWidgets.QWidget):
         self._speed_multiplier = 1.0
         self.speed_btn.setText("Speed 1x")
         self._update_time_label()
+        self.custom_targeting.clear()
 
         radius = min(self._cell_w, self._cell_h) * 0.15
         for team, coords in self.slot_coords.items():

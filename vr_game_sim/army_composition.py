@@ -161,6 +161,9 @@ class Army:
     dynamic_kills_by_opponent: Dict[str, Dict[str, float]] = field(
         init=False, default_factory=dict
     )
+    unrevivable_caused_by_opponent: Dict[str, float] = field(
+        init=False, default_factory=dict
+    )
     heal_contributors_this_round: Dict[str, Dict[str, float]] = field(
         init=False, default_factory=dict
     )
@@ -693,6 +696,12 @@ class Army:
                         basic_kills = kills
                     if army_obj:
                         army_obj.kills_dealt_this_round += kills
+                        # Track unrevivable caused by this attacker to this defender (using defender's ratio)
+                        if not dynamic_mode:
+                            unrevivable_caused = round(kills * self.unrevivable_ratio)
+                            army_obj.unrevivable_caused_by_opponent[self.name] = (
+                                army_obj.unrevivable_caused_by_opponent.get(self.name, 0.0) + unrevivable_caused
+                            )
                     combat_kills = basic_kills + counter_kills
                     if combat_kills > 0 or skill_kills > 0:
                         self._record_dynamic_losses(src, combat_kills, skill_kills)
@@ -1634,6 +1643,7 @@ class Army:
         self.damage_contributors_this_round = {}
         self.damage_contributors_by_skill_this_round = {}
         self.heal_contributors_this_round = {}
+        self.unrevivable_caused_by_opponent.clear()
         self.clear_dynamic_unrevivable_tracking()
         self.skill_kill_totals.clear()
         self.skill_heal_totals.clear()

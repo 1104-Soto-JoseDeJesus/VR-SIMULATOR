@@ -47,12 +47,12 @@ class HeroStatsHeader(QtWidgets.QWidget):
         name_spacer = QtWidgets.QWidget()
 
         if align_right:
-            headers = [("Kills", 0), ("Heals", 1), ("Remaining Troops", 2)]
-            layout.addWidget(name_spacer, 0, 3)
-            layout.addWidget(portrait_spacer, 0, 4)
-            portrait_col = 4
+            headers = [("Heavily Wounded Dealt", 0), ("Heavily Wounded", 1), ("Kills", 2), ("Heals", 3), ("Remaining Troops", 4)]
+            layout.addWidget(name_spacer, 0, 5)
+            layout.addWidget(portrait_spacer, 0, 6)
+            portrait_col = 6
         else:
-            headers = [("Remaining Troops", 2), ("Heals", 3), ("Kills", 4)]
+            headers = [("Remaining Troops", 2), ("Heals", 3), ("Kills", 4), ("Heavily Wounded", 5), ("Heavily Wounded Dealt", 6)]
             layout.addWidget(portrait_spacer, 0, 0)
             layout.addWidget(name_spacer, 0, 1)
             portrait_col = 0
@@ -61,6 +61,8 @@ class HeroStatsHeader(QtWidgets.QWidget):
             "Heals": "HealsICON.png",
             "Kills": "KillsICON.png",
             "Remaining Troops": "RemainingTroopsICON.png",
+            "Heavily Wounded": "KillsICON.png",
+            "Heavily Wounded Dealt": "KillsICON.png",
         }
 
         for text, col in headers:
@@ -107,11 +109,11 @@ class HeroStatsHeader(QtWidgets.QWidget):
             layout.setColumnStretch(col, 1)
 
         if align_right:
-            name_col = 3
-            bar_cols = [0, 1, 2]
+            name_col = 5
+            bar_cols = [0, 1, 2, 3, 4]
         else:
             name_col = 1
-            bar_cols = [2, 3, 4]
+            bar_cols = [2, 3, 4, 5, 6]
 
         layout.setColumnStretch(portrait_col, 1)
         layout.setColumnStretch(name_col, 2)
@@ -140,6 +142,10 @@ class HeroStatsWidget(QtWidgets.QWidget):
         max_kills: int,
         team_color: str,
         align_right: bool = False,
+        heavily_wounded: int = 0,
+        max_heavily_wounded: int = 1,
+        heavily_wounded_dealt: int = 0,
+        max_heavily_wounded_dealt: int = 1,
         hero_names: list[str] | None = None,
         skills: list[list[dict]] | None = None,
         parent: QtWidgets.QWidget | None = None,
@@ -165,20 +171,28 @@ class HeroStatsWidget(QtWidgets.QWidget):
 
         self._portrait_labels: list[QtWidgets.QLabel] = []
         self._portrait_pixmaps: list[QtGui.QPixmap] = []
-        for idx, path in enumerate((portrait_path, portrait2_path)):
-            lbl = QtWidgets.QLabel()
-            lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-            pix = QtGui.QPixmap(path)
-            if pix.isNull():
-                lbl.setText("No\nImage")
-                lbl.setStyleSheet("background-color: #444; color: white;")
-            else:
-                self._portrait_pixmaps.append(pix)
-                lbl.setPixmap(pix)
-            lbl.installEventFilter(self)
-            lbl.setProperty("hero_index", idx)
-            self._portrait_labels.append(lbl)
-            portrait_layout.addWidget(lbl)
+        # Only create portrait labels if at least one portrait path is provided
+        has_portraits = bool(portrait_path or portrait2_path)
+        if has_portraits:
+            for idx, path in enumerate((portrait_path, portrait2_path)):
+                if not path:
+                    continue
+                lbl = QtWidgets.QLabel()
+                lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+                pix = QtGui.QPixmap(path)
+                if pix.isNull():
+                    lbl.setText("No\nImage")
+                    lbl.setStyleSheet("background-color: #444; color: white;")
+                else:
+                    self._portrait_pixmaps.append(pix)
+                    lbl.setPixmap(pix)
+                lbl.installEventFilter(self)
+                lbl.setProperty("hero_index", idx)
+                self._portrait_labels.append(lbl)
+                portrait_layout.addWidget(lbl)
+        else:
+            # Hide portrait container when no portraits are provided
+            portrait_container.setVisible(False)
 
         font = QtGui.QFont()
         font.setPointSize(10)
@@ -212,23 +226,45 @@ class HeroStatsWidget(QtWidgets.QWidget):
         kills_bar.setProperty("class", "kills")
         kills_bar.setFont(font)
 
+        heavily_wounded_bar = QtWidgets.QProgressBar()
+        heavily_wounded_bar.setRange(0, max(1, max_heavily_wounded))
+        heavily_wounded_bar.setValue(max(0, heavily_wounded))
+        heavily_wounded_bar.setFormat(str(heavily_wounded))
+        heavily_wounded_bar.setProperty("class", "heavily_wounded")
+        heavily_wounded_bar.setFont(font)
+        heavily_wounded_bar.setStyleSheet("QProgressBar::chunk { background-color: #DC143C; }")
+
+        heavily_wounded_dealt_bar = QtWidgets.QProgressBar()
+        heavily_wounded_dealt_bar.setRange(0, max(1, max_heavily_wounded_dealt))
+        heavily_wounded_dealt_bar.setValue(max(0, heavily_wounded_dealt))
+        heavily_wounded_dealt_bar.setFormat(str(heavily_wounded_dealt))
+        heavily_wounded_dealt_bar.setProperty("class", "heavily_wounded_dealt")
+        heavily_wounded_dealt_bar.setFont(font)
+        heavily_wounded_dealt_bar.setStyleSheet("QProgressBar::chunk { background-color: #800080; }")
+
         if align_right:
             widgets = [
+                heavily_wounded_dealt_bar,
+                heavily_wounded_bar,
                 kills_bar,
                 healed_bar,
                 remaining_bar,
                 name_label,
-                portrait_container,
             ]
+            if has_portraits:
+                widgets.append(portrait_container)
             name_align = QtCore.Qt.AlignmentFlag.AlignRight
         else:
             widgets = [
-                portrait_container,
                 name_label,
                 remaining_bar,
                 healed_bar,
                 kills_bar,
+                heavily_wounded_bar,
+                heavily_wounded_dealt_bar,
             ]
+            if has_portraits:
+                widgets.insert(0, portrait_container)
             name_align = QtCore.Qt.AlignmentFlag.AlignLeft
 
         for col, widget in enumerate(widgets):
@@ -242,12 +278,16 @@ class HeroStatsWidget(QtWidgets.QWidget):
             layout.setColumnStretch(col, 1)
 
         if align_right:
-            name_col = 3
-            bar_cols = [0, 1, 2]
+            name_col = 5
+            bar_cols = [0, 1, 2, 3, 4]
+            portrait_col = 6 if has_portraits else None
         else:
-            name_col = 1
-            bar_cols = [2, 3, 4]
+            name_col = 0 if not has_portraits else 1
+            bar_cols = [1, 2, 3, 4, 5] if not has_portraits else [2, 3, 4, 5, 6]
+            portrait_col = 0 if has_portraits else None
 
+        if portrait_col is not None:
+            layout.setColumnStretch(portrait_col, 1)
         layout.setColumnStretch(name_col, 2)
         for col in bar_cols:
             layout.setColumnStretch(col, 3)
@@ -350,6 +390,8 @@ class ArenaStatsRow(QtWidgets.QWidget):
         right: dict | None,
         max_healed: int,
         max_kills: int,
+        max_heavily_wounded: int = 1,
+        max_heavily_wounded_dealt: int = 1,
         parent: QtWidgets.QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -371,6 +413,10 @@ class ArenaStatsRow(QtWidgets.QWidget):
                 max_healed,
                 max_kills,
                 left.get("team", "red"),
+                heavily_wounded=left.get("heavily_wounded", 0),
+                max_heavily_wounded=max_heavily_wounded,
+                heavily_wounded_dealt=left.get("heavily_wounded_dealt", 0),
+                max_heavily_wounded_dealt=max_heavily_wounded_dealt,
                 hero_names=left.get("hero_names"),
                 skills=left.get("skills"),
             )
@@ -391,6 +437,10 @@ class ArenaStatsRow(QtWidgets.QWidget):
                 max_kills,
                 right.get("team", "blue"),
                 align_right=True,
+                heavily_wounded=right.get("heavily_wounded", 0),
+                max_heavily_wounded=max_heavily_wounded,
+                heavily_wounded_dealt=right.get("heavily_wounded_dealt", 0),
+                max_heavily_wounded_dealt=max_heavily_wounded_dealt,
                 hero_names=right.get("hero_names"),
                 skills=right.get("skills"),
             )

@@ -1681,6 +1681,10 @@ class GameSimulator:
                 defender.unit.initial_count,
                 defender.unrevivable_troops + added_unrevivable,
             )
+            # Track unrevivable caused by opponent (attacker) to this defender
+            opponent.unrevivable_caused_by_opponent[defender.name] = (
+                opponent.unrevivable_caused_by_opponent.get(defender.name, 0.0) + added_unrevivable
+            )
         self._log_skill_trigger(defender, "Dynamic Unrevivable", log_message)
 
     def simulate_battle(self) -> str:

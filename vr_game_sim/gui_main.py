@@ -2388,10 +2388,12 @@ class GearSelectionDialog(QtWidgets.QDialog):
 class HeroEditDialog(QtWidgets.QDialog):
     """Dialog to edit or create a hero configuration."""
 
-    def __init__(self, hero_config: dict | None = None, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, hero_config: dict | None = None, parent: QtWidgets.QWidget | None = None, 
+                 used_plugins: set[str] | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Edit Hero")
         self.setModal(True)
+        self._used_plugins = used_plugins or set()
 
         outer_layout = QtWidgets.QVBoxLayout(self)
         scroll = QtWidgets.QScrollArea()
@@ -2495,6 +2497,17 @@ class HeroEditDialog(QtWidgets.QDialog):
                 idx = box.findText(name)
                 if idx >= 0:
                     box.setCurrentIndex(idx)
+            # Disable used plugin skills (after setting current selection so current is allowed)
+            if self._used_plugins:
+                current_sid = box.currentData()
+                for j in range(box.count()):
+                    item_sid = box.itemData(j)
+                    # Disable if in used_plugins, but allow current selection
+                    if item_sid and item_sid in self._used_plugins and item_sid != current_sid:
+                        model = box.model()
+                        item = model.item(j)
+                        item.setEnabled(False)
+                        item.setData(QtGui.QColor(QtCore.Qt.GlobalColor.gray), QtCore.Qt.ItemDataRole.ForegroundRole)
             self.plugin_boxes.append(box)
             self.plugin_param_editors.append(param_editor)
             param_editor.set_skill(sid, overrides_map.get(sid))
@@ -2577,9 +2590,12 @@ class HeroEditDialog(QtWidgets.QDialog):
 class ArmyFrame(QtWidgets.QGroupBox):
     """Inputs for a single army."""
 
-    def __init__(self, index: int, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, index: int, parent: QtWidgets.QWidget | None = None, 
+                 used_heroes: set[str] | None = None, used_plugins: set[str] | None = None) -> None:
         super().__init__(f"Army {index}", parent)
         self.index = index
+        self._used_heroes = used_heroes or set()
+        self._used_plugins = used_plugins or set()
 
         self.hero_options = ["None", "Custom"] + sorted(name.capitalize() for name in HERO_PRESETS.keys())
 
@@ -2643,6 +2659,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
             completer = QtWidgets.QCompleter(self.hero_options, combo)
             completer.setCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
             combo.setCompleter(completer)
+        # Disable used heroes in combo boxes
+        self._update_hero_combo_disabled_items()
         self.hero1_combo.currentTextChanged.connect(lambda n: self._hero_selected(1, n))
         self.hero2_combo.currentTextChanged.connect(lambda n: self._hero_selected(2, n))
 
@@ -3012,7 +3030,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             current_cfg = dict(current_cfg or {"hero_name_or_preset": hero_name})
             current_cfg["skill_overrides"] = overrides
 
-        dlg = HeroEditDialog(current_cfg, self)
+        dlg = HeroEditDialog(current_cfg, self, used_plugins=self._used_plugins)
         if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             cfg = dlg.result_config()
             if cfg:
@@ -3046,6 +3064,30 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 else:
                     self.hero2_combo.setCurrentText(name)
                     self._hero_selected(2, name)
+
+    def _update_hero_combo_disabled_items(self) -> None:
+        """Update disabled items in hero combo boxes based on used heroes."""
+        if not self._used_heroes:
+            return
+        for combo in [self.hero1_combo, self.hero2_combo]:
+            current_text = combo.currentText()
+            for i in range(combo.count()):
+                item_text = combo.itemText(i)
+                # Disable if the hero (lowercase) is in used_heroes, but not "None" or "Custom"
+                # Allow current selection even if it's in used_heroes (editing existing army)
+                if (item_text not in {"None", "Custom"} and item_text.lower() in self._used_heroes 
+                    and item_text != current_text):
+                    model = combo.model()
+                    item = model.item(i)
+                    item.setEnabled(False)
+                    # Use grey text color for disabled items
+                    item.setData(QtGui.QColor(QtCore.Qt.GlobalColor.gray), QtCore.Qt.ItemDataRole.ForegroundRole)
+                else:
+                    model = combo.model()
+                    item = model.item(i)
+                    item.setEnabled(True)
+                    # Reset to default color
+                    item.setData(None, QtCore.Qt.ItemDataRole.ForegroundRole)
 
     def _hero_selected(self, slot: int, name: str) -> None:
         """Update preset info labels and reset custom config if preset changed."""
@@ -3656,12 +3698,13 @@ class ArmySetupDialog(QtWidgets.QDialog):
     required for :class:`BattlefieldEngine`.
     """
 
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None, has_existing_army: bool = False, 
+                 used_heroes: set[str] | None = None, used_plugins: set[str] | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Army Setup")
         layout = QtWidgets.QVBoxLayout(self)
 
-        self.frame = ArmyFrame(1)
+        self.frame = ArmyFrame(1, used_heroes=used_heroes, used_plugins=used_plugins)
         layout.addWidget(self.frame)
 
         team_row = QtWidgets.QHBoxLayout()
@@ -3698,11 +3741,18 @@ class ArmySetupDialog(QtWidgets.QDialog):
         self.load_army_btn = buttons.addButton(
             "Load Army", QtWidgets.QDialogButtonBox.ButtonRole.ActionRole
         )
+        self.remove_army_btn = buttons.addButton(
+            "Remove Army", QtWidgets.QDialogButtonBox.ButtonRole.DestructiveRole
+        )
+        self.remove_army_btn.setVisible(has_existing_army)
         self.save_army_btn.clicked.connect(self._save_army)
         self.load_army_btn.clicked.connect(self._load_army)
+        self.remove_army_btn.clicked.connect(self._remove_army)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+        
+        self._removed = False
 
     def _save_army(self) -> None:
         cfg = self.get_config()
@@ -3724,6 +3774,15 @@ class ArmySetupDialog(QtWidgets.QDialog):
         self.frame.populate_from_config(cfg)
         self.team_combo.setCurrentText(cfg.get("team", "red"))
         self.speed_spin.setValue(float(cfg.get("speed", 50.0)))
+
+    def _remove_army(self) -> None:
+        """Mark the army for removal and close the dialog."""
+        self._removed = True
+        self.reject()
+    
+    def was_removed(self) -> bool:
+        """Check if the user clicked Remove Army."""
+        return self._removed
 
     def get_config(self) -> dict:
         cfg = self.frame.build_config()
@@ -4735,6 +4794,11 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
         getattr(army, "active_effects", [])
     )
 
+    # Calculate heavily wounded dealt from tracked unrevivable caused to opponents
+    # This is calculated from each opponent's perspective using their unrevivable rules
+    kills_dealt_total = sum(army.kills_dealt_history)
+    heavily_wounded_dealt = int(round(sum(army.unrevivable_caused_by_opponent.values())))
+    
     return {
         "team": team,
         "name": army.name,
@@ -4743,7 +4807,9 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
         "remaining": int(round(army.current_troop_count)),
         "initial": int(round(army.unit.initial_count)),
         "healed": int(round(army.troops_healed_total)),
-        "kills": int(round(sum(army.kills_dealt_history))),
+        "kills": int(round(kills_dealt_total)),
+        "heavily_wounded": int(round(army.unrevivable_troops)),
+        "heavily_wounded_dealt": heavily_wounded_dealt,
         "skills": skill_lists,
         "hero_names": hero_names,
         "passive_bonus_entries": passive_bonus_entries,
@@ -5170,6 +5236,8 @@ class ArenaTab(QtWidgets.QWidget):
         self.refresh_btn = QtWidgets.QPushButton("Refresh Arena")
         self.swap_btn = QtWidgets.QPushButton("Swap Teams")
         self.duplicate_team_btn = QtWidgets.QPushButton("Duplicate Team")
+        self.duplicate_block_checkbox = QtWidgets.QCheckBox("Duplicate block")
+        self.duplicate_block_checkbox.setChecked(True)  # Default to on
         self.targeting_combo = QtWidgets.QComboBox()
         self.targeting_combo.addItem("Legacy", "legacy")
         self.targeting_combo.addItem("STR", "str")
@@ -5182,9 +5250,11 @@ class ArenaTab(QtWidgets.QWidget):
         self.run_batch_btn = QtWidgets.QPushButton("Run Batch")
         self.run_btn = QtWidgets.QPushButton("Run Arena")
         self.last_run_btn = QtWidgets.QPushButton("Run Last")
+        self.stop_btn = QtWidgets.QPushButton("Stop")
+        self.stop_btn.setEnabled(False)
         self.speed_btn = QtWidgets.QPushButton("Speed 1x")
         self.time_label = QtWidgets.QLabel("00:00")
-        for btn in (
+        for widget in (
             self.save_layout_btn,
             self.load_layout_btn,
             self.position_layout_btn,
@@ -5192,14 +5262,16 @@ class ArenaTab(QtWidgets.QWidget):
             self.refresh_btn,
             self.swap_btn,
             self.duplicate_team_btn,
+            self.duplicate_block_checkbox,
             self.targeting_combo,
             self.configure_targeting_btn,
             self.run_batch_btn,
             self.run_btn,
             self.last_run_btn,
+            self.stop_btn,
             self.speed_btn,
         ):
-            controls.addWidget(btn)
+            controls.addWidget(widget)
         self.seed_btn = QtWidgets.QToolButton()
         self.seed_btn.setText("Seed…")
         self.seed_btn.clicked.connect(self._choose_seed_target)
@@ -5321,6 +5393,7 @@ class ArenaTab(QtWidgets.QWidget):
         self.run_batch_btn.clicked.connect(self._run_batch)
         self.run_btn.clicked.connect(self._run_arena)
         self.last_run_btn.clicked.connect(self._run_last_layout)
+        self.stop_btn.clicked.connect(self._stop_battle)
         self.speed_btn.clicked.connect(self._toggle_speed)
     
     def _on_targeting_mode_changed(self) -> None:
@@ -5446,8 +5519,16 @@ class ArenaTab(QtWidgets.QWidget):
 
         existing = self._slot_army.get(key)
 
-        dlg = ArmySetupDialog(self)
+        # Get used heroes and plugin skills for duplicate blocking
         default_team = "red" if team == "team1" else "blue"
+        used_heroes = None
+        used_plugins = None
+        if self.duplicate_block_checkbox.isChecked():
+            exclude_key = key if existing else None
+            used_heroes, used_plugins = self._get_used_heroes_and_plugins(default_team, exclude_key)
+        
+        dlg = ArmySetupDialog(self, has_existing_army=existing is not None, 
+                             used_heroes=used_heroes, used_plugins=used_plugins)
         if existing:
             # Pre-populate the dialog with the existing army configuration so
             # users can edit armies already placed on the battlefield.
@@ -5458,10 +5539,34 @@ class ArenaTab(QtWidgets.QWidget):
         else:
             dlg.team_combo.setCurrentText(default_team)
 
-        if dlg.exec() != int(QtWidgets.QDialog.DialogCode.Accepted):
+        result = dlg.exec()
+        
+        # Check if user clicked Remove Army
+        if dlg.was_removed():
+            # Remove the army from the slot
+            if existing:
+                old_icon = self._icons.pop(existing["army"].name, None)
+                if old_icon is not None:
+                    self.scene.removeItem(old_icon)
+            self._slot_army[key] = None
+            return
+        
+        if result != int(QtWidgets.QDialog.DialogCode.Accepted):
             return
         cfg = dlg.get_config()
         cfg["team"] = default_team
+        
+        # Check for duplicates if duplicate block is enabled
+        if self.duplicate_block_checkbox.isChecked():
+            duplicate_errors = self._check_duplicates(cfg, key)
+            if duplicate_errors:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "Duplicate Block Enabled",
+                    "Duplicate block is enabled. Please fix the following:\n\n" + "\n".join(duplicate_errors)
+                )
+                return
+        
         army = create_armies_from_data([cfg])[0]
         pos = self.slot_coords[team][index]
 
@@ -5515,6 +5620,112 @@ class ArenaTab(QtWidgets.QWidget):
             "speed": cfg.get("speed", 50.0),
             "config": cfg,
         }
+
+    def _get_used_heroes_and_plugins(self, team: str, exclude_key: tuple[str, int] | None = None) -> tuple[set[str], set[str]]:
+        """Get sets of used hero names (lowercase) and plugin skill IDs for a team.
+        
+        Args:
+            team: Team name ("red" or "blue")
+            exclude_key: Optional slot key to exclude from the check (e.g., when editing an existing army)
+        
+        Returns:
+            Tuple of (used_hero_names, used_plugin_skill_ids)
+        """
+        used_heroes = set()
+        used_plugins = set()
+        
+        for slot_key, army_info in self._slot_army.items():
+            if slot_key == exclude_key:
+                continue
+            if not army_info:
+                continue
+            if army_info.get("team") != team:
+                continue
+            
+            config = army_info.get("config", {})
+            heroes = config.get("heroes", [])
+            for hero_cfg in heroes:
+                hero_name = hero_cfg.get("hero_name_or_preset", "")
+                if hero_name and hero_name not in {"None", "Custom"}:
+                    used_heroes.add(hero_name.lower())
+                # Collect plugin skills from this hero
+                plugin_skills = hero_cfg.get("plugin_skill_ids", [])
+                for plugin_id in plugin_skills:
+                    if plugin_id:  # Only non-empty plugin skills
+                        used_plugins.add(plugin_id)
+        
+        return (used_heroes, used_plugins)
+
+    def _check_duplicates(self, new_cfg: dict, current_key: tuple[str, int]) -> list[str]:
+        """Check for duplicate heroes and plugin skills on the same team.
+        
+        Returns a list of error messages if duplicates are found, empty list otherwise.
+        """
+        errors = []
+        new_team = new_cfg.get("team", "red")
+        
+        # Collect heroes and plugin skills from all armies on the same team (excluding current)
+        team_heroes = []
+        team_plugin_skills = []
+        
+        for slot_key, army_info in self._slot_army.items():
+            if slot_key == current_key:
+                continue  # Skip the army being edited
+            if not army_info:
+                continue
+            if army_info.get("team") != new_team:
+                continue
+            
+            config = army_info.get("config", {})
+            heroes = config.get("heroes", [])
+            for hero_cfg in heroes:
+                hero_name = hero_cfg.get("hero_name_or_preset", "")
+                if hero_name and hero_name not in {"None", "Custom"}:
+                    team_heroes.append(hero_name.lower())
+                # Collect plugin skills from this hero
+                plugin_skills = hero_cfg.get("plugin_skill_ids", [])
+                for plugin_id in plugin_skills:
+                    if plugin_id:  # Only non-empty plugin skills
+                        team_plugin_skills.append(plugin_id)
+        
+        # Check for duplicate heroes and plugin skills in the new config
+        new_heroes = new_cfg.get("heroes", [])
+        new_config_heroes = []  # Track heroes within the new config to catch duplicates
+        new_config_plugin_skills = []  # Track plugin skills within the new config to catch duplicates
+        
+        for hero_cfg in new_heroes:
+            hero_name = hero_cfg.get("hero_name_or_preset", "")
+            if hero_name and hero_name not in {"None", "Custom"}:
+                hero_name_lower = hero_name.lower()
+                # Check for duplicates within the new config
+                if hero_name_lower in new_config_heroes:
+                    errors.append(f"Hero '{hero_name}' is selected twice in this army.")
+                # Check for duplicates across the team
+                elif hero_name_lower in team_heroes:
+                    errors.append(f"Hero '{hero_name}' is already used on this team.")
+                else:
+                    new_config_heroes.append(hero_name_lower)
+                # Collect plugin skills from this hero
+                plugin_skills = hero_cfg.get("plugin_skill_ids", [])
+                for plugin_id in plugin_skills:
+                    if plugin_id:  # Only non-empty plugin skills
+                        # Get plugin skill name for better error message
+                        plugin_name = plugin_id
+                        skill_def = SKILL_REGISTRY_GLOBAL.get(plugin_id, {})
+                        if isinstance(skill_def, dict):
+                            skill_display_name = skill_def.get("name")
+                            if skill_display_name:
+                                plugin_name = f"{skill_display_name} ({plugin_id})"
+                        # Check for duplicates within the new config
+                        if plugin_id in new_config_plugin_skills:
+                            errors.append(f"Plugin skill '{plugin_name}' is selected twice in this army.")
+                        # Check for duplicates across the team
+                        elif plugin_id in team_plugin_skills:
+                            errors.append(f"Plugin skill '{plugin_name}' is already used on this team.")
+                        else:
+                            new_config_plugin_skills.append(plugin_id)
+        
+        return errors
 
     def _assign_team(self, info: dict[str, Any], team: str) -> None:
         """Update team information in the army info structure."""
@@ -6087,6 +6298,7 @@ class ArenaTab(QtWidgets.QWidget):
             self._timer.stop()
             self._running = False
             self.run_btn.setEnabled(True)
+            self.stop_btn.setEnabled(False)
             for item in self._slot_items.values():
                 item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
             return
@@ -6099,11 +6311,13 @@ class ArenaTab(QtWidgets.QWidget):
             self._timer.stop()
             self._running = False
             self.run_btn.setEnabled(True)
+            self.stop_btn.setEnabled(False)
             for item in self._slot_items.values():
                 item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
             return
         self._running = True
         self.run_btn.setEnabled(False)
+        self.stop_btn.setEnabled(True)
         for item in self._slot_items.values():
             item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.NoButton)
         self._last_tick = time.perf_counter()
@@ -6334,23 +6548,35 @@ class ArenaTab(QtWidgets.QWidget):
             if ctx.army.current_troop_count > 0
         }
         if len(alive) <= 1:
-            self._timer.stop()
-            self._running = False
-            self.run_btn.setEnabled(True)
-            for item in self._slot_items.values():
-                item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
-            summary = []
-            for info in self._slot_army.values():
-                if not info:
-                    continue
-                army = info["army"]
-                cfg = info.get("config", {})
-                team = info.get("team", "red")
-                summary.append(build_army_skill_summary(army, cfg, team))
-            if window is not None and hasattr(window, "arena_best_match_info"):
-                window.arena_best_match_info = None
-            if window is not None and hasattr(window, "update_arena_figures"):
-                window.update_arena_figures(summary)
+            self._end_battle()
+
+    def _end_battle(self) -> None:
+        """End the battle and generate summary results."""
+        self._timer.stop()
+        self._running = False
+        self.run_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
+        for item in self._slot_items.values():
+            item.setAcceptedMouseButtons(QtCore.Qt.MouseButton.LeftButton)
+        summary = []
+        for info in self._slot_army.values():
+            if not info:
+                continue
+            army = info["army"]
+            cfg = info.get("config", {})
+            team = info.get("team", "red")
+            summary.append(build_army_skill_summary(army, cfg, team))
+        window = self.window()
+        if window is not None and hasattr(window, "arena_best_match_info"):
+            window.arena_best_match_info = None
+        if window is not None and hasattr(window, "update_arena_figures"):
+            window.update_arena_figures(summary)
+
+    def _stop_battle(self) -> None:
+        """Stop the battle early and output results as is."""
+        if not self._running:
+            return
+        self._end_battle()
 
     def _refresh_arena(self) -> None:
         """Clear armies and reset slot occupancy."""
@@ -6365,6 +6591,7 @@ class ArenaTab(QtWidgets.QWidget):
         self._timer.stop()
         self._running = False
         self.run_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
         self._battle_time = 0.0
         self._speed_multiplier = 1.0
         self.speed_btn.setText("Speed 1x")
@@ -7237,12 +7464,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self._clear_skill_breakdown_layout()
         max_healed = max((entry.get("healed", 0) for entry in summary), default=1)
         max_kills = max((entry.get("kills", 0) for entry in summary), default=1)
+        max_heavily_wounded = max((entry.get("heavily_wounded", 0) for entry in summary), default=1)
+        max_heavily_wounded_dealt = max((entry.get("heavily_wounded_dealt", 0) for entry in summary), default=1)
         red_entries = [e for e in summary if e.get("team", "red") == "red"]
         blue_entries = [e for e in summary if e.get("team", "blue") == "blue"]
 
         self.skill_breakdown_layout.addWidget(ArenaStatsHeader(), 0, 0)
         for row, (red, blue) in enumerate(zip_longest(red_entries, blue_entries), start=1):
-            row_widget = ArenaStatsRow(red, blue, max_healed, max_kills)
+            row_widget = ArenaStatsRow(red, blue, max_healed, max_kills, max_heavily_wounded, max_heavily_wounded_dealt)
             self.skill_breakdown_layout.addWidget(row_widget, row, 0)
 
         self.skill_breakdown_stack.setCurrentWidget(self.skill_breakdown_scroll)
@@ -7440,11 +7669,79 @@ class MainWindow(QtWidgets.QMainWindow):
         blue_entries = [e for e in results if e.get("team", "blue") == "blue"]
         max_healed = max((e.get("healed", 0) for e in results), default=1)
         max_kills = max((e.get("kills", 0) for e in results), default=1)
+        max_heavily_wounded = max((e.get("heavily_wounded", 0) for e in results), default=1)
+        max_heavily_wounded_dealt = max((e.get("heavily_wounded_dealt", 0) for e in results), default=1)
 
         self.arena_fig_summary_layout.addWidget(ArenaStatsHeader(), 0, 0)
+        num_army_rows = 0
         for row, (red, blue) in enumerate(zip_longest(red_entries, blue_entries), start=1):
-            row_widget = ArenaStatsRow(red, blue, max_healed, max_kills)
+            row_widget = ArenaStatsRow(red, blue, max_healed, max_kills, max_heavily_wounded, max_heavily_wounded_dealt)
             self.arena_fig_summary_layout.addWidget(row_widget, row, 0)
+            num_army_rows = row
+        
+        # Calculate team totals
+        red_total = {
+            "team": "red",
+            "name": "Team Total",
+            "portrait1": "",
+            "portrait2": "",
+            "remaining": sum(e.get("remaining", 0) for e in red_entries),
+            "initial": sum(e.get("initial", 0) for e in red_entries),
+            "healed": sum(e.get("healed", 0) for e in red_entries),
+            "kills": sum(e.get("kills", 0) for e in red_entries),
+            "heavily_wounded": sum(e.get("heavily_wounded", 0) for e in red_entries),
+            "heavily_wounded_dealt": sum(e.get("heavily_wounded_dealt", 0) for e in red_entries),
+        }
+        blue_total = {
+            "team": "blue",
+            "name": "Team Total",
+            "portrait1": "",
+            "portrait2": "",
+            "remaining": sum(e.get("remaining", 0) for e in blue_entries),
+            "initial": sum(e.get("initial", 0) for e in blue_entries),
+            "healed": sum(e.get("healed", 0) for e in blue_entries),
+            "kills": sum(e.get("kills", 0) for e in blue_entries),
+            "heavily_wounded": sum(e.get("heavily_wounded", 0) for e in blue_entries),
+            "heavily_wounded_dealt": sum(e.get("heavily_wounded_dealt", 0) for e in blue_entries),
+        }
+        
+        # Calculate max values for totals (use the same max values as individual rows)
+        max_remaining = max(
+            (red_total.get("remaining", 0), blue_total.get("remaining", 0)),
+            default=1
+        )
+        max_healed_total = max(
+            (red_total.get("healed", 0), blue_total.get("healed", 0)),
+            default=1
+        )
+        max_kills_total = max(
+            (red_total.get("kills", 0), blue_total.get("kills", 0)),
+            default=1
+        )
+        max_heavily_wounded_total = max(
+            (red_total.get("heavily_wounded", 0), blue_total.get("heavily_wounded", 0)),
+            default=1
+        )
+        max_heavily_wounded_dealt_total = max(
+            (red_total.get("heavily_wounded_dealt", 0), blue_total.get("heavily_wounded_dealt", 0)),
+            default=1
+        )
+        
+        # Add totals row at the bottom
+        totals_row = ArenaStatsRow(
+            red_total, blue_total,
+            max_healed_total, max_kills_total,
+            max_heavily_wounded_total, max_heavily_wounded_dealt_total
+        )
+        # Style the totals row to make it stand out
+        totals_row.setStyleSheet("background-color: rgba(128, 128, 128, 0.2); border-top: 2px solid rgba(128, 128, 128, 0.5);")
+        # Make the name labels bold
+        for widget in totals_row.findChildren(QtWidgets.QLabel):
+            if widget.text() == "Team Total":
+                font = widget.font()
+                font.setBold(True)
+                widget.setFont(font)
+        self.arena_fig_summary_layout.addWidget(totals_row, num_army_rows + 1, 0)
 
         self.arena_fig_stack.setCurrentWidget(self.arena_fig_scroll)
 

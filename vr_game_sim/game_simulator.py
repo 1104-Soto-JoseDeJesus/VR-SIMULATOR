@@ -1702,6 +1702,7 @@ class GameSimulator:
             if interval > 0 and round % interval == 0:
                 amount = float(periodic.get("amount", 0))
                 army.current_troop_count += amount
+                army.max_troop_count_reached = max(army.max_troop_count_reached, army.current_troop_count)
                 reinforcement_applied = True
         
         # Loss-based reinforcements
@@ -1712,6 +1713,7 @@ class GameSimulator:
             if losses_since_last >= threshold:
                 amount = float(loss_based.get("amount", 0))
                 army.current_troop_count += amount
+                army.max_troop_count_reached = max(army.max_troop_count_reached, army.current_troop_count)
                 reinforcement_applied = True
         
         # Round-specific reinforcements
@@ -1722,6 +1724,7 @@ class GameSimulator:
                 if isinstance(reinf, dict) and reinf.get("round") == round:
                     amount = float(reinf.get("amount", 0))
                     army.current_troop_count += amount
+                    army.max_troop_count_reached = max(army.max_troop_count_reached, army.current_troop_count)
                     reinforcement_applied = True
         
         # Update tracking after any reinforcement

@@ -1,26 +1,26 @@
 [
     {
-        "army_name": "Rosky/Naya",
+        "army_name": "Rosky/Helgar",
         "unit_type": "pikemen",
         "tier": 7,
-        "count": 2200000,
-        "is_rally": true,
+        "count": 220000,
+        "is_rally": false,
         "rally_config": {
             "periodic": {
-                "enabled": false
-            },
-            "loss_based": {
                 "enabled": true,
                 "amount": 200000,
-                "threshold": 200000
+                "interval": 50
+            },
+            "loss_based": {
+                "enabled": false
             },
             "round_specific": {
                 "enabled": false
             }
         },
-        "atk_mod": 3.0,
-        "def_mod": 3.0,
-        "hp_mod": 1.0,
+        "atk_mod": 2.9535,
+        "def_mod": 2.649,
+        "hp_mod": 0.9617,
         "unrevivable_ratio": 0.65,
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
@@ -36,87 +36,98 @@
                     "rage_skill_spirit_battleship"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_deadly_counterattack",
+                    "plugin_blessed_negation",
                     "plugin_hymn_of_life"
                 ],
                 "mount_skill_ids": []
             },
             {
-                "hero_name_or_preset": "Naya",
+                "hero_name_or_preset": "Helgar",
                 "talent_ids": [
-                    "talent_forceful_ambush",
-                    "talent_trapped_beasts_struggle",
-                    "talent_bear_spirit_protection"
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
                 ],
                 "base_skill_ids": [
-                    "base_skill_nayas_hunting_instinct",
-                    "base_skill_blizzard_spear"
-                ],
-                "plugin_skill_ids": [
-                    "plugin_divine_shield",
-                    "plugin_divine_blessing"
-                ],
-                "mount_skill_ids": []
-            }
-        ]
-    },
-    {
-        "army_name": "Rosky/Rolfe",
-        "unit_type": "pikemen",
-        "tier": 7,
-        "count": 2200000,
-        "is_rally": true,
-        "rally_config": {
-            "periodic": {
-                "enabled": false
-            },
-            "loss_based": {
-                "enabled": true,
-                "amount": 200000,
-                "threshold": 200000
-            },
-            "round_specific": {
-                "enabled": false
-            }
-        },
-        "atk_mod": 3.0,
-        "def_mod": 3.0,
-        "hp_mod": 1.0,
-        "unrevivable_ratio": 0.65,
-        "use_dynamic_unrevivable_ratio": true,
-        "heroes": [
-            {
-                "hero_name_or_preset": "Rosky",
-                "talent_ids": [
-                    "talent_blade_wielder",
-                    "talent_maniacal",
-                    "talent_pirate_tricks"
-                ],
-                "base_skill_ids": [
-                    "base_skill_flurry",
-                    "rage_skill_spirit_battleship"
-                ],
-                "plugin_skill_ids": [
-                    "plugin_deadly_counterattack",
-                    "plugin_hymn_of_life"
-                ],
-                "mount_skill_ids": []
-            },
-            {
-                "hero_name_or_preset": "Rolfe",
-                "talent_ids": [
-                    "talent_assassination_raid",
-                    "talent_scale_armor_shield",
-                    "talent_feigned_death_strike"
-                ],
-                "base_skill_ids": [
-                    "base_skill_inspiration_arrives",
-                    "base_skill_indomitable_spirit"
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
                 ],
                 "plugin_skill_ids": [
                     "plugin_divine_shield",
                     "plugin_divine_blessing"
                 ]
+            }
+        ]
+    },
+    {
+        "army_name": "Rosky/Helgar (2)",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 220000,
+        "is_rally": false,
+        "rally_config": {
+            "periodic": {
+                "enabled": true,
+                "amount": 200000,
+                "interval": 50
+            },
+            "loss_based": {
+                "enabled": false
+            },
+            "round_specific": {
+                "enabled": false
+            }
+        },
+        "atk_mod": 3.3857,
+        "def_mod": 2.7159,
+        "hp_mod": 1.2,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_rest_and_counterattack",
+                    "plugin_hymn_of_life"
+                ],
+                "mount_skill_ids": [],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_epic",
+                    "weapon": "gear_marine_halberd_epic",
+                    "chest": "gear_bylgjas_armor_epic",
+                    "boots": "gear_tsunami_plated_boots_epic"
+                }
+            },
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_shield",
+                    "plugin_divine_blessing"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_epic",
+                    "weapon": "gear_marine_halberd_epic",
+                    "chest": "gear_bylgjas_armor_epic",
+                    "boots": "gear_tsunami_plated_boots_epic"
+                }
             }
         ]
     }

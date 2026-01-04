@@ -1,0 +1,134 @@
+[
+    {
+        "army_name": "Rosky/Helgar",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 220000,
+        "is_rally": false,
+        "rally_config": {
+            "periodic": {
+                "enabled": true,
+                "amount": 200000,
+                "interval": 50
+            },
+            "loss_based": {
+                "enabled": false
+            },
+            "round_specific": {
+                "enabled": false
+            }
+        },
+        "atk_mod": 2.9535,
+        "def_mod": 2.649,
+        "hp_mod": 0.9617,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_blessed_negation",
+                    "plugin_hymn_of_life"
+                ],
+                "mount_skill_ids": []
+            },
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_shield",
+                    "plugin_divine_blessing"
+                ]
+            }
+        ]
+    },
+    {
+        "army_name": "Rosky/Helgar (2)",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 220000,
+        "is_rally": false,
+        "rally_config": {
+            "periodic": {
+                "enabled": true,
+                "amount": 200000,
+                "interval": 50
+            },
+            "loss_based": {
+                "enabled": false
+            },
+            "round_specific": {
+                "enabled": false
+            }
+        },
+        "atk_mod": 3.3857,
+        "def_mod": 2.7159,
+        "hp_mod": 1.2,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_rest_and_counterattack",
+                    "plugin_hymn_of_life"
+                ],
+                "mount_skill_ids": [],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_epic",
+                    "weapon": "gear_marine_halberd_epic",
+                    "chest": "gear_bylgjas_armor_epic",
+                    "boots": "gear_tsunami_plated_boots_epic"
+                }
+            },
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_shield",
+                    "plugin_divine_blessing"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_epic",
+                    "weapon": "gear_marine_halberd_epic",
+                    "chest": "gear_bylgjas_armor_epic",
+                    "boots": "gear_tsunami_plated_boots_epic"
+                }
+            }
+        ]
+    }
+]

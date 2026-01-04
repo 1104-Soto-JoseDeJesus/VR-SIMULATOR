@@ -166,6 +166,7 @@ class Army:
     )
     rally_config: Dict[str, Any] | None = field(default=None)
     troops_at_last_reinforcement: float = field(init=False, default=0.0)
+    max_troop_count_reached: float = field(init=False, default=0.0)
     heal_contributors_this_round: Dict[str, Dict[str, float]] = field(
         init=False, default_factory=dict
     )
@@ -582,7 +583,10 @@ class Army:
         # previous rounds are eligible to be revived. Damage taken during the
         # current round cannot be healed until the following round.
         if self.pending_hp_healing_this_round > 0:
-            max_healable_count = self.unit.initial_count - round(self.unrevivable_troops)
+            # Use max troop count reached (including rally additions) instead of initial_count
+            # This allows healing to work even when rally mode has added troops above initial_count
+            max_participants = max(self.unit.initial_count, self.max_troop_count_reached)
+            max_healable_count = max_participants - round(self.unrevivable_troops)
             if self.current_troop_count < max_healable_count:
                 hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)
                 if hp_per_troop <= 0: hp_per_troop = 1
@@ -600,10 +604,12 @@ class Army:
                             f"Commits {actual_healed_hp:.0f} HP healing, restoring {healed_troops_round} troops. Unrevivable: {round(self.unrevivable_troops)}",
                         )
                     self.troops_healed_total += healed_troops_float
-                    self.current_troop_count = min(
+                    new_troop_count = min(
                         max_healable_count,
                         self.current_troop_count + healed_troops_round,
                     )
+                    self.current_troop_count = new_troop_count
+                    self.max_troop_count_reached = max(self.max_troop_count_reached, new_troop_count)
 
                     total_contrib_hp = sum(
                         sum(skills.values()) for skills in self.heal_contributors_this_round.values()
@@ -1606,6 +1612,7 @@ class Army:
         self.simulators.clear()
         self._reload_gem_skills()
         self.current_troop_count = float(self.unit.initial_count)
+        self.max_troop_count_reached = float(self.unit.initial_count)
         self.active_effects.clear()
         self.upcoming_effects.clear()
         self.effects_to_activate_next_round.clear()

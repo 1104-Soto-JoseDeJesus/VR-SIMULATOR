@@ -621,6 +621,7 @@ def handle_mount_reactive_damage_and_bonus(
     if condition_met and cfg.get("conditional_damage_factor"):
         damage_factor = float(cfg.get("conditional_damage_factor", damage_factor))
 
+    # Handle primary target damage
     if damage_factor > 0 and simulator and opponent_army and opponent_army.current_troop_count > 0:
         hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army,
@@ -639,6 +640,34 @@ def handle_mount_reactive_damage_and_bonus(
                 {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
             )
         )
+
+    # Handle multi-target damage (up to max_targets additional targets in battlefield/arena)
+    max_additional_targets = cfg.get("max_additional_targets", 0)
+    if max_additional_targets > 0 and simulator and simulator.mode in ("battlefield", "arena") and damage_factor > 0:
+        engine = getattr(simulator, "parent_engine", None)
+        if engine:
+            attackers = engine.get_direct_attackers(triggering_army.name)
+            extras = [e for e in attackers if e.name != opponent_army.name and e.current_troop_count > 0]
+            if len(extras) > max_additional_targets:
+                extras = random.sample(extras, max_additional_targets)
+            for other in extras:
+                hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
+                    triggering_army,
+                    other,
+                    damage_factor,
+                    source_skill_def=skill_def,
+                    damage_application_target=other,
+                )
+                if hp_damage > 0:
+                    other.pending_hp_damage_this_round += hp_damage
+                if hp_damage > 0 or absorbed > 0:
+                    an_effect_happened = True
+                log_details.append(
+                    (
+                        f"Deals damage (Factor: {damage_factor}) to {other.name}.",
+                        {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+                    )
+                )
 
     heal_factor = float(cfg.get("heal_factor", 0.0))
     apply_heal = heal_factor > 0
@@ -768,6 +797,7 @@ def handle_mount_reactive_rage_and_conditional_effects(
     if condition_met and cfg.get("conditional_damage_factor"):
         damage_factor = float(cfg.get("conditional_damage_factor", damage_factor))
 
+    # Handle primary target damage
     if damage_factor > 0 and simulator and opponent_army and opponent_army.current_troop_count > 0:
         hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army,
@@ -786,6 +816,34 @@ def handle_mount_reactive_rage_and_conditional_effects(
                 {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
             )
         )
+
+    # Handle multi-target damage (up to max_additional_targets additional targets in battlefield/arena)
+    max_additional_targets = cfg.get("max_additional_targets", 0)
+    if max_additional_targets > 0 and simulator and simulator.mode in ("battlefield", "arena") and damage_factor > 0:
+        engine = getattr(simulator, "parent_engine", None)
+        if engine:
+            attackers = engine.get_direct_attackers(triggering_army.name)
+            extras = [e for e in attackers if e.name != opponent_army.name and e.current_troop_count > 0]
+            if len(extras) > max_additional_targets:
+                extras = random.sample(extras, max_additional_targets)
+            for other in extras:
+                hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
+                    triggering_army,
+                    other,
+                    damage_factor,
+                    source_skill_def=skill_def,
+                    damage_application_target=other,
+                )
+                if hp_damage > 0:
+                    other.pending_hp_damage_this_round += hp_damage
+                if hp_damage > 0 or absorbed > 0:
+                    an_effect_happened = True
+                log_details.append(
+                    (
+                        f"Deals damage (Factor: {damage_factor}) to {other.name}.",
+                        {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+                    )
+                )
 
     heal_factor = float(cfg.get("conditional_heal_factor", 0.0)) if condition_met else 0.0
     if heal_factor > 0:

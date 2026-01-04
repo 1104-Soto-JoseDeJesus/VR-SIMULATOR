@@ -164,6 +164,8 @@ class Army:
     unrevivable_caused_by_opponent: Dict[str, float] = field(
         init=False, default_factory=dict
     )
+    rally_config: Dict[str, Any] | None = field(default=None)
+    troops_at_last_reinforcement: float = field(init=False, default=0.0)
     heal_contributors_this_round: Dict[str, Dict[str, float]] = field(
         init=False, default_factory=dict
     )
@@ -1645,6 +1647,7 @@ class Army:
         self.heal_contributors_this_round = {}
         self.unrevivable_caused_by_opponent.clear()
         self.clear_dynamic_unrevivable_tracking()
+        self.troops_at_last_reinforcement = self.current_troop_count
         self.skill_kill_totals.clear()
         self.skill_heal_totals.clear()
         self.skill_shield_totals.clear()

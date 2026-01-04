@@ -10,14 +10,17 @@ from .effect_system import EffectInstance
 @dataclass(slots=True)
 class Unit:
     ALLOWED_TYPES: ClassVar[set] = {'pikemen', 'archers', 'infantry'}
-    ALLOWED_TIERS: ClassVar[set] = {5, 6, 7}
+    ALLOWED_TIERS: ClassVar[set] = {4, 5, 6, 7}
     BASE_STATS: ClassVar[Dict[Tuple[str, int], Dict[str, int]]] = {
+        ('pikemen', 4): {'hp': 152, 'atk': 154, 'def': 176},
         ('pikemen', 5): {'hp': 169, 'atk': 172, 'def': 196},
         ('pikemen', 6): {'hp': 180, 'atk': 182, 'def': 208},
         ('pikemen', 7): {'hp': 199, 'atk': 202, 'def': 231},
+        ('archers', 4): {'hp': 153, 'atk': 176, 'def': 154},
         ('archers', 5): {'hp': 169, 'atk': 196, 'def': 172},
         ('archers', 6): {'hp': 180, 'atk': 209, 'def': 183},
         ('archers', 7): {'hp': 200, 'atk': 231, 'def': 201},
+        ('infantry', 4): {'hp': 177, 'atk': 149, 'def': 157},
         ('infantry', 5): {'hp': 198, 'atk': 166, 'def': 174},
         ('infantry', 6): {'hp': 209, 'atk': 177, 'def': 185},
         ('infantry', 7): {'hp': 231, 'atk': 196, 'def': 205},

@@ -5829,6 +5829,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "labels": [PluginSkillLabel.REACTIVE],
         "config": {
             "damage_factor": 400.0,
+            "max_additional_targets": 3,
             "shield_factor": 300.0,
             "shield_duration": 1,
             "shield_condition": "below_half_troops",
@@ -5862,6 +5863,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
             "damage_factor": 400.0,
             "conditional_damage_factor": 525.0,
             "conditional_damage_condition": "above_half_troops",
+            "max_additional_targets": 3,
             "cooldown_rounds": 4,
         },
         "passive_effects": [
@@ -6136,6 +6138,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
             "effect_name": EFFECT_NAME_BLOODTHIRSTY_EYE_RAGE_GAIN,
             "conditional_effect_condition": "has_shield",
             "conditional_damage_factor": 350.0,
+            "max_additional_targets": 3,
             "cooldown_rounds": 4,
         },
         "passive_effects": [

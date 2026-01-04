@@ -2587,6 +2587,175 @@ class HeroEditDialog(QtWidgets.QDialog):
         }
 
 
+class RallyConfigDialog(QtWidgets.QDialog):
+    """Dialog for configuring rally reinforcements."""
+
+    def __init__(self, rally_config: dict | None = None, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Rally Settings")
+        self.setModal(True)
+
+        outer_layout = QtWidgets.QVBoxLayout(self)
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        container = QtWidgets.QWidget()
+        layout = QtWidgets.QFormLayout(container)
+        scroll.setWidget(container)
+        outer_layout.addWidget(scroll)
+
+        # Load existing config or use defaults
+        if rally_config is None:
+            rally_config = {}
+
+        # Periodic reinforcements
+        periodic_config = rally_config.get("periodic", {})
+        self.periodic_enabled = QtWidgets.QCheckBox()
+        self.periodic_enabled.setChecked(bool(periodic_config.get("enabled", False)))
+        layout.addRow("Periodic Reinforcements:", self.periodic_enabled)
+
+        self.periodic_amount = ThousandSepSpinBox()
+        self.periodic_amount.setRange(0, 10_000_000)
+        self.periodic_amount.setValue(int(periodic_config.get("amount", 1000)))
+        layout.addRow("  Amount:", self.periodic_amount)
+
+        self.periodic_interval = QtWidgets.QSpinBox()
+        self.periodic_interval.setRange(1, 1000)
+        self.periodic_interval.setValue(int(periodic_config.get("interval", 5)))
+        layout.addRow("  Every N rounds:", self.periodic_interval)
+
+        # Loss-based reinforcements
+        loss_config = rally_config.get("loss_based", {})
+        self.loss_enabled = QtWidgets.QCheckBox()
+        self.loss_enabled.setChecked(bool(loss_config.get("enabled", False)))
+        layout.addRow("Loss-based Reinforcements:", self.loss_enabled)
+
+        self.loss_amount = ThousandSepSpinBox()
+        self.loss_amount.setRange(0, 10_000_000)
+        self.loss_amount.setValue(int(loss_config.get("amount", 1000)))
+        layout.addRow("  Amount:", self.loss_amount)
+
+        self.loss_threshold = ThousandSepSpinBox()
+        self.loss_threshold.setRange(0, 10_000_000)
+        self.loss_threshold.setValue(int(loss_config.get("threshold", 5000)))
+        layout.addRow("  After losing N troops:", self.loss_threshold)
+
+        # Round-specific reinforcements
+        round_config = rally_config.get("round_specific", {})
+        self.round_enabled = QtWidgets.QCheckBox()
+        self.round_enabled.setChecked(bool(round_config.get("enabled", False)))
+        layout.addRow("Round-specific Reinforcements:", self.round_enabled)
+
+        round_reinforcements = round_config.get("reinforcements", [])
+        if not isinstance(round_reinforcements, list):
+            round_reinforcements = []
+
+        # Table for round/amount pairs
+        table_container = QtWidgets.QWidget()
+        table_layout = QtWidgets.QVBoxLayout(table_container)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.round_table = QtWidgets.QTableWidget(0, 2)
+        self.round_table.setHorizontalHeaderLabels(["Round", "Amount"])
+        self.round_table.horizontalHeader().setStretchLastSection(True)
+        
+        for reinf in round_reinforcements:
+            if isinstance(reinf, dict):
+                row = self.round_table.rowCount()
+                self.round_table.insertRow(row)
+                round_spin = QtWidgets.QSpinBox()
+                round_spin.setRange(1, 10000)
+                round_spin.setValue(int(reinf.get("round", 1)))
+                self.round_table.setCellWidget(row, 0, round_spin)
+                
+                amount_spin = ThousandSepSpinBox()
+                amount_spin.setRange(0, 10_000_000)
+                amount_spin.setValue(int(reinf.get("amount", 0)))
+                self.round_table.setCellWidget(row, 1, amount_spin)
+        
+        table_buttons = QtWidgets.QHBoxLayout()
+        add_btn = QtWidgets.QPushButton("Add")
+        remove_btn = QtWidgets.QPushButton("Remove")
+        add_btn.clicked.connect(self._add_round_reinforcement)
+        remove_btn.clicked.connect(self._remove_round_reinforcement)
+        table_buttons.addWidget(add_btn)
+        table_buttons.addWidget(remove_btn)
+        table_buttons.addStretch()
+        
+        table_layout.addWidget(self.round_table)
+        table_layout.addLayout(table_buttons)
+        
+        layout.addRow("  Reinforcements:", table_container)
+
+        btns = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        outer_layout.addWidget(btns)
+
+    def _add_round_reinforcement(self) -> None:
+        """Add a new row to the round-specific reinforcements table."""
+        row = self.round_table.rowCount()
+        self.round_table.insertRow(row)
+        
+        round_spin = QtWidgets.QSpinBox()
+        round_spin.setRange(1, 10000)
+        round_spin.setValue(1)
+        self.round_table.setCellWidget(row, 0, round_spin)
+        
+        amount_spin = ThousandSepSpinBox()
+        amount_spin.setRange(0, 10_000_000)
+        amount_spin.setValue(1000)
+        self.round_table.setCellWidget(row, 1, amount_spin)
+
+    def _remove_round_reinforcement(self) -> None:
+        """Remove the selected row from the round-specific reinforcements table."""
+        current_row = self.round_table.currentRow()
+        if current_row >= 0:
+            self.round_table.removeRow(current_row)
+
+    def get_config(self) -> dict:
+        """Return the rally configuration dictionary."""
+        config: dict = {}
+        
+        if self.periodic_enabled.isChecked():
+            config["periodic"] = {
+                "enabled": True,
+                "amount": self.periodic_amount.value(),
+                "interval": self.periodic_interval.value(),
+            }
+        else:
+            config["periodic"] = {"enabled": False}
+        
+        if self.loss_enabled.isChecked():
+            config["loss_based"] = {
+                "enabled": True,
+                "amount": self.loss_amount.value(),
+                "threshold": self.loss_threshold.value(),
+            }
+        else:
+            config["loss_based"] = {"enabled": False}
+        
+        reinforcements = []
+        if self.round_enabled.isChecked():
+            for row in range(self.round_table.rowCount()):
+                round_widget = self.round_table.cellWidget(row, 0)
+                amount_widget = self.round_table.cellWidget(row, 1)
+                if round_widget and amount_widget:
+                    reinforcements.append({
+                        "round": round_widget.value(),
+                        "amount": amount_widget.value(),
+                    })
+            config["round_specific"] = {
+                "enabled": True,
+                "reinforcements": reinforcements,
+            }
+        else:
+            config["round_specific"] = {"enabled": False}
+        
+        return config
+
+
 class ArmyFrame(QtWidgets.QGroupBox):
     """Inputs for a single army."""
 
@@ -2615,6 +2784,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.count_spin.setValue(100000)
 
         self.rally_checkbox = QtWidgets.QCheckBox("Treat as rally army")
+        self._rally_config: dict | None = None
 
         self.atk_edit = QtWidgets.QDoubleSpinBox()
         self.atk_edit.setRange(-10.0, 10.0)
@@ -2704,7 +2874,13 @@ class ArmyFrame(QtWidgets.QGroupBox):
         row += 1
 
         layout.addWidget(QtWidgets.QLabel("Rally army:"), row, 0)
-        layout.addWidget(self.rally_checkbox, row, 1)
+        rally_layout = QtWidgets.QHBoxLayout()
+        rally_layout.addWidget(self.rally_checkbox)
+        self.rally_settings_btn = QtWidgets.QPushButton("Rally Settings")
+        self.rally_settings_btn.clicked.connect(self._open_rally_settings)
+        rally_layout.addWidget(self.rally_settings_btn)
+        rally_layout.addStretch()
+        layout.addLayout(rally_layout, row, 1)
         row += 1
 
         layout.addWidget(QtWidgets.QLabel("Atk mod:"), row, 0)
@@ -3231,6 +3407,12 @@ class ArmyFrame(QtWidgets.QGroupBox):
         else:
             self.unrevivable_spin.setToolTip("")
 
+    def _open_rally_settings(self) -> None:
+        """Open the rally configuration dialog."""
+        dlg = RallyConfigDialog(self._rally_config, self)
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            self._rally_config = dlg.get_config()
+
     def populate_from_config(self, cfg: dict) -> None:
         self._loading_config = True
         try:
@@ -3241,6 +3423,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.tier_spin.setValue(int(cfg.get("tier", 5)))
             self.count_spin.setValue(int(cfg.get("count", 100000)))
             self.rally_checkbox.setChecked(bool(cfg.get("is_rally", False)))
+            self._rally_config = copy.deepcopy(cfg.get("rally_config")) if cfg.get("rally_config") else None
             self.atk_edit.setValue(float(cfg.get("atk_mod", 0)))
             self.def_edit.setValue(float(cfg.get("def_mod", 0)))
             self.hp_edit.setValue(float(cfg.get("hp_mod", 0)))
@@ -3422,6 +3605,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             "tier": int(self.tier_spin.value()),
             "count": int(self.count_spin.value()),
             "is_rally": self.rally_checkbox.isChecked(),
+            "rally_config": copy.deepcopy(self._rally_config) if self._rally_config else None,
             "atk_mod": float(self.atk_edit.value()),
             "def_mod": float(self.def_edit.value()),
             "hp_mod": float(self.hp_edit.value()),
@@ -4842,13 +5026,14 @@ def _simulate_arena_battle(
     seed: int | None,
     collect_skills: bool = False,
     custom_targeting: dict[str, list[str]] | None = None,
-) -> tuple[str, dict[str, float], list[dict[str, Any]] | None, bool]:
+) -> tuple[str, dict[str, float], list[dict[str, Any]] | None, bool, dict[str, dict[str, float]] | None]:
     """Run a single arena battle and collect the outcome.
 
     Returns
     -------
     tuple
-        (winner, remaining, summary, timed_out)
+        (winner, remaining, summary, timed_out, heavily_wounded_data)
+        heavily_wounded_data: dict mapping entry_id -> {"heavily_wounded": float, "heavily_wounded_dealt": float}
     """
 
     if seed is not None:
@@ -4869,6 +5054,7 @@ def _simulate_arena_battle(
     engine = ArenaEngine(**simulator_options)
     engine.start_arena_battle(battle_layout, targeting_mode=targeting_mode, custom_targeting=custom_targeting)
 
+    max_rounds = simulator_options.get("max_rounds")
     max_ticks = int(simulator_options.get("max_ticks") or 0)
     if max_ticks <= 0:
         max_duration = float(simulator_options.get("max_duration", 0.0) or 0.0)
@@ -4879,46 +5065,94 @@ def _simulate_arena_battle(
 
     tick_count = 0
     alive: set[str] = set()
+    reached_max_rounds = False
     while tick_count < max_ticks:
         engine.tick(0.016)
         tick_count += 1
+        
         alive = {
             ctx.team for ctx in engine._armies.values() if ctx.army.current_troop_count > 0
         }
-        if len(alive) <= 1:
+        
+        # Check if max_rounds has been reached
+        # The engine commits rounds every 1 second, so time_elapsed in seconds approximates rounds
+        # Also check sim.round from engagements for more accuracy
+        if max_rounds is not None:
+            # Check time_elapsed (rounds happen every 1 second)
+            elapsed_rounds = int(engine.time_elapsed)
+            # Also check maximum round from active engagements
+            max_sim_round = max(
+                (sim.round for sim in engine._engagements.values()),
+                default=0
+            )
+            # Use the maximum of elapsed time (in seconds/rounds) and actual sim rounds
+            max_round_seen = max(elapsed_rounds, max_sim_round)
+            if max_round_seen >= max_rounds:
+                reached_max_rounds = True
+                break
+        
+        # Only break early if max_rounds is NOT set
+        # When max_rounds is set, we want to continue until max_rounds is reached
+        # even if one side has zero troops (important for rally mode)
+        if max_rounds is None and len(alive) <= 1:
             break
 
-    timed_out = len(alive) > 1
-    if not timed_out:
+    timed_out = len(alive) > 1 and not reached_max_rounds
+    if not timed_out and not reached_max_rounds:
         winner = next(iter(alive)) if alive else "None"
     else:
-        team_totals: dict[str, float] = {}
-        for army, entry in zip(armies, layout_entries):
-            team = entry.get("team", "red")
-            team_totals[team] = team_totals.get(team, 0.0) + float(
-                getattr(army, "current_troop_count", 0.0)
-            )
-        if not team_totals:
-            winner = "draw"
-        else:
-            max_total = max(team_totals.values())
-            leading = [team for team, total in team_totals.items() if math.isclose(total, max_total)]
-            if max_total <= 0 or len(leading) != 1:
+        # Determine winner based on remaining troops (timeout) or heavily wounded (max rounds)
+        if reached_max_rounds:
+            # When max rounds is reached, determine winner based on heavily wounded dealt
+            team_heavily_wounded_dealt: dict[str, float] = {}
+            for army, entry in zip(armies, layout_entries):
+                team = entry.get("team", "red")
+                heavily_wounded_dealt = float(sum(army.unrevivable_caused_by_opponent.values()))
+                team_heavily_wounded_dealt[team] = team_heavily_wounded_dealt.get(team, 0.0) + heavily_wounded_dealt
+            
+            if not team_heavily_wounded_dealt:
                 winner = "draw"
             else:
-                winner = leading[0]
+                max_hw_dealt = max(team_heavily_wounded_dealt.values())
+                leading = [team for team, hw in team_heavily_wounded_dealt.items() if math.isclose(hw, max_hw_dealt)]
+                if max_hw_dealt <= 0 or len(leading) != 1:
+                    winner = "draw"
+                else:
+                    winner = leading[0]
+        else:
+            # Timeout: determine by remaining troops
+            team_totals: dict[str, float] = {}
+            for army, entry in zip(armies, layout_entries):
+                team = entry.get("team", "red")
+                team_totals[team] = team_totals.get(team, 0.0) + float(
+                    getattr(army, "current_troop_count", 0.0)
+                )
+            if not team_totals:
+                winner = "draw"
+            else:
+                max_total = max(team_totals.values())
+                leading = [team for team, total in team_totals.items() if math.isclose(total, max_total)]
+                if max_total <= 0 or len(leading) != 1:
+                    winner = "draw"
+                else:
+                    winner = leading[0]
 
     remaining: dict[str, float] = {}
+    heavily_wounded_data: dict[str, dict[str, float]] = {}
     summary: list[dict[str, Any]] | None = [] if collect_skills else None
     for idx, (army, entry) in enumerate(zip(armies, layout_entries)):
         entry_id = str(entry.get("entry_id") or f"{entry.get('team', '')}:{idx}")
         remaining[entry_id] = float(getattr(army, "current_troop_count", 0))
+        heavily_wounded_data[entry_id] = {
+            "heavily_wounded": float(army.unrevivable_troops),
+            "heavily_wounded_dealt": float(sum(army.unrevivable_caused_by_opponent.values())),
+        }
         if summary is not None:
             summary.append(
                 build_army_skill_summary(army, entry.get("cfg", {}), entry.get("team", "red"))
             )
 
-    return winner, remaining, summary, timed_out
+    return winner, remaining, summary, timed_out, heavily_wounded_data
 
 
 class SimulationWorker(QtCore.QThread):
@@ -4940,11 +5174,13 @@ class SimulationWorker(QtCore.QThread):
         mount_cooldowns_enabled: bool = True,
         damage_reduction_affects_dots: bool = True,
         advantage_mode: str = "multiplicative",
+        max_rounds: int | None = None,
     ) -> None:
         super().__init__()
         self.setup_data = setup_data
         self.runs = runs
         self.num_workers = num_workers
+        self.max_rounds = max_rounds
         self.seed_target = dict(seed_target) if seed_target else None
         self._cancelled = threading.Event()
         self.dynamic_settings = dict(dynamic_settings) if dynamic_settings else None
@@ -4985,6 +5221,7 @@ class SimulationWorker(QtCore.QThread):
                 gem_cooldowns_enabled=self.gem_cooldowns_enabled,
                 mount_cooldowns_enabled=self.mount_cooldowns_enabled,
                 advantage_mode=self.advantage_mode,
+                max_rounds=self.max_rounds,
             )
             self.win_rate = float(win_rate)
             self.best_match = dict(best_match) if isinstance(best_match, dict) else None
@@ -5107,6 +5344,24 @@ class ArenaBatchWorker(QtCore.QThread):
 
         best_candidate: tuple[float, int, dict[str, float]] | None = None
         timed_out_runs = 0
+        
+        # Collect heavily wounded data per battle for figure generation
+        heavily_wounded_per_battle: list[dict[str, dict[str, float]]] = []
+        
+        # Detect if both armies are in rally mode and max_rounds is enabled
+        max_rounds = self.simulator_options.get("max_rounds")
+        both_rally_mode = False
+        if max_rounds is not None:
+            # Check if all armies have rally mode enabled
+            rally_count = 0
+            total_armies = 0
+            for entry in self.layout_entries:
+                cfg = entry.get("cfg", {})
+                if cfg:
+                    total_armies += 1
+                    if cfg.get("is_rally", False):
+                        rally_count += 1
+            both_rally_mode = (rally_count > 0 and rally_count == total_armies)
 
         def _consider_candidate(idx: int, winner: str, remaining: dict[str, float]) -> None:
             nonlocal best_candidate
@@ -5146,10 +5401,12 @@ class ArenaBatchWorker(QtCore.QThread):
                         completed += 1
                         if self._cancelled.is_set():
                             break
-                        winner, remaining, _, timed_out = fut.result()
+                        winner, remaining, _, timed_out, hw_data = fut.result()
                         results[winner] = results.get(winner, 0) + 1
                         if timed_out:
                             timed_out_runs += 1
+                        if hw_data:
+                            heavily_wounded_per_battle.append(hw_data)
                         _consider_candidate(futures.get(fut, completed - 1), winner, remaining)
                         self.progress_update.emit(completed, self.runs)
             except Exception as exc:  # pragma: no cover - environment-specific fallback
@@ -5160,6 +5417,7 @@ class ArenaBatchWorker(QtCore.QThread):
                 results.clear()
                 timed_out_runs = 0
                 best_candidate = None
+                heavily_wounded_per_battle.clear()
                 warnings.append(
                     "Multiprocessing failed; falling back to single-process execution."
                 )
@@ -5168,7 +5426,7 @@ class ArenaBatchWorker(QtCore.QThread):
             for i, seed_val in enumerate(seeds, 1):
                 if self._cancelled.is_set():
                     break
-                winner, remaining, _, timed_out = _simulate_arena_battle(
+                winner, remaining, _, timed_out, hw_data = _simulate_arena_battle(
                     self.layout_entries,
                     self.targeting_mode,
                     self.simulator_options,
@@ -5179,6 +5437,8 @@ class ArenaBatchWorker(QtCore.QThread):
                 results[winner] = results.get(winner, 0) + 1
                 if timed_out:
                     timed_out_runs += 1
+                if hw_data:
+                    heavily_wounded_per_battle.append(hw_data)
                 _consider_candidate(i - 1, winner, remaining)
                 self.progress_update.emit(i, self.runs)
 
@@ -5186,7 +5446,7 @@ class ArenaBatchWorker(QtCore.QThread):
             _, idx, remaining = best_candidate
             if 0 <= idx < len(seeds):
                 seed_val = seeds[idx]
-                winner, _, summary, timed_out = _simulate_arena_battle(
+                winner, _, summary, timed_out, _ = _simulate_arena_battle(
                     self.layout_entries,
                     self.targeting_mode,
                     self.simulator_options,
@@ -5211,6 +5471,23 @@ class ArenaBatchWorker(QtCore.QThread):
             payload["warnings"] = warnings
         if self.best_match:
             payload["best_match"] = dict(self.best_match)
+        # Add heavily wounded data and rally mode flag for figure generation
+        if both_rally_mode and heavily_wounded_per_battle:
+            payload["heavily_wounded_per_battle"] = heavily_wounded_per_battle
+            payload["both_rally_mode"] = True
+            # Build entry_id to team mapping for figure generation
+            entry_to_team_map: dict[str, str] = {}
+            for entry in self.layout_entries:
+                entry_id = entry.get("entry_id")
+                team = entry.get("team", "red")
+                if entry_id:
+                    entry_to_team_map[entry_id] = team
+                    # Also handle team1/team2 format
+                    if entry_id.startswith("team1:"):
+                        entry_to_team_map[entry_id] = "red"
+                    elif entry_id.startswith("team2:"):
+                        entry_to_team_map[entry_id] = "blue"
+            payload["entry_to_team_map"] = entry_to_team_map
         self.finished_dict.emit(payload)
 
 
@@ -5355,7 +5632,10 @@ class ArenaTab(QtWidgets.QWidget):
         # Prepare engine and tracking structures for armies placed in slots.
         self.report_builder = BattlefieldReportBuilder()
         self.engine = ArenaEngine(report_builder=self.report_builder)
-        self.engine.set_simulator_options(**self._get_debug_settings())
+        settings = self._get_debug_settings()
+        # max_rounds is handled at arena battle level, not by the engine
+        engine_settings = {k: v for k, v in settings.items() if k != "max_rounds"}
+        self.engine.set_simulator_options(**engine_settings)
         self.engine.add_state_listener(self._on_engine_state)
         self._icons: dict[str, ArmyIcon] = {}
         self._slot_items: dict[tuple[str, int], SlotItem] = {}
@@ -5463,6 +5743,7 @@ class ArenaTab(QtWidgets.QWidget):
         mount_cooldowns = True
         damage_reduction = True
         advantage_mode = "multiplicative"
+        max_rounds = None
         if window is not None:
             hero_cooldowns = bool(getattr(window, "hero_cooldowns_enabled", hero_cooldowns))
             plugin_cooldowns = bool(
@@ -5476,8 +5757,11 @@ class ArenaTab(QtWidgets.QWidget):
                 getattr(window, "damage_reduction_affects_dots", damage_reduction)
             )
             advantage_mode = getattr(window, "troop_advantage_mode", advantage_mode)
+            if hasattr(window, "max_rounds_checkbox") and hasattr(window, "max_rounds_spin"):
+                if window.max_rounds_checkbox.isChecked():
+                    max_rounds = window.max_rounds_spin.value()
 
-        return {
+        settings = {
             "cooldowns_enabled": hero_cooldowns,
             "hero_cooldowns_enabled": hero_cooldowns,
             "plugin_cooldowns_enabled": plugin_cooldowns,
@@ -5485,7 +5769,9 @@ class ArenaTab(QtWidgets.QWidget):
             "mount_cooldowns_enabled": mount_cooldowns,
             "damage_reduction_affects_dots": damage_reduction,
             "advantage_mode": advantage_mode,
+            "max_rounds": max_rounds,  # This is used by _simulate_arena_battle, not by the engine
         }
+        return settings
 
     # ------------------------------------------------------------------
     def _compute_slot_coords(self) -> dict[str, list[tuple[float, float]]]:
@@ -6291,7 +6577,10 @@ class ArenaTab(QtWidgets.QWidget):
         if not layout:
             return
         self._save_last_layout()
-        self.engine.set_simulator_options(**self._get_debug_settings())
+        settings = self._get_debug_settings()
+        # max_rounds is handled at arena battle level, not by the engine
+        engine_settings = {k: v for k, v in settings.items() if k != "max_rounds"}
+        self.engine.set_simulator_options(**engine_settings)
         self.engine.reset(report_builder=self.report_builder)
         targeting_mode = self.targeting_combo.currentData()
         custom_targeting = self.custom_targeting if targeting_mode == "custom" else None
@@ -6402,7 +6691,7 @@ class ArenaTab(QtWidgets.QWidget):
 
             custom_targeting = self.custom_targeting if targeting_mode == "custom" else None
             for idx, seed_val in enumerate(seeds):
-                winner, remaining, _, timed_out = _simulate_arena_battle(
+                winner, remaining, _, timed_out, _ = _simulate_arena_battle(
                     layout_entries,
                     targeting_mode,
                     sim_settings,
@@ -6425,7 +6714,7 @@ class ArenaTab(QtWidgets.QWidget):
                     _, idx, remaining = best_candidate
                     if 0 <= idx < len(seeds):
                         seed_val = seeds[idx]
-                        winner, _, summary, timed_out = _simulate_arena_battle(
+                        winner, _, summary, timed_out, _ = _simulate_arena_battle(
                             layout_entries,
                             targeting_mode,
                             sim_settings,
@@ -6660,6 +6949,7 @@ def display_histograms(
     scroll: QtWidgets.QScrollArea,
     army1_name: str = "Army 1",
     army2_name: str = "Army 2",
+    image_files_override: list[str] | None = None,
 ) -> None:
     """Render histogram images into the scroll area.
 
@@ -6676,7 +6966,7 @@ def display_histograms(
     # Allow the frame to resize with the scroll area so images are not clipped
     scroll.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
-    image_files = [
+    image_files = image_files_override if image_files_override is not None else [
         "own_remaining_troops.png",
         "enemy_remaining_troops.png",
         "rounds_to_battle_end.png",
@@ -6872,6 +7162,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.run_btn = QtWidgets.QPushButton("Run Simulation")
         self.run_btn.clicked.connect(self.run_simulation)
         controls.addWidget(self.run_btn)
+        self.max_rounds_checkbox = QtWidgets.QCheckBox("Stop at Max Rounds")
+        controls.addWidget(self.max_rounds_checkbox)
+        controls.addWidget(QtWidgets.QLabel("Max Rounds:"))
+        self.max_rounds_spin = QtWidgets.QSpinBox()
+        self.max_rounds_spin.setRange(1, 10000)
+        self.max_rounds_spin.setValue(100)
+        controls.addWidget(self.max_rounds_spin)
         save_btn = QtWidgets.QPushButton("Save Setup")
         save_btn.clicked.connect(self.save_setup)
         controls.addWidget(save_btn)
@@ -7618,41 +7915,337 @@ class MainWindow(QtWidgets.QMainWindow):
             if not isinstance(distribution, dict):
                 return
 
+            # Check if we should show only heavily wounded figures (both rally mode + max_rounds)
+            both_rally_mode = results.get("both_rally_mode", False)
+            heavily_wounded_per_battle = results.get("heavily_wounded_per_battle")
+            
+            # If both rally mode and max_rounds, skip normal victory distribution and show only heavily wounded figures
             base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
             os.makedirs(base_hist_dir, exist_ok=True)
-            path = os.path.join(base_hist_dir, "arena_victory_distribution.png")
             order = ["blue", "red"]
             color_map = {"blue": "#0000ff", "red": "#ff0000"}
-            labels: list[str] = []
-            sizes: list[int] = []
-            colors: list[str] = []
-            for team in order:
-                count = distribution.get(team, 0)
-                if count:
-                    labels.append(team.capitalize())
-                    sizes.append(count)
-                    colors.append(color_map[team])
-            for team, count in distribution.items():
-                if team not in order and count:
-                    labels.append(team.capitalize())
-                    sizes.append(count)
-                    colors.append("#808080")
-            if not sizes:
+            
+            if both_rally_mode and heavily_wounded_per_battle:
+                # Skip normal victory distribution - we'll show only heavily wounded figures
+                pass
+            else:
+                # Show normal victory distribution
+                path = os.path.join(base_hist_dir, "arena_victory_distribution.png")
+                labels: list[str] = []
+                sizes: list[int] = []
+                colors: list[str] = []
+                for team in order:
+                    count = distribution.get(team, 0)
+                    if count:
+                        labels.append(team.capitalize())
+                        sizes.append(count)
+                        colors.append(color_map[team])
+                for team, count in distribution.items():
+                    if team not in order and count:
+                        labels.append(team.capitalize())
+                        sizes.append(count)
+                        colors.append("#808080")
+                if not sizes:
+                    if best_match and isinstance(best_match.get("summary"), list):
+                        self.update_arena_figures(best_match.get("summary") or [])
+                    return
+                fig, ax = plt.subplots()
+                ax.pie(sizes, labels=labels, colors=colors, autopct="%1.1f%%")
+                ax.set_title("Arena Victory Distribution")
+                fig.savefig(path)
+                plt.close(fig)
+                self.arena_fig_label.setPixmap(QtGui.QPixmap(path))
+                self.arena_fig_stack.setCurrentWidget(self.arena_fig_label)
+
+            # Generate heavily wounded figures if both armies are in rally mode and max_rounds was used
+            if both_rally_mode and heavily_wounded_per_battle:
+                # Get entry_id to team mapping from payload
+                entry_to_team: dict[str, str] = results.get("entry_to_team_map", {})
+                
+                # Generate heavily wounded victory distribution
+                hw_victory_path = os.path.join(base_hist_dir, "heavily_wounded_victory_distribution.png")
+                hw_team_wins: dict[str, int] = {}
+                
+                for battle_hw in heavily_wounded_per_battle:
+                    # Sum heavily wounded dealt per team for this battle
+                    team_hw_dealt: dict[str, float] = {}
+                    for entry_id, hw_data in battle_hw.items():
+                        # Determine team from entry_id
+                        team = entry_to_team.get(entry_id)
+                        if not team:
+                            # Fallback: try to parse from entry_id format "team:idx" or "team1:idx"/"team2:idx"
+                            if ":" in entry_id:
+                                parts = entry_id.split(":")
+                                possible_team_part = parts[0]
+                                if possible_team_part == "team1":
+                                    team = "red"
+                                elif possible_team_part == "team2":
+                                    team = "blue"
+                                elif possible_team_part in ["red", "blue"]:
+                                    team = possible_team_part
+                        if not team:
+                            team = "red"  # default fallback
+                        
+                        hw_dealt = hw_data.get("heavily_wounded_dealt", 0.0)
+                        team_hw_dealt[team] = team_hw_dealt.get(team, 0.0) + hw_dealt
+                    
+                    # Determine winner based on heavily wounded dealt
+                    if team_hw_dealt:
+                        max_hw = max(team_hw_dealt.values())
+                        winners = [t for t, hw in team_hw_dealt.items() if math.isclose(hw, max_hw)]
+                        if len(winners) == 1 and max_hw > 0:
+                            winner_team = winners[0]
+                            hw_team_wins[winner_team] = hw_team_wins.get(winner_team, 0) + 1
+                        elif len(winners) > 1 or max_hw == 0:
+                            hw_team_wins["draw"] = hw_team_wins.get("draw", 0) + 1
+                
+                if hw_team_wins:
+                    hw_labels: list[str] = []
+                    hw_sizes: list[int] = []
+                    hw_colors: list[str] = []
+                    for team in order:
+                        count = hw_team_wins.get(team, 0)
+                        if count:
+                            hw_labels.append(team.capitalize())
+                            hw_sizes.append(count)
+                            hw_colors.append(color_map[team])
+                    for team, count in hw_team_wins.items():
+                        if team not in order and count:
+                            hw_labels.append(team.capitalize())
+                            hw_sizes.append(count)
+                            hw_colors.append("#808080")
+                    
+                    if hw_sizes:
+                        fig, ax = plt.subplots()
+                        ax.pie(hw_sizes, labels=hw_labels, colors=hw_colors, autopct="%1.1f%%")
+                        ax.set_title("Heavily Wounded Victory Distribution")
+                        fig.savefig(hw_victory_path)
+                        plt.close(fig)
+                
+                # Generate heavily wounded per battle bar charts for each team
+                # Collect data per team
+                team_hw_data: dict[str, list[float]] = {"red": [], "blue": []}
+                
+                for battle_hw in heavily_wounded_per_battle:
+                    red_total = 0.0
+                    blue_total = 0.0
+                    
+                    for entry_id, hw_data in battle_hw.items():
+                        # Determine team from entry_id
+                        team = entry_to_team.get(entry_id)
+                        if not team:
+                            if ":" in entry_id:
+                                parts = entry_id.split(":")
+                                possible_team_part = parts[0]
+                                if possible_team_part == "team1":
+                                    team = "red"
+                                elif possible_team_part == "team2":
+                                    team = "blue"
+                                elif possible_team_part in ["red", "blue"]:
+                                    team = possible_team_part
+                        if not team:
+                            team = "red"  # default fallback
+                        
+                        hw_amount = hw_data.get("heavily_wounded", 0.0)
+                        if team == "red":
+                            red_total += hw_amount
+                        else:
+                            blue_total += hw_amount
+                    
+                    team_hw_data["red"].append(red_total)
+                    team_hw_data["blue"].append(blue_total)
+                
+                # Generate bar chart for red team
+                if team_hw_data["red"]:
+                    red_avg = sum(team_hw_data["red"]) / len(team_hw_data["red"])
+                    red_path = os.path.join(base_hist_dir, "heavily_wounded_per_battle_army1.png")
+                    fig, ax = plt.subplots()
+                    battles = list(range(1, len(team_hw_data["red"]) + 1))
+                    ax.bar(battles, team_hw_data["red"], color="#ff0000", edgecolor="black")
+                    ax.axhline(red_avg, color="white", linestyle="dashed", linewidth=2, label=f"Average: {red_avg:.1f}")
+                    ax.set_title("Heavily Wounded per Battle - Red Team")
+                    ax.set_xlabel("Battle")
+                    ax.set_ylabel("Heavily Wounded")
+                    ax.legend()
+                    ax.grid(True, alpha=0.3)
+                    fig.savefig(red_path)
+                    plt.close(fig)
+                
+                # Generate bar chart for blue team
+                if team_hw_data["blue"]:
+                    blue_avg = sum(team_hw_data["blue"]) / len(team_hw_data["blue"])
+                    blue_path = os.path.join(base_hist_dir, "heavily_wounded_per_battle_army2.png")
+                    fig, ax = plt.subplots()
+                    battles = list(range(1, len(team_hw_data["blue"]) + 1))
+                    ax.bar(battles, team_hw_data["blue"], color="#0000ff", edgecolor="black")
+                    ax.axhline(blue_avg, color="white", linestyle="dashed", linewidth=2, label=f"Average: {blue_avg:.1f}")
+                    ax.set_title("Heavily Wounded per Battle - Blue Team")
+                    ax.set_xlabel("Battle")
+                    ax.set_ylabel("Heavily Wounded")
+                    ax.legend()
+                    ax.grid(True, alpha=0.3)
+                    fig.savefig(blue_path)
+                    plt.close(fig)
+                
+                # Display all 3 heavily wounded figures in scroll area
+                hw_figure_files = []
+                if os.path.exists(hw_victory_path):
+                    hw_figure_files.append("heavily_wounded_victory_distribution.png")
+                if os.path.exists(red_path):
+                    hw_figure_files.append("heavily_wounded_per_battle_army1.png")
+                if os.path.exists(blue_path):
+                    hw_figure_files.append("heavily_wounded_per_battle_army2.png")
+                
+                if hw_figure_files:
+                    # Display all 3 heavily wounded figures in scroll area
+                    old_widget = self.arena_fig_scroll.takeWidget()
+                    if old_widget is not None:
+                        old_widget.deleteLater()
+                    
+                    frame = QtWidgets.QWidget()
+                    layout = QtWidgets.QVBoxLayout()
+                    layout.setSpacing(10)
+                    layout.setContentsMargins(10, 10, 10, 10)
+                    
+                    scroll_width = self.arena_fig_scroll.viewport().width()
+                    screen_geom = QtWidgets.QApplication.primaryScreen().availableGeometry()
+                    max_width = min(scroll_width - 40 if scroll_width > 40 else 300, screen_geom.width() // 2)
+                    max_height = screen_geom.height() // 2
+                    
+                    for img_name in hw_figure_files:
+                        path = os.path.join(base_hist_dir, img_name)
+                        if not os.path.exists(path):
+                            continue
+                        try:
+                            with Image.open(path) as img:
+                                if img.width > max_width or img.height > max_height:
+                                    ratio = min(max_width / img.width, max_height / img.height)
+                                    img = img.resize(
+                                        (int(img.width * ratio), int(img.height * ratio)),
+                                        Image.LANCZOS,
+                                    )
+                                qimg = ImageQt.ImageQt(img)
+                                pix = QtGui.QPixmap.fromImage(qimg)
+                        except Exception:
+                            continue
+                        lbl = QtWidgets.QLabel()
+                        lbl.setPixmap(pix)
+                        lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+                        layout.addWidget(lbl)
+                        
+                        # Add caption
+                        caption_text = img_name.replace("_", " ").replace(".png", "").title()
+                        caption = QtWidgets.QLabel(caption_text)
+                        caption.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+                        caption.setStyleSheet("QLabel { color: #dddddd; background-color: transparent; }")
+                        layout.addWidget(caption)
+                    
+                    # Add skill breakdown summary below the figures if available
+                    if best_match and isinstance(best_match.get("summary"), list):
+                        summary = best_match.get("summary") or []
+                        if summary:
+                            # Add a separator
+                            separator = QtWidgets.QFrame()
+                            separator.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+                            separator.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+                            separator.setStyleSheet("QFrame { color: #666666; }")
+                            layout.addWidget(separator)
+                            
+                            # Add skill breakdown header
+                            skill_header = QtWidgets.QLabel("Skill Breakdown (Average Battle Details)")
+                            skill_header.setStyleSheet("QLabel { color: #ffffff; font-size: 14px; font-weight: bold; }")
+                            layout.addWidget(skill_header)
+                            
+                            # Clear and populate the summary layout
+                            for i in reversed(range(self.arena_fig_summary_layout.count())):
+                                item = self.arena_fig_summary_layout.takeAt(i)
+                                widget = item.widget()
+                                if widget:
+                                    widget.setParent(None)
+                            
+                            red_entries = [e for e in summary if e.get("team", "red") == "red"]
+                            blue_entries = [e for e in summary if e.get("team", "blue") == "blue"]
+                            max_healed = max((e.get("healed", 0) for e in summary), default=1)
+                            max_kills = max((e.get("kills", 0) for e in summary), default=1)
+                            max_heavily_wounded = max((e.get("heavily_wounded", 0) for e in summary), default=1)
+                            max_heavily_wounded_dealt = max((e.get("heavily_wounded_dealt", 0) for e in summary), default=1)
+                            
+                            # Create a container widget for the summary
+                            summary_widget = QtWidgets.QWidget()
+                            summary_layout = QtWidgets.QGridLayout(summary_widget)
+                            summary_layout.setContentsMargins(0, 0, 0, 0)
+                            summary_layout.setSpacing(0)
+                            
+                            summary_layout.addWidget(ArenaStatsHeader(), 0, 0)
+                            num_army_rows = 0
+                            for row, (red, blue) in enumerate(zip_longest(red_entries, blue_entries), start=1):
+                                row_widget = ArenaStatsRow(red, blue, max_healed, max_kills, max_heavily_wounded, max_heavily_wounded_dealt)
+                                summary_layout.addWidget(row_widget, row, 0)
+                                num_army_rows = row
+                            
+                            # Add team totals
+                            red_total = {
+                                "team": "red",
+                                "name": "Team Total",
+                                "portrait1": "",
+                                "portrait2": "",
+                                "remaining": sum(e.get("remaining", 0) for e in red_entries),
+                                "initial": sum(e.get("initial", 0) for e in red_entries),
+                                "healed": sum(e.get("healed", 0) for e in red_entries),
+                                "kills": sum(e.get("kills", 0) for e in red_entries),
+                                "heavily_wounded": sum(e.get("heavily_wounded", 0) for e in red_entries),
+                                "heavily_wounded_dealt": sum(e.get("heavily_wounded_dealt", 0) for e in red_entries),
+                            }
+                            blue_total = {
+                                "team": "blue",
+                                "name": "Team Total",
+                                "portrait1": "",
+                                "portrait2": "",
+                                "remaining": sum(e.get("remaining", 0) for e in blue_entries),
+                                "initial": sum(e.get("initial", 0) for e in blue_entries),
+                                "healed": sum(e.get("healed", 0) for e in blue_entries),
+                                "kills": sum(e.get("kills", 0) for e in blue_entries),
+                                "heavily_wounded": sum(e.get("heavily_wounded", 0) for e in blue_entries),
+                                "heavily_wounded_dealt": sum(e.get("heavily_wounded_dealt", 0) for e in blue_entries),
+                            }
+                            
+                            max_remaining = max((red_total.get("remaining", 0), blue_total.get("remaining", 0)), default=1)
+                            max_healed_total = max((red_total.get("healed", 0), blue_total.get("healed", 0)), default=1)
+                            max_kills_total = max((red_total.get("kills", 0), blue_total.get("kills", 0)), default=1)
+                            max_heavily_wounded_total = max((red_total.get("heavily_wounded", 0), blue_total.get("heavily_wounded", 0)), default=1)
+                            max_heavily_wounded_dealt_total = max((red_total.get("heavily_wounded_dealt", 0), blue_total.get("heavily_wounded_dealt", 0)), default=1)
+                            
+                            totals_row = ArenaStatsRow(
+                                red_total, blue_total,
+                                max_healed_total, max_kills_total,
+                                max_heavily_wounded_total, max_heavily_wounded_dealt_total
+                            )
+                            totals_row.setStyleSheet("background-color: rgba(128, 128, 128, 0.2); border-top: 2px solid rgba(128, 128, 128, 0.5);")
+                            for widget in totals_row.findChildren(QtWidgets.QLabel):
+                                if widget.text() == "Team Total":
+                                    font = widget.font()
+                                    font.setBold(True)
+                                    widget.setFont(font)
+                            summary_layout.addWidget(totals_row, num_army_rows + 1, 0)
+                            
+                            layout.addWidget(summary_widget)
+                    
+                    layout.addStretch()
+                    frame.setLayout(layout)
+                    self.arena_fig_scroll.setWidget(frame)
+                    self.arena_fig_stack.setCurrentWidget(self.arena_fig_scroll)
+                else:
+                    # Fallback if figures weren't generated
+                    if best_match and isinstance(best_match.get("summary"), list):
+                        self.update_arena_figures(best_match.get("summary") or [])
+                    elif hasattr(self, "arena_best_match_label"):
+                        self.arena_best_match_label.setText(warning_text)
+            else:
+                # Normal mode: show best match summary if available
                 if best_match and isinstance(best_match.get("summary"), list):
                     self.update_arena_figures(best_match.get("summary") or [])
-                return
-            fig, ax = plt.subplots()
-            ax.pie(sizes, labels=labels, colors=colors, autopct="%1.1f%%")
-            ax.set_title("Arena Victory Distribution")
-            fig.savefig(path)
-            plt.close(fig)
-            self.arena_fig_label.setPixmap(QtGui.QPixmap(path))
-            self.arena_fig_stack.setCurrentWidget(self.arena_fig_label)
-
-            if best_match and isinstance(best_match.get("summary"), list):
-                self.update_arena_figures(best_match.get("summary") or [])
-            elif hasattr(self, "arena_best_match_label"):
-                self.arena_best_match_label.setText(warning_text)
+                elif hasattr(self, "arena_best_match_label"):
+                    self.arena_best_match_label.setText(warning_text)
             return
 
         # Otherwise render per-army summary after a normal run
@@ -12388,6 +12981,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress.setValue(0)
         self.run_btn.setText("Cancel")
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
+        max_rounds = None
+        if self.max_rounds_checkbox.isChecked():
+            max_rounds = self.max_rounds_spin.value()
         self.worker = SimulationWorker(
             setup_data,
             runs,
@@ -12400,6 +12996,7 @@ class MainWindow(QtWidgets.QMainWindow):
             mount_cooldowns_enabled=self.mount_cooldowns_enabled,
             damage_reduction_affects_dots=self.damage_reduction_affects_dots,
             advantage_mode=self.troop_advantage_mode,
+            max_rounds=max_rounds,
         )
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
@@ -12473,10 +13070,27 @@ class MainWindow(QtWidgets.QMainWindow):
     ) -> None:
         self.output_text.setPlainText(text)
         self._populate_round_tree(rounds)
+        
+        # Check if we should show only heavily wounded figures
+        worker = getattr(self, "worker", None)
+        best_match = getattr(worker, "best_match", None) if worker else None
+        both_rally_mode = best_match.get("both_rally_mode", False) if best_match else False
+        max_rounds_enabled = best_match.get("max_rounds_enabled", False) if best_match else False
+        
+        image_files_override = None
+        if both_rally_mode and max_rounds_enabled:
+            # Show only the 3 heavily wounded figures
+            image_files_override = [
+                "heavily_wounded_victory_distribution.png",
+                "heavily_wounded_per_battle_army1.png",
+                "heavily_wounded_per_battle_army2.png",
+            ]
+        
         display_histograms(
             self.hist_scroll,
             self.army1_frame.name_edit.text() or f"Army 1",
             self.army2_frame.name_edit.text() or f"Army 2",
+            image_files_override=image_files_override,
         )
         if summary:
             self.update_skill_breakdowns(summary)

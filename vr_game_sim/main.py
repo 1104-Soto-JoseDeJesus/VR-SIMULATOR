@@ -230,6 +230,9 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
             heroes_list.append(hero)
 
         # Create Army instance. The simulator instance will be injected later by GameSimulator.
+        rally_config = army_config.get("rally_config")
+        if rally_config:
+            rally_config = copy.deepcopy(rally_config)
         army_obj = Army(
             army_config["army_name"],
             unit,
@@ -240,6 +243,7 @@ def create_armies_from_data(loaded_data: List[Dict[str, Any]]) -> List[Army]:
             ),
             is_rally=bool(army_config.get("is_rally", False)),
             bonus_stats_config=copy.deepcopy(army_config.get("bonus_stats", {})),
+            rally_config=rally_config,
         )
         gem_skills_cfg = army_config.get("gem_skills")
         if isinstance(gem_skills_cfg, dict):
@@ -283,6 +287,7 @@ def _run_single_battle(
     plugin_cooldowns_enabled: Optional[bool] = None,
     gem_cooldowns_enabled: Optional[bool] = None,
     mount_cooldowns_enabled: Optional[bool] = None,
+    max_rounds: int | None = None,
 ) -> tuple:
     """Helper to run a single battle.
 
@@ -342,7 +347,7 @@ def _run_single_battle(
         advantage_mode=advantage_mode,
     )
     with contextlib.redirect_stdout(io.StringIO()):
-        sim.simulate_battle()
+        sim.simulate_battle(max_rounds=max_rounds)
     winner = 0
     if sim.army1.current_troop_count > 0 and sim.army2.current_troop_count <= 0:
         winner = 1
@@ -353,7 +358,10 @@ def _run_single_battle(
     diff = own - enemy
     army1_unrevivable = sim.army1.unrevivable_troops
     army2_unrevivable = sim.army2.unrevivable_troops
-    result = (own, enemy, sim.round, diff, winner, army1_unrevivable, army2_unrevivable)
+    # Get heavily wounded dealt data
+    army1_hw_dealt = float(sum(sim.army1.unrevivable_caused_by_opponent.values()))
+    army2_hw_dealt = float(sum(sim.army2.unrevivable_caused_by_opponent.values()))
+    result = (own, enemy, sim.round, diff, winner, army1_unrevivable, army2_unrevivable, army1_hw_dealt, army2_hw_dealt)
     if return_report:
         report_text = sim.report_builder.get_report_text()
         return (*result, report_text)
@@ -371,6 +379,7 @@ def _run_single_battle_with_multiplier(
     plugin_cooldowns_enabled: Optional[bool] = None,
     gem_cooldowns_enabled: Optional[bool] = None,
     mount_cooldowns_enabled: Optional[bool] = None,
+    max_rounds: int | None = None,
 ) -> tuple:
     return _run_single_battle(
         setup_data,
@@ -383,6 +392,7 @@ def _run_single_battle_with_multiplier(
         plugin_cooldowns_enabled=plugin_cooldowns_enabled,
         gem_cooldowns_enabled=gem_cooldowns_enabled,
         mount_cooldowns_enabled=mount_cooldowns_enabled,
+        max_rounds=max_rounds,
     )
 
 
@@ -401,6 +411,7 @@ def run_additional_simulations(
     gem_cooldowns_enabled: Optional[bool] = None,
     mount_cooldowns_enabled: Optional[bool] = None,
     advantage_mode: str = "multiplicative",
+    max_rounds: int | None = None,
 ) -> tuple[float, Optional[Dict[str, Any]]]:
     """Runs extra simulations and computes summary statistics.
 
@@ -432,6 +443,7 @@ def run_additional_simulations(
     winners: List[int] = []  # 1 -> army1, 2 -> army2, 0 -> draw
     army1_unrevivable_totals: List[float] = []
     army2_unrevivable_totals: List[float] = []
+    heavily_wounded_per_battle: List[dict[str, float]] = []  # Per battle: {"army1_hw": float, "army2_hw": float, "army1_hw_dealt": float, "army2_hw_dealt": float}
 
     army1_name = (
         setup_data[0].get("army_name", "Army 1") if len(setup_data) > 0 else "Army 1"
@@ -439,6 +451,13 @@ def run_additional_simulations(
     army2_name = (
         setup_data[1].get("army_name", "Army 2") if len(setup_data) > 1 else "Army 2"
     )
+    
+    # Check if both armies are in rally mode
+    both_rally_mode = False
+    if len(setup_data) >= 2:
+        army1_rally = bool(setup_data[0].get("is_rally", False))
+        army2_rally = bool(setup_data[1].get("is_rally", False))
+        both_rally_mode = army1_rally and army2_rally
     battle_results: List[tuple] = []
     seeds = [random.randrange(1 << 30) for _ in range(runs)]
 
@@ -455,6 +474,7 @@ def run_additional_simulations(
             plugin_cd_iter = repeat(plugin_cd, runs)
             gem_cd_iter = repeat(gem_cd, runs)
             mount_cd_iter = repeat(mount_cd, runs)
+            max_rounds_iter = repeat(max_rounds, runs)
             results_iter = ex.map(
                 _run_single_battle_with_multiplier,
                 worker_inputs,
@@ -467,23 +487,40 @@ def run_additional_simulations(
                 plugin_cd_iter,
                 gem_cd_iter,
                 mount_cd_iter,
+                max_rounds_iter,
             )
             completed = 0
-            for own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev in results_iter:
+            for own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev, army1_hw_dealt, army2_hw_dealt in results_iter:
                 own_remaining.append(own)
                 enemy_remaining.append(enemy)
                 rounds_taken.append(r_taken)
                 diff_results.append(diff)
+                
+                # When max_rounds is reached and both armies are in rally mode, determine winner by heavily wounded dealt
+                if max_rounds is not None and both_rally_mode and r_taken >= max_rounds:
+                    if army1_hw_dealt > army2_hw_dealt:
+                        winner = 1
+                    elif army2_hw_dealt > army1_hw_dealt:
+                        winner = 2
+                    else:
+                        winner = 0  # draw
+                
                 winners.append(winner)
                 army1_unrevivable_totals.append(army1_unrev)
                 army2_unrevivable_totals.append(army2_unrev)
+                heavily_wounded_per_battle.append({
+                    "army1_hw": army1_unrev,
+                    "army2_hw": army2_unrev,
+                    "army1_hw_dealt": army1_hw_dealt,
+                    "army2_hw_dealt": army2_hw_dealt,
+                })
                 battle_results.append((own, enemy))
                 completed += 1
                 if progress_callback:
                     progress_callback(completed, runs)
     else:
         for i, seed_val in enumerate(seeds):
-            own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev = _run_single_battle(
+            own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev, army1_hw_dealt, army2_hw_dealt = _run_single_battle(
                 setup_data,
                 seed=seed_val,
                 dynamic_settings=dynamic_settings_payload,
@@ -494,14 +531,31 @@ def run_additional_simulations(
                 plugin_cooldowns_enabled=plugin_cd,
                 gem_cooldowns_enabled=gem_cd,
                 mount_cooldowns_enabled=mount_cd,
+                max_rounds=max_rounds,
             )
             own_remaining.append(own)
             enemy_remaining.append(enemy)
             rounds_taken.append(r_taken)
             diff_results.append(diff)
+            
+            # When max_rounds is reached and both armies are in rally mode, determine winner by heavily wounded dealt
+            if max_rounds is not None and both_rally_mode and r_taken >= max_rounds:
+                if army1_hw_dealt > army2_hw_dealt:
+                    winner = 1
+                elif army2_hw_dealt > army1_hw_dealt:
+                    winner = 2
+                else:
+                    winner = 0  # draw
+            
             winners.append(winner)
             army1_unrevivable_totals.append(army1_unrev)
             army2_unrevivable_totals.append(army2_unrev)
+            heavily_wounded_per_battle.append({
+                "army1_hw": army1_unrev,
+                "army2_hw": army2_unrev,
+                "army1_hw_dealt": army1_hw_dealt,
+                "army2_hw_dealt": army2_hw_dealt,
+            })
             battle_results.append((own, enemy))
             if progress_callback:
                 progress_callback(i + 1, runs)
@@ -591,6 +645,14 @@ def run_additional_simulations(
                 int(rounds_taken[best_idx]) if best_idx < len(rounds_taken) else None
             ),
         }
+    
+    # Add heavily wounded data and flags to best_match (or create metadata dict)
+    max_rounds_enabled = max_rounds is not None
+    if best_match is None:
+        best_match = {}
+    best_match["both_rally_mode"] = both_rally_mode
+    best_match["max_rounds_enabled"] = max_rounds_enabled
+    best_match["heavily_wounded_per_battle"] = heavily_wounded_per_battle
 
     if generate_histograms:
         ensure_histogram_dir()
@@ -837,10 +899,118 @@ def run_additional_simulations(
             )
             plt.close(fig)
 
-    # Pie chart for win percentages
+    # Generate heavily wounded figures if both rally mode and max_rounds are active
+    if generate_histograms and both_rally_mode and max_rounds_enabled and heavily_wounded_per_battle:
+        import math as math_module
+        
+        # Generate heavily wounded victory distribution (based on heavily wounded dealt)
+        hw_wins_army1 = 0
+        hw_wins_army2 = 0
+        hw_draws = 0
+        for hw_data in heavily_wounded_per_battle:
+            army1_hw_dealt = hw_data.get("army1_hw_dealt", 0.0)
+            army2_hw_dealt = hw_data.get("army2_hw_dealt", 0.0)
+            if math_module.isclose(army1_hw_dealt, army2_hw_dealt, abs_tol=1e-6) or (army1_hw_dealt <= 0 and army2_hw_dealt <= 0):
+                hw_draws += 1
+            elif army1_hw_dealt > army2_hw_dealt:
+                hw_wins_army1 += 1
+            else:
+                hw_wins_army2 += 1
+        
+        if hw_wins_army1 + hw_wins_army2 + hw_draws > 0:
+            with plt.style.context("default"):
+                fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
+                fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+                ax.set_facecolor(HISTOGRAM_BG_COLOR)
+                hw_outcomes = []
+                if hw_wins_army1 > 0:
+                    hw_outcomes.append((hw_wins_army1, army1_name, "green"))
+                if hw_wins_army2 > 0:
+                    hw_outcomes.append((hw_wins_army2, army2_name, "red"))
+                if hw_draws > 0:
+                    hw_outcomes.append((hw_draws, "Draw", "gray"))
+                
+                if hw_outcomes:
+                    sizes, labels, colors = zip(*hw_outcomes)
+                    wedges, texts, autotexts = ax.pie(
+                        sizes,
+                        labels=labels,
+                        autopct="%.1f%%",
+                        colors=colors,
+                        startangle=90,
+                        textprops={"fontsize": HISTOGRAM_FONT_SIZE, "color": HISTOGRAM_TEXT_COLOR},
+                    )
+                    for text in texts + autotexts:
+                        text.set_color(HISTOGRAM_TEXT_COLOR)
+                    ax.set_title(
+                        "Heavily Wounded Victory Distribution",
+                        fontsize=HISTOGRAM_FONT_SIZE,
+                        color=HISTOGRAM_TEXT_COLOR,
+                    )
+                    ax.axis("equal")
+                    fig.tight_layout()
+                    fig.savefig(
+                        os.path.join(HISTOGRAM_DIR, "heavily_wounded_victory_distribution.png"),
+                        dpi=HISTOGRAM_DPI,
+                        bbox_inches="tight",
+                        facecolor=fig.get_facecolor(),
+                    )
+                    plt.close(fig)
+        
+        # Generate heavily wounded per battle bar charts
+        army1_hw_list = [hw_data.get("army1_hw", 0.0) for hw_data in heavily_wounded_per_battle]
+        army2_hw_list = [hw_data.get("army2_hw", 0.0) for hw_data in heavily_wounded_per_battle]
+        
+        if army1_hw_list:
+            with plt.style.context("default"):
+                fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
+                fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+                ax.set_facecolor(HISTOGRAM_BG_COLOR)
+                ax.bar(range(len(army1_hw_list)), army1_hw_list, color="green", edgecolor="none")
+                avg_hw_army1 = np.mean(army1_hw_list)
+                ax.axhline(avg_hw_army1, color="white", linestyle="dashed", linewidth=1, label=f"Average: {avg_hw_army1:.0f}")
+                ax.set_title(f"{army1_name} Heavily Wounded per Battle", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+                ax.set_xlabel("Battle Number", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+                ax.set_ylabel("Heavily Wounded", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+                ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
+                ax.grid(linewidth=HISTOGRAM_GRIDLINE_WIDTH)
+                ax.legend()
+                fig.tight_layout()
+                fig.savefig(
+                    os.path.join(HISTOGRAM_DIR, "heavily_wounded_per_battle_army1.png"),
+                    dpi=HISTOGRAM_DPI,
+                    bbox_inches="tight",
+                    facecolor=fig.get_facecolor(),
+                )
+                plt.close(fig)
+        
+        if army2_hw_list:
+            with plt.style.context("default"):
+                fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
+                fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)
+                ax.set_facecolor(HISTOGRAM_BG_COLOR)
+                ax.bar(range(len(army2_hw_list)), army2_hw_list, color="red", edgecolor="none")
+                avg_hw_army2 = np.mean(army2_hw_list)
+                ax.axhline(avg_hw_army2, color="white", linestyle="dashed", linewidth=1, label=f"Average: {avg_hw_army2:.0f}")
+                ax.set_title(f"{army2_name} Heavily Wounded per Battle", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+                ax.set_xlabel("Battle Number", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+                ax.set_ylabel("Heavily Wounded", fontsize=HISTOGRAM_FONT_SIZE, color=HISTOGRAM_TEXT_COLOR)
+                ax.tick_params(axis="both", labelsize=HISTOGRAM_TICK_FONT_SIZE, colors=HISTOGRAM_TEXT_COLOR)
+                ax.grid(linewidth=HISTOGRAM_GRIDLINE_WIDTH)
+                ax.legend()
+                fig.tight_layout()
+                fig.savefig(
+                    os.path.join(HISTOGRAM_DIR, "heavily_wounded_per_battle_army2.png"),
+                    dpi=HISTOGRAM_DPI,
+                    bbox_inches="tight",
+                    facecolor=fig.get_facecolor(),
+                )
+                plt.close(fig)
+    
+    # Pie chart for win percentages (skip if both rally mode and max_rounds)
     wins_army1 = winners.count(1)
     wins_army2 = winners.count(2)
-    if generate_histograms and wins_army1 + wins_army2 > 0:
+    if generate_histograms and wins_army1 + wins_army2 > 0 and not (both_rally_mode and max_rounds_enabled):
         with plt.style.context("default"):
             fig, ax = plt.subplots(figsize=HISTOGRAM_FIGSIZE, dpi=HISTOGRAM_DPI)
             fig.patch.set_facecolor(HISTOGRAM_BG_COLOR)

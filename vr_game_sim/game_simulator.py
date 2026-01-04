@@ -1687,7 +1687,48 @@ class GameSimulator:
             )
         self._log_skill_trigger(defender, "Dynamic Unrevivable", log_message)
 
-    def simulate_battle(self) -> str:
+    def _apply_rally_reinforcements(self, army: Army, round: int) -> None:
+        """Apply rally reinforcements to an army if rally mode is enabled and configured."""
+        if not army.is_rally or not army.rally_config:
+            return
+        
+        config = army.rally_config
+        reinforcement_applied = False
+        
+        # Periodic reinforcements
+        periodic = config.get("periodic", {})
+        if periodic.get("enabled", False):
+            interval = periodic.get("interval", 1)
+            if interval > 0 and round % interval == 0:
+                amount = float(periodic.get("amount", 0))
+                army.current_troop_count += amount
+                reinforcement_applied = True
+        
+        # Loss-based reinforcements
+        loss_based = config.get("loss_based", {})
+        if loss_based.get("enabled", False):
+            threshold = float(loss_based.get("threshold", 0))
+            losses_since_last = army.troops_at_last_reinforcement - army.current_troop_count
+            if losses_since_last >= threshold:
+                amount = float(loss_based.get("amount", 0))
+                army.current_troop_count += amount
+                reinforcement_applied = True
+        
+        # Round-specific reinforcements
+        round_specific = config.get("round_specific", {})
+        if round_specific.get("enabled", False):
+            reinforcements = round_specific.get("reinforcements", [])
+            for reinf in reinforcements:
+                if isinstance(reinf, dict) and reinf.get("round") == round:
+                    amount = float(reinf.get("amount", 0))
+                    army.current_troop_count += amount
+                    reinforcement_applied = True
+        
+        # Update tracking after any reinforcement
+        if reinforcement_applied:
+            army.troops_at_last_reinforcement = army.current_troop_count
+
+    def simulate_battle(self, max_rounds: int | None = None) -> str:
         self.army1.reset_for_new_battle()
         self.army2.reset_for_new_battle()
         self.army1.register_simulator(self)
@@ -1695,11 +1736,24 @@ class GameSimulator:
         self.army1._apply_initial_passive_skills()
         self.army2._apply_initial_passive_skills()
         self.round = 0
+        reached_max_rounds = False
 
-        while self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
+        # When max_rounds is set, continue until max_rounds is reached regardless of troop counts
+        # When max_rounds is not set, stop when one side has zero troops
+        while (max_rounds is None or self.round < max_rounds):
+            # Check if we should continue based on troop counts (only when max_rounds is not set)
+            if max_rounds is None and not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+                break
+            
             self.round += 1
+            if max_rounds is not None and self.round >= max_rounds:
+                reached_max_rounds = True
             for army in (self.army1, self.army2):
                 army.army_round += 1
+            
+            # Apply rally reinforcements at the start of each round
+            self._apply_rally_reinforcements(self.army1, self.round)
+            self._apply_rally_reinforcements(self.army2, self.round)
 
             self.army1.rage_added_this_round = 0.0
             self.army2.rage_added_this_round = 0.0
@@ -1754,7 +1808,10 @@ class GameSimulator:
                 )
 
             # Rage skills will be executed after start-of-round effects
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+            # Only break early if max_rounds is not set
+            if max_rounds is None and not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+                break
+            if reached_max_rounds:
                 break
 
             for army, opponent in [(self.army1, self.army2), (self.army2, self.army1)]:
@@ -1782,7 +1839,10 @@ class GameSimulator:
                         army.hero1_rage_skill_scheduled_round = self.round + 1
                         army.army_used_rage_skill_this_round_for_rage_gain_block = True
 
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+            # Only break early if max_rounds is not set
+            if max_rounds is None and not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+                break
+            if reached_max_rounds:
                 break
 
             # Execute any queued rage skills after start-of-round effects.
@@ -1904,7 +1964,13 @@ class GameSimulator:
                 self.round_skill_triggers_log,
                 active_effects=active_lines,
             )
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+            # Only break early if max_rounds is not set
+            if max_rounds is None and not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+                if self.track_stats:
+                    self.army1.kills_dealt_history.append(self.army1.kills_dealt_this_round)
+                    self.army2.kills_dealt_history.append(self.army2.kills_dealt_this_round)
+                break
+            if reached_max_rounds:
                 if self.track_stats:
                     self.army1.kills_dealt_history.append(self.army1.kills_dealt_this_round)
                     self.army2.kills_dealt_history.append(self.army2.kills_dealt_this_round)
@@ -2009,7 +2075,19 @@ class GameSimulator:
 
         self.report_builder.lines.append(f"\nTotal Rounds: {self.round}")
         winner = "Neither (Draw - Both armies were defeated simultaneously)"
-        if self.army1.current_troop_count > 0 and self.army2.current_troop_count <= 0:
+        
+        # Check if battle ended due to max_rounds and both armies are still alive
+        if max_rounds is not None and self.round >= max_rounds and self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
+            # Determine winner based on total damage dealt (kills + unrevivable)
+            army1_total_damage = sum(self.army1.kills_dealt_history) + sum(self.army1.unrevivable_caused_by_opponent.values())
+            army2_total_damage = sum(self.army2.kills_dealt_history) + sum(self.army2.unrevivable_caused_by_opponent.values())
+            if army1_total_damage > army2_total_damage:
+                winner = self.army1.name
+            elif army2_total_damage > army1_total_damage:
+                winner = self.army2.name
+            else:
+                winner = "Draw (Equal damage)"
+        elif self.army1.current_troop_count > 0 and self.army2.current_troop_count <= 0:
             winner = self.army1.name
         elif self.army2.current_troop_count > 0 and self.army1.current_troop_count <= 0:
             winner = self.army2.name

@@ -1813,14 +1813,18 @@ class SkillParamEditor(QtWidgets.QWidget):
             self._fields[("trigger_chance",)] = spin
             self._defaults[("trigger_chance",)] = float(tc)
 
-        def walk(value: Any, path: tuple[PathComponent, ...], override_value: Any) -> None:
+        # First pass: collect all numeric fields and their paths
+        collected_fields: dict[tuple[PathComponent, ...], tuple[float, float | None]] = {}
+        
+        def collect_fields(value: Any, path: tuple[PathComponent, ...], override_value: Any) -> None:
+            """First pass: collect all numeric fields."""
             if isinstance(value, dict):
                 ov_dict = override_value if isinstance(override_value, dict) else {}
                 for key, sub_value in value.items():
                     next_path = path + (key,)
                     if next_path == ("trigger_chance",):
                         continue
-                    walk(sub_value, next_path, ov_dict.get(key))
+                    collect_fields(sub_value, next_path, ov_dict.get(key))
             elif isinstance(value, list):
                 overrides_map: dict[int, Any] = {}
                 if isinstance(override_value, list):
@@ -1840,7 +1844,7 @@ class SkillParamEditor(QtWidgets.QWidget):
                         overrides_map[idx] = ov_item
                 for index, item in enumerate(value):
                     override_item = overrides_map.get(index)
-                    walk(item, path + (index,), override_item)
+                    collect_fields(item, path + (index,), override_item)
             else:
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
                     default_val = float(value)
@@ -1849,9 +1853,65 @@ class SkillParamEditor(QtWidgets.QWidget):
                         if isinstance(override_value, (int, float)) and not isinstance(override_value, bool)
                         else None
                     )
-                    self._create_numeric_field(path, default_val, override_val)
+                    collected_fields[path] = (default_val, override_val)
 
-        walk(sdef, tuple(), overrides)
+        collect_fields(sdef, tuple(), overrides)
+        
+        # Second pass: resolve duplicates by preferring longer/more specific paths
+        # Group fields by their final key name
+        # Type: dict mapping final key name to list of (path, (default_val, override_val)) tuples
+        fields_by_key: dict[str, Any] = {}
+        for path, values in collected_fields.items():
+            if not path:
+                continue
+            final_key = str(path[-1])
+            if final_key not in fields_by_key:
+                fields_by_key[final_key] = []
+            fields_by_key[final_key].append((path, values))
+        
+        # For each key, resolve duplicates intelligently
+        # Strategy: 
+        # 1. If one path is a prefix of another (parent-child), prefer the child (more specific)
+        # 2. If paths share a common prefix and have same values, prefer the longer path
+        # This handles cases like config.rage_per_round vs config.aura_effect_definition.config.rage_per_round
+        preferred_paths: set[tuple[PathComponent, ...]] = set()
+        for key, paths_with_values in fields_by_key.items():
+            if len(paths_with_values) == 1:
+                # No duplicate, use it
+                preferred_paths.add(paths_with_values[0][0])
+            else:
+                # Check for parent-child relationships (one path is prefix of another)
+                paths_to_remove: set[tuple[PathComponent, ...]] = set()
+                for i, (path1, values1) in enumerate(paths_with_values):
+                    for j, (path2, values2) in enumerate(paths_with_values):
+                        if i != j and len(path1) < len(path2):
+                            # Check if path1 is a prefix of path2 (path1 is parent of path2)
+                            if path2[:len(path1)] == path1:
+                                # path1 is parent, path2 is child - prefer child
+                                paths_to_remove.add(path1)
+                                break
+                
+                # Remove parent paths, keep children
+                remaining_paths = [(p, v) for p, v in paths_with_values if p not in paths_to_remove]
+                
+                if len(remaining_paths) == 1:
+                    # Only one path left after removing parents
+                    preferred_paths.add(remaining_paths[0][0])
+                elif len(remaining_paths) < len(paths_with_values):
+                    # We removed some parent paths, use remaining children
+                    for path, values in remaining_paths:
+                        preferred_paths.add(path)
+                else:
+                    # No parent-child relationships found
+                    # Check if paths share common prefix and have same values - prefer longer path
+                    # Sort by path length (longer = more specific), then by path itself for consistency
+                    paths_with_values.sort(key=lambda x: (-len(x[0]), x[0]))
+                    preferred_paths.add(paths_with_values[0][0])
+        
+        # Third pass: create fields only for preferred paths
+        for path in preferred_paths:
+            default_val, override_val = collected_fields[path]
+            self._create_numeric_field(path, default_val, override_val)
 
     def clear(self) -> None:
         while self._layout.count():

@@ -1677,10 +1677,9 @@ class GameSimulator:
         )
 
         if added_unrevivable > 0:
-            defender.unrevivable_troops = min(
-                defender.unit.initial_count,
-                defender.unrevivable_troops + added_unrevivable,
-            )
+            # Allow unrevivable_troops to accumulate without cap - it represents total casualties
+            # In rally mode, armies can receive reinforcements, so casualties can exceed initial count
+            defender.unrevivable_troops = defender.unrevivable_troops + added_unrevivable
             # Track unrevivable caused by opponent (attacker) to this defender
             opponent.unrevivable_caused_by_opponent[defender.name] = (
                 opponent.unrevivable_caused_by_opponent.get(defender.name, 0.0) + added_unrevivable
@@ -1904,7 +1903,11 @@ class GameSimulator:
                     self.army1.activate_queued_effects()
                     self._calculate_and_log_attack(self.army2, self.army1, is_counter=True)
 
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
+            # Only break early if max_rounds is not set
+            if max_rounds is None and not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+                break
+            if reached_max_rounds:
+                break
 
             if self.army2.current_troop_count > 0 and self.army1.current_troop_count > 0:
                 army2_disarmed = any(
@@ -1948,7 +1951,11 @@ class GameSimulator:
                     self.army2.activate_queued_effects()
                     self._calculate_and_log_attack(self.army1, self.army2, is_counter=True)
 
-            if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
+            # Only break early if max_rounds is not set
+            if max_rounds is None and not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
+                break
+            if reached_max_rounds:
+                break
 
             self.army1.commit_pending_healing_and_damage()
             self.army2.commit_pending_healing_and_damage()

@@ -543,7 +543,7 @@ class BattlefieldEngine:
     # ------------------------------------------------------------------
     # Clock / ticking
     # ------------------------------------------------------------------
-    def tick(self, dt: float) -> None:
+    def tick(self, dt: float, max_rounds: int | None = None) -> None:
         """Advance the global clock by ``dt`` seconds."""
         self.time_elapsed += dt
         self._round_accumulator += dt
@@ -556,7 +556,25 @@ class BattlefieldEngine:
             self._sub_accumulator -= 0.001
 
         # Commit a combat round once per second.
+        # Check max_rounds before committing to prevent exceeding the limit
         while self._round_accumulator >= 1.0:
+            if max_rounds is not None:
+                # Check if committing this round would exceed max_rounds
+                # int(time_elapsed) represents the round we're ABOUT to commit
+                # sim.round will be incremented inside _commit_rounds(), so we need to check
+                # if the NEXT round (after incrementing) would exceed max_rounds
+                elapsed_rounds = int(self.time_elapsed)
+                max_sim_round = max(
+                    (sim.round for sim in self._engagements.values()),
+                    default=0
+                )
+                # Check both: elapsed_rounds (round we're about to commit) and
+                # max_sim_round + 1 (next round after incrementing)
+                # If either would exceed max_rounds, don't commit
+                if elapsed_rounds >= max_rounds or (max_sim_round + 1) >= max_rounds:
+                    # Don't commit this round - we've reached max_rounds
+                    self._round_accumulator = 0.0  # Reset to prevent accumulation
+                    break
             self._commit_rounds()
             self._round_accumulator -= 1.0
 

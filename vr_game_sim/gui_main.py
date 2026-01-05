@@ -5067,16 +5067,32 @@ def _simulate_arena_battle(
     alive: set[str] = set()
     reached_max_rounds = False
     while tick_count < max_ticks:
-        engine.tick(0.016)
+        # Check if max_rounds has been reached BEFORE processing the tick
+        # The engine.tick() will also check internally, but we check here too
+        # to break the loop immediately
+        if max_rounds is not None:
+            # Check time_elapsed (rounds happen every 1 second)
+            elapsed_rounds = int(engine.time_elapsed)
+            # Also check maximum round from active engagements
+            max_sim_round = max(
+                (sim.round for sim in engine._engagements.values()),
+                default=0
+            )
+            # Use the maximum of elapsed time (in seconds/rounds) and actual sim rounds
+            max_round_seen = max(elapsed_rounds, max_sim_round)
+            if max_round_seen >= max_rounds:
+                reached_max_rounds = True
+                break
+        
+        # Pass max_rounds to engine.tick() so it can prevent committing rounds beyond the limit
+        engine.tick(0.016, max_rounds=max_rounds)
         tick_count += 1
         
         alive = {
             ctx.team for ctx in engine._armies.values() if ctx.army.current_troop_count > 0
         }
         
-        # Check if max_rounds has been reached
-        # The engine commits rounds every 1 second, so time_elapsed in seconds approximates rounds
-        # Also check sim.round from engagements for more accuracy
+        # Check again after tick to catch cases where we've reached max_rounds
         if max_rounds is not None:
             # Check time_elapsed (rounds happen every 1 second)
             elapsed_rounds = int(engine.time_elapsed)

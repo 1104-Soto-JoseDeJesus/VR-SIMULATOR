@@ -101,6 +101,24 @@ class GameSimulator:
         return isinstance(source_val, str) and source_val.lower() == "mount"
 
     def _cooldown_enabled_for_skill(self, skill_def: Dict[str, Any]) -> bool:
+        """Return whether cooldown logic should apply to ``skill_def``.
+
+        The check first consults any explicit per-skill overrides before
+        falling back to the category based switches (hero/plugin/gem/mount).
+        """
+        skill_id = skill_def.get("id")
+
+        # Per-skill overrides take precedence over category flags.  This allows
+        # fine grained control from the GUI/debug tools while keeping the
+        # original behaviour as the default when no override is present.
+        try:
+            overrides = getattr(self, "per_skill_cooldown_overrides", None)
+        except AttributeError:
+            overrides = None
+        if overrides and isinstance(skill_id, str):
+            if skill_id in overrides:
+                return bool(overrides[skill_id])
+
         skill_type = skill_def.get("type")
         if self._is_mount_skill(skill_def):
             return self.mount_cooldowns_enabled
@@ -164,6 +182,10 @@ class GameSimulator:
         self.mount_cooldowns_enabled: bool = (
             base_cooldown_state if mount_cooldowns_enabled is None else bool(mount_cooldowns_enabled)
         )
+        # Optional fine-grained overrides keyed by skill id.  When an entry is
+        # present it decides whether cooldowns are enabled for that specific
+        # skill, independent of the category flags above.
+        self.per_skill_cooldown_overrides: Dict[str, bool] = {}
         self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {

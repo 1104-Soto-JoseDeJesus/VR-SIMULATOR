@@ -118,6 +118,7 @@ class BattlefieldEngine:
         mount_cooldowns_enabled: bool | None = None,
         damage_reduction_affects_dots: bool = True,
         advantage_mode: str = "multiplicative",
+        per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
     ) -> None:
         # Registry of armies keyed by name.
         self._armies: Dict[str, _ArmyContext] = {}
@@ -169,6 +170,9 @@ class BattlefieldEngine:
             else bool(mount_cooldowns_enabled),
             "damage_reduction_affects_dots": bool(damage_reduction_affects_dots),
             "advantage_mode": advantage_mode,
+            "per_skill_cooldown_overrides": dict(per_skill_cooldown_overrides)
+            if per_skill_cooldown_overrides
+            else {},
         }
 
     def get_engaged_enemies(self, army_name: str) -> List[Army]:
@@ -189,6 +193,7 @@ class BattlefieldEngine:
         mount_cooldowns_enabled: Any = _UNSET,
         damage_reduction_affects_dots: Any = _UNSET,
         advantage_mode: Any = _UNSET,
+        per_skill_cooldown_overrides: Any = _UNSET,
     ) -> None:
         """Update the default settings passed to new :class:`GameSimulator` instances."""
 
@@ -216,6 +221,15 @@ class BattlefieldEngine:
             )
         if advantage_mode is not self._UNSET:
             self._simulator_kwargs["advantage_mode"] = advantage_mode
+        if per_skill_cooldown_overrides is not self._UNSET:
+            mapping: Dict[str, bool] = {}
+            if isinstance(per_skill_cooldown_overrides, dict):
+                for key, value in per_skill_cooldown_overrides.items():
+                    try:
+                        mapping[str(key)] = bool(value)
+                    except Exception:
+                        continue
+            self._simulator_kwargs["per_skill_cooldown_overrides"] = mapping
 
     # ------------------------------------------------------------------
     # Reset

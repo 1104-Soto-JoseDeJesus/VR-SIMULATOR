@@ -62,6 +62,7 @@ from vr_game_sim.navmesh import NavMesh
 from itertools import zip_longest
 
 from vr_game_sim.gui.arena_stats import ArenaStatsHeader, ArenaStatsRow
+from vr_game_sim.cooldown_persistence import load_cooldown_defaults, save_cooldown_defaults
 from vr_game_sim.skill_override_utils import diff_structures
 
 
@@ -5209,6 +5210,9 @@ class SimulationWorker(QtCore.QThread):
         self.mount_cooldowns_enabled: bool = bool(mount_cooldowns_enabled)
         self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
         self.advantage_mode: str = advantage_mode
+        # Optional per-skill cooldown overrides applied to the representative
+        # battle once the best match has been located.
+        self.per_skill_cooldown_overrides: dict[str, bool] = {}
 
     def cancel(self) -> None:
         """Request the simulation to stop."""
@@ -5238,6 +5242,7 @@ class SimulationWorker(QtCore.QThread):
                 mount_cooldowns_enabled=self.mount_cooldowns_enabled,
                 advantage_mode=self.advantage_mode,
                 max_rounds=self.max_rounds,
+                per_skill_cooldown_overrides=self.per_skill_cooldown_overrides,
             )
             self.win_rate = float(win_rate)
             self.best_match = dict(best_match) if isinstance(best_match, dict) else None
@@ -5283,6 +5288,7 @@ class SimulationWorker(QtCore.QThread):
                 mount_cooldowns_enabled=self.mount_cooldowns_enabled,
                 damage_reduction_affects_dots=self.damage_reduction_affects_dots,
                 advantage_mode=self.advantage_mode,
+                per_skill_cooldown_overrides=self.per_skill_cooldown_overrides,
             )
             report_text = sim.simulate_battle()
             rounds = report_builder.get_rounds()
@@ -5647,10 +5653,24 @@ class ArenaTab(QtWidgets.QWidget):
 
         # Prepare engine and tracking structures for armies placed in slots.
         self.report_builder = BattlefieldReportBuilder()
-        self.engine = ArenaEngine(report_builder=self.report_builder)
-        settings = self._get_debug_settings()
+        # Arena engine inherits simulator defaults, including cooldown toggles
+        # and any per-skill overrides configured via the main window.
+        parent_window = self.window()
+        base_settings = self._get_debug_settings()
+        per_skill_overrides: dict[str, bool] = {}
+        if parent_window is not None and hasattr(parent_window, "per_skill_cooldown_overrides"):
+            try:
+                per_skill_overrides = dict(
+                    getattr(parent_window, "per_skill_cooldown_overrides") or {}
+                )
+            except Exception:
+                per_skill_overrides = {}
+        engine_settings = {
+            k: v for k, v in base_settings.items() if k not in {"max_rounds"}
+        }
+        engine_settings["per_skill_cooldown_overrides"] = per_skill_overrides
+        self.engine = ArenaEngine(report_builder=self.report_builder, **engine_settings)
         # max_rounds is handled at arena battle level, not by the engine
-        engine_settings = {k: v for k, v in settings.items() if k != "max_rounds"}
         self.engine.set_simulator_options(**engine_settings)
         self.engine.add_state_listener(self._on_engine_state)
         self._icons: dict[str, ArmyIcon] = {}
@@ -6595,7 +6615,19 @@ class ArenaTab(QtWidgets.QWidget):
         self._save_last_layout()
         settings = self._get_debug_settings()
         # max_rounds is handled at arena battle level, not by the engine
-        engine_settings = {k: v for k, v in settings.items() if k != "max_rounds"}
+        parent_window = self.window()
+        per_skill_overrides: dict[str, bool] = {}
+        if parent_window is not None and hasattr(parent_window, "per_skill_cooldown_overrides"):
+            try:
+                per_skill_overrides = dict(
+                    getattr(parent_window, "per_skill_cooldown_overrides") or {}
+                )
+            except Exception:
+                per_skill_overrides = {}
+        engine_settings = {
+            k: v for k, v in settings.items() if k not in {"max_rounds"}
+        }
+        engine_settings["per_skill_cooldown_overrides"] = per_skill_overrides
         self.engine.set_simulator_options(**engine_settings)
         self.engine.reset(report_builder=self.report_builder)
         targeting_mode = self.targeting_combo.currentData()
@@ -6654,6 +6686,16 @@ class ArenaTab(QtWidgets.QWidget):
 
         layout_entries: list[dict[str, Any]] = []
         sim_settings = self._get_debug_settings()
+        parent_window = self.window()
+        if parent_window is not None and hasattr(parent_window, "per_skill_cooldown_overrides"):
+            try:
+                overrides = dict(
+                    getattr(parent_window, "per_skill_cooldown_overrides") or {}
+                )
+            except Exception:
+                overrides = {}
+            else:
+                sim_settings["per_skill_cooldown_overrides"] = overrides
         for (slot_team, idx), info in self._slot_army.items():
             if not info or not info.get("config"):
                 continue
@@ -7090,10 +7132,21 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("Battle Simulator")
         self.seed_target: SeedTarget | None = None
         self.seed_display: QtWidgets.QLabel | None = None
-        self.hero_cooldowns_enabled: bool = True
-        self.plugin_cooldowns_enabled: bool = False
-        self.gem_cooldowns_enabled: bool = True
-        self.mount_cooldowns_enabled: bool = True
+        # Load persisted cooldown defaults so debug settings are stable across
+        # sessions.  Category level flags are initialised from the stored
+        # configuration but continue to be tweakable via the Debug menu.
+        _cd_defaults = load_cooldown_defaults()
+        cat_defaults = _cd_defaults.get("categories", {})
+        self.hero_cooldowns_enabled: bool = bool(cat_defaults.get("hero", True))
+        self.plugin_cooldowns_enabled: bool = bool(cat_defaults.get("plugin", False))
+        self.gem_cooldowns_enabled: bool = bool(cat_defaults.get("gem", True))
+        self.mount_cooldowns_enabled: bool = bool(cat_defaults.get("mount", True))
+        # Per-skill overrides shared between 1v1 and arena simulations.  This
+        # mapping is persisted via the cooldown defaults file and interpreted by
+        # :class:`GameSimulator` using ``per_skill_cooldown_overrides``.
+        self.per_skill_cooldown_overrides: dict[str, bool] = dict(
+            _cd_defaults.get("skills") or {}
+        )
         self.damage_reduction_affects_dots: bool = True
         self.troop_advantage_mode: str = "multiplicative"
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
@@ -7151,6 +7204,119 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _set_troop_advantage_mode(self, mode: str) -> None:
         self.troop_advantage_mode = mode
+
+    # ------------------------------------------------------------------
+    # Cooldown configuration helpers
+    # ------------------------------------------------------------------
+
+    def _build_cooldown_defaults_payload(self) -> dict[str, Any]:
+        """Serialise current cooldown settings into the persistence schema."""
+        return {
+            "global": {"cooldowns_enabled": bool(self.hero_cooldowns_enabled)},
+            "categories": {
+                "hero": bool(self.hero_cooldowns_enabled),
+                "plugin": bool(self.plugin_cooldowns_enabled),
+                "gem": bool(self.gem_cooldowns_enabled),
+                "mount": bool(self.mount_cooldowns_enabled),
+            },
+            "skills": dict(self.per_skill_cooldown_overrides),
+        }
+
+    def _save_cooldown_defaults(self) -> None:
+        """Persist the current cooldown configuration to disk."""
+        payload = self._build_cooldown_defaults_payload()
+        save_cooldown_defaults(payload)
+
+    def _open_cooldown_config_dialog(self) -> None:
+        """Open a simple dialog for configuring per-skill cooldown flags.
+
+        The current implementation focuses on exposing a high level summary of
+        hero, plugin, gem and mount skills grouped by category with a
+        per‑skill checkbox that controls whether cooldowns should apply.  The
+        dialog deliberately keeps the layout compact so it can evolve without
+        impacting the main window structure.
+        """
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Configure Cooldowns")
+        vbox = QtWidgets.QVBoxLayout(dialog)
+
+        info_lbl = QtWidgets.QLabel(
+            "Toggle whether individual skills and talents should respect their cooldowns.\n"
+            "These settings apply to both 1v1 and arena simulations."
+        )
+        info_lbl.setWordWrap(True)
+        vbox.addWidget(info_lbl)
+
+        tabs = QtWidgets.QTabWidget()
+        vbox.addWidget(tabs)
+
+        # Helper to add a category tab populated from the global registry.
+        def _add_category_tab(title: str, predicate: callable) -> None:
+            widget = QtWidgets.QWidget()
+            layout = QtWidgets.QVBoxLayout(widget)
+            scroll = QtWidgets.QScrollArea()
+            scroll.setWidgetResizable(True)
+            inner = QtWidgets.QWidget()
+            inner_layout = QtWidgets.QFormLayout(inner)
+
+            for sid, skill_def in SKILL_REGISTRY_GLOBAL.items():
+                if not predicate(skill_def):
+                    continue
+                name = skill_def.get("name") or sid
+                checkbox = QtWidgets.QCheckBox(name)
+                checkbox.setChecked(self.per_skill_cooldown_overrides.get(sid, True))
+
+                def _make_slot(skill_id: str) -> callable:
+                    def _on_toggled(checked: bool) -> None:
+                        self.per_skill_cooldown_overrides[skill_id] = bool(checked)
+
+                    return _on_toggled
+
+                checkbox.toggled.connect(_make_slot(sid))
+                inner_layout.addRow(checkbox)
+
+            inner.setLayout(inner_layout)
+            scroll.setWidget(inner)
+            layout.addWidget(scroll)
+            tabs.addTab(widget, title)
+
+        from vr_game_sim.enums import SkillType, PluginSkillLabel  # local import to avoid cycles
+
+        _add_category_tab(
+            "Hero Skills/Talents",
+            lambda sd: sd.get("type") in (SkillType.BASE_SKILL, SkillType.TALENT),
+        )
+        _add_category_tab(
+            "Plugin Skills",
+            lambda sd: sd.get("type") == SkillType.PLUGIN_SKILL
+            or any(isinstance(l, PluginSkillLabel) for l in sd.get("labels", [])),
+        )
+        _add_category_tab(
+            "Gem/Jewel Skills",
+            lambda sd: sd.get("type") == SkillType.GEM_SKILL,
+        )
+        _add_category_tab(
+            "Mount Skills",
+            lambda sd: str(sd.get("type", "")).upper().endswith("MOUNT_SKILL")
+            or (str(sd.get("source") or sd.get("origin", "")).lower() == "mount"),
+        )
+
+        btn_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Save
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+
+        def _on_accepted() -> None:
+            # Persist new defaults and close.
+            self._save_cooldown_defaults()
+            dialog.accept()
+
+        btn_box.accepted.connect(_on_accepted)
+        btn_box.rejected.connect(dialog.reject)
+        vbox.addWidget(btn_box)
+        dialog.setLayout(vbox)
+        dialog.resize(600, 400)
+        dialog.exec()
 
     def _open_gear_dialog(self, frame: ArmyFrame) -> None:
         hero_names = [frame.hero1_combo.currentText(), frame.hero2_combo.currentText()]
@@ -7233,6 +7399,9 @@ class MainWindow(QtWidgets.QMainWindow):
         mount_cooldowns_action.setCheckable(True)
         mount_cooldowns_action.setChecked(self.mount_cooldowns_enabled)
         mount_cooldowns_action.toggled.connect(self._on_mount_cooldowns_toggled)
+        cooldowns_menu.addSeparator()
+        configure_cooldowns_action = cooldowns_menu.addAction("Configure per-skill cooldowns…")
+        configure_cooldowns_action.triggered.connect(self._open_cooldown_config_dialog)
         dbg_menu.addSection("Troop advantage")
         advantage_group = QtGui.QActionGroup(self)
         advantage_group.setExclusive(True)
@@ -13014,6 +13183,9 @@ class MainWindow(QtWidgets.QMainWindow):
             advantage_mode=self.troop_advantage_mode,
             max_rounds=max_rounds,
         )
+        # Share any configured per-skill overrides with the worker so both the
+        # batch simulations and the representative battle honour them.
+        self.worker.per_skill_cooldown_overrides = dict(self.per_skill_cooldown_overrides)
         self.worker.progress_update.connect(
             lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
         )

@@ -271,3 +271,37 @@ def test_chance_per_round_ignores_cooldown_modifiers(skill_registry_guard):
         sim._process_skill_triggers(army1, army2, SkillTriggerType.CHANCE_PER_ROUND)
 
     assert log == [("mount", 6), ("mount", 12)]
+
+
+def test_per_skill_override_can_disable_hero_cooldown(skill_registry_guard) -> None:
+    log: list[tuple[str, int]] = []
+    hero_skill = {
+        "id": "hero_cd_override_skill",
+        "name": "Hero Cooldown Override",
+        "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK,
+        "trigger_chance": 1.0,
+        "config": {"cooldown_rounds": 3},
+        "logic_handler": _logic_factory(log, "hero"),
+    }
+    _register_skill(hero_skill, skill_registry_guard)
+
+    army1 = _build_army_with_hero([hero_skill["id"]])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(
+        army1,
+        army2,
+        hero_cooldowns_enabled=True,
+        per_skill_cooldown_overrides={"hero_cd_override_skill": False},
+    )
+
+    for round_no in (1, 2):
+        army1.army_round = round_no
+        sim.round = round_no
+        _reset_round_state(army1)
+        sim._process_skill_triggers(army1, army2, SkillTriggerType.ON_BASIC_ATTACK)
+
+    # Without the override the hero skill would only appear once due to its
+    # cooldown.  The override disables the cooldown so it can trigger again.
+    assert log.count(("hero", 1)) == 1
+    assert log.count(("hero", 2)) == 1

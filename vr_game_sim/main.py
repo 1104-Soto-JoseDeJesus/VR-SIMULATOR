@@ -288,6 +288,7 @@ def _run_single_battle(
     gem_cooldowns_enabled: Optional[bool] = None,
     mount_cooldowns_enabled: Optional[bool] = None,
     max_rounds: int | None = None,
+    per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
 ) -> tuple:
     """Helper to run a single battle.
 
@@ -345,6 +346,7 @@ def _run_single_battle(
         gem_cooldowns_enabled=gem_cd,
         mount_cooldowns_enabled=mount_cd,
         advantage_mode=advantage_mode,
+        per_skill_cooldown_overrides=per_skill_cooldown_overrides,
     )
     with contextlib.redirect_stdout(io.StringIO()):
         sim.simulate_battle(max_rounds=max_rounds)
@@ -380,6 +382,7 @@ def _run_single_battle_with_multiplier(
     gem_cooldowns_enabled: Optional[bool] = None,
     mount_cooldowns_enabled: Optional[bool] = None,
     max_rounds: int | None = None,
+    per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
 ) -> tuple:
     return _run_single_battle(
         setup_data,
@@ -393,6 +396,7 @@ def _run_single_battle_with_multiplier(
         gem_cooldowns_enabled=gem_cooldowns_enabled,
         mount_cooldowns_enabled=mount_cooldowns_enabled,
         max_rounds=max_rounds,
+        per_skill_cooldown_overrides=per_skill_cooldown_overrides,
     )
 
 
@@ -412,6 +416,7 @@ def run_additional_simulations(
     mount_cooldowns_enabled: Optional[bool] = None,
     advantage_mode: str = "multiplicative",
     max_rounds: int | None = None,
+    per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
 ) -> tuple[float, Optional[Dict[str, Any]]]:
     """Runs extra simulations and computes summary statistics.
 

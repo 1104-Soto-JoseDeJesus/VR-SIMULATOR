@@ -936,6 +936,7 @@ class BattlefieldEngine:
             army.triggered_skills_this_round.clear()
             army.skill_trigger_counts_this_round.clear()
             army.skill_triggers_against_this_round.clear()
+            army.maniacal_hot_triggered_this_round = False
             army.healing_hymn_triggered_this_round = False
             army.pending_hp_damage_this_round = 0.0
             army.pending_hp_healing_this_round = 0.0

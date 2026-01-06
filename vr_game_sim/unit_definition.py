@@ -61,8 +61,9 @@ class Unit:
                               effective_multiplier_stat_type: Optional[StatType],
                               army_effects: List[EffectInstance]) -> float:
         mod_base_multiplier = current_initial_multiplier
+        mod_effect_types = {EffectType.STAT_MOD, EffectType.DEBUFF}
         for effect in army_effects:
-            if effect.effect_type == EffectType.STAT_MOD and \
+            if effect.effect_type in mod_effect_types and \
                effect.config.get('stat_to_mod') == base_multiplier_stat_type:
                 unit_condition = effect.config.get("unit_type_condition")
                 if not unit_condition or self.unit_type == unit_condition:
@@ -72,7 +73,7 @@ class Unit:
 
         final_effective_multiplier = 1.0
         for effect in army_effects:
-            if effect.effect_type == EffectType.STAT_MOD and \
+            if effect.effect_type in mod_effect_types and \
                effect.config.get('stat_to_mod') == effective_multiplier_stat_type:
                 final_effective_multiplier *= (1 + effect.magnitude)
 

@@ -845,17 +845,70 @@ def handle_base_skill_flurry(
         buff_copy = buff_details.copy()
         if "name" not in buff_copy:
             buff_copy["name"] = EFFECT_NAME_FLURRY_REACTIVE_BOOST
-        created_buff = triggering_army._create_and_add_single_effect(
-            buff_copy, skill_id, triggering_army, triggering_army, opponent_army
-        )
-        if created_buff:
+        effect_name = buff_copy["name"]
+        existing_buff: Optional[EffectInstance] = None
+        existing_location: Optional[str] = None
+
+        for eff in triggering_army.active_effects:
+            if eff.name == effect_name and eff.source_skill_id == skill_id:
+                existing_buff = eff
+                existing_location = "active"
+                break
+
+        if existing_buff is None:
+            for eff in triggering_army.upcoming_effects:
+                if eff.name == effect_name and eff.source_skill_id == skill_id:
+                    existing_buff = eff
+                    existing_location = "upcoming"
+                    break
+
+        if existing_buff is None:
+            for eff in triggering_army.effects_to_activate_next_round:
+                if eff.name == effect_name and eff.source_skill_id == skill_id:
+                    existing_buff = eff
+                    existing_location = "queued_next_round"
+                    break
+
+        if existing_buff:
+            refreshed_duration = max(existing_buff.duration, buff_copy.get("duration", existing_buff.duration))
+            existing_buff.duration = refreshed_duration
+            if "magnitude" in buff_copy:
+                existing_buff.magnitude = buff_copy["magnitude"]
             an_effect_happened = True
-            log_details.append(
-                (
-                    f"Gains Reactive Skill Damage Boost: {created_buff.get_functionality_description()} for {created_buff.duration + 1} round(s) (starting next round).",
-                    None,
+
+            if existing_location == "queued_next_round":
+                log_details.append(
+                    (
+                        f"Refreshes Reactive Skill Damage Boost queued for next round: {existing_buff.get_functionality_description()} for {existing_buff.duration + 1} round(s).",
+                        None,
+                    )
                 )
+            elif existing_location == "upcoming":
+                log_details.append(
+                    (
+                        f"Refreshes Reactive Skill Damage Boost before activation: {existing_buff.get_functionality_description()} for {existing_buff.duration + 1} round(s).",
+                        None,
+                    )
+                )
+            else:
+                log_details.append(
+                    (
+                        f"Refreshes Reactive Skill Damage Boost: {existing_buff.get_functionality_description()} for {existing_buff.duration + 1} round(s).",
+                        None,
+                    )
+                )
+        else:
+            created_buff = triggering_army._create_and_add_single_effect(
+                buff_copy, skill_id, triggering_army, triggering_army, opponent_army
             )
+            if created_buff:
+                an_effect_happened = True
+                log_details.append(
+                    (
+                        f"Gains Reactive Skill Damage Boost: {created_buff.get_functionality_description()} for {created_buff.duration + 1} round(s) (starting next round).",
+                        None,
+                    )
+                )
 
     return an_effect_happened, log_details
 

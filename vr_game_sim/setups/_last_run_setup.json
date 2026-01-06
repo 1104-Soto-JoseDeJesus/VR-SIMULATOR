@@ -1,111 +1,99 @@
 [
     {
-        "army_name": "Rosky/Helgar",
-        "unit_type": "pikemen",
+        "army_name": "Hobert/Gregory",
+        "unit_type": "infantry",
         "tier": 7,
-        "count": 150000,
+        "count": 250000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.91,
-        "def_mod": 2.64,
-        "hp_mod": 0.96,
+        "atk_mod": 2.65,
+        "def_mod": 2.65,
+        "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Rosky",
+                "hero_name_or_preset": "Hobert",
                 "talent_ids": [
-                    "talent_blade_wielder",
-                    "talent_maniacal",
-                    "talent_pirate_tricks"
+                    "talent_bold_shieldaxe",
+                    "talent_fearless_pursuit",
+                    "talent_steadfast_armor"
                 ],
                 "base_skill_ids": [
-                    "base_skill_flurry",
-                    "rage_skill_spirit_battleship"
+                    "base_skill_berserk_fury",
+                    "base_skill_brutal_blow"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_divine_shield",
-                    "plugin_divine_blessing"
+                    "plugin_enrage",
+                    "plugin_silencer"
                 ],
-                "mount_skill_ids": [],
-                "plugin_star_counts": [
-                    5,
-                    6
-                ]
+                "mount_skill_ids": []
             },
             {
-                "hero_name_or_preset": "Helgar",
+                "hero_name_or_preset": "Gregory",
                 "talent_ids": [
-                    "talent_saintly_guardian",
-                    "talent_war_blessing",
-                    "talent_judgement_mark"
+                    "talent_great_morale",
+                    "talent_missing_beat",
+                    "talent_excite"
                 ],
                 "base_skill_ids": [
-                    "base_skill_judgements_fury",
-                    "rage_skill_ruling_trial"
+                    "base_skill_drumming_disturbance",
+                    "base_skill_inspiring_dance"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_hymn_of_life",
-                    "plugin_deadly_counterattack"
+                    "plugin_blessed_negation",
+                    "plugin_trap_of_despair"
                 ],
                 "mount_skill_ids": []
             }
         ]
     },
     {
-        "army_name": "Rosky/Laird",
-        "unit_type": "pikemen",
-        "tier": 6,
-        "count": 200000,
+        "army_name": "Hobert/Gregory (2)",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 250000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 3.0585,
-        "def_mod": 2.6971,
-        "hp_mod": 1.0181,
+        "atk_mod": 2.65,
+        "def_mod": 2.65,
+        "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Rosky",
+                "hero_name_or_preset": "Hobert",
                 "talent_ids": [
-                    "talent_blade_wielder",
-                    "talent_maniacal",
-                    "talent_pirate_tricks"
+                    "talent_bold_shieldaxe",
+                    "talent_fearless_pursuit",
+                    "talent_steadfast_armor"
                 ],
                 "base_skill_ids": [
-                    "base_skill_flurry",
-                    "rage_skill_spirit_battleship"
+                    "base_skill_berserk_fury",
+                    "base_skill_brutal_blow"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_hymn_of_life",
-                    "plugin_divine_shield"
+                    "plugin_enrage",
+                    "plugin_breaking_free"
                 ],
-                "mount_skill_ids": [],
-                "gear_ids": {
-                    "head": "gear_abyssal_crown_epic",
-                    "chest": "gear_bylgjas_armor_epic",
-                    "boots": "gear_tsunami_plated_boots_epic"
-                }
+                "mount_skill_ids": []
             },
             {
-                "hero_name_or_preset": "Laird",
+                "hero_name_or_preset": "Gregory",
                 "talent_ids": [
-                    "talent_holy_shield",
-                    "talent_sacred_counter",
-                    "talent_divine_resistance"
+                    "talent_great_morale",
+                    "talent_missing_beat",
+                    "talent_excite"
                 ],
                 "base_skill_ids": [
-                    "base_skill_flame_guardian",
-                    "base_skill_sacred_blade"
+                    "base_skill_drumming_disturbance",
+                    "base_skill_inspiring_dance"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_divine_blessing",
-                    "plugin_shield_reflector"
+                    "plugin_blessed_negation",
+                    "plugin_trap_of_despair"
                 ],
-                "mount_skill_ids": [],
-                "gear_ids": {
-                    "boots": "gear_tsunami_plated_boots_epic"
-                }
+                "mount_skill_ids": []
             }
         ]
     }

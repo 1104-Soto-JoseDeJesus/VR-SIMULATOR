@@ -80,7 +80,7 @@
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
-  <component name="RunManager" selected="Python.gui_main">
+  <component name="RunManager" selected="Python.gui_main_v2">
     <configuration name="gui_main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="VR-SIMULATOR" />
       <option name="ENV_FILES" value="" />
@@ -97,6 +97,29 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="gui_main" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="true" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="gui_main_v2" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="VR-SIMULATOR" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="SDK_NAME" value="Python 3.12 (VR-SIMULATOR)" />
+      <option name="WORKING_DIRECTORY" value="C:\Users\josee\PycharmProjects\VR-SIMULATOR\vr_game_sim" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="gui_main_v2" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -131,6 +154,7 @@
     </configuration>
     <list>
       <item itemvalue="Python.gui_main" />
+      <item itemvalue="Python.gui_main_v2" />
       <item itemvalue="Python.main" />
     </list>
   </component>

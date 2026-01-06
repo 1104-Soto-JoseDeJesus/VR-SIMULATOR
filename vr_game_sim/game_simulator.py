@@ -159,6 +159,7 @@ class GameSimulator:
         mount_cooldowns_enabled: bool | None = None,
         damage_reduction_affects_dots: bool = True,
         advantage_mode: str = "multiplicative",
+        per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
     ):
         self.army1: Army = army1
         self.army2: Army = army2
@@ -185,7 +186,9 @@ class GameSimulator:
         # Optional fine-grained overrides keyed by skill id.  When an entry is
         # present it decides whether cooldowns are enabled for that specific
         # skill, independent of the category flags above.
-        self.per_skill_cooldown_overrides: Dict[str, bool] = {}
+        self.per_skill_cooldown_overrides: Dict[str, bool] = (
+            dict(per_skill_cooldown_overrides) if per_skill_cooldown_overrides is not None else {}
+        )
         self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {

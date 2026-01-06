@@ -3712,6 +3712,8 @@ def handle_talent_maniacal(
     heal_duration = cfg.get("heal_duration", 1)
     if heal_factor <= 0:
         return False, []
+    if getattr(triggering_army, "maniacal_hot_triggered_this_round", False):
+        return False, []
     hot_data = {
         "effect_type": EffectType.HEAL_OVER_TIME,
         "name": EFFECT_NAME_MANIACAL_HOT,
@@ -3723,6 +3725,7 @@ def handle_talent_maniacal(
         hot_data, skill_def["id"], triggering_army, triggering_army, opponent_army
     )
     if created:
+        triggering_army.maniacal_hot_triggered_this_round = True
         return True, [(
             f"Applies {created.get_functionality_description()} for next {heal_duration + 1} round(s).",
             None,

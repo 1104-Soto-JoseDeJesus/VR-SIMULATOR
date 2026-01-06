@@ -1813,6 +1813,7 @@ class GameSimulator:
                 army.skill_triggers_against_this_round.clear()
                 army.mount_skill_damage_triggers_this_round.clear()
                 army.mount_skill_non_damage_applied_this_round.clear()
+                army.maniacal_hot_triggered_this_round = False
                 army.healing_hymn_triggered_this_round = False
                 army.base_rage_awarded_this_round = False
 

@@ -3,9 +3,11 @@ import random
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.battlefield_engine import BattlefieldEngine
 from vr_game_sim.army_composition import Army
+from vr_game_sim.constants import EFFECT_NAME_MANIACAL_HOT
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.hero_definition import Hero
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
+from vr_game_sim.skill_logic.talent_handlers import handle_talent_maniacal
 
 
 def _start_round(sim: GameSimulator) -> None:
@@ -24,6 +26,7 @@ def _start_round(sim: GameSimulator) -> None:
         army.triggered_skills_this_round.clear()
         army.skill_trigger_counts_this_round.clear()
         army.skill_triggers_against_this_round.clear()
+        army.maniacal_hot_triggered_this_round = False
         army.healing_hymn_triggered_this_round = False
         army.base_rage_awarded_this_round = False
 
@@ -72,3 +75,34 @@ def test_healing_hymn_resets_each_round_battlefield_engine(monkeypatch):
     assert not army.healing_hymn_triggered_this_round
     army.calculate_and_add_pending_healing(1000.0, army, enemy)
     assert army.healing_hymn_triggered_this_round
+
+
+def test_maniacal_applies_one_hot_per_round(monkeypatch):
+    monkeypatch.setattr(random, "random", lambda: 0.0)
+    hero = Hero("H", [], [], ["talent_maniacal"], SKILL_REGISTRY_GLOBAL)
+    army = Army("A", Unit("pikemen", 5, initial_count=10), heroes=[hero])
+    enemy = Army("E", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy, track_stats=False)
+
+    _start_round(sim)
+    skill_def = SKILL_REGISTRY_GLOBAL["talent_maniacal"]
+
+    happened_first, logs_first = handle_talent_maniacal(army, enemy, skill_def, None, sim)
+    happened_second, logs_second = handle_talent_maniacal(army, enemy, skill_def, None, sim)
+
+    hot_queue = [eff for eff in army.effects_to_activate_next_round if eff.name == EFFECT_NAME_MANIACAL_HOT]
+
+    assert happened_first
+    assert logs_first
+    assert not happened_second
+    assert not logs_second
+    assert len(hot_queue) == 1
+
+    _start_round(sim)
+    army.effects_to_activate_next_round.clear()
+
+    happened_third, _ = handle_talent_maniacal(army, enemy, skill_def, None, sim)
+    new_hot_queue = [eff for eff in army.effects_to_activate_next_round if eff.name == EFFECT_NAME_MANIACAL_HOT]
+
+    assert happened_third
+    assert len(new_hot_queue) == 1

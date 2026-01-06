@@ -1231,7 +1231,7 @@ def handle_rage_spirit_battleship(
     def_red_dur = cfg.get("def_reduction_duration", 3)
     if def_red_mag != 0:
         debuff_data = {
-            "effect_type": EffectType.STAT_MOD,
+            "effect_type": EffectType.DEBUFF,
             "name": EFFECT_NAME_SPIRIT_BATTLESHIP_DEF_REDUCTION,
             "stat_to_mod": StatType.BASE_DEFENSE_MULTIPLIER,
             "magnitude": def_red_mag,

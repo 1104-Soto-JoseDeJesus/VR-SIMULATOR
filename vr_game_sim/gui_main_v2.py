@@ -39,6 +39,32 @@ def _load_window_icon() -> QtGui.QIcon:
         return QtGui.QIcon(str(local_icon))
 
 
+def _resolve_background_image() -> str:
+    """Return a filesystem path to the GUI v2 background image.
+
+    Falls back to a local path if importlib resources cannot locate the asset.
+    """
+
+    packaged_background = resources.files("vr_game_sim").joinpath(
+        "Icons/GUI_2_BACKGROUND.png"
+    )
+    local_background = Path(__file__).with_name("Icons") / "GUI_2_BACKGROUND.png"
+
+    try:
+        with resources.as_file(packaged_background) as background_path:
+            resolved_path = background_path if background_path.exists() else local_background
+            if not resolved_path.exists():
+                raise FileNotFoundError
+            return resolved_path.as_posix()
+    except FileNotFoundError:
+        if not local_background.exists():
+            raise FileNotFoundError(
+                "Expected GUI v2 background image missing. Ensure it is included with the package. "
+                f"Checked {packaged_background} and {local_background}."
+            )
+        return local_background.as_posix()
+
+
 def _ensure_windows_app_id() -> None:
     """Set a stable AppUserModelID so Windows picks up the custom taskbar icon."""
 
@@ -67,10 +93,24 @@ class PlaceholderWindow(QtWidgets.QMainWindow):
         if window_icon:
             self.setWindowIcon(window_icon)
 
+        scroll_area = QtWidgets.QScrollArea(self)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+
+        background_path = _resolve_background_image()
+        scroll_area.viewport().setStyleSheet(
+            "QWidget {"
+            f"    background-image: url({background_path});"
+            "    background-repeat: repeat;"
+            "}"
+        )
+
         placeholder = QtWidgets.QWidget(self)
+        placeholder.setMinimumHeight(1200)
+
         layout = QtWidgets.QVBoxLayout(placeholder)
         layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(16)
+        layout.setSpacing(24)
 
         heading = QtWidgets.QLabel("New GUI - Work in Progress", placeholder)
         heading.setObjectName("placeholderHeading")
@@ -85,12 +125,25 @@ class PlaceholderWindow(QtWidgets.QMainWindow):
         instructions.setWordWrap(True)
         instructions.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
 
+        description = QtWidgets.QLabel(
+            "Use this space to prototype layout ideas, widgets, and navigation for "
+            "the second-generation interface. The scrollable canvas repeats its "
+            "background so you can explore longer flows without running into "
+            "empty space.",
+            placeholder,
+        )
+        description.setWordWrap(True)
+        description.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
+
         layout.addStretch(1)
         layout.addWidget(heading)
         layout.addWidget(instructions)
+        layout.addWidget(description)
+        layout.addSpacing(600)
         layout.addStretch(1)
 
-        self.setCentralWidget(placeholder)
+        scroll_area.setWidget(placeholder)
+        self.setCentralWidget(scroll_area)
 
 
 def main() -> int:

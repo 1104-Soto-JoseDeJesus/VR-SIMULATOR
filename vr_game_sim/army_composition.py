@@ -973,6 +973,8 @@ class Army:
             if effect_data.get("shield_factor") and "shield_factor" not in final_config:
                 final_config["shield_factor"] = effect_data["shield_factor"]
 
+            activate_next_round_flag = True
+
         elif "magnitude_calc" in effect_data:
             try:
                 magnitude = float(eval(effect_data["magnitude_calc"], {

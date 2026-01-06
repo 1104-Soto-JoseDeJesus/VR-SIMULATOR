@@ -79,6 +79,52 @@ def _ensure_windows_app_id() -> None:
         pass
 
 
+class NavigationButton(QtWidgets.QPushButton):
+    """Rounded navigation button with a subtle glow when selected."""
+
+    def __init__(self, text: str, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.setStyleSheet(
+            """
+            QPushButton {
+                background-color: rgba(30, 35, 45, 200);
+                border: 1px solid rgba(90, 110, 140, 120);
+                color: #e0e0e0;
+                border-radius: 12px;
+                padding: 10px 18px;
+                font-weight: 600;
+                letter-spacing: 0.4px;
+            }
+            QPushButton:hover {
+                border-color: rgba(88, 168, 255, 180);
+                background-color: rgba(36, 43, 56, 220);
+            }
+            QPushButton:checked {
+                background-color: rgba(40, 90, 140, 200);
+                border: 1px solid #42a5f5;
+                color: #ffffff;
+            }
+            QPushButton:pressed {
+                background-color: rgba(32, 70, 110, 200);
+            }
+            """
+        )
+
+        self._glow = QtWidgets.QGraphicsDropShadowEffect(self)
+        self._glow.setBlurRadius(22)
+        self._glow.setOffset(0, 0)
+        self._glow.setColor(QtGui.QColor(66, 165, 245, 160))
+
+        self.toggled.connect(self.refresh_glow)
+        self.refresh_glow(self.isChecked())
+
+    def refresh_glow(self, checked: Optional[bool] = None) -> None:
+        active = self.isChecked() if checked is None else checked
+        self.setGraphicsEffect(self._glow if active else None)
+
+
 class PlaceholderWindow(QtWidgets.QMainWindow):
     """Minimal window used as a starting point for the new GUI."""
 
@@ -112,6 +158,31 @@ class PlaceholderWindow(QtWidgets.QMainWindow):
         layout.setContentsMargins(32, 32, 32, 32)
         layout.setSpacing(24)
 
+        navigation_bar = QtWidgets.QFrame(placeholder)
+        navigation_bar.setObjectName("navigationBar")
+        nav_layout = QtWidgets.QHBoxLayout(navigation_bar)
+        nav_layout.setContentsMargins(0, 0, 0, 0)
+        nav_layout.setSpacing(12)
+
+        self._button_group = QtWidgets.QButtonGroup(self)
+        self._button_group.setExclusive(True)
+
+        self._nav_buttons = []
+
+        for label in ("Overview", "Army Mode", "Duel Mode", "Reports"):
+            button = NavigationButton(label, navigation_bar)
+            self._button_group.addButton(button)
+            nav_layout.addWidget(button)
+            self._nav_buttons.append(button)
+
+        duel_button = next(
+            (btn for btn in self._nav_buttons if btn.text() == "Duel Mode"), None
+        )
+        if duel_button:
+            duel_button.setChecked(True)
+
+        self._button_group.buttonClicked.connect(self._handle_nav_selected)
+
         heading = QtWidgets.QLabel("New GUI - Work in Progress", placeholder)
         heading.setObjectName("placeholderHeading")
         heading.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
@@ -135,6 +206,7 @@ class PlaceholderWindow(QtWidgets.QMainWindow):
         description.setWordWrap(True)
         description.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
 
+        layout.addWidget(navigation_bar)
         layout.addStretch(1)
         layout.addWidget(heading)
         layout.addWidget(instructions)
@@ -144,6 +216,10 @@ class PlaceholderWindow(QtWidgets.QMainWindow):
 
         scroll_area.setWidget(placeholder)
         self.setCentralWidget(scroll_area)
+
+    def _handle_nav_selected(self, _: QtWidgets.QAbstractButton) -> None:
+        for button in self._nav_buttons:
+            button.refresh_glow()
 
 
 def main() -> int:

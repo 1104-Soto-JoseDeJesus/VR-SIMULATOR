@@ -29,14 +29,21 @@ def _load_window_icon() -> QtGui.QIcon:
             resolved_path = icon_path if icon_path.exists() else local_icon
             if not resolved_path.exists():
                 raise FileNotFoundError
-            return QtGui.QIcon(str(resolved_path))
+            icon = QtGui.QIcon(str(resolved_path))
     except FileNotFoundError:
         if not local_icon.exists():
             raise FileNotFoundError(
                 "Expected application icon missing. Ensure it is included with the package. "
                 f"Checked {packaged_icon} and {local_icon}."
             )
-        return QtGui.QIcon(str(local_icon))
+        icon = QtGui.QIcon(str(local_icon))
+
+    if icon.isNull():
+        raise FileNotFoundError(
+            "Application icon failed to load. Confirm Viking_Rise_Simulator_Icon.png is accessible."
+        )
+
+    return icon
 
 
 def _resolve_background_image() -> str:
@@ -79,6 +86,113 @@ def _ensure_windows_app_id() -> None:
         pass
 
 
+class NavigationButton(QtWidgets.QPushButton):
+    """Rounded navigation button with a subtle glow when selected."""
+
+    def __init__(self, text: str, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.setStyleSheet(
+            """
+            QPushButton {
+                background-color: rgba(30, 35, 45, 200);
+                border: 1px solid rgba(90, 110, 140, 120);
+                color: #e0e0e0;
+                border-radius: 12px;
+                padding: 10px 18px;
+                font-weight: 600;
+                letter-spacing: 0.4px;
+            }
+            QPushButton:hover {
+                border-color: rgba(88, 168, 255, 180);
+                background-color: rgba(36, 43, 56, 220);
+            }
+            QPushButton:checked {
+                background-color: rgba(40, 90, 140, 200);
+                border: 1px solid #42a5f5;
+                color: #ffffff;
+            }
+            QPushButton:pressed {
+                background-color: rgba(32, 70, 110, 200);
+            }
+            """
+        )
+
+        self._glow = QtWidgets.QGraphicsDropShadowEffect(self)
+        self._glow.setBlurRadius(22)
+        self._glow.setOffset(0, 0)
+        self._glow.setColor(QtGui.QColor(66, 165, 245, 160))
+        self.setGraphicsEffect(self._glow)
+
+        self.toggled.connect(self.refresh_glow)
+        self.refresh_glow(self.isChecked())
+
+    def refresh_glow(self, checked: Optional[bool] = None) -> None:
+        active = self.isChecked() if checked is None else checked
+        self._glow.setEnabled(active)
+        glow_color = QtGui.QColor(66, 165, 245, 160 if active else 0)
+        self._glow.setColor(glow_color)
+
+
+class NavigationOptionButton(QtWidgets.QPushButton):
+    """Secondary navigation option aligned with the dark theme."""
+
+    def __init__(self, text: str, parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(text, parent)
+        self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
+        self.setStyleSheet(
+            """
+            QPushButton {
+                background-color: rgba(25, 30, 40, 200);
+                border: 1px solid rgba(70, 90, 120, 120);
+                color: #d5d8df;
+                border-radius: 10px;
+                padding: 8px 14px;
+                text-align: left;
+            }
+            QPushButton:hover {
+                background-color: rgba(36, 43, 56, 220);
+                border-color: rgba(88, 168, 255, 180);
+            }
+            QPushButton:pressed {
+                background-color: rgba(32, 70, 110, 200);
+            }
+            """
+        )
+
+
+class CollapsibleNavSection(QtWidgets.QWidget):
+    """Container with a main navigation button and collapsible options."""
+
+    def __init__(self, title: str, options: list[str], parent: Optional[QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent)
+
+        self.header_button = NavigationButton(title, self)
+        self.header_button.setChecked(False)
+
+        self._content = QtWidgets.QWidget(self)
+        content_layout = QtWidgets.QVBoxLayout(self._content)
+        content_layout.setContentsMargins(12, 4, 4, 12)
+        content_layout.setSpacing(6)
+
+        for option in options:
+            content_layout.addWidget(NavigationOptionButton(option, self._content))
+
+        self._content.setVisible(False)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        layout.addWidget(self.header_button)
+        layout.addWidget(self._content)
+
+        self.header_button.toggled.connect(self._toggle_content)
+
+    def _toggle_content(self, checked: bool) -> None:
+        self._content.setVisible(checked)
+
+
 class PlaceholderWindow(QtWidgets.QMainWindow):
     """Minimal window used as a starting point for the new GUI."""
 
@@ -90,8 +204,7 @@ class PlaceholderWindow(QtWidgets.QMainWindow):
         super().__init__(parent)
         self.setWindowTitle("VR Game Simulator - GUI v2 (Placeholder)")
         self.setMinimumSize(900, 600)
-        if window_icon:
-            self.setWindowIcon(window_icon)
+        self.setWindowIcon(window_icon)
 
         scroll_area = QtWidgets.QScrollArea(self)
         scroll_area.setWidgetResizable(True)
@@ -111,6 +224,38 @@ class PlaceholderWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QVBoxLayout(placeholder)
         layout.setContentsMargins(32, 32, 32, 32)
         layout.setSpacing(24)
+
+        navigation_bar = QtWidgets.QFrame(placeholder)
+        navigation_bar.setObjectName("navigationBar")
+        navigation_bar.setMaximumWidth(self.minimumWidth() // 2)
+        navigation_bar.setStyleSheet(
+            """
+            QFrame#navigationBar {
+                background-color: rgba(12, 16, 24, 180);
+                border: 1px solid rgba(70, 90, 120, 110);
+                border-radius: 14px;
+            }
+            """
+        )
+
+        nav_layout = QtWidgets.QHBoxLayout(navigation_bar)
+        nav_layout.setContentsMargins(16, 16, 16, 16)
+        nav_layout.setSpacing(12)
+
+        nav_groups = {
+            "Duel Mode": ["Army setup", "Report", "Figures", "Skill Breakdowns"],
+            "Battlefield Mode": ["Battle field", "Battlefield Reports"],
+            "Arena Mode": ["Arena", "Arena Reports", "Arena Figures"],
+        }
+
+        self._nav_sections: list[CollapsibleNavSection] = []
+        for title, options in nav_groups.items():
+            section = CollapsibleNavSection(title, options, navigation_bar)
+            section.header_button.setChecked(False)
+            nav_layout.addWidget(section)
+            self._nav_sections.append(section)
+
+        nav_layout.addStretch(1)
 
         heading = QtWidgets.QLabel("New GUI - Work in Progress", placeholder)
         heading.setObjectName("placeholderHeading")
@@ -135,6 +280,9 @@ class PlaceholderWindow(QtWidgets.QMainWindow):
         description.setWordWrap(True)
         description.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
 
+        layout.addWidget(
+            navigation_bar, alignment=QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop
+        )
         layout.addStretch(1)
         layout.addWidget(heading)
         layout.addWidget(instructions)
@@ -144,7 +292,6 @@ class PlaceholderWindow(QtWidgets.QMainWindow):
 
         scroll_area.setWidget(placeholder)
         self.setCentralWidget(scroll_area)
-
 
 def main() -> int:
     """Launch the placeholder GUI for the new interface."""

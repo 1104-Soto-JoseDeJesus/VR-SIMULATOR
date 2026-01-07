@@ -3677,7 +3677,7 @@ def handle_talent_blade_wielder(
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
         simulator: GameSimulatorRef
 ) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
-    if _get_army_round(triggering_army, simulator) != 1:
+    if _get_army_round(triggering_army, simulator) != 2:
         return False, []
 
     cfg = skill_def.get("config", {})

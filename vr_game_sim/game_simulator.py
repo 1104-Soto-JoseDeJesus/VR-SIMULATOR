@@ -160,6 +160,7 @@ class GameSimulator:
         damage_reduction_affects_dots: bool = True,
         advantage_mode: str = "multiplicative",
         per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
+        manual_skill_triggers: Optional[Dict[str, Dict[int, List[str]]]] = None,
     ):
         self.army1: Army = army1
         self.army2: Army = army2
@@ -189,6 +190,30 @@ class GameSimulator:
         self.per_skill_cooldown_overrides: Dict[str, bool] = (
             dict(per_skill_cooldown_overrides) if per_skill_cooldown_overrides is not None else {}
         )
+        self.manual_skill_triggers: Dict[str, Dict[int, set[str]]] = {}
+        if manual_skill_triggers:
+            for army_name, rounds in manual_skill_triggers.items():
+                if not isinstance(army_name, str) or not isinstance(rounds, dict):
+                    continue
+                normalized_rounds: Dict[int, set[str]] = {}
+                for round_key, skills in rounds.items():
+                    try:
+                        round_num = int(round_key)
+                    except (TypeError, ValueError):
+                        continue
+                    if round_num < 1:
+                        continue
+                    if isinstance(skills, (list, tuple, set)):
+                        skill_ids = {
+                            str(skill_id)
+                            for skill_id in skills
+                            if isinstance(skill_id, str) and skill_id
+                        }
+                    else:
+                        skill_ids = set()
+                    normalized_rounds[round_num] = skill_ids
+                if normalized_rounds:
+                    self.manual_skill_triggers[army_name] = normalized_rounds
         self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
@@ -201,6 +226,14 @@ class GameSimulator:
         self.army2._apply_initial_passive_skills()
         self.report_builder = report_builder or ReportBuilder()
         self.track_stats = track_stats
+
+    def _manual_skill_ids_for_round(self, army: Army) -> Optional[set[str]]:
+        if not self.manual_skill_triggers:
+            return None
+        rounds = self.manual_skill_triggers.get(army.name)
+        if not rounds:
+            return None
+        return rounds.get(self.round)
 
     def _log_active_effects_for_report(self) -> List[str]:
         lines: List[str] = []
@@ -986,12 +1019,17 @@ class GameSimulator:
             for skill_id, defs in mount_skill_groups.items()
         }
 
+        manual_skill_ids = self._manual_skill_ids_for_round(triggering_army)
+
         for skill_def in skill_definitions:
             if skill_def["id"] == "dummy_talent_empty":
                 continue
             if skill_def["trigger"] == SkillTriggerType.RAGE_SKILL:
                 continue
             if skill_def["trigger"] == SkillTriggerType.PASSIVE:
+                continue
+            skill_id = skill_def["id"]
+            if manual_skill_ids is not None and skill_id not in manual_skill_ids:
                 continue
 
             if skill_def["trigger"] == trigger_type:
@@ -1006,8 +1044,8 @@ class GameSimulator:
                         StatType.COOPERATION_TRIGGER_RATE_MODIFIER
                     )
                 final_chance = min(1.0, base_chance + coop_bonus)
-                if random.random() < final_chance:
-                    skill_id = skill_def["id"]
+                chance_ok = True if manual_skill_ids is not None else random.random() < final_chance
+                if chance_ok:
                     skill_cfg = skill_def.get("config", {})
                     cooldown = None
                     if skill_def.get("trigger") != SkillTriggerType.CHANCE_PER_ROUND:
@@ -1158,6 +1196,19 @@ class GameSimulator:
                 return
 
         if not skill_to_execute_id:
+            return
+        manual_skill_ids = self._manual_skill_ids_for_round(army)
+        if manual_skill_ids is not None and skill_to_execute_id not in manual_skill_ids:
+            self._log_skill_trigger(
+                army,
+                "Manual Trigger",
+                f"Skipped {skill_to_execute_id} due to manual trigger selection.",
+            )
+            if hero_slot == 1:
+                army.hero1_rage_skill_queued_this_round = False
+                army.hero1_rage_skill_scheduled_round = None
+            elif hero_slot == 2 and army.hero2_rage_skill_primed_for_round == army.army_round:
+                army.hero2_rage_skill_primed_for_round = None
             return
         skill_def = army.hero1_rage_skill_def if hero_slot == 1 else army.hero2_rage_skill_def
         if not skill_def:
@@ -2141,4 +2192,3 @@ class GameSimulator:
         report_text = self.report_builder.get_report_text()
         self.report_builder.print_report()
         return report_text
-

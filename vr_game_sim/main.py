@@ -289,6 +289,7 @@ def _run_single_battle(
     mount_cooldowns_enabled: Optional[bool] = None,
     max_rounds: int | None = None,
     per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
+    manual_skill_triggers: Optional[Dict[str, Dict[int, List[str]]]] = None,
 ) -> tuple:
     """Helper to run a single battle.
 
@@ -347,6 +348,7 @@ def _run_single_battle(
         mount_cooldowns_enabled=mount_cd,
         advantage_mode=advantage_mode,
         per_skill_cooldown_overrides=per_skill_cooldown_overrides,
+        manual_skill_triggers=manual_skill_triggers,
     )
     with contextlib.redirect_stdout(io.StringIO()):
         sim.simulate_battle(max_rounds=max_rounds)
@@ -383,6 +385,7 @@ def _run_single_battle_with_multiplier(
     mount_cooldowns_enabled: Optional[bool] = None,
     max_rounds: int | None = None,
     per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
+    manual_skill_triggers: Optional[Dict[str, Dict[int, List[str]]]] = None,
 ) -> tuple:
     return _run_single_battle(
         setup_data,
@@ -397,6 +400,7 @@ def _run_single_battle_with_multiplier(
         mount_cooldowns_enabled=mount_cooldowns_enabled,
         max_rounds=max_rounds,
         per_skill_cooldown_overrides=per_skill_cooldown_overrides,
+        manual_skill_triggers=manual_skill_triggers,
     )
 
 
@@ -417,6 +421,7 @@ def run_additional_simulations(
     advantage_mode: str = "multiplicative",
     max_rounds: int | None = None,
     per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
+    manual_skill_triggers: Optional[Dict[str, Dict[int, List[str]]]] = None,
 ) -> tuple[float, Optional[Dict[str, Any]]]:
     """Runs extra simulations and computes summary statistics.
 
@@ -493,6 +498,8 @@ def run_additional_simulations(
                 gem_cd_iter,
                 mount_cd_iter,
                 max_rounds_iter,
+                repeat(per_skill_cooldown_overrides, runs),
+                repeat(manual_skill_triggers, runs),
             )
             completed = 0
             for own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev, army1_hw_dealt, army2_hw_dealt in results_iter:
@@ -537,6 +544,8 @@ def run_additional_simulations(
                 gem_cooldowns_enabled=gem_cd,
                 mount_cooldowns_enabled=mount_cd,
                 max_rounds=max_rounds,
+                per_skill_cooldown_overrides=per_skill_cooldown_overrides,
+                manual_skill_triggers=manual_skill_triggers,
             )
             own_remaining.append(own)
             enemy_remaining.append(enemy)
@@ -649,6 +658,9 @@ def run_additional_simulations(
             "round_count": (
                 int(rounds_taken[best_idx]) if best_idx < len(rounds_taken) else None
             ),
+            "manual_skill_triggers": copy.deepcopy(manual_skill_triggers)
+            if isinstance(manual_skill_triggers, dict)
+            else None,
         }
     
     # Add heavily wounded data and flags to best_match (or create metadata dict)

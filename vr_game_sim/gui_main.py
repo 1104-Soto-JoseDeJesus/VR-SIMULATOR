@@ -603,6 +603,184 @@ class SeedOutcomeDialog(QtWidgets.QDialog):
         self.round_tolerance_spin.setEnabled(checked)
 
 
+class ManualSkillTriggerDialog(QtWidgets.QDialog):
+    """Dialog for selecting skills that should trigger each round."""
+
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget | None,
+        armies: list[tuple[int, str, list[tuple[str, str]]]],
+        current: dict[int, dict[int, list[str]]] | None,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Manual Skill Triggers")
+        self._schedule: dict[int, dict[int, list[str]]] = {
+            int(idx): {int(rnd): list(skills) for rnd, skills in rounds.items()}
+            for idx, rounds in (current or {}).items()
+            if isinstance(rounds, dict)
+        }
+
+        layout = QtWidgets.QVBoxLayout(self)
+        info = QtWidgets.QLabel(
+            "Select which skills are allowed to trigger on each round. "
+            "If a round is listed, only the selected skills will be eligible to trigger."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        round_layout = QtWidgets.QHBoxLayout()
+        round_layout.addWidget(QtWidgets.QLabel("Round:"))
+        self.round_spin = QtWidgets.QSpinBox()
+        self.round_spin.setRange(1, 10_000)
+        round_layout.addWidget(self.round_spin)
+        self.set_round_btn = QtWidgets.QPushButton("Set/Update Round")
+        self.set_round_btn.clicked.connect(self._store_round_selection)
+        round_layout.addWidget(self.set_round_btn)
+        self.remove_round_btn = QtWidgets.QPushButton("Remove Round")
+        self.remove_round_btn.clicked.connect(self._remove_round_selection)
+        round_layout.addWidget(self.remove_round_btn)
+        round_layout.addStretch()
+        layout.addLayout(round_layout)
+
+        content_layout = QtWidgets.QHBoxLayout()
+        self.round_list = QtWidgets.QListWidget()
+        self.round_list.currentItemChanged.connect(self._load_round_from_selection)
+        content_layout.addWidget(self.round_list, 1)
+
+        self._skill_lists: dict[int, QtWidgets.QListWidget] = {}
+        for idx, name, skills in armies:
+            group = QtWidgets.QGroupBox(name or f"Army {idx}")
+            group_layout = QtWidgets.QVBoxLayout(group)
+            skill_list = QtWidgets.QListWidget()
+            if not skills:
+                empty_item = QtWidgets.QListWidgetItem("No skills available")
+                empty_item.setFlags(QtCore.Qt.ItemFlag.NoItemFlags)
+                skill_list.addItem(empty_item)
+            else:
+                for skill_id, skill_name in skills:
+                    label = f"{skill_name} ({skill_id})"
+                    item = QtWidgets.QListWidgetItem(label)
+                    item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable)
+                    item.setCheckState(QtCore.Qt.CheckState.Unchecked)
+                    item.setData(QtCore.Qt.ItemDataRole.UserRole, skill_id)
+                    skill_list.addItem(item)
+            group_layout.addWidget(skill_list)
+            content_layout.addWidget(group, 2)
+            self._skill_lists[idx] = skill_list
+
+        layout.addLayout(content_layout)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            parent=self,
+        )
+        clear_btn = buttons.addButton(
+            "Clear All", QtWidgets.QDialogButtonBox.ButtonRole.ResetRole
+        )
+        clear_btn.clicked.connect(self._clear_all)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        self._refresh_round_list()
+        if self.round_list.count():
+            self.round_list.setCurrentRow(0)
+
+    def _clear_all(self) -> None:
+        self._schedule.clear()
+        self._refresh_round_list()
+        for idx in self._skill_lists:
+            self._apply_round_selection(idx, [])
+
+    def _round_label(self, round_num: int) -> str:
+        counts = []
+        for idx in sorted(self._skill_lists):
+            skill_count = len(self._schedule.get(idx, {}).get(round_num, []))
+            counts.append(f"Army {idx}: {skill_count}")
+        suffix = ", ".join(counts) if counts else "No skills"
+        return f"Round {round_num} ({suffix})"
+
+    def _refresh_round_list(self) -> None:
+        self.round_list.clear()
+        rounds = set()
+        for rounds_map in self._schedule.values():
+            rounds.update(rounds_map.keys())
+        for round_num in sorted(rounds):
+            item = QtWidgets.QListWidgetItem(self._round_label(round_num))
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, round_num)
+            self.round_list.addItem(item)
+
+    def _store_round_selection(self) -> None:
+        round_num = int(self.round_spin.value())
+        for idx, list_widget in self._skill_lists.items():
+            selected: list[str] = []
+            for i in range(list_widget.count()):
+                item = list_widget.item(i)
+                skill_id = item.data(QtCore.Qt.ItemDataRole.UserRole)
+                if not isinstance(skill_id, str):
+                    continue
+                if item.checkState() == QtCore.Qt.CheckState.Checked:
+                    selected.append(skill_id)
+            self._schedule.setdefault(idx, {})[round_num] = selected
+        self._refresh_round_list()
+        self._select_round_item(round_num)
+
+    def _select_round_item(self, round_num: int) -> None:
+        for i in range(self.round_list.count()):
+            item = self.round_list.item(i)
+            if item.data(QtCore.Qt.ItemDataRole.UserRole) == round_num:
+                self.round_list.setCurrentRow(i)
+                return
+
+    def _remove_round_selection(self) -> None:
+        item = self.round_list.currentItem()
+        if not item:
+            return
+        round_num = item.data(QtCore.Qt.ItemDataRole.UserRole)
+        for idx in list(self._schedule):
+            self._schedule[idx].pop(round_num, None)
+            if not self._schedule[idx]:
+                self._schedule.pop(idx, None)
+        self._refresh_round_list()
+        for idx in self._skill_lists:
+            self._apply_round_selection(idx, [])
+
+    def _apply_round_selection(self, idx: int, skills: list[str]) -> None:
+        list_widget = self._skill_lists.get(idx)
+        if list_widget is None:
+            return
+        skill_set = set(skills)
+        for i in range(list_widget.count()):
+            item = list_widget.item(i)
+            skill_id = item.data(QtCore.Qt.ItemDataRole.UserRole)
+            if not isinstance(skill_id, str):
+                continue
+            item.setCheckState(
+                QtCore.Qt.CheckState.Checked
+                if skill_id in skill_set
+                else QtCore.Qt.CheckState.Unchecked
+            )
+
+    def _load_round_from_selection(
+        self,
+        current: QtWidgets.QListWidgetItem | None,
+        _: QtWidgets.QListWidgetItem | None,
+    ) -> None:
+        if not current:
+            return
+        round_num = current.data(QtCore.Qt.ItemDataRole.UserRole)
+        if not isinstance(round_num, int):
+            return
+        self.round_spin.setValue(round_num)
+        for idx in self._skill_lists:
+            skills = self._schedule.get(idx, {}).get(round_num, [])
+            self._apply_round_selection(idx, skills)
+
+    def schedule(self) -> dict[int, dict[int, list[str]]]:
+        return {idx: dict(rounds) for idx, rounds in self._schedule.items()}
+
+
 class ArenaSeedDialog(QtWidgets.QDialog):
     """Dialog that lets the user choose an arena batch outcome target."""
 
@@ -5243,6 +5421,7 @@ class SimulationWorker(QtCore.QThread):
         runs: int,
         num_workers: int,
         seed_target: SeedTarget | None = None,
+        manual_skill_triggers: dict[str, dict[int, list[str]]] | None = None,
         dynamic_settings: dict[str, float] | None = None,
         *,
         hero_cooldowns_enabled: bool = True,
@@ -5259,6 +5438,9 @@ class SimulationWorker(QtCore.QThread):
         self.num_workers = num_workers
         self.max_rounds = max_rounds
         self.seed_target = dict(seed_target) if seed_target else None
+        self.manual_skill_triggers = (
+            dict(manual_skill_triggers) if manual_skill_triggers else None
+        )
         self._cancelled = threading.Event()
         self.dynamic_settings = dict(dynamic_settings) if dynamic_settings else None
         self.win_rate: float | None = None
@@ -5303,6 +5485,7 @@ class SimulationWorker(QtCore.QThread):
                 advantage_mode=self.advantage_mode,
                 max_rounds=self.max_rounds,
                 per_skill_cooldown_overrides=self.per_skill_cooldown_overrides,
+                manual_skill_triggers=self.manual_skill_triggers,
             )
             self.win_rate = float(win_rate)
             self.best_match = dict(best_match) if isinstance(best_match, dict) else None
@@ -5349,6 +5532,7 @@ class SimulationWorker(QtCore.QThread):
                 damage_reduction_affects_dots=self.damage_reduction_affects_dots,
                 advantage_mode=self.advantage_mode,
                 per_skill_cooldown_overrides=self.per_skill_cooldown_overrides,
+                manual_skill_triggers=self.manual_skill_triggers,
             )
             report_text = sim.simulate_battle()
             rounds = report_builder.get_rounds()
@@ -5379,6 +5563,76 @@ class SimulationWorker(QtCore.QThread):
                 self.finished_text.emit("Simulation cancelled.", [], [])
             else:
                 self.error.emit(str(exc))
+        except Exception as exc:  # pragma: no cover - GUI feedback
+            self.error.emit(str(exc))
+
+
+class SingleSeedWorker(QtCore.QThread):
+    finished_text = QtCore.pyqtSignal(str, object, object)
+    error = QtCore.pyqtSignal(str)
+
+    def __init__(
+        self,
+        setup_data: list[dict],
+        seed: int,
+        *,
+        manual_skill_triggers: dict[str, dict[int, list[str]]] | None = None,
+        dynamic_settings: dict[str, float] | None = None,
+        troop_scalar_multiplier: float | None = None,
+        hero_cooldowns_enabled: bool = True,
+        plugin_cooldowns_enabled: bool = False,
+        gem_cooldowns_enabled: bool = True,
+        mount_cooldowns_enabled: bool = True,
+        damage_reduction_affects_dots: bool = True,
+        advantage_mode: str = "multiplicative",
+        max_rounds: int | None = None,
+    ) -> None:
+        super().__init__()
+        self.setup_data = setup_data
+        self.seed = seed
+        self.manual_skill_triggers = (
+            dict(manual_skill_triggers) if manual_skill_triggers else None
+        )
+        self.dynamic_settings = dict(dynamic_settings) if dynamic_settings else None
+        self.troop_scalar_multiplier = troop_scalar_multiplier
+        self.hero_cooldowns_enabled = bool(hero_cooldowns_enabled)
+        self.plugin_cooldowns_enabled = bool(plugin_cooldowns_enabled)
+        self.gem_cooldowns_enabled = bool(gem_cooldowns_enabled)
+        self.mount_cooldowns_enabled = bool(mount_cooldowns_enabled)
+        self.damage_reduction_affects_dots = bool(damage_reduction_affects_dots)
+        self.advantage_mode = advantage_mode
+        self.max_rounds = max_rounds
+        self.per_skill_cooldown_overrides: dict[str, bool] = {}
+
+    def run(self) -> None:
+        try:
+            if self.dynamic_settings is not None:
+                dynamic_unrevivable_config.apply_session_settings(self.dynamic_settings)
+            if self.troop_scalar_multiplier is not None:
+                troop_scalar_config.set_session_multiplier(float(self.troop_scalar_multiplier))
+            random.seed(int(self.seed))
+
+            armies = create_armies_from_data(self.setup_data)
+            report_builder = ReportBuilder(use_color=False)
+            sim = GameSimulator(
+                armies[0],
+                armies[1],
+                report_builder,
+                track_stats=True,
+                cooldowns_enabled=self.hero_cooldowns_enabled,
+                hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+                plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+                gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+                mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+                damage_reduction_affects_dots=self.damage_reduction_affects_dots,
+                advantage_mode=self.advantage_mode,
+                per_skill_cooldown_overrides=self.per_skill_cooldown_overrides,
+                manual_skill_triggers=self.manual_skill_triggers,
+            )
+            report_text = sim.simulate_battle(max_rounds=self.max_rounds)
+            rounds = report_builder.get_rounds()
+            summary = build_skill_summaries(armies, self.setup_data)
+            self.finished_text.emit(report_text, rounds, summary)
         except Exception as exc:  # pragma: no cover - GUI feedback
             self.error.emit(str(exc))
 
@@ -7192,6 +7446,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("Battle Simulator")
         self.seed_target: SeedTarget | None = None
         self.seed_display: QtWidgets.QLabel | None = None
+        self.manual_skill_triggers: dict[int, dict[int, list[str]]] = {}
+        self.manual_trigger_display: QtWidgets.QLabel | None = None
+        self.single_seed_input: QtWidgets.QLineEdit | None = None
+        self.single_seed_worker: SingleSeedWorker | None = None
         # Load persisted cooldown defaults so debug settings are stable across
         # sessions.  Category level flags are initialised from the stored
         # configuration but continue to be tweakable via the Debug menu.
@@ -7404,6 +7662,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.run_btn = QtWidgets.QPushButton("Run Simulation")
         self.run_btn.clicked.connect(self.run_simulation)
         controls.addWidget(self.run_btn)
+        controls.addWidget(QtWidgets.QLabel("Seed:"))
+        self.single_seed_input = QtWidgets.QLineEdit()
+        self.single_seed_input.setPlaceholderText("Enter seed")
+        self.single_seed_input.setFixedWidth(120)
+        controls.addWidget(self.single_seed_input)
+        self.run_seed_btn = QtWidgets.QPushButton("Run Seed")
+        self.run_seed_btn.clicked.connect(self.run_single_seed)
+        controls.addWidget(self.run_seed_btn)
         self.max_rounds_checkbox = QtWidgets.QCheckBox("Stop at Max Rounds")
         controls.addWidget(self.max_rounds_checkbox)
         controls.addWidget(QtWidgets.QLabel("Max Rounds:"))
@@ -7497,6 +7763,16 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         controls.addWidget(self.seed_display)
         self._update_seed_display()
+        manual_btn = QtWidgets.QToolButton()
+        manual_btn.setText("Manual Triggers…")
+        manual_btn.clicked.connect(self._choose_manual_skill_triggers)
+        controls.addWidget(manual_btn)
+        self.manual_trigger_display = QtWidgets.QLabel()
+        self.manual_trigger_display.setTextInteractionFlags(
+            QtCore.Qt.TextInteractionFlag.NoTextInteraction
+        )
+        controls.addWidget(self.manual_trigger_display)
+        self._update_manual_trigger_display()
         controls.addStretch()
         setup_layout.addLayout(controls)
 
@@ -7874,6 +8150,92 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 display += f" (Rounds: {rounds_int})"
         self.seed_display.setText(display)
+
+    def _update_manual_trigger_display(self) -> None:
+        if not self.manual_trigger_display:
+            return
+        if not self.manual_skill_triggers:
+            self.manual_trigger_display.setText("Manual Triggers: Off")
+            return
+        rounds = set()
+        for rounds_map in self.manual_skill_triggers.values():
+            rounds.update(rounds_map.keys())
+        self.manual_trigger_display.setText(
+            f"Manual Triggers: {len(rounds)} round(s)"
+        )
+
+    def _collect_army_skills_for_manual_triggers(
+        self, armies: list[Army]
+    ) -> list[tuple[int, str, list[tuple[str, str]]]]:
+        entries: list[tuple[int, str, list[tuple[str, str]]]] = []
+        for idx, army in enumerate(armies, start=1):
+            skills: dict[str, str] = {}
+            for hero in army.heroes:
+                for skill_def in hero.skills:
+                    skill_id = skill_def.get("id")
+                    if not skill_id or skill_id == "dummy_talent_empty":
+                        continue
+                    skills[str(skill_id)] = str(skill_def.get("name") or skill_id)
+            for skill_def in getattr(army, "gem_skills", []) or []:
+                skill_id = skill_def.get("id")
+                if not skill_id or skill_id == "dummy_talent_empty":
+                    continue
+                skills[str(skill_id)] = str(skill_def.get("name") or skill_id)
+            entries.append(
+                (
+                    idx,
+                    army.name or f"Army {idx}",
+                    sorted(skills.items(), key=lambda item: item[1].casefold()),
+                )
+            )
+        return entries
+
+    def _choose_manual_skill_triggers(self) -> None:
+        setup_data = [self.army1_frame.build_config(), self.army2_frame.build_config()]
+        self._ensure_unique_army_names(setup_data)
+        armies = create_armies_from_data(setup_data)
+        skill_entries = self._collect_army_skills_for_manual_triggers(armies)
+        if not any(entry[2] for entry in skill_entries):
+            QtWidgets.QMessageBox.information(
+                self,
+                "Manual Triggers",
+                "No skills found for the current armies.",
+            )
+            return
+        dlg = ManualSkillTriggerDialog(self, skill_entries, self.manual_skill_triggers)
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            self.manual_skill_triggers = dlg.schedule()
+            self._update_manual_trigger_display()
+
+    def _manual_skill_trigger_payload(
+        self, setup_data: list[dict[str, Any]]
+    ) -> dict[str, dict[int, list[str]]] | None:
+        if not self.manual_skill_triggers:
+            return None
+        names = {
+            1: setup_data[0].get("army_name", "Army 1") if len(setup_data) > 0 else "Army 1",
+            2: setup_data[1].get("army_name", "Army 2") if len(setup_data) > 1 else "Army 2",
+        }
+        payload: dict[str, dict[int, list[str]]] = {}
+        for idx, rounds in self.manual_skill_triggers.items():
+            name = names.get(idx)
+            if not name or not isinstance(rounds, dict):
+                continue
+            cleaned: dict[int, list[str]] = {}
+            for round_num, skills in rounds.items():
+                try:
+                    round_int = int(round_num)
+                except (TypeError, ValueError):
+                    continue
+                if round_int < 1:
+                    continue
+                if isinstance(skills, (list, tuple)):
+                    cleaned[round_int] = [str(sid) for sid in skills if isinstance(sid, str)]
+                else:
+                    cleaned[round_int] = []
+            if cleaned:
+                payload[name] = cleaned
+        return payload or None
 
     def _init_status_controls(self, main_layout: QtWidgets.QVBoxLayout) -> None:
         """Create status label, progress bar and run options."""
@@ -13218,6 +13580,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._ensure_unique_army_names(setup_data)
         self._last_setup_data = [copy.deepcopy(cfg) for cfg in setup_data]
         self._last_simulation_payload = None
+        manual_skill_triggers = self._manual_skill_trigger_payload(setup_data)
         runs = self.runs_spin.value()
         workers = self.workers_spin.value()
         self.status.setText("Running simulation...")
@@ -13234,6 +13597,7 @@ class MainWindow(QtWidgets.QMainWindow):
             runs,
             workers,
             self.seed_target,
+            manual_skill_triggers=manual_skill_triggers,
             dynamic_settings=self._dynamic_unrevivable_settings,
             hero_cooldowns_enabled=self.hero_cooldowns_enabled,
             plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
@@ -13253,6 +13617,64 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.error.connect(self._sim_error)
         self.worker.finished.connect(self.worker.deleteLater)
         self.worker.start()
+
+    def run_single_seed(self) -> None:
+        if not self.single_seed_input:
+            return
+        seed_text = self.single_seed_input.text().strip()
+        if not seed_text:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Run Seed",
+                "Enter a seed value to run.",
+            )
+            return
+        try:
+            seed_val = int(seed_text)
+        except ValueError:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Run Seed",
+                "Seed must be an integer.",
+            )
+            return
+
+        setup_data = [self.army1_frame.build_config(), self.army2_frame.build_config()]
+        self._ensure_unique_army_names(setup_data)
+        self._last_setup_data = [copy.deepcopy(cfg) for cfg in setup_data]
+        self._last_simulation_payload = None
+        manual_skill_triggers = self._manual_skill_trigger_payload(setup_data)
+        self.status.setText("Running single-seed simulation...")
+        self._set_skill_breakdown_message("Generating skill breakdowns…")
+        self.progress.setRange(0, 0)
+        self.progress.setValue(0)
+        self.run_btn.setEnabled(False)
+        self.run_seed_btn.setEnabled(False)
+        max_rounds = None
+        if self.max_rounds_checkbox.isChecked():
+            max_rounds = self.max_rounds_spin.value()
+
+        self.single_seed_worker = SingleSeedWorker(
+            setup_data,
+            seed_val,
+            manual_skill_triggers=manual_skill_triggers,
+            dynamic_settings=self._dynamic_unrevivable_settings,
+            troop_scalar_multiplier=self._troop_scalar_multiplier,
+            hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+            plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+            gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+            mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+            damage_reduction_affects_dots=self.damage_reduction_affects_dots,
+            advantage_mode=self.troop_advantage_mode,
+            max_rounds=max_rounds,
+        )
+        self.single_seed_worker.per_skill_cooldown_overrides = dict(
+            self.per_skill_cooldown_overrides
+        )
+        self.single_seed_worker.finished_text.connect(self._sim_finished)
+        self.single_seed_worker.error.connect(self._sim_error)
+        self.single_seed_worker.finished.connect(self.single_seed_worker.deleteLater)
+        self.single_seed_worker.start()
 
     def _ensure_unique_army_names(self, configs: list[dict[str, Any]]) -> None:
         seen: set[str] = set()
@@ -13358,6 +13780,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.army2_frame.build_config(),
         ]
         if summary and win_rate is not None:
+            manual_skill_triggers = self._manual_skill_trigger_payload(setup_data)
             export_payload = {
                 "report_text": text,
                 "rounds": copy.deepcopy(rounds),
@@ -13378,6 +13801,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     "gem": self.gem_cooldowns_enabled,
                     "mount": self.mount_cooldowns_enabled,
                 },
+                "manual_skill_triggers": manual_skill_triggers,
             }
             if isinstance(sample_stats, dict):
                 export_payload["sample_battle"] = copy.deepcopy(sample_stats)
@@ -13385,16 +13809,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress.setValue(0)
         self.status.setText("Ready")
         self.run_btn.setEnabled(True)
+        if hasattr(self, "run_seed_btn"):
+            self.run_seed_btn.setEnabled(True)
         self.run_btn.setText("Run Simulation")
         self.worker = None
+        self.single_seed_worker = None
 
     def _sim_error(self, msg: str) -> None:  # pragma: no cover - GUI feedback
         QtWidgets.QMessageBox.critical(self, "Error", msg)
         self.progress.setValue(0)
         self.status.setText("Ready")
         self.run_btn.setEnabled(True)
+        if hasattr(self, "run_seed_btn"):
+            self.run_seed_btn.setEnabled(True)
         self.run_btn.setText("Run Simulation")
         self.worker = None
+        self.single_seed_worker = None
 
 
 def main() -> None:
@@ -13416,4 +13846,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

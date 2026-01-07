@@ -895,11 +895,16 @@ class GameSimulator:
         if not opponent_for_calc or owner_army.current_troop_count <= 0: return 0.0
 
         own_atk = owner_army.unit.effective_attack(owner_army.active_effects)
+        own_def = owner_army.unit.effective_defense(owner_army.active_effects)
         enemy_def = opponent_for_calc.unit.effective_defense(opponent_for_calc.active_effects)
-        if enemy_def == 0: enemy_def = 1
+        avg_def = (own_def + enemy_def) / 2.0
+        if avg_def == 0:
+            avg_def = 1
 
         own_troop_scalar = GameSimulator.troop_scalar(owner_army.current_troop_count)
-        base_shield_mag = round(((own_atk / enemy_def) * own_troop_scalar * (shield_factor / 200.0)))
+        base_shield_mag = round(
+            ((own_atk / avg_def) * own_troop_scalar * (shield_factor / 200.0))
+        )
         sum_shield_strength_mods = owner_army.get_sum_stat_magnitudes(StatType.SHIELD_STRENGTH_MODIFIER)
         shield_strength_multiplier = 1.0 + sum_shield_strength_mods
 

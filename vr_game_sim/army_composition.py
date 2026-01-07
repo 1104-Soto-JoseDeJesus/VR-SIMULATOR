@@ -931,10 +931,17 @@ class Army:
             shield_factor_val = float(effect_data.get("shield_factor", 0.0))
             if self.simulator and opponent_of_owner_for_calc and shield_factor_val > 0:
                 own_atk = owner_army.unit.effective_attack(owner_army.active_effects)
-                enemy_def = opponent_of_owner_for_calc.unit.effective_defense(opponent_of_owner_for_calc.active_effects)
-                if enemy_def == 0: enemy_def = 1
+                own_def = owner_army.unit.effective_defense(owner_army.active_effects)
+                enemy_def = opponent_of_owner_for_calc.unit.effective_defense(
+                    opponent_of_owner_for_calc.active_effects
+                )
+                avg_def = (own_def + enemy_def) / 2.0
+                if avg_def == 0:
+                    avg_def = 1
                 owner_troop_scalar = self.simulator.troop_scalar(owner_army.current_troop_count)
-                base_shield_magnitude = ((own_atk / enemy_def) * owner_troop_scalar * (shield_factor_val / 200.0))
+                base_shield_magnitude = (
+                    (own_atk / avg_def) * owner_troop_scalar * (shield_factor_val / 200.0)
+                )
             else:
                 base_shield_magnitude = magnitude
 

@@ -579,7 +579,7 @@ class Army:
 
         return {'hp_damage_to_troops': hp_dmg_final, 'absorbed_by_shield': absorbed_total}
 
-    def commit_pending_healing_and_damage(self):
+    def commit_pending_healing_and_damage(self, opponent: Optional['Army'] = None):
         # Healing is committed before damage so that only troops lost in
         # previous rounds are eligible to be revived. Damage taken during the
         # current round cannot be healed until the following round.
@@ -596,7 +596,12 @@ class Army:
                 actual_healed_hp = max(0, min(self.pending_hp_healing_this_round, hp_needed_to_reach_cap))
 
                 if actual_healed_hp > 0:
-                    healed_troops_float = actual_healed_hp / hp_per_troop
+                    enemy_hp_per_troop = None
+                    if opponent is not None:
+                        enemy_hp_per_troop = opponent.unit.effective_hp_per_troop(opponent.active_effects)
+                    if not enemy_hp_per_troop or enemy_hp_per_troop <= 0:
+                        enemy_hp_per_troop = hp_per_troop
+                    healed_troops_float = actual_healed_hp / enemy_hp_per_troop
                     healed_troops_round = round(healed_troops_float)
                     for sim in self.simulators:
                         sim._log_skill_trigger(
@@ -633,7 +638,7 @@ class Army:
                                 for sid, hp in skills.items():
                                     portion = actual_healed_hp * (hp / total_contrib_hp)
                                     healer_army.skill_heal_totals[sid] = healer_army.skill_heal_totals.get(sid, 0.0) + (
-                                        portion / hp_per_troop
+                                        portion / enemy_hp_per_troop
                                     )
 
                     # Preserve the healed amount for logging in the simulator.
@@ -1895,4 +1900,3 @@ class Army:
         return (
             f"Army(Name: {self.name}, Unit: {self.unit.unit_type} T{self.unit.tier}, Troops: {self.current_troop_count:.0f}/{self.unit.initial_count} "
             f"(Unrev: {round(self.unrevivable_troops)}), Rage: {self.current_rage:.0f}, Rally: {self.is_rally}, Heroes: {hero_names}, Active Effects: {len(self.active_effects)})")
-

@@ -974,7 +974,11 @@ class BattlefieldEngine:
                     unique_armies.append(army)
 
         for army in unique_armies:
-            army.commit_pending_healing_and_damage()
+            opponent = None
+            ctx = self._armies.get(army.name)
+            if ctx and ctx.direct_target and ctx.direct_target in self._armies:
+                opponent = self._armies[ctx.direct_target].army
+            army.commit_pending_healing_and_damage(opponent=opponent)
             self._queue_state_update(army)
 
         for (atk_name, dfd_name), sim in self._engagements.items():

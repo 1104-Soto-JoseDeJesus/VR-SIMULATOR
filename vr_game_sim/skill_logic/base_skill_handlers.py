@@ -21,6 +21,10 @@ def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
     return simulator.round if simulator else 0
 
 
+def _manual_override(event_data: Optional[Dict[str, Any]]) -> bool:
+    return bool(event_data and event_data.get("manual_trigger_override"))
+
+
 def _count_effects_by_name(army: ArmyRef, effect_name: str) -> int:
     return sum(1 for eff in army.active_effects if eff.name == effect_name)
 
@@ -224,8 +228,9 @@ def handle_base_skill_snake_eyes(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
+    manual_override = _manual_override(event_data)
 
-    if not triggering_army.started_round_with_active_shield:
+    if not triggering_army.started_round_with_active_shield and not manual_override:
         return False, []
 
     if random.random() < skill_config.get("damage_chance", 0.0):
@@ -400,8 +405,13 @@ def handle_base_skill_heart_of_tolerance(
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
+    manual_override = _manual_override(event_data)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -526,8 +536,13 @@ def handle_base_skill_rapid_fire(  # Verdandi's skill, already exists
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
+    manual_override = _manual_override(event_data)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -574,8 +589,13 @@ def handle_base_skill_torment(
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
+    manual_override = _manual_override(event_data)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -628,8 +648,13 @@ def handle_base_skill_blades_judgment(
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
+    manual_override = _manual_override(event_data)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -962,11 +987,12 @@ def handle_base_skill_broken_blade_charge(
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
         simulator: GameSimulatorRef
 ) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    manual_override = _manual_override(event_data)
     has_retribution = any(
         eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.config.get("retribution_rate", 0) > 0
         for eff in triggering_army.active_effects
     )
-    if not has_retribution:
+    if not has_retribution and not manual_override:
         return False, []
 
     happened = False
@@ -1348,7 +1374,12 @@ def handle_base_skill_plague(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     cfg = skill_def.get("config", {})
     trigger_interval = cfg.get("trigger_interval", 9)
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    manual_override = _manual_override(event_data)
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     poison_factor = cfg.get("poison_factor", 0.0)
@@ -1742,8 +1773,13 @@ def handle_base_skill_nature_blessing(
     logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     cfg = skill_def.get("config", {})
     trigger_interval = cfg.get("trigger_interval", 9)
+    manual_override = _manual_override(event_data)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     mark_gain = int(cfg.get("mark_stacks", 1))
@@ -1927,5 +1963,3 @@ def handle_base_skill_shield_breaker(
                 happened = True
                 logs.append((f"Gains '{EFFECT_NAME_SHIELD_BREAKER_BASIC_BUFF}' for {buff_dur + 1} rounds (starting next round).", None))
     return happened, logs
-
-

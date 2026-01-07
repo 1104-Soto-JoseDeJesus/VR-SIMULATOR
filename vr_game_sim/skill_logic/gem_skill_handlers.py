@@ -25,6 +25,10 @@ def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
     return simulator.round if simulator else 0
 
 
+def _manual_override(event_data: Optional[Dict[str, Any]]) -> bool:
+    return bool(event_data and event_data.get("manual_trigger_override"))
+
+
 def _matches_unit(unit_type: Optional[str], requirement: Any) -> bool:
     """Return ``True`` when ``unit_type`` satisfies ``requirement``."""
 
@@ -49,14 +53,18 @@ def handle_gem_skill_delayed_stat_mod(
     config = skill_def.get("config", {}) or {}
     current_round = _get_army_round(triggering_army, simulator)
     trigger_round = int(config.get("trigger_round", 1))
-    if current_round != trigger_round:
+    manual_override = _manual_override(event_data)
+    if current_round != trigger_round and not manual_override:
         return False, []
 
-    if not _matches_unit(getattr(triggering_army.unit, "unit_type", None), config.get("require_own_unit")):
+    if (
+        not manual_override
+        and not _matches_unit(getattr(triggering_army.unit, "unit_type", None), config.get("require_own_unit"))
+    ):
         return False, []
 
     enemy_requirement = config.get("require_enemy_unit")
-    if enemy_requirement:
+    if enemy_requirement and not manual_override:
         enemy_unit_type = getattr(opponent_army.unit, "unit_type", None) if opponent_army else None
         if not _matches_unit(enemy_unit_type, enemy_requirement):
             return False, []
@@ -614,20 +622,28 @@ def handle_gem_skill_lower_troop_periodic_composite(
         return False, []
 
     current_round = _get_army_round(triggering_army, simulator)
+    manual_override = _manual_override(event_data)
     if current_round <= 0:
         return False, []
 
     start_round = int(round(float(config.get("start_round", interval))))
-    if current_round < start_round:
+    if current_round < start_round and not manual_override:
         return False, []
-    if (current_round - start_round) % interval != 0:
-        return False, []
-
-    if config.get("require_lower_troops", False) and not _army_has_fewer_troops(triggering_army, opponent_army):
+    if (current_round - start_round) % interval != 0 and not manual_override:
         return False, []
 
-    if not _army_below_remaining_pct(
-        triggering_army, config.get("require_remaining_pct_below")
+    if (
+        not manual_override
+        and config.get("require_lower_troops", False)
+        and not _army_has_fewer_troops(triggering_army, opponent_army)
+    ):
+        return False, []
+
+    if (
+        not manual_override
+        and not _army_below_remaining_pct(
+            triggering_army, config.get("require_remaining_pct_below")
+        )
     ):
         return False, []
 
@@ -653,11 +669,19 @@ def handle_gem_skill_lower_troop_attack_composite(
         return False, []
 
     config = skill_def.get("config", {}) or {}
-    if config.get("require_lower_troops", False) and not _army_has_fewer_troops(triggering_army, opponent_army):
+    manual_override = _manual_override(event_data)
+    if (
+        not manual_override
+        and config.get("require_lower_troops", False)
+        and not _army_has_fewer_troops(triggering_army, opponent_army)
+    ):
         return False, []
 
-    if not _army_below_remaining_pct(
-        triggering_army, config.get("require_remaining_pct_below")
+    if (
+        not manual_override
+        and not _army_below_remaining_pct(
+            triggering_army, config.get("require_remaining_pct_below")
+        )
     ):
         return False, []
 
@@ -668,4 +692,3 @@ def handle_gem_skill_lower_troop_attack_composite(
         event_data,
         simulator,
     )
-

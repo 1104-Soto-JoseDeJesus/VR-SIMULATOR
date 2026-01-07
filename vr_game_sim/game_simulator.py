@@ -1110,6 +1110,8 @@ class GameSimulator:
                     if logic_handler:
                         handler_event_data = (event_data or {}).copy()
                         handler_event_data["actual_opponent_for_calc"] = actual_opponent_for_calc
+                        if manual_override:
+                            handler_event_data["manual_trigger_override"] = True
                         an_effect_truly_happened, log_details_current_skill = logic_handler(
                             triggering_army, actual_effect_target, effective_skill_def, handler_event_data, self
                         )
@@ -1182,19 +1184,42 @@ class GameSimulator:
                             if skill_id not in triggering_army.triggered_skills_this_round:
                                 triggering_army.triggered_skills_this_round.append(skill_id)
 
-    def _execute_rage_skills(self, army: Army, opponent: Army, is_hero2_delayed_trigger: bool = False):
+    def _execute_rage_skills(
+        self,
+        army: Army,
+        opponent: Army,
+        is_hero2_delayed_trigger: bool = False,
+        manual_skill_id: Optional[str] = None,
+    ):
         skill_to_execute_id: Optional[str] = None
         hero_who_triggered_name: str = "Unknown Hero"
         hero_slot = 0
+        manual_override = manual_skill_id is not None
 
-        if is_hero2_delayed_trigger:
+        if manual_override:
+            skill_to_execute_id = manual_skill_id
+            if manual_skill_id == army.hero2_rage_skill_id:
+                if len(army.heroes) > 1 and army.heroes[1]:
+                    hero_who_triggered_name = army.heroes[1].name
+                hero_slot = 2
+                is_hero2_delayed_trigger = True
+            elif manual_skill_id == army.hero1_rage_skill_id:
+                if army.heroes and army.heroes[0]:
+                    hero_who_triggered_name = army.heroes[0].name
+                hero_slot = 1
+                is_hero2_delayed_trigger = False
+            else:
+                return
+        elif is_hero2_delayed_trigger:
             skill_to_execute_id = army.hero2_rage_skill_id
-            if len(army.heroes) > 1 and army.heroes[1]: hero_who_triggered_name = army.heroes[1].name
+            if len(army.heroes) > 1 and army.heroes[1]:
+                hero_who_triggered_name = army.heroes[1].name
             hero_slot = 2
         else:
             if army.hero1_rage_skill_queued_this_round and army.hero1_rage_skill_id:
                 skill_to_execute_id = army.hero1_rage_skill_id
-                if army.heroes and army.heroes[0]: hero_who_triggered_name = army.heroes[0].name
+                if army.heroes and army.heroes[0]:
+                    hero_who_triggered_name = army.heroes[0].name
                 hero_slot = 1
             else:
                 return
@@ -1202,7 +1227,7 @@ class GameSimulator:
         if not skill_to_execute_id:
             return
         manual_skill_ids = self._manual_skill_ids_for_round(army)
-        if manual_skill_ids is not None and skill_to_execute_id not in manual_skill_ids:
+        if not manual_override and manual_skill_ids is not None and skill_to_execute_id not in manual_skill_ids:
             self._log_skill_trigger(
                 army,
                 "Manual Trigger",
@@ -1227,7 +1252,7 @@ class GameSimulator:
 
         is_silenced = False
 
-        if not is_hero2_delayed_trigger:
+        if not is_hero2_delayed_trigger and not manual_override:
             rage_cost = skill_def.get("rage_cost", 1000)
             if army.current_rage < rage_cost:
                 army.hero1_rage_skill_queued_this_round = False
@@ -1238,29 +1263,30 @@ class GameSimulator:
                     "Trigger canceled due to insufficient rage.")
                 return
 
-        for effect in army.active_effects:
-            if effect.name == EFFECT_NAME_SILENCE_DEBUFF and effect.config.get("prevents_rage_skill_cast"):
-                is_silenced = True
-                self._log_skill_trigger(army, skill_def['name'],
-                                        f"Cast blocked by Silence from {effect.source_skill_id}.")
-                if hero_slot == 1:
-                    army.hero1_rage_skill_cast_blocked_by_silence_this_round = True
-                    army.hero1_rage_skill_scheduled_round = army.army_round + 1
-                    army.hero1_rage_skill_queued_this_round = False
-                    self._log_skill_trigger(
-                        army,
-                        skill_def['name'],
-                        f"Hero 1 rage skill deferred to Round {army.hero1_rage_skill_scheduled_round} due to Silence.",
-                    )
-                elif hero_slot == 2:
-                    next_attempt_round = army.army_round + 1
-                    army.hero2_rage_skill_primed_for_round = next_attempt_round
-                    self._log_skill_trigger(
-                        army,
-                        skill_def['name'],
-                        f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence.",
-                    )
-                return
+        if not manual_override:
+            for effect in army.active_effects:
+                if effect.name == EFFECT_NAME_SILENCE_DEBUFF and effect.config.get("prevents_rage_skill_cast"):
+                    is_silenced = True
+                    self._log_skill_trigger(army, skill_def['name'],
+                                            f"Cast blocked by Silence from {effect.source_skill_id}.")
+                    if hero_slot == 1:
+                        army.hero1_rage_skill_cast_blocked_by_silence_this_round = True
+                        army.hero1_rage_skill_scheduled_round = army.army_round + 1
+                        army.hero1_rage_skill_queued_this_round = False
+                        self._log_skill_trigger(
+                            army,
+                            skill_def['name'],
+                            f"Hero 1 rage skill deferred to Round {army.hero1_rage_skill_scheduled_round} due to Silence.",
+                        )
+                    elif hero_slot == 2:
+                        next_attempt_round = army.army_round + 1
+                        army.hero2_rage_skill_primed_for_round = next_attempt_round
+                        self._log_skill_trigger(
+                            army,
+                            skill_def['name'],
+                            f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence.",
+                        )
+                    return
 
         log_prefix = f"(Delayed Hero 2) " if is_hero2_delayed_trigger else f"{hero_who_triggered_name}'s "
         an_effect_happened_rage = False
@@ -1297,8 +1323,10 @@ class GameSimulator:
                 "is_hero2_delayed_rage": is_hero2_delayed_trigger,
                 "triggering_hero_slot": hero_slot,
                 "current_rage_before_cast": rage_before_cast,
-                "actual_opponent_for_calc": opponent
+                "actual_opponent_for_calc": opponent,
             }
+            if manual_override:
+                handler_event_data["manual_trigger_override"] = True
             an_effect_happened_rage, log_details_rage, damage_dealt_by_rage = \
                 rage_logic_handler(army, opponent, skill_def, handler_event_data, self)
         elif "effects_to_apply" in skill_def:
@@ -1335,6 +1363,22 @@ class GameSimulator:
             opponent.activate_queued_effects()
             if army.current_troop_count > 0:
                 army.activate_queued_effects()
+
+    def _execute_manual_rage_skills(self, army: Army, opponent: Army) -> None:
+        manual_skill_ids = self._manual_skill_ids_for_round(army)
+        if manual_skill_ids is None or army.current_troop_count <= 0:
+            return
+        for skill_id, is_hero2 in (
+            (army.hero1_rage_skill_id, False),
+            (army.hero2_rage_skill_id, True),
+        ):
+            if skill_id and skill_id in manual_skill_ids:
+                self._execute_rage_skills(
+                    army,
+                    opponent,
+                    is_hero2_delayed_trigger=is_hero2,
+                    manual_skill_id=skill_id,
+                )
 
     def _apply_base_rage_gain(self) -> None:
         """Grant each army 100 rage at end of round unless their Hero 1 rage skill was used or blocked."""
@@ -1906,6 +1950,8 @@ class GameSimulator:
                 self._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND,
                                              event_data={'opponent_for_shield_calc': opponent})
                 army.activate_queued_effects()
+            self._execute_manual_rage_skills(self.army1, self.army2)
+            self._execute_manual_rage_skills(self.army2, self.army1)
             # Schedule rage skills if rage threshold reached after start-of-round effects
             for army in (self.army1, self.army2):
                 if (
@@ -1930,15 +1976,18 @@ class GameSimulator:
 
             # Execute any queued rage skills after start-of-round effects.
             if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
-                if self.army1.hero1_rage_skill_queued_this_round:
-                    self._execute_rage_skills(self.army1, self.army2, is_hero2_delayed_trigger=False)
-                if self.army2.hero1_rage_skill_queued_this_round:
-                    self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=False)
-
-                if self.army1.hero2_rage_skill_primed_for_round == self.round:
-                    self._execute_rage_skills(self.army1, self.army2, is_hero2_delayed_trigger=True)
-                if self.army2.hero2_rage_skill_primed_for_round == self.round:
-                    self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=True)
+                manual_army1 = self._manual_skill_ids_for_round(self.army1)
+                manual_army2 = self._manual_skill_ids_for_round(self.army2)
+                if manual_army1 is None:
+                    if self.army1.hero1_rage_skill_queued_this_round:
+                        self._execute_rage_skills(self.army1, self.army2, is_hero2_delayed_trigger=False)
+                    if self.army1.hero2_rage_skill_primed_for_round == self.round:
+                        self._execute_rage_skills(self.army1, self.army2, is_hero2_delayed_trigger=True)
+                if manual_army2 is None:
+                    if self.army2.hero1_rage_skill_queued_this_round:
+                        self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=False)
+                    if self.army2.hero2_rage_skill_primed_for_round == self.round:
+                        self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=True)
 
 
 

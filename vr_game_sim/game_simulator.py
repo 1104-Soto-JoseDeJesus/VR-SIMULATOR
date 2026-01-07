@@ -1031,6 +1031,7 @@ class GameSimulator:
             skill_id = skill_def["id"]
             if manual_skill_ids is not None and skill_id not in manual_skill_ids:
                 continue
+            manual_override = manual_skill_ids is not None and skill_id in manual_skill_ids
 
             if skill_def["trigger"] == trigger_type:
                 base_chance = skill_def.get("trigger_chance", 1.0)
@@ -1048,7 +1049,10 @@ class GameSimulator:
                 if chance_ok:
                     skill_cfg = skill_def.get("config", {})
                     cooldown = None
-                    if skill_def.get("trigger") != SkillTriggerType.CHANCE_PER_ROUND:
+                    if (
+                        skill_def.get("trigger") != SkillTriggerType.CHANCE_PER_ROUND
+                        and not manual_override
+                    ):
                         cooldown_enabled = self._cooldown_enabled_for_skill(skill_def)
                         if skill_def.get("trigger") == SkillTriggerType.ON_COUNTER_ATTACK:
                             cooldown_enabled = True

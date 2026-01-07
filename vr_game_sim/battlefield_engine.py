@@ -1080,6 +1080,8 @@ class BattlefieldEngine:
                 army.hero1_rage_skill_queued_this_round = (
                     army.hero1_rage_skill_scheduled_round == ctx.internal_round
                 )
+            if sim._manual_trigger_selected(army, army.hero1_rage_skill_id):
+                army.hero1_rage_skill_queued_this_round = True
 
         # Activate any effects queued from the previous round and decrement durations
         processed_now: List[Army] = []

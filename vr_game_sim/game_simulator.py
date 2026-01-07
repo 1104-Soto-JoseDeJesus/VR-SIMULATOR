@@ -235,6 +235,12 @@ class GameSimulator:
             return None
         return rounds.get(self.round)
 
+    def _manual_trigger_selected(self, army: Army, skill_id: str | None) -> bool:
+        if not skill_id:
+            return False
+        manual_ids = self._manual_skill_ids_for_round(army)
+        return manual_ids is not None and skill_id in manual_ids
+
     def _log_active_effects_for_report(self) -> List[str]:
         lines: List[str] = []
         for army in [self.army1, self.army2]:
@@ -1006,7 +1012,7 @@ class GameSimulator:
         skill_definitions.extend(gem_skills)
 
         mount_skill_groups: Dict[str, List[SkillDefinition]] = {}
-        for skill_def in skill_definitions:
+            for skill_def in skill_definitions:
             if skill_def.get("type") == SkillType.MOUNT_SKILL:
                 mount_skill_groups.setdefault(skill_def["id"], []).append(skill_def)
 
@@ -1110,6 +1116,7 @@ class GameSimulator:
                     if logic_handler:
                         handler_event_data = (event_data or {}).copy()
                         handler_event_data["actual_opponent_for_calc"] = actual_opponent_for_calc
+                        handler_event_data["manual_override"] = manual_override
                         an_effect_truly_happened, log_details_current_skill = logic_handler(
                             triggering_army, actual_effect_target, effective_skill_def, handler_event_data, self
                         )
@@ -1202,7 +1209,8 @@ class GameSimulator:
         if not skill_to_execute_id:
             return
         manual_skill_ids = self._manual_skill_ids_for_round(army)
-        if manual_skill_ids is not None and skill_to_execute_id not in manual_skill_ids:
+        manual_override = manual_skill_ids is not None and skill_to_execute_id in manual_skill_ids
+        if manual_skill_ids is not None and not manual_override:
             self._log_skill_trigger(
                 army,
                 "Manual Trigger",
@@ -1227,7 +1235,7 @@ class GameSimulator:
 
         is_silenced = False
 
-        if not is_hero2_delayed_trigger:
+        if not is_hero2_delayed_trigger and not manual_override:
             rage_cost = skill_def.get("rage_cost", 1000)
             if army.current_rage < rage_cost:
                 army.hero1_rage_skill_queued_this_round = False
@@ -1238,29 +1246,30 @@ class GameSimulator:
                     "Trigger canceled due to insufficient rage.")
                 return
 
-        for effect in army.active_effects:
-            if effect.name == EFFECT_NAME_SILENCE_DEBUFF and effect.config.get("prevents_rage_skill_cast"):
-                is_silenced = True
-                self._log_skill_trigger(army, skill_def['name'],
-                                        f"Cast blocked by Silence from {effect.source_skill_id}.")
-                if hero_slot == 1:
-                    army.hero1_rage_skill_cast_blocked_by_silence_this_round = True
-                    army.hero1_rage_skill_scheduled_round = army.army_round + 1
-                    army.hero1_rage_skill_queued_this_round = False
-                    self._log_skill_trigger(
-                        army,
-                        skill_def['name'],
-                        f"Hero 1 rage skill deferred to Round {army.hero1_rage_skill_scheduled_round} due to Silence.",
-                    )
-                elif hero_slot == 2:
-                    next_attempt_round = army.army_round + 1
-                    army.hero2_rage_skill_primed_for_round = next_attempt_round
-                    self._log_skill_trigger(
-                        army,
-                        skill_def['name'],
-                        f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence.",
-                    )
-                return
+        if not manual_override:
+            for effect in army.active_effects:
+                if effect.name == EFFECT_NAME_SILENCE_DEBUFF and effect.config.get("prevents_rage_skill_cast"):
+                    is_silenced = True
+                    self._log_skill_trigger(army, skill_def['name'],
+                                            f"Cast blocked by Silence from {effect.source_skill_id}.")
+                    if hero_slot == 1:
+                        army.hero1_rage_skill_cast_blocked_by_silence_this_round = True
+                        army.hero1_rage_skill_scheduled_round = army.army_round + 1
+                        army.hero1_rage_skill_queued_this_round = False
+                        self._log_skill_trigger(
+                            army,
+                            skill_def['name'],
+                            f"Hero 1 rage skill deferred to Round {army.hero1_rage_skill_scheduled_round} due to Silence.",
+                        )
+                    elif hero_slot == 2:
+                        next_attempt_round = army.army_round + 1
+                        army.hero2_rage_skill_primed_for_round = next_attempt_round
+                        self._log_skill_trigger(
+                            army,
+                            skill_def['name'],
+                            f"Hero 2 skill cast re-primed for Round {army.hero2_rage_skill_primed_for_round} due to Silence.",
+                        )
+                    return
 
         log_prefix = f"(Delayed Hero 2) " if is_hero2_delayed_trigger else f"{hero_who_triggered_name}'s "
         an_effect_happened_rage = False
@@ -1297,7 +1306,8 @@ class GameSimulator:
                 "is_hero2_delayed_rage": is_hero2_delayed_trigger,
                 "triggering_hero_slot": hero_slot,
                 "current_rage_before_cast": rage_before_cast,
-                "actual_opponent_for_calc": opponent
+                "actual_opponent_for_calc": opponent,
+                "manual_override": manual_override,
             }
             an_effect_happened_rage, log_details_rage, damage_dealt_by_rage = \
                 rage_logic_handler(army, opponent, skill_def, handler_event_data, self)
@@ -1889,6 +1899,8 @@ class GameSimulator:
                 army.hero1_rage_skill_queued_this_round = (
                     army.hero1_rage_skill_scheduled_round == self.round
                 )
+                if self._manual_trigger_selected(army, army.hero1_rage_skill_id):
+                    army.hero1_rage_skill_queued_this_round = True
 
             # Rage skills will be executed after start-of-round effects
             # Only break early if max_rounds is not set

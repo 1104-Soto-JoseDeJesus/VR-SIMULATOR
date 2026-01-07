@@ -70,6 +70,19 @@ def _count_effects_by_name(army: ArmyRef, effect_name: str) -> int:
     return sum(1 for eff in army.active_effects if eff.name == effect_name)
 
 
+def _manual_override(event_data: Optional[Dict[str, Any]]) -> bool:
+    return bool(event_data and event_data.get("manual_override"))
+
+
+def _enemy_bleeding(opponent_army: ArmyRef, event_data: Optional[Dict[str, Any]]) -> bool:
+    if _manual_override(event_data):
+        return True
+    return any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in opponent_army.active_effects
+    )
+
+
 def _add_nature_mark_stacks(
     army: ArmyRef, opponent_army: ArmyRef, skill_def: SkillDefinition, count: int
 ) -> int:
@@ -1700,10 +1713,7 @@ def handle_mount_spiked_shield(
         simulator: GameSimulatorRef,
 ) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
     cfg = skill_def.get("config", {})
-    enemy_bleeding = any(
-        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
-        for eff in opponent_army.active_effects
-    )
+    enemy_bleeding = _enemy_bleeding(opponent_army, event_data)
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
 
     if enemy_bleeding:
@@ -1916,10 +1926,7 @@ def handle_mount_fatal_chomp(
         triggering_army, opponent_army, simulator, float(cfg.get("damage_factor", 0.0)), skill_def, log_details
     )
 
-    enemy_bleeding = any(
-        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
-        for eff in opponent_army.active_effects
-    )
+    enemy_bleeding = _enemy_bleeding(opponent_army, event_data)
     if enemy_bleeding:
         buff_data = {
             "effect_type": EffectType.STAT_MOD,
@@ -2184,10 +2191,7 @@ def handle_mount_bloodwing_assault(
 ) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
     cfg = skill_def.get("config", {})
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
-    enemy_bleeding = any(
-        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
-        for eff in opponent_army.active_effects
-    )
+    enemy_bleeding = _enemy_bleeding(opponent_army, event_data)
     damage_factor = float(cfg.get("damage_factor", 0.0))
     if enemy_bleeding:
         damage_factor = float(cfg.get("boosted_damage_factor", damage_factor))
@@ -2238,10 +2242,7 @@ def handle_mount_biting_chill(
 ) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
     cfg = skill_def.get("config", {})
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
-    enemy_bleeding = any(
-        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
-        for eff in opponent_army.active_effects
-    )
+    enemy_bleeding = _enemy_bleeding(opponent_army, event_data)
     an_effect_happened = False
 
     if enemy_bleeding:
@@ -3041,10 +3042,7 @@ def handle_talent_divine_punishment(
                 (f"Gains '{EFFECT_NAME_DIVINE_PUNISHMENT_BASIC_BUFF}' permanently.", None)
             )
 
-    enemy_bleeding = any(
-        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
-        for eff in opponent_army.active_effects
-    )
+    enemy_bleeding = _enemy_bleeding(opponent_army, event_data)
     if enemy_bleeding and random.random() < damage_chance:
         if damage_factor > 0:
             hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
@@ -3857,10 +3855,7 @@ def handle_talent_thirst_for_blood(
     logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     cfg = skill_def.get("config", {})
 
-    enemy_bleeding = any(
-        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
-        for eff in opponent_army.active_effects
-    )
+    enemy_bleeding = _enemy_bleeding(opponent_army, event_data)
     if not enemy_bleeding:
         logs.append((f"Enemy {opponent_army.name} is not bleeding; no healing triggered.", None))
         return False, logs
@@ -4567,10 +4562,7 @@ def handle_talent_exiled_bloodblade(
                 )
             )
 
-    enemy_bleeding = any(
-        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
-        for eff in opponent_army.active_effects
-    )
+    enemy_bleeding = _enemy_bleeding(opponent_army, event_data)
     if enemy_bleeding:
         silence_duration = cfg.get("silence_duration", 0)
         silence_data = {

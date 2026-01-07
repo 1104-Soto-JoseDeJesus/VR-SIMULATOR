@@ -19,6 +19,10 @@ def _count_effects_by_name(army: ArmyRef, effect_name: str) -> int:
     return sum(1 for eff in army.active_effects if eff.name == effect_name)
 
 
+def _manual_override(event_data: Optional[Dict[str, Any]]) -> bool:
+    return bool(event_data and event_data.get("manual_override"))
+
+
 def handle_rage_sharp_pursuit(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinition, ev_data: Dict[str, Any],
                               sim: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
     eff_hpnd, logs, dmg_dealt_flag = False, [], False;
@@ -1088,7 +1092,7 @@ def handle_rage_triumphant_presence(
                 )
             )
 
-    if any(
+    if _manual_override(event_data) or any(
         eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
         for eff in opponent_army.active_effects
     ):
@@ -1989,4 +1993,3 @@ def handle_rage_floral_burial(
             ))
 
     return happened, logs, damage_flag
-

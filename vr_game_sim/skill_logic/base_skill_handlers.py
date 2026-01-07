@@ -49,6 +49,19 @@ def _remove_all_effects_by_name(army: ArmyRef, effect_name: str) -> int:
     return len(removed)
 
 
+def _manual_override(event_data: Optional[Dict[str, Any]]) -> bool:
+    return bool(event_data and event_data.get("manual_override"))
+
+
+def _enemy_bleeding(opponent_army: ArmyRef, event_data: Optional[Dict[str, Any]]) -> bool:
+    if _manual_override(event_data):
+        return True
+    return any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in opponent_army.active_effects
+    )
+
+
 def handle_base_skill_planned_attack(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: SkillDefinition,
                                      ev_data: Optional[Dict[str, Any]], sim: GameSimulatorRef) -> Tuple[
     bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
@@ -934,10 +947,7 @@ def handle_base_skill_shield_breaker(
         logs.append((f"Deals damage (Factor: {dmg}) to {opponent_army.name}.",
                      {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}))
 
-    enemy_bleeding = any(
-        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
-        for eff in opponent_army.active_effects
-    )
+    enemy_bleeding = _enemy_bleeding(opponent_army, event_data)
     if enemy_bleeding:
         buff_mag = cfg.get("buff_magnitude", 0.0)
         buff_dur = cfg.get("buff_duration", 1)
@@ -1041,10 +1051,7 @@ def handle_base_skill_broken_blade_charge(
                 )
             )
 
-    enemy_bleeding = any(
-        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
-        for eff in opponent_army.active_effects
-    )
+    enemy_bleeding = _enemy_bleeding(opponent_army, event_data)
     if enemy_bleeding and random.random() < cfg.get("bleed_heal_chance", 0.0):
         heal_factor = cfg.get("bleed_heal_factor", 0.0)
         if heal_factor > 0:
@@ -1907,10 +1914,7 @@ def handle_base_skill_shield_breaker(
         logs.append((f"Deals damage (Factor: {dmg}) to {opponent_army.name}.",
                      {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}))
 
-    enemy_bleeding = any(
-        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
-        for eff in opponent_army.active_effects
-    )
+    enemy_bleeding = _enemy_bleeding(opponent_army, event_data)
     if enemy_bleeding:
         buff_mag = cfg.get("buff_magnitude", 0.0)
         buff_dur = cfg.get("buff_duration", 1)
@@ -1927,5 +1931,4 @@ def handle_base_skill_shield_breaker(
                 happened = True
                 logs.append((f"Gains '{EFFECT_NAME_SHIELD_BREAKER_BASIC_BUFF}' for {buff_dur + 1} rounds (starting next round).", None))
     return happened, logs
-
 

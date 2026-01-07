@@ -2477,13 +2477,14 @@ def handle_plugin_bloodstained_icefield(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
+    manual_override = bool(event_data and event_data.get("manual_override"))
 
     enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
     enemy_has_bleed = any(
         eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
         for eff in opponent_army.active_effects
     )
-    if not (enemy_has_slow or enemy_has_bleed):
+    if not (enemy_has_slow or enemy_has_bleed or manual_override):
         return False, []
 
     heal_factor = skill_config.get("heal_factor", 700.0)

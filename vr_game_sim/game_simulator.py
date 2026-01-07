@@ -2087,8 +2087,8 @@ class GameSimulator:
             if reached_max_rounds:
                 break
 
-            self.army1.commit_pending_healing_and_damage()
-            self.army2.commit_pending_healing_and_damage()
+            self.army1.commit_pending_healing_and_damage(opponent=self.army2)
+            self.army2.commit_pending_healing_and_damage(opponent=self.army1)
             self.apply_unrevivable_post_commit(mutual_engagement=True)
             self.army1.troop_count_history.append(self.army1.current_troop_count)
             self.army2.troop_count_history.append(self.army2.current_troop_count)

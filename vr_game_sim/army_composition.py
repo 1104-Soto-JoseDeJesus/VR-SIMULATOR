@@ -754,11 +754,14 @@ class Army:
             + total_positive_heal_adj
             + skill_heal_adjustment_magnitude
         )
-        opp_def_calc = opponent_of_healer.unit.effective_defense(opponent_of_healer.active_effects)
-        if opp_def_calc == 0: opp_def_calc = 1
+        healer_def = healer_army.unit.effective_defense(healer_army.active_effects)
+        opponent_def = opponent_of_healer.unit.effective_defense(opponent_of_healer.active_effects)
+        avg_def_calc = (healer_def + opponent_def) / 2.0
+        if avg_def_calc == 0:
+            avg_def_calc = 1
 
         hp_healed_raw = round(
-            (healer_atk / opp_def_calc)
+            (healer_atk / avg_def_calc)
             * healer_troop_scalar
             * (heal_factor / 200.0)
             * heal_adj_mult
@@ -768,7 +771,7 @@ class Army:
             calculation_steps.extend(
                 [
                     {"label": "Healer ATK", "value": healer_atk},
-                    {"label": "Opponent DEF", "value": opp_def_calc},
+                    {"label": "Average DEF", "value": avg_def_calc},
                     {"label": "Troop scalar", "value": healer_troop_scalar},
                     {"label": "Heal factor", "value": heal_factor},
                     {"label": "Heal multiplier", "value": heal_adj_mult},
@@ -779,7 +782,7 @@ class Army:
         if hp_healed_raw > 0 and total_positive_heal_adj > 0:
             base_mult = 1.0 + total_negative_heal_adj + skill_heal_adjustment_magnitude
             hp_without_boost = round(
-                (healer_atk / opp_def_calc)
+                (healer_atk / avg_def_calc)
                 * healer_troop_scalar
                 * (heal_factor / 200.0)
                 * base_mult

@@ -21,6 +21,10 @@ def _get_army_round(army: ArmyRef, simulator: GameSimulatorRef) -> int:
     return simulator.round if simulator else 0
 
 
+def _manual_override(event_data: Optional[Dict[str, Any]]) -> bool:
+    return bool(event_data and event_data.get("manual_trigger_override"))
+
+
 def handle_plugin_divine_blessing(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
@@ -240,8 +244,13 @@ def handle_plugin_trap_of_despair(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     cfg = skill_def.get("config", {})
     interval = cfg.get("trigger_interval", 9)
+    manual_override = _manual_override(event_data)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % interval == 0):
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % interval == 0)
+    ):
         return False, []
 
     dmg_factor = cfg.get("damage_factor", 0.0)
@@ -293,8 +302,13 @@ def handle_plugin_poison_arrow(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     cfg = skill_def.get("config", {})
     interval = cfg.get("trigger_interval", 9)
+    manual_override = _manual_override(event_data)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % interval == 0):
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % interval == 0)
+    ):
         return False, []
 
     poison_factor = cfg.get("poison_factor", 0.0)
@@ -606,7 +620,12 @@ def handle_plugin_baldr_blessing(
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    manual_override = _manual_override(event_data)
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
     chosen_effect_type = random.choice(["shield", "reduction", "heal"])
     log_details.append((f"Randomly chose '{chosen_effect_type}' effect.", None))
@@ -1007,7 +1026,12 @@ def handle_plugin_blessed_negation(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    manual_override = _manual_override(event_data)
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -1090,7 +1114,12 @@ def handle_plugin_wild_indulgence(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 10)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    manual_override = _manual_override(event_data)
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -1158,7 +1187,12 @@ def handle_plugin_breaking_free(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 10)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    manual_override = _manual_override(event_data)
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     dmg_buff_mag = skill_config.get("damage_buff_magnitude", 0.0)
@@ -1560,7 +1594,12 @@ def handle_plugin_fiery_detonation(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    manual_override = _manual_override(event_data)
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -1763,9 +1802,10 @@ def handle_plugin_on_alert(
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
+    manual_override = _manual_override(event_data)
 
     current_round = _get_army_round(triggering_army, simulator)
-    if not (current_round > 0 and current_round % trigger_interval == 0):
+    if not manual_override and not (current_round > 0 and current_round % trigger_interval == 0):
         return False, []
 
     buff_name = skill_config.get("buff_name", EFFECT_NAME_ON_ALERT_COUNTER_BUFF)
@@ -1827,7 +1867,12 @@ def handle_plugin_helas_curse(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    manual_override = _manual_override(event_data)
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     burn_factor = skill_config.get("burn_factor", 500.0)
@@ -1885,7 +1930,12 @@ def handle_plugin_fearless(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 12)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    manual_override = _manual_override(event_data)
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 0.0)
@@ -2033,7 +2083,12 @@ def handle_plugin_splinter(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 12)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    manual_override = _manual_override(event_data)
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 800.0)
@@ -2272,7 +2327,12 @@ def handle_plugin_blessed_healing(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 12)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    manual_override = _manual_override(event_data)
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     heal_factor = skill_config.get("heal_factor", 850.0)
@@ -2477,13 +2537,14 @@ def handle_plugin_bloodstained_icefield(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
+    manual_override = _manual_override(event_data)
 
     enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
     enemy_has_bleed = any(
         eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
         for eff in opponent_army.active_effects
     )
-    if not (enemy_has_slow or enemy_has_bleed):
+    if not manual_override and not (enemy_has_slow or enemy_has_bleed):
         return False, []
 
     heal_factor = skill_config.get("heal_factor", 700.0)
@@ -2509,8 +2570,12 @@ def handle_plugin_this_too_shall_pass(
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 9)
     round_number = _get_army_round(triggering_army, simulator)
+    manual_override = _manual_override(event_data)
 
-    if not (round_number == 1 or (round_number > 1 and (round_number - 1) % trigger_interval == 0)):
+    if (
+        not manual_override
+        and not (round_number == 1 or (round_number > 1 and (round_number - 1) % trigger_interval == 0))
+    ):
         return False, []
 
     skill_id = skill_def["id"]
@@ -2697,8 +2762,13 @@ def handle_plugin_bone_corroding_arrow(
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
     trigger_interval = skill_config.get("trigger_interval", 6)
+    manual_override = _manual_override(event_data)
 
-    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+    if (
+        not manual_override
+        and not (_get_army_round(triggering_army, simulator) > 0
+                 and _get_army_round(triggering_army, simulator) % trigger_interval == 0)
+    ):
         return False, []
 
     damage_factor = skill_config.get("damage_factor", 500.0)

@@ -622,8 +622,8 @@ class ManualSkillTriggerDialog(QtWidgets.QDialog):
 
         layout = QtWidgets.QVBoxLayout(self)
         info = QtWidgets.QLabel(
-            "Select which skills are allowed to trigger on each round. "
-            "If a round is listed, only the selected skills will be eligible to trigger."
+            "Select which skills should trigger on each round. "
+            "If a round is listed, only the selected skills will trigger."
         )
         info.setWordWrap(True)
         layout.addWidget(info)
@@ -692,6 +692,17 @@ class ManualSkillTriggerDialog(QtWidgets.QDialog):
         self._refresh_round_list()
         for idx in self._skill_lists:
             self._apply_round_selection(idx, [])
+
+    def _has_checked_skills(self) -> bool:
+        for list_widget in self._skill_lists.values():
+            for i in range(list_widget.count()):
+                item = list_widget.item(i)
+                skill_id = item.data(QtCore.Qt.ItemDataRole.UserRole)
+                if not isinstance(skill_id, str):
+                    continue
+                if item.checkState() == QtCore.Qt.CheckState.Checked:
+                    return True
+        return False
 
     def _round_label(self, round_num: int) -> str:
         counts = []
@@ -779,6 +790,11 @@ class ManualSkillTriggerDialog(QtWidgets.QDialog):
 
     def schedule(self) -> dict[int, dict[int, list[str]]]:
         return {idx: dict(rounds) for idx, rounds in self._schedule.items()}
+
+    def accept(self) -> None:
+        if self.round_list.count() or self._has_checked_skills():
+            self._store_round_selection()
+        super().accept()
 
 
 class ArenaSeedDialog(QtWidgets.QDialog):
@@ -13811,6 +13827,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.run_btn.setEnabled(True)
         if hasattr(self, "run_seed_btn"):
             self.run_seed_btn.setEnabled(True)
+        if (
+            best_match
+            and self.single_seed_input
+            and isinstance(best_match, dict)
+            and "seed" in best_match
+        ):
+            self.single_seed_input.setText(str(best_match.get("seed", "")))
         self.run_btn.setText("Run Simulation")
         self.worker = None
         self.single_seed_worker = None

@@ -755,26 +755,34 @@ class Army:
             + skill_heal_adjustment_magnitude
         )
         healer_def = healer_army.unit.effective_defense(healer_army.active_effects)
-        opponent_def = opponent_of_healer.unit.effective_defense(opponent_of_healer.active_effects)
-        avg_def_calc = (healer_def + opponent_def) / 2.0
-        if avg_def_calc == 0:
-            avg_def_calc = 1
+        if healer_def == 0:
+            healer_def = 1
+        advantage_multiplier, advantage_bonus = (1.0, 0.0)
+        if self.simulator and opponent_of_healer:
+            advantage_multiplier, advantage_bonus = self.simulator._resolve_advantage_adjustment(
+                healer_army.unit, opponent_of_healer.unit
+            )
+        total_advantage_multiplier = max(0.05, 1.0 + advantage_bonus) * advantage_multiplier
 
         hp_healed_raw = round(
-            (healer_atk / avg_def_calc)
+            (healer_atk / healer_def)
             * healer_troop_scalar
             * (heal_factor / 200.0)
             * heal_adj_mult
+            * total_advantage_multiplier
         )
 
         if calculation_steps is not None:
             calculation_steps.extend(
                 [
                     {"label": "Healer ATK", "value": healer_atk},
-                    {"label": "Average DEF", "value": avg_def_calc},
+                    {"label": "Healer DEF", "value": healer_def},
                     {"label": "Troop scalar", "value": healer_troop_scalar},
                     {"label": "Heal factor", "value": heal_factor},
                     {"label": "Heal multiplier", "value": heal_adj_mult},
+                    {"label": "Advantage bonus", "value": advantage_bonus},
+                    {"label": "Advantage multiplier", "value": advantage_multiplier},
+                    {"label": "Total advantage multiplier", "value": total_advantage_multiplier},
                     {"label": "Healed HP", "value": hp_healed_raw},
                 ]
             )
@@ -782,10 +790,11 @@ class Army:
         if hp_healed_raw > 0 and total_positive_heal_adj > 0:
             base_mult = 1.0 + total_negative_heal_adj + skill_heal_adjustment_magnitude
             hp_without_boost = round(
-                (healer_atk / avg_def_calc)
+                (healer_atk / healer_def)
                 * healer_troop_scalar
                 * (heal_factor / 200.0)
                 * base_mult
+                * total_advantage_multiplier
             )
             extra_hp = hp_healed_raw - hp_without_boost
             if extra_hp > 0:
@@ -932,15 +941,18 @@ class Army:
             if self.simulator and opponent_of_owner_for_calc and shield_factor_val > 0:
                 own_atk = owner_army.unit.effective_attack(owner_army.active_effects)
                 own_def = owner_army.unit.effective_defense(owner_army.active_effects)
-                enemy_def = opponent_of_owner_for_calc.unit.effective_defense(
-                    opponent_of_owner_for_calc.active_effects
+                if own_def == 0:
+                    own_def = 1
+                advantage_multiplier, advantage_bonus = self.simulator._resolve_advantage_adjustment(
+                    owner_army.unit, opponent_of_owner_for_calc.unit
                 )
-                avg_def = (own_def + enemy_def) / 2.0
-                if avg_def == 0:
-                    avg_def = 1
+                total_advantage_multiplier = max(0.05, 1.0 + advantage_bonus) * advantage_multiplier
                 owner_troop_scalar = self.simulator.troop_scalar(owner_army.current_troop_count)
                 base_shield_magnitude = (
-                    (own_atk / avg_def) * owner_troop_scalar * (shield_factor_val / 200.0)
+                    (own_atk / own_def)
+                    * owner_troop_scalar
+                    * (shield_factor_val / 200.0)
+                    * total_advantage_multiplier
                 )
             else:
                 base_shield_magnitude = magnitude

@@ -751,12 +751,18 @@ class Army:
         )
         opp_def_calc = opponent_of_healer.unit.effective_defense(opponent_of_healer.active_effects)
         if opp_def_calc == 0: opp_def_calc = 1
+        enemy_hp_per_troop = opponent_of_healer.unit.effective_hp_per_troop(
+            opponent_of_healer.active_effects
+        )
+        if enemy_hp_per_troop <= 0:
+            enemy_hp_per_troop = 1
 
         hp_healed_raw = round(
             (healer_atk / opp_def_calc)
             * healer_troop_scalar
             * (heal_factor / 200.0)
             * heal_adj_mult
+            / enemy_hp_per_troop
         )
 
         if calculation_steps is not None:
@@ -764,6 +770,7 @@ class Army:
                 [
                     {"label": "Healer ATK", "value": healer_atk},
                     {"label": "Opponent DEF", "value": opp_def_calc},
+                    {"label": "Opponent HP", "value": enemy_hp_per_troop},
                     {"label": "Troop scalar", "value": healer_troop_scalar},
                     {"label": "Heal factor", "value": heal_factor},
                     {"label": "Heal multiplier", "value": heal_adj_mult},
@@ -778,6 +785,7 @@ class Army:
                 * healer_troop_scalar
                 * (heal_factor / 200.0)
                 * base_mult
+                / enemy_hp_per_troop
             )
             extra_hp = hp_healed_raw - hp_without_boost
             if extra_hp > 0:
@@ -1895,4 +1903,3 @@ class Army:
         return (
             f"Army(Name: {self.name}, Unit: {self.unit.unit_type} T{self.unit.tier}, Troops: {self.current_troop_count:.0f}/{self.unit.initial_count} "
             f"(Unrev: {round(self.unrevivable_troops)}), Rage: {self.current_rage:.0f}, Rally: {self.is_rally}, Heroes: {hero_names}, Active Effects: {len(self.active_effects)})")
-

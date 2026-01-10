@@ -11,6 +11,7 @@ from .hero_definition import Hero
 from .effect_system import EffectInstance
 from .skill_system import SkillDefinition
 from .skill_definitions import SKILL_REGISTRY_GLOBAL
+from . import heal_shield_pairing_config
 from .constants import (
     EFFECT_NAME_BROKEN_BLADE_DEBUFF, EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_SILENCE_DEBUFF,
     EFFECT_NAME_FIRST_STRIKE_RAGE_AURA, EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
@@ -720,6 +721,49 @@ class Army:
             self.damage_contributors_this_round = {}
             self.damage_contributors_by_skill_this_round = {}
         # self.pending_hp_damage_this_round = 0.0 # Resetting this at start of round in game_simulator.py
+    
+    def _get_pairing_opponent_for_heal(self, healer_army: 'Army', opponent_of_healer: 'Army') -> 'Army':
+        """Determine the opponent army to use for heal pairing multiplier calculation.
+        
+        In 1v1 mode, uses opponent_of_healer.
+        In battlefield/arena mode, uses the direct target of the healer if available.
+        """
+        if not self.simulator:
+            return opponent_of_healer
+        
+        if self.simulator.mode in ("battlefield", "arena"):
+            engine = getattr(self.simulator, "parent_engine", None)
+            if engine:
+                # Get the direct target of the healer
+                ctx = getattr(engine, "_armies", {}).get(healer_army.name)
+                if ctx and hasattr(ctx, "direct_target") and ctx.direct_target:
+                    target_army = getattr(engine, "_armies", {}).get(ctx.direct_target)
+                    if target_army and target_army.army:
+                        return target_army.army
+        
+        return opponent_of_healer
+    
+    def _get_pairing_opponent_for_shield(self, target_army: 'Army', opponent_of_owner_for_calc: Optional['Army']) -> Optional['Army']:
+        """Determine the opponent army to use for shield pairing multiplier calculation.
+        
+        In 1v1 mode, uses opponent_of_owner_for_calc.
+        In battlefield/arena mode, uses the direct target of the target_army (the one receiving the shield).
+        """
+        if not target_army.simulator or not opponent_of_owner_for_calc:
+            return opponent_of_owner_for_calc
+        
+        if target_army.simulator.mode in ("battlefield", "arena"):
+            engine = getattr(target_army.simulator, "parent_engine", None)
+            if engine:
+                # Get the direct target of the army receiving the shield
+                ctx = getattr(engine, "_armies", {}).get(target_army.name)
+                if ctx and hasattr(ctx, "direct_target") and ctx.direct_target:
+                    target_opponent = getattr(engine, "_armies", {}).get(ctx.direct_target)
+                    if target_opponent and hasattr(target_opponent, "army") and target_opponent.army:
+                        return target_opponent.army
+        
+        return opponent_of_owner_for_calc
+    
     def calculate_and_add_pending_healing(
         self,
         heal_factor: float,
@@ -759,18 +803,8 @@ class Army:
             * heal_adj_mult
         )
 
-        if calculation_steps is not None:
-            calculation_steps.extend(
-                [
-                    {"label": "Healer ATK", "value": healer_atk},
-                    {"label": "Opponent DEF", "value": opp_def_calc},
-                    {"label": "Troop scalar", "value": healer_troop_scalar},
-                    {"label": "Heal factor", "value": heal_factor},
-                    {"label": "Heal multiplier", "value": heal_adj_mult},
-                    {"label": "Healed HP", "value": hp_healed_raw},
-                ]
-            )
-
+        # Calculate boost tracking BEFORE applying pairing multiplier
+        # (boost totals should only reflect legacy boost differences, not pairing multipliers)
         if hp_healed_raw > 0 and total_positive_heal_adj > 0:
             base_mult = 1.0 + total_negative_heal_adj + skill_heal_adjustment_magnitude
             hp_without_boost = round(
@@ -791,6 +825,28 @@ class Army:
                         self.skill_heal_boost_totals.get(eff.source_skill_id, 0.0)
                         + troops
                     )
+
+        # Apply pairing multiplier after all other calculations (including boost tracking)
+        pairing_opponent = self._get_pairing_opponent_for_heal(healer_army, opponent_of_healer)
+        pairing_mult = heal_shield_pairing_config.get_multiplier(
+            healer_army.unit.unit_type,
+            pairing_opponent.unit.unit_type,
+            "heal"
+        )
+        hp_healed_raw = round(hp_healed_raw * pairing_mult)
+
+        if calculation_steps is not None:
+            calculation_steps.extend(
+                [
+                    {"label": "Healer ATK", "value": healer_atk},
+                    {"label": "Opponent DEF", "value": opp_def_calc},
+                    {"label": "Troop scalar", "value": healer_troop_scalar},
+                    {"label": "Heal factor", "value": heal_factor},
+                    {"label": "Heal multiplier", "value": heal_adj_mult},
+                    {"label": "Pairing multiplier", "value": pairing_mult},
+                    {"label": "Healed HP", "value": hp_healed_raw},
+                ]
+            )
 
         if hp_healed_raw > 0:
             self.pending_hp_healing_this_round += hp_healed_raw
@@ -960,6 +1016,17 @@ class Army:
                             target_army.skill_shield_boost_totals.get(eff.source_skill_id, 0.0)
                             + troops
                         )
+            
+            # Apply pairing multiplier after all other calculations (post boosts, reductions, etc.)
+            pairing_opponent = target_army._get_pairing_opponent_for_shield(target_army, opponent_of_owner_for_calc)
+            if pairing_opponent:
+                pairing_mult = heal_shield_pairing_config.get_multiplier(
+                    target_army.unit.unit_type,
+                    pairing_opponent.unit.unit_type,
+                    "shield"
+                )
+                magnitude = round(magnitude * pairing_mult)
+            
             if self.simulator:
                 target_army.shield_hp_gained_this_round += magnitude
             hp_per_troop = target_army.unit.effective_hp_per_troop(target_army.active_effects)

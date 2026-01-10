@@ -52,7 +52,7 @@ from vr_game_sim.main import (
     HISTOGRAM_BG_COLOR,
     SeedTarget,
 )
-from vr_game_sim import dynamic_unrevivable_config, troop_scalar_config
+from vr_game_sim import dynamic_unrevivable_config, troop_scalar_config, heal_shield_pairing_config
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.enums import StatType
 from vr_game_sim.metadata_loader import get_skill_description
@@ -1773,6 +1773,120 @@ class TroopScalarDialog(QtWidgets.QDialog):
         self._emit_multiplier(value)
         self.accept()
         self._status.clear()
+
+
+class HealShieldPairingDialog(QtWidgets.QDialog):
+    """Dialog for configuring heal and shield multipliers by unit type pairing."""
+
+    settings_applied = QtCore.pyqtSignal()
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Heal/Shield Pairing Multipliers")
+        self.setMinimumSize(600, 600)
+
+        main_layout = QtWidgets.QVBoxLayout(self)
+        self._multiplier_spins: dict[str, QtWidgets.QDoubleSpinBox] = {}
+
+        scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        scroll_content = QtWidgets.QWidget()
+        content_layout = QtWidgets.QVBoxLayout(scroll_content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Organize pairings
+        pairings = [
+            ("Pike vs Pike", "pikemen", "pikemen"),
+            ("Infantry vs Infantry", "infantry", "infantry"),
+            ("Archer vs Archer", "archers", "archers"),
+            ("Pike vs Infantry", "pikemen", "infantry"),
+            ("Infantry vs Pike", "infantry", "pikemen"),
+            ("Pike vs Archer", "pikemen", "archers"),
+            ("Archer vs Pike", "archers", "pikemen"),
+            ("Infantry vs Archer", "infantry", "archers"),
+            ("Archer vs Infantry", "archers", "infantry"),
+        ]
+
+        # Create sections for Heals and Shields
+        for effect_type in ("heal", "shield"):
+            effect_label = effect_type.capitalize() + "s"
+            group = QtWidgets.QGroupBox(f"{effect_label} Multipliers")
+            form = QtWidgets.QFormLayout(group)
+            
+            for pairing_label, triggering_type, opponent_type in pairings:
+                # Only show relevant pairings (both units in pairing)
+                key = f"{triggering_type}_vs_{opponent_type}_{effect_type}"
+                spin = self._make_multiplier_spin()
+                form.addRow(f"{pairing_label} ({triggering_type.capitalize()} {effect_type}):", spin)
+                self._multiplier_spins[key] = spin
+            
+            content_layout.addWidget(group)
+        
+        content_layout.addStretch(1)
+        scroll_area.setWidget(scroll_content)
+        main_layout.addWidget(scroll_area)
+
+        self._status = QtWidgets.QLabel("")
+        self._status.setWordWrap(True)
+        main_layout.addWidget(self._status)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        main_layout.addLayout(btn_row)
+        
+        save_btn = QtWidgets.QPushButton("Save")
+        save_btn.clicked.connect(self._save_settings)
+        btn_row.addWidget(save_btn)
+
+        reset_btn = QtWidgets.QPushButton("Reset to Default")
+        reset_btn.clicked.connect(self._reset_defaults)
+        btn_row.addWidget(reset_btn)
+
+        btn_row.addStretch(1)
+
+        close_btn = QtWidgets.QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        main_layout.addWidget(close_btn, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+
+        self._load_current_settings()
+
+    @staticmethod
+    def _make_multiplier_spin() -> QtWidgets.QDoubleSpinBox:
+        spin = QtWidgets.QDoubleSpinBox()
+        spin.setRange(0.0, 10.0)
+        spin.setDecimals(3)
+        spin.setSingleStep(0.01)
+        return spin
+
+    def _load_current_settings(self) -> None:
+        settings = heal_shield_pairing_config.get_settings()
+        for key, spin in self._multiplier_spins.items():
+            spin.setValue(settings.get(key, 1.0))
+
+    def _gather_settings(self) -> dict[str, float]:
+        values: dict[str, float] = {}
+        for key, spin in self._multiplier_spins.items():
+            values[key] = spin.value()
+        return values
+
+    def _save_settings(self) -> None:
+        try:
+            heal_shield_pairing_config.save_universal_settings(
+                self._gather_settings()
+            )
+        except (OSError, heal_shield_pairing_config.PairingConfigError) as exc:
+            QtWidgets.QMessageBox.critical(self, "Save Failed", str(exc))
+            return
+        self._status.setText("Multipliers saved to disk.")
+        self._load_current_settings()
+        self.settings_applied.emit()
+
+    def _reset_defaults(self) -> None:
+        heal_shield_pairing_config.reset_to_defaults()
+        self._load_current_settings()
+        self._status.setText("Multipliers reset to defaults.")
+        self.settings_applied.emit()
+
 
 PathComponent = str | int
 
@@ -7235,6 +7349,11 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg.settings_applied.connect(self._on_dynamic_unrevivable_settings_changed)
         dlg.exec()
 
+    def _open_heal_shield_pairing_dialog(self) -> None:
+        dialog = HealShieldPairingDialog(self)
+        dialog.settings_applied.connect(lambda: None)  # Can emit signal if needed
+        dialog.exec()
+
     def open_troop_scalar_tool(self) -> None:
         """Open the troop scalar multiplier configuration dialog."""
         dlg = TroopScalarDialog(self)
@@ -7482,6 +7601,8 @@ class MainWindow(QtWidgets.QMainWindow):
         dot_damage_reduction_action.setCheckable(True)
         dot_damage_reduction_action.setChecked(self.damage_reduction_affects_dots)
         dot_damage_reduction_action.toggled.connect(self._on_dot_damage_reduction_toggled)
+        pairing_action = dbg_menu.addAction("Heal/Shield Pairing Multipliers…")
+        pairing_action.triggered.connect(self._open_heal_shield_pairing_dialog)
         star_action = dbg_menu.addAction("Star Layout")
         star_action.triggered.connect(self.open_star_overlay_tuner)
         debug_btn.setMenu(dbg_menu)

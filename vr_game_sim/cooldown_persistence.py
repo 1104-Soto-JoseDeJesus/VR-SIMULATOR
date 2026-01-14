@@ -14,7 +14,7 @@ def _default_payload() -> Dict[str, Any]:
         "global": {"cooldowns_enabled": True},
         "categories": {
             "hero": True,
-            "plugin": False,
+            "plugin": True,
             "gem": True,
             "mount": True,
         },

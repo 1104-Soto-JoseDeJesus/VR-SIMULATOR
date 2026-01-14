@@ -5948,7 +5948,7 @@ class ArenaTab(QtWidgets.QWidget):
 
         window = self.window()
         hero_cooldowns = True
-        plugin_cooldowns = False
+        plugin_cooldowns = True
         gem_cooldowns = True
         mount_cooldowns = True
         damage_reduction = True

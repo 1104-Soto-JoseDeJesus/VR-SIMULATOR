@@ -2563,6 +2563,15 @@ def handle_plugin_silent_invasion(
 
     enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
     silence_duration = skill_config.get("silence_duration", 0)
+    silence_already_present = any(
+        eff.name == EFFECT_NAME_SILENCE_DEBUFF
+        for eff_list in [
+            opponent_army.active_effects,
+            opponent_army.effects_to_activate_next_round,
+            opponent_army.upcoming_effects,
+        ]
+        for eff in eff_list
+    )
 
     if enemy_has_slow:
         if random.random() < skill_config.get("slow_trigger_chance", 0.25):
@@ -2581,22 +2590,23 @@ def handle_plugin_silent_invasion(
                     {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
                 ))
 
-            silence_effect_data = {
-                "effect_type": EffectType.DEBUFF,
-                "name": EFFECT_NAME_SILENCE_DEBUFF,
-                "duration": silence_duration,
-                "config": {"prevents_rage_skill_cast": True},
-                "activate_next_round": True
-            }
-            created_silence = opponent_army._create_and_add_single_effect(
-                silence_effect_data, skill_id, triggering_army, opponent_army, triggering_army
-            )
-            if created_silence:
-                an_effect_happened = True
-                log_details.append((
-                    f"Inflicts '{EFFECT_NAME_SILENCE_DEBUFF}' on {opponent_army.name} for {created_silence.duration + 1} round(s) (starting next round).",
-                    None
-                ))
+            if not silence_already_present:
+                silence_effect_data = {
+                    "effect_type": EffectType.DEBUFF,
+                    "name": EFFECT_NAME_SILENCE_DEBUFF,
+                    "duration": silence_duration,
+                    "config": {"prevents_rage_skill_cast": True},
+                    "activate_next_round": True
+                }
+                created_silence = opponent_army._create_and_add_single_effect(
+                    silence_effect_data, skill_id, triggering_army, opponent_army, triggering_army
+                )
+                if created_silence:
+                    an_effect_happened = True
+                    log_details.append((
+                        f"Inflicts '{EFFECT_NAME_SILENCE_DEBUFF}' on {opponent_army.name} for {created_silence.duration + 1} round(s) (starting next round).",
+                        None
+                    ))
     else:
         if random.random() < skill_config.get("no_slow_trigger_chance", 0.25):
             bleed_factor = skill_config.get("bleed_factor", 325.0)
@@ -2618,22 +2628,23 @@ def handle_plugin_silent_invasion(
                     None
                 ))
 
-            silence_effect_data = {
-                "effect_type": EffectType.DEBUFF,
-                "name": EFFECT_NAME_SILENCE_DEBUFF,
-                "duration": silence_duration,
-                "config": {"prevents_rage_skill_cast": True},
-                "activate_next_round": True
-            }
-            created_silence = opponent_army._create_and_add_single_effect(
-                silence_effect_data, skill_id, triggering_army, opponent_army, triggering_army
-            )
-            if created_silence:
-                an_effect_happened = True
-                log_details.append((
-                    f"Inflicts '{EFFECT_NAME_SILENCE_DEBUFF}' on {opponent_army.name} for {created_silence.duration + 1} round(s) (starting next round).",
-                    None
-                ))
+            if not silence_already_present:
+                silence_effect_data = {
+                    "effect_type": EffectType.DEBUFF,
+                    "name": EFFECT_NAME_SILENCE_DEBUFF,
+                    "duration": silence_duration,
+                    "config": {"prevents_rage_skill_cast": True},
+                    "activate_next_round": True
+                }
+                created_silence = opponent_army._create_and_add_single_effect(
+                    silence_effect_data, skill_id, triggering_army, opponent_army, triggering_army
+                )
+                if created_silence:
+                    an_effect_happened = True
+                    log_details.append((
+                        f"Inflicts '{EFFECT_NAME_SILENCE_DEBUFF}' on {opponent_army.name} for {created_silence.duration + 1} round(s) (starting next round).",
+                        None
+                    ))
 
     return an_effect_happened, log_details
 

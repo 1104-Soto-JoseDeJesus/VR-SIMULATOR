@@ -31,6 +31,15 @@ from .report_builder import ReportBuilder
 from . import troop_scalar_config, heal_shield_pairing_config
 from colorama import Fore
 
+# Skills that trigger on active skill casts but have a 1 trigger per 9 rounds limit instead of 2
+ACTIVE_CAST_ONE_TRIGGER_SKILLS = {
+    "talent_excite",
+    "talent_revolutionary_resolve",
+    "base_skill_enchanted_arrow",
+    "plugin_joint_offense",
+    "plugin_dampened_spirits",
+}
+
 
 class GameSimulator:
     SKILL_REGISTRY_GLOBAL = SKILL_REGISTRY_GLOBAL
@@ -1050,18 +1059,21 @@ class GameSimulator:
                         continue
 
                     # New cooldown for skills that trigger on active skill casts: 2 triggers max in 9 rounds
+                    # Some skills have 1 trigger max in 9 rounds instead
                     # Only apply if cooldowns are enabled for this skill type
                     if skill_def["trigger"] in (SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, SkillTriggerType.ON_OWN_COMMAND_SKILL_CAST):
                         cooldown_enabled_for_active_cast = self._cooldown_enabled_for_skill(skill_def)
                         if cooldown_enabled_for_active_cast:
+                            max_triggers_limit = 1 if skill_id in ACTIVE_CAST_ONE_TRIGGER_SKILLS else 2
+                            
                             trigger_rounds = triggering_army.skill_active_cast_trigger_rounds.get(skill_id, [])
                             current_round = triggering_army.army_round
                             
                             # Filter out old triggers (more than 9 rounds ago)
                             recent_triggers = [r for r in trigger_rounds if current_round - r < 9]
                             
-                            # If we already have 2 triggers in the last 9 rounds, block until 9 rounds pass from the oldest
-                            if len(recent_triggers) >= 2:
+                            # Block if we've reached the max triggers in the last 9 rounds
+                            if len(recent_triggers) >= max_triggers_limit:
                                 oldest_recent_trigger = min(recent_triggers)
                                 if current_round - oldest_recent_trigger < 9:
                                     continue
@@ -1173,6 +1185,8 @@ class GameSimulator:
                         if skill_def["trigger"] in (SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, SkillTriggerType.ON_OWN_COMMAND_SKILL_CAST):
                             cooldown_enabled_for_active_cast = self._cooldown_enabled_for_skill(skill_def)
                             if cooldown_enabled_for_active_cast:
+                                max_triggers_to_keep = 1 if skill_id in ACTIVE_CAST_ONE_TRIGGER_SKILLS else 2
+                                
                                 if skill_id not in triggering_army.skill_active_cast_trigger_rounds:
                                     triggering_army.skill_active_cast_trigger_rounds[skill_id] = []
                                 current_round = triggering_army.army_round
@@ -1183,11 +1197,11 @@ class GameSimulator:
                                 ]
                                 # Add the new trigger round
                                 triggering_army.skill_active_cast_trigger_rounds[skill_id].append(current_round)
-                                # Keep only the 2 most recent if we have more (shouldn't happen, but safety check)
-                                if len(triggering_army.skill_active_cast_trigger_rounds[skill_id]) > 2:
+                                # Keep only the max allowed triggers (1 for special skills, 2 for others)
+                                if len(triggering_army.skill_active_cast_trigger_rounds[skill_id]) > max_triggers_to_keep:
                                     triggering_army.skill_active_cast_trigger_rounds[skill_id] = sorted(
                                         triggering_army.skill_active_cast_trigger_rounds[skill_id]
-                                    )[-2:]
+                                    )[-max_triggers_to_keep:]
 
                         if max_triggers > 1:
                             triggering_army.skill_trigger_counts_this_round[skill_id] = current_triggers + 1

@@ -28,7 +28,7 @@ from .dynamic_unrevivable_config import (
     get_type_settings as get_dynamic_unrevivable_type_settings,
 )
 from .report_builder import ReportBuilder
-from . import troop_scalar_config
+from . import troop_scalar_config, heal_shield_pairing_config
 from colorama import Fore
 
 
@@ -859,6 +859,11 @@ class GameSimulator:
 
     def _calculate_shield_magnitude_for_logging(self, owner_army: Army, opponent_for_calc: Army,
                                                 shield_factor: float) -> float:
+        """Calculate shield magnitude for logging/display purposes.
+        
+        Note: owner_army is the army receiving the shield (usually same as triggering_army for self-shields).
+        opponent_for_calc is the opponent used for the base calculation.
+        """
         if not opponent_for_calc or owner_army.current_troop_count <= 0: return 0.0
 
         own_atk = owner_army.unit.effective_attack(owner_army.active_effects)
@@ -869,8 +874,22 @@ class GameSimulator:
         base_shield_mag = round(((own_atk / enemy_def) * own_troop_scalar * (shield_factor / 200.0)))
         sum_shield_strength_mods = owner_army.get_sum_stat_magnitudes(StatType.SHIELD_STRENGTH_MODIFIER)
         shield_strength_multiplier = 1.0 + sum_shield_strength_mods
-
-        return round(base_shield_mag * shield_strength_multiplier)
+        magnitude = round(base_shield_mag * shield_strength_multiplier)
+        
+        # Apply pairing multiplier (same logic as in _create_and_add_single_effect)
+        # For shields, pairing is determined by the army receiving the shield vs its direct target
+        # In _create_and_add_single_effect, target_army is the shield recipient
+        # Here, owner_army is the shield recipient (for self-shields, owner_army == target_army)
+        pairing_opponent = owner_army._get_pairing_opponent_for_shield(owner_army, opponent_for_calc)
+        if pairing_opponent:
+            pairing_mult = heal_shield_pairing_config.get_multiplier(
+                owner_army.unit.unit_type,
+                pairing_opponent.unit.unit_type,
+                "shield"
+            )
+            magnitude = round(magnitude * pairing_mult)
+        
+        return magnitude
 
     def _mount_skill_has_direct_damage(self, skill_def: SkillDefinition) -> bool:
         cfg = skill_def.get("config", {}) or {}
@@ -1030,6 +1049,23 @@ class GameSimulator:
                     if is_on_cooldown:
                         continue
 
+                    # New cooldown for skills that trigger on active skill casts: 2 triggers max in 9 rounds
+                    # Only apply if cooldowns are enabled for this skill type
+                    if skill_def["trigger"] in (SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, SkillTriggerType.ON_OWN_COMMAND_SKILL_CAST):
+                        cooldown_enabled_for_active_cast = self._cooldown_enabled_for_skill(skill_def)
+                        if cooldown_enabled_for_active_cast:
+                            trigger_rounds = triggering_army.skill_active_cast_trigger_rounds.get(skill_id, [])
+                            current_round = triggering_army.army_round
+                            
+                            # Filter out old triggers (more than 9 rounds ago)
+                            recent_triggers = [r for r in trigger_rounds if current_round - r < 9]
+                            
+                            # If we already have 2 triggers in the last 9 rounds, block until 9 rounds pass from the oldest
+                            if len(recent_triggers) >= 2:
+                                oldest_recent_trigger = min(recent_triggers)
+                                if current_round - oldest_recent_trigger < 9:
+                                    continue
+
                     max_triggers = 1
                     max_triggers_per_target = 1
                     current_triggers = 0
@@ -1131,6 +1167,27 @@ class GameSimulator:
 
                         if cooldown is not None:
                             triggering_army.skill_last_triggered_round[skill_id] = triggering_army.army_round
+
+                        # Record trigger round for active skill cast cooldown tracking
+                        # Only track if cooldowns are enabled for this skill type
+                        if skill_def["trigger"] in (SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, SkillTriggerType.ON_OWN_COMMAND_SKILL_CAST):
+                            cooldown_enabled_for_active_cast = self._cooldown_enabled_for_skill(skill_def)
+                            if cooldown_enabled_for_active_cast:
+                                if skill_id not in triggering_army.skill_active_cast_trigger_rounds:
+                                    triggering_army.skill_active_cast_trigger_rounds[skill_id] = []
+                                current_round = triggering_army.army_round
+                                # Clean up old triggers (more than 9 rounds ago) before adding new one
+                                triggering_army.skill_active_cast_trigger_rounds[skill_id] = [
+                                    r for r in triggering_army.skill_active_cast_trigger_rounds[skill_id]
+                                    if current_round - r < 9
+                                ]
+                                # Add the new trigger round
+                                triggering_army.skill_active_cast_trigger_rounds[skill_id].append(current_round)
+                                # Keep only the 2 most recent if we have more (shouldn't happen, but safety check)
+                                if len(triggering_army.skill_active_cast_trigger_rounds[skill_id]) > 2:
+                                    triggering_army.skill_active_cast_trigger_rounds[skill_id] = sorted(
+                                        triggering_army.skill_active_cast_trigger_rounds[skill_id]
+                                    )[-2:]
 
                         if max_triggers > 1:
                             triggering_army.skill_trigger_counts_this_round[skill_id] = current_triggers + 1

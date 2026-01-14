@@ -1,97 +1,97 @@
 [
     {
-        "army_name": "Hobert/Gregory",
-        "unit_type": "infantry",
+        "army_name": "Verdandi/Olena",
+        "unit_type": "archers",
         "tier": 7,
-        "count": 250000,
+        "count": 300000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.65,
-        "def_mod": 2.65,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
         "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Hobert",
+                "hero_name_or_preset": "Verdandi",
                 "talent_ids": [
-                    "talent_bold_shieldaxe",
-                    "talent_fearless_pursuit",
-                    "talent_steadfast_armor"
+                    "talent_hunting_instinct",
+                    "talent_hunting_experience",
+                    "talent_targeted_strike"
                 ],
                 "base_skill_ids": [
-                    "base_skill_berserk_fury",
-                    "base_skill_brutal_blow"
+                    "base_skill_rapid_fire",
+                    "base_skill_raining_arrows"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_enrage",
-                    "plugin_silencer"
+                    "plugin_odins_asylum",
+                    "plugin_rage_leech"
                 ],
                 "mount_skill_ids": []
             },
             {
-                "hero_name_or_preset": "Gregory",
+                "hero_name_or_preset": "Olena",
                 "talent_ids": [
-                    "talent_great_morale",
-                    "talent_missing_beat",
-                    "talent_excite"
+                    "talent_scorching_arrow",
+                    "talent_multi_shot_arrow",
+                    "talent_poised_shot"
                 ],
                 "base_skill_ids": [
-                    "base_skill_drumming_disturbance",
-                    "base_skill_inspiring_dance"
+                    "base_skill_enchanted_arrow",
+                    "base_skill_concentration"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_blessed_negation",
-                    "plugin_trap_of_despair"
+                    "plugin_first_strike",
+                    "plugin_dampened_spirits"
                 ],
                 "mount_skill_ids": []
             }
         ]
     },
     {
-        "army_name": "Hobert/Gregory (2)",
-        "unit_type": "infantry",
+        "army_name": "Athelstan/Verdandi",
+        "unit_type": "archers",
         "tier": 7,
-        "count": 250000,
+        "count": 300000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.65,
-        "def_mod": 2.65,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
         "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Hobert",
+                "hero_name_or_preset": "Athelstan",
                 "talent_ids": [
-                    "talent_bold_shieldaxe",
-                    "talent_fearless_pursuit",
-                    "talent_steadfast_armor"
+                    "talent_erudite",
+                    "talent_strategize",
+                    "talent_adaptable_to_changes"
                 ],
                 "base_skill_ids": [
-                    "base_skill_berserk_fury",
-                    "base_skill_brutal_blow"
+                    "base_skill_heart_of_tolerance",
+                    "base_skill_holy_enlightenment"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_enrage",
-                    "plugin_breaking_free"
+                    "plugin_first_strike",
+                    "plugin_divine_blessing"
                 ],
                 "mount_skill_ids": []
             },
             {
-                "hero_name_or_preset": "Gregory",
+                "hero_name_or_preset": "Verdandi",
                 "talent_ids": [
-                    "talent_great_morale",
-                    "talent_missing_beat",
-                    "talent_excite"
+                    "talent_hunting_instinct",
+                    "talent_hunting_experience",
+                    "talent_targeted_strike"
                 ],
                 "base_skill_ids": [
-                    "base_skill_drumming_disturbance",
-                    "base_skill_inspiring_dance"
+                    "base_skill_rapid_fire",
+                    "base_skill_raining_arrows"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_blessed_negation",
-                    "plugin_trap_of_despair"
+                    "plugin_rage_leech",
+                    "plugin_helas_curse"
                 ],
                 "mount_skill_ids": []
             }

@@ -34,7 +34,7 @@
         "count": 162500,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 1.63,
+        "atk_mod": 1.6371,
         "def_mod": 0.95,
         "hp_mod": 0.6,
         "unrevivable_ratio": 0.65,

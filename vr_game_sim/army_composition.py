@@ -122,6 +122,7 @@ class Army:
 
     skill_trigger_counts: Dict[str, int] = field(init=False, default_factory=dict)
     skill_last_triggered_round: Dict[str, int] = field(init=False, default_factory=dict)
+    skill_active_cast_trigger_rounds: Dict[str, List[int]] = field(init=False, default_factory=dict)
     debuff_last_applied_round: Dict[str, int] = field(init=False, default_factory=dict)
 
     current_rage: float = field(init=False, default=0.0)

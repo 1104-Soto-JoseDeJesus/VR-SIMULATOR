@@ -5360,7 +5360,7 @@ class SimulationWorker(QtCore.QThread):
         dynamic_settings: dict[str, float] | None = None,
         *,
         hero_cooldowns_enabled: bool = True,
-        plugin_cooldowns_enabled: bool = False,
+        plugin_cooldowns_enabled: bool = True,
         gem_cooldowns_enabled: bool = True,
         mount_cooldowns_enabled: bool = True,
         damage_reduction_affects_dots: bool = True,
@@ -7312,7 +7312,7 @@ class MainWindow(QtWidgets.QMainWindow):
         _cd_defaults = load_cooldown_defaults()
         cat_defaults = _cd_defaults.get("categories", {})
         self.hero_cooldowns_enabled: bool = bool(cat_defaults.get("hero", True))
-        self.plugin_cooldowns_enabled: bool = bool(cat_defaults.get("plugin", False))
+        self.plugin_cooldowns_enabled: bool = bool(cat_defaults.get("plugin", True))
         self.gem_cooldowns_enabled: bool = bool(cat_defaults.get("gem", True))
         self.mount_cooldowns_enabled: bool = bool(cat_defaults.get("mount", True))
         # Per-skill overrides shared between 1v1 and arena simulations.  This

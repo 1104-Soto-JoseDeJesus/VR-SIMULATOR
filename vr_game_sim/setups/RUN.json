@@ -1,15 +1,16 @@
 [
     {
-        "army_name": "Margit/Lagertha (2)",
+        "army_name": "Margit/Lagertha",
         "unit_type": "infantry",
         "tier": 7,
-        "count": 250000,
+        "count": 300000,
         "is_rally": false,
-        "atk_mod": 2.65,
-        "def_mod": 2.65,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
         "hp_mod": 1.0,
-        "unrevivable_ratio": 0.0,
-        "use_dynamic_unrevivable_ratio": false,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
                 "hero_name_or_preset": "Margit",
@@ -23,16 +24,10 @@
                     "base_skill_raging_tide"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_enrage",
-                    "plugin_trap_of_despair"
+                    "plugin_blessed_negation",
+                    "plugin_breaking_free"
                 ],
-                "mount_skill_ids": [],
-                "gear_ids": {
-                    "head": "gear_blazing_helmet_legendary",
-                    "weapon": "gear_immolated_axe_legendary",
-                    "chest": "gear_inferno_armor_legendary",
-                    "boots": "gear_ferocious_boots_legendary"
-                }
+                "mount_skill_ids": []
             },
             {
                 "hero_name_or_preset": "Lagertha",
@@ -46,30 +41,25 @@
                     "rage_skill_showdown"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_odins_asylum",
-                    "plugin_blessed_negation"
+                    "plugin_enrage",
+                    "plugin_trap_of_despair"
                 ],
-                "mount_skill_ids": [],
-                "gear_ids": {
-                    "head": "gear_blazing_helmet_legendary",
-                    "weapon": "gear_immolated_axe_legendary",
-                    "chest": "gear_inferno_armor_legendary",
-                    "boots": "gear_ferocious_boots_legendary"
-                }
+                "mount_skill_ids": []
             }
         ]
     },
     {
-        "army_name": "Margit/Lagertha",
+        "army_name": "Margit/Lagertha (2)",
         "unit_type": "infantry",
         "tier": 7,
-        "count": 250000,
+        "count": 300000,
         "is_rally": false,
-        "atk_mod": 2.65,
-        "def_mod": 2.65,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
         "hp_mod": 1.0,
-        "unrevivable_ratio": 0.0,
-        "use_dynamic_unrevivable_ratio": false,
+        "unrevivable_ratio": 0.65,
+        "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
                 "hero_name_or_preset": "Margit",
@@ -83,16 +73,10 @@
                     "base_skill_raging_tide"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_enrage",
-                    "plugin_trap_of_despair"
+                    "plugin_blessed_negation",
+                    "plugin_breaking_free"
                 ],
-                "mount_skill_ids": [],
-                "gear_ids": {
-                    "head": "gear_blazing_helmet_legendary",
-                    "weapon": "gear_immolated_axe_legendary",
-                    "chest": "gear_inferno_armor_legendary",
-                    "boots": "gear_ferocious_boots_legendary"
-                }
+                "mount_skill_ids": []
             },
             {
                 "hero_name_or_preset": "Lagertha",
@@ -106,16 +90,10 @@
                     "rage_skill_showdown"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_breaking_free",
-                    "plugin_blessed_negation"
+                    "plugin_enrage",
+                    "plugin_silent_invasion"
                 ],
-                "mount_skill_ids": [],
-                "gear_ids": {
-                    "head": "gear_blazing_helmet_legendary",
-                    "weapon": "gear_immolated_axe_legendary",
-                    "chest": "gear_inferno_armor_legendary",
-                    "boots": "gear_ferocious_boots_legendary"
-                }
+                "mount_skill_ids": []
             }
         ]
     }

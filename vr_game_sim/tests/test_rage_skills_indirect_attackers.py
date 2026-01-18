@@ -118,3 +118,57 @@ def test_incineration_does_not_hit_indirect_attackers(monkeypatch):
     assert extras[0].pending_hp_damage_this_round == 0
     assert extras[1].pending_hp_damage_this_round == 0
     assert extras[2].pending_hp_damage_this_round == 0
+
+
+def test_indomitable_spirit_hits_extra_attackers_in_battlefield():
+    hero = Hero("Rolfe", [], ["base_skill_indomitable_spirit"], [], SKILL_REGISTRY_GLOBAL)
+    army = Army("H", Unit("pikemen", 5, initial_count=10), heroes=[hero])
+    direct = Army("E1", Unit("archers", 5, initial_count=10), heroes=[])
+    extras = [
+        Army("E2", Unit("archers", 5, initial_count=10), heroes=[]),
+        Army("E3", Unit("archers", 5, initial_count=10), heroes=[]),
+    ]
+    sim = GameSimulator(army, direct, mode="battlefield")
+    for a in [direct] + extras:
+        a.register_simulator(sim)
+
+    class DummyEngine:
+        def get_direct_attackers(self, name):
+            return [direct] + extras
+
+    sim.parent_engine = DummyEngine()
+    army.current_rage = 1000
+    army.hero1_rage_skill_queued_this_round = True
+
+    sim._execute_rage_skills(army, direct)
+
+    assert direct.pending_hp_damage_this_round > 0
+    assert extras[0].pending_hp_damage_this_round > 0
+    assert extras[1].pending_hp_damage_this_round > 0
+
+
+def test_indomitable_spirit_single_target_in_standard_mode():
+    hero = Hero("Rolfe", [], ["base_skill_indomitable_spirit"], [], SKILL_REGISTRY_GLOBAL)
+    army = Army("H", Unit("pikemen", 5, initial_count=10), heroes=[hero])
+    direct = Army("E1", Unit("archers", 5, initial_count=10), heroes=[])
+    extras = [
+        Army("E2", Unit("archers", 5, initial_count=10), heroes=[]),
+        Army("E3", Unit("archers", 5, initial_count=10), heroes=[]),
+    ]
+    sim = GameSimulator(army, direct, mode="standard")
+    for a in [direct] + extras:
+        a.register_simulator(sim)
+
+    class DummyEngine:
+        def get_direct_attackers(self, name):
+            return [direct] + extras
+
+    sim.parent_engine = DummyEngine()
+    army.current_rage = 1000
+    army.hero1_rage_skill_queued_this_round = True
+
+    sim._execute_rage_skills(army, direct)
+
+    assert direct.pending_hp_damage_this_round > 0
+    assert extras[0].pending_hp_damage_this_round == 0
+    assert extras[1].pending_hp_damage_this_round == 0

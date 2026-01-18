@@ -1315,6 +1315,25 @@ class GameSimulator:
                 "current_rage_before_cast": rage_before_cast,
                 "actual_opponent_for_calc": opponent
             }
+            if (
+                self.mode in ("arena", "battlefield")
+                and skill_def.get("id") == "base_skill_indomitable_spirit"
+                and "additional_targets" not in handler_event_data
+            ):
+                engine = getattr(self, "parent_engine", None)
+                if engine:
+                    extras = []
+                    get_direct_attackers = getattr(engine, "get_direct_attackers", None)
+                    for attacker in ((get_direct_attackers(army.name) if get_direct_attackers else []) or []):
+                        if not attacker or attacker is opponent:
+                            continue
+                        if attacker.current_troop_count <= 0:
+                            continue
+                        extras.append(attacker)
+                        if len(extras) >= 3:
+                            break
+                    if extras:
+                        handler_event_data["additional_targets"] = extras
             an_effect_happened_rage, log_details_rage, damage_dealt_by_rage = \
                 rage_logic_handler(army, opponent, skill_def, handler_event_data, self)
         elif "effects_to_apply" in skill_def:
@@ -2212,4 +2231,3 @@ class GameSimulator:
         report_text = self.report_builder.get_report_text()
         self.report_builder.print_report()
         return report_text
-

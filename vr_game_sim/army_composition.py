@@ -97,6 +97,7 @@ class Army:
     heroes: List[Hero] = field(default_factory=list)
     unrevivable_ratio: float = 0.65
     use_dynamic_unrevivable_ratio: bool = False
+    unrevivable_ratio_method: Optional[str] = None
     is_rally: bool = False
     bonus_stats_config: Dict[str, Any] = field(default_factory=dict)
     gem_skill_ids: Dict[str, str] = field(default_factory=dict)
@@ -116,6 +117,7 @@ class Army:
     pending_hp_damage_this_round: float = field(init=False, default=0.0)
     pending_hp_healing_this_round: float = field(init=False, default=0.0)
     unrevivable_troops: float = field(init=False, default=0.0)
+    pending_unrevivable_ratio: Optional[float] = field(init=False, default=None)
 
     mount_skill_damage_triggers_this_round: Dict[str, int] = field(init=False, default_factory=dict)
     mount_skill_non_damage_applied_this_round: Set[str] = field(init=False, default_factory=set)
@@ -225,6 +227,20 @@ class Army:
         record["combat_basic"] += basic
         record["combat_counter"] += counter
         record["skill"] += skill
+
+    def resolve_unrevivable_ratio_method(self) -> str:
+        method = (self.unrevivable_ratio_method or "").strip().lower()
+        if method:
+            return method
+        return "dynamic" if self.use_dynamic_unrevivable_ratio else "static"
+
+    def resolve_unrevivable_ratio(self) -> float:
+        if (
+            self.resolve_unrevivable_ratio_method() == "sizeref"
+            and self.pending_unrevivable_ratio is not None
+        ):
+            return self.pending_unrevivable_ratio
+        return self.unrevivable_ratio
 
     def _find_army_by_name(self, name: str) -> Optional["Army"]:
         if name == self.name:
@@ -651,9 +667,11 @@ class Army:
             lost_float = self.pending_hp_damage_this_round / hp_per_troop
             lost_round = round(lost_float)
             available_troops = min(round(self.current_troop_count), lost_round)
-            dynamic_mode = self.use_dynamic_unrevivable_ratio
+            unrevivable_method = self.resolve_unrevivable_ratio_method()
+            dynamic_mode = unrevivable_method == "dynamic"
+            active_ratio = self.resolve_unrevivable_ratio()
             unrevivable_increase = (
-                0 if dynamic_mode else round(available_troops * self.unrevivable_ratio)
+                0 if dynamic_mode else round(available_troops * active_ratio)
             )
             for sim in self.simulators:
                 applied_loss_note = (
@@ -1692,6 +1710,7 @@ class Army:
         self.pending_hp_damage_this_round = 0.0  # Reset here is good
         self.pending_hp_healing_this_round = 0.0  # Reset here is good
         self.unrevivable_troops = 0.0
+        self.pending_unrevivable_ratio = None
         self.skill_trigger_counts.clear()
         self.skill_last_triggered_round.clear()
         self.debuff_last_applied_round.clear()
@@ -1963,4 +1982,3 @@ class Army:
         return (
             f"Army(Name: {self.name}, Unit: {self.unit.unit_type} T{self.unit.tier}, Troops: {self.current_troop_count:.0f}/{self.unit.initial_count} "
             f"(Unrev: {round(self.unrevivable_troops)}), Rage: {self.current_rage:.0f}, Rally: {self.is_rally}, Heroes: {hero_names}, Active Effects: {len(self.active_effects)})")
-

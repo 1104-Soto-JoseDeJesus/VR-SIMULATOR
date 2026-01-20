@@ -2984,16 +2984,15 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.unrevivable_spin.setDecimals(4)
         self.unrevivable_spin.setSingleStep(0.0001)
         self.unrevivable_spin.setValue(0.65)
-        self.dynamic_unrevivable_button = QtWidgets.QToolButton()
-        self.dynamic_unrevivable_button.setText("Dynamic")
-        self.dynamic_unrevivable_button.setCheckable(True)
-        self.dynamic_unrevivable_button.setToolTip(
-            "Toggle dynamic heavily wounded calculation"
+        self.unrevivable_method_combo = QtWidgets.QComboBox()
+        self.unrevivable_method_combo.addItems(["Static", "Dynamic", "Sizeref"])
+        self.unrevivable_method_combo.setToolTip(
+            "Select the heavily wounded calculation method."
         )
-        self.dynamic_unrevivable_button.toggled.connect(
-            self._on_dynamic_unrevivable_toggled
+        self.unrevivable_method_combo.currentTextChanged.connect(
+            self._on_unrevivable_method_changed
         )
-        self._on_dynamic_unrevivable_toggled(False)
+        self._on_unrevivable_method_changed(self.unrevivable_method_combo.currentText())
 
         self.hero1_combo = QtWidgets.QComboBox()
         self.hero2_combo = QtWidgets.QComboBox()
@@ -3072,7 +3071,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
 
         layout.addWidget(QtWidgets.QLabel("Heavily Wounded Ratio:"), row, 0)
         layout.addWidget(self.unrevivable_spin, row, 1)
-        layout.addWidget(self.dynamic_unrevivable_button, row, 2)
+        layout.addWidget(self.unrevivable_method_combo, row, 2)
         row += 1
 
         layout.addWidget(QtWidgets.QLabel("Hero 1:"), row, 0)
@@ -3573,11 +3572,17 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.unit_icon.setText(unit)
             self.unit_icon.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
-    def _on_dynamic_unrevivable_toggled(self, checked: bool) -> None:
-        self.unrevivable_spin.setEnabled(not checked)
-        if checked:
+    def _on_unrevivable_method_changed(self, value: str) -> None:
+        normalized = (value or "").strip().lower()
+        is_static = normalized == "static"
+        self.unrevivable_spin.setEnabled(is_static)
+        if normalized == "dynamic":
             self.unrevivable_spin.setToolTip(
                 "Static heavily wounded ratio is ignored while dynamic mode is active."
+            )
+        elif normalized == "sizeref":
+            self.unrevivable_spin.setToolTip(
+                "Static heavily wounded ratio is ignored while Sizeref mode is active."
             )
         else:
             self.unrevivable_spin.setToolTip("")
@@ -3604,9 +3609,19 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.hp_edit.setValue(float(cfg.get("hp_mod", 0)))
 
             self.unrevivable_spin.setValue(float(cfg.get("unrevivable_ratio", 0.65)))
-            self.dynamic_unrevivable_button.setChecked(
-                bool(cfg.get("use_dynamic_unrevivable_ratio", False))
-            )
+            unrevivable_method = str(cfg.get("unrevivable_ratio_method") or "").strip().lower()
+            if not unrevivable_method:
+                unrevivable_method = (
+                    "dynamic"
+                    if bool(cfg.get("use_dynamic_unrevivable_ratio", False))
+                    else "static"
+                )
+            method_label = {
+                "dynamic": "Dynamic",
+                "sizeref": "Sizeref",
+                "static": "Static",
+            }.get(unrevivable_method, "Static")
+            self.unrevivable_method_combo.setCurrentText(method_label)
 
             hero_combos = [self.hero1_combo, self.hero2_combo]
             for idx, combo in enumerate(hero_combos, start=1):
@@ -3785,7 +3800,9 @@ class ArmyFrame(QtWidgets.QGroupBox):
             "def_mod": float(self.def_edit.value()),
             "hp_mod": float(self.hp_edit.value()),
             "unrevivable_ratio": float(self.unrevivable_spin.value()),
-            "use_dynamic_unrevivable_ratio": self.dynamic_unrevivable_button.isChecked(),
+            "unrevivable_ratio_method": self.unrevivable_method_combo.currentText().strip().lower(),
+            "use_dynamic_unrevivable_ratio": self.unrevivable_method_combo.currentText().strip().lower()
+            == "dynamic",
             "heroes": heroes_cfg,
         }
 
@@ -13537,4 +13554,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

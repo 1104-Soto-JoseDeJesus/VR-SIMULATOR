@@ -1705,10 +1705,33 @@ class GameSimulator:
         available_troops = min(round(army.current_troop_count), lost_round)
         return max(0.0, army.current_troop_count - available_troops)
 
+    def _estimate_post_wound_total_hp(self, army: Army) -> float:
+        if army.current_troop_count <= 0:
+            return 0.0
+        hp_per_troop = army.unit.effective_hp_per_troop(army.active_effects)
+        if hp_per_troop <= 0:
+            hp_per_troop = 1
+        total_hp = army.current_troop_count * hp_per_troop
+        if army.pending_hp_damage_this_round > 0:
+            total_hp -= army.pending_hp_damage_this_round
+        return max(0.0, total_hp)
+
+    @staticmethod
+    def _calculate_sizeref_ratios(larger_value: float, smaller_value: float) -> tuple[float, float]:
+        if smaller_value <= 0 or larger_value <= 0:
+            return 1.0, 1.0
+        log_ratio = math.log10(larger_value / smaller_value)
+        smaller_ratio = 0.1 + (0.8 * log_ratio)
+        larger_ratio = 0.1 + (0.4 * log_ratio)
+        smaller_ratio = min(1.0, max(0.0, smaller_ratio))
+        larger_ratio = min(1.0, max(0.0, larger_ratio))
+        return smaller_ratio, larger_ratio
+
     def _apply_sizeref_unrevivable_ratios(self) -> None:
         armies = (self.army1, self.army2)
         if not any(
-            army.resolve_unrevivable_ratio_method() == "sizeref" for army in armies
+            army.resolve_unrevivable_ratio_method() in {"sizeref", "sizeref_hp"}
+            for army in armies
         ):
             for army in armies:
                 army.pending_unrevivable_ratio = None
@@ -1716,25 +1739,33 @@ class GameSimulator:
 
         army1_post_wound = self._estimate_post_wound_troops(self.army1)
         army2_post_wound = self._estimate_post_wound_troops(self.army2)
-        larger_count = max(army1_post_wound, army2_post_wound)
-        smaller_count = min(army1_post_wound, army2_post_wound)
-        if smaller_count <= 0 or larger_count <= 0:
-            smaller_ratio = 1.0
-            larger_ratio = 1.0
-        else:
-            log_ratio = math.log10(larger_count / smaller_count)
-            smaller_ratio = 0.1 + (0.8 * log_ratio)
-            larger_ratio = 0.1 + (0.4 * log_ratio)
-            smaller_ratio = min(1.0, max(0.0, smaller_ratio))
-            larger_ratio = min(1.0, max(0.0, larger_ratio))
+        troop_smaller_ratio, troop_larger_ratio = self._calculate_sizeref_ratios(
+            max(army1_post_wound, army2_post_wound),
+            min(army1_post_wound, army2_post_wound),
+        )
+
+        army1_post_hp = self._estimate_post_wound_total_hp(self.army1)
+        army2_post_hp = self._estimate_post_wound_total_hp(self.army2)
+        hp_smaller_ratio, hp_larger_ratio = self._calculate_sizeref_ratios(
+            max(army1_post_hp, army2_post_hp),
+            min(army1_post_hp, army2_post_hp),
+        )
 
         for army in armies:
-            if army.resolve_unrevivable_ratio_method() != "sizeref":
+            method = army.resolve_unrevivable_ratio_method()
+            if method not in {"sizeref", "sizeref_hp"}:
                 army.pending_unrevivable_ratio = None
                 continue
-            other_army = self.army2 if army is self.army1 else self.army1
-            current_post = army1_post_wound if army is self.army1 else army2_post_wound
-            other_post = army2_post_wound if army is self.army1 else army1_post_wound
+            if method == "sizeref_hp":
+                current_post = army1_post_hp if army is self.army1 else army2_post_hp
+                other_post = army2_post_hp if army is self.army1 else army1_post_hp
+                smaller_ratio = hp_smaller_ratio
+                larger_ratio = hp_larger_ratio
+            else:
+                current_post = army1_post_wound if army is self.army1 else army2_post_wound
+                other_post = army2_post_wound if army is self.army1 else army1_post_wound
+                smaller_ratio = troop_smaller_ratio
+                larger_ratio = troop_larger_ratio
             if current_post <= other_post:
                 army.pending_unrevivable_ratio = smaller_ratio
             else:

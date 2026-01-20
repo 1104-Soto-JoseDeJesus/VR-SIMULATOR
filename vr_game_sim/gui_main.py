@@ -2934,6 +2934,16 @@ class RallyConfigDialog(QtWidgets.QDialog):
 class ArmyFrame(QtWidgets.QGroupBox):
     """Inputs for a single army."""
 
+    UNREVIVABLE_METHOD_LABELS = {
+        "static": "Static",
+        "dynamic": "Dynamic",
+        "sizeref": "Sizeref",
+        "sizeref_hp": "Sizeref (HP)",
+    }
+    UNREVIVABLE_LABEL_TO_METHOD = {
+        label.lower(): key for key, label in UNREVIVABLE_METHOD_LABELS.items()
+    }
+
     def __init__(self, index: int, parent: QtWidgets.QWidget | None = None, 
                  used_heroes: set[str] | None = None, used_plugins: set[str] | None = None) -> None:
         super().__init__(f"Army {index}", parent)
@@ -2985,7 +2995,12 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.unrevivable_spin.setSingleStep(0.0001)
         self.unrevivable_spin.setValue(0.65)
         self.unrevivable_method_combo = QtWidgets.QComboBox()
-        self.unrevivable_method_combo.addItems(["Static", "Dynamic", "Sizeref"])
+        self.unrevivable_method_combo.addItems(
+            [
+                self.UNREVIVABLE_METHOD_LABELS[key]
+                for key in ["static", "dynamic", "sizeref", "sizeref_hp"]
+            ]
+        )
         self.unrevivable_method_combo.setToolTip(
             "Select the heavily wounded calculation method."
         )
@@ -3573,19 +3588,27 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.unit_icon.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
     def _on_unrevivable_method_changed(self, value: str) -> None:
-        normalized = (value or "").strip().lower()
+        normalized = self._normalize_unrevivable_method(value)
         is_static = normalized == "static"
         self.unrevivable_spin.setEnabled(is_static)
         if normalized == "dynamic":
             self.unrevivable_spin.setToolTip(
                 "Static heavily wounded ratio is ignored while dynamic mode is active."
             )
-        elif normalized == "sizeref":
+        elif normalized in {"sizeref", "sizeref_hp"}:
             self.unrevivable_spin.setToolTip(
                 "Static heavily wounded ratio is ignored while Sizeref mode is active."
             )
         else:
             self.unrevivable_spin.setToolTip("")
+
+    def _normalize_unrevivable_method(self, value: str) -> str:
+        normalized = (value or "").strip().lower()
+        if not normalized:
+            return ""
+        if normalized in self.UNREVIVABLE_METHOD_LABELS:
+            return normalized
+        return self.UNREVIVABLE_LABEL_TO_METHOD.get(normalized, normalized)
 
     def _open_rally_settings(self) -> None:
         """Open the rally configuration dialog."""
@@ -3616,11 +3639,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     if bool(cfg.get("use_dynamic_unrevivable_ratio", False))
                     else "static"
                 )
-            method_label = {
-                "dynamic": "Dynamic",
-                "sizeref": "Sizeref",
-                "static": "Static",
-            }.get(unrevivable_method, "Static")
+            normalized_method = self._normalize_unrevivable_method(unrevivable_method)
+            method_label = self.UNREVIVABLE_METHOD_LABELS.get(normalized_method, "Static")
             self.unrevivable_method_combo.setCurrentText(method_label)
 
             hero_combos = [self.hero1_combo, self.hero2_combo]
@@ -3800,8 +3820,12 @@ class ArmyFrame(QtWidgets.QGroupBox):
             "def_mod": float(self.def_edit.value()),
             "hp_mod": float(self.hp_edit.value()),
             "unrevivable_ratio": float(self.unrevivable_spin.value()),
-            "unrevivable_ratio_method": self.unrevivable_method_combo.currentText().strip().lower(),
-            "use_dynamic_unrevivable_ratio": self.unrevivable_method_combo.currentText().strip().lower()
+            "unrevivable_ratio_method": self._normalize_unrevivable_method(
+                self.unrevivable_method_combo.currentText()
+            ),
+            "use_dynamic_unrevivable_ratio": self._normalize_unrevivable_method(
+                self.unrevivable_method_combo.currentText()
+            )
             == "dynamic",
             "heroes": heroes_cfg,
         }

@@ -1694,6 +1694,49 @@ class GameSimulator:
 
         return hp_damage_to_troops, absorbed_by_shield, damage_after_all_percent_mods, potential_units_killed_this_hit_rounded
 
+    def _estimate_post_wound_troops(self, army: Army) -> float:
+        if army.pending_hp_damage_this_round <= 0 or army.current_troop_count <= 0:
+            return army.current_troop_count
+        hp_per_troop = army.unit.effective_hp_per_troop(army.active_effects)
+        if hp_per_troop <= 0:
+            hp_per_troop = 1
+        lost_float = army.pending_hp_damage_this_round / hp_per_troop
+        lost_round = round(lost_float)
+        available_troops = min(round(army.current_troop_count), lost_round)
+        return max(0.0, army.current_troop_count - available_troops)
+
+    def _apply_sizeref_unrevivable_ratios(self) -> None:
+        armies = (self.army1, self.army2)
+        if not any(
+            army.resolve_unrevivable_ratio_method() == "sizeref" for army in armies
+        ):
+            for army in armies:
+                army.pending_unrevivable_ratio = None
+            return
+
+        post_wound_counts = {army: self._estimate_post_wound_troops(army) for army in armies}
+        larger_count = max(post_wound_counts.values())
+        smaller_count = min(post_wound_counts.values())
+        if smaller_count <= 0 or larger_count <= 0:
+            smaller_ratio = 1.0
+            larger_ratio = 1.0
+        else:
+            log_ratio = math.log10(larger_count / smaller_count)
+            smaller_ratio = 0.1 + (0.8 * log_ratio)
+            larger_ratio = 0.1 + (0.4 * log_ratio)
+            smaller_ratio = min(1.0, max(0.0, smaller_ratio))
+            larger_ratio = min(1.0, max(0.0, larger_ratio))
+
+        for army in armies:
+            if army.resolve_unrevivable_ratio_method() != "sizeref":
+                army.pending_unrevivable_ratio = None
+                continue
+            other_army = self.army2 if army is self.army1 else self.army1
+            if post_wound_counts[army] <= post_wound_counts[other_army]:
+                army.pending_unrevivable_ratio = smaller_ratio
+            else:
+                army.pending_unrevivable_ratio = larger_ratio
+
     def apply_unrevivable_post_commit(self, mutual_engagement: bool = True) -> None:
         self._apply_dynamic_unrevivable_between(
             self.army1, self.army2, mutual_engagement
@@ -1720,7 +1763,7 @@ class GameSimulator:
         total_losses = combat_losses + skill_losses
         if total_losses <= 0.0:
             return
-        if not defender.use_dynamic_unrevivable_ratio:
+        if defender.resolve_unrevivable_ratio_method() != "dynamic":
             return
 
         opponent_kills = opponent.dynamic_kills_by_opponent.get(
@@ -2073,6 +2116,7 @@ class GameSimulator:
             if reached_max_rounds:
                 break
 
+            self._apply_sizeref_unrevivable_ratios()
             self.army1.commit_pending_healing_and_damage()
             self.army2.commit_pending_healing_and_damage()
             self.apply_unrevivable_post_commit(mutual_engagement=True)

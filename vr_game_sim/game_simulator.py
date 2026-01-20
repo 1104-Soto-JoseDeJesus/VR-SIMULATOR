@@ -1714,9 +1714,10 @@ class GameSimulator:
                 army.pending_unrevivable_ratio = None
             return
 
-        post_wound_counts = {army: self._estimate_post_wound_troops(army) for army in armies}
-        larger_count = max(post_wound_counts.values())
-        smaller_count = min(post_wound_counts.values())
+        army1_post_wound = self._estimate_post_wound_troops(self.army1)
+        army2_post_wound = self._estimate_post_wound_troops(self.army2)
+        larger_count = max(army1_post_wound, army2_post_wound)
+        smaller_count = min(army1_post_wound, army2_post_wound)
         if smaller_count <= 0 or larger_count <= 0:
             smaller_ratio = 1.0
             larger_ratio = 1.0
@@ -1727,12 +1728,14 @@ class GameSimulator:
             smaller_ratio = min(1.0, max(0.0, smaller_ratio))
             larger_ratio = min(1.0, max(0.0, larger_ratio))
 
-        for army in armies:
+        for army, own_count, other_count in (
+            (self.army1, army1_post_wound, army2_post_wound),
+            (self.army2, army2_post_wound, army1_post_wound),
+        ):
             if army.resolve_unrevivable_ratio_method() != "sizeref":
                 army.pending_unrevivable_ratio = None
                 continue
-            other_army = self.army2 if army is self.army1 else self.army1
-            if post_wound_counts[army] <= post_wound_counts[other_army]:
+            if own_count <= other_count:
                 army.pending_unrevivable_ratio = smaller_ratio
             else:
                 army.pending_unrevivable_ratio = larger_ratio

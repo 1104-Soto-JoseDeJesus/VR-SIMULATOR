@@ -973,6 +973,9 @@ class BattlefieldEngine:
                 if army not in unique_armies:
                     unique_armies.append(army)
 
+        for sim in self._engagements.values():
+            sim._apply_sizeref_unrevivable_ratios()
+
         for army in unique_armies:
             army.commit_pending_healing_and_damage()
             self._queue_state_update(army)

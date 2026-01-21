@@ -726,7 +726,7 @@ class Army:
                         army_obj.kills_dealt_this_round += kills
                         # Track unrevivable caused by this attacker to this defender (using defender's ratio)
                         if not dynamic_mode:
-                            unrevivable_caused = round(kills * self.unrevivable_ratio)
+                            unrevivable_caused = round(kills * active_ratio)
                             army_obj.unrevivable_caused_by_opponent[self.name] = (
                                 army_obj.unrevivable_caused_by_opponent.get(self.name, 0.0) + unrevivable_caused
                             )

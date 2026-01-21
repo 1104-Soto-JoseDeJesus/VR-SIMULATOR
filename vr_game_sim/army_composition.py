@@ -21,6 +21,7 @@ from .constants import (
     EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
     EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Import Olena's new effect
     EFFECT_NAME_MOUNT_PERIODIC_RAGE_GAIN,
+    EFFECT_NAME_BERSERK_FURY_BUFF,
     EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
     EFFECT_NAME_DELAYED_RAGE_GAIN,
     EFFECT_NAME_DELAYED_RAGE_REDUCTION,
@@ -1578,6 +1579,8 @@ class Army:
                 EFFECT_NAME_JUDGEMENT_MARKER,
                 EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
                 EFFECT_NAME_NATURE_MARK,
+                EFFECT_NAME_BERSERK_FURY_BUFF,
+                EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
             }
             if not allow_duplicates:
                 replaced_in_active = False

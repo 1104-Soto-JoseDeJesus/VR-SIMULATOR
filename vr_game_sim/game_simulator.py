@@ -1694,16 +1694,15 @@ class GameSimulator:
 
         return hp_damage_to_troops, absorbed_by_shield, damage_after_all_percent_mods, potential_units_killed_this_hit_rounded
 
-    def _estimate_post_wound_troops(self, army: Army) -> float:
+    def _estimate_round_losses(self, army: Army) -> float:
         if army.pending_hp_damage_this_round <= 0 or army.current_troop_count <= 0:
-            return army.current_troop_count
+            return 0.0
         hp_per_troop = army.unit.effective_hp_per_troop(army.active_effects)
         if hp_per_troop <= 0:
             hp_per_troop = 1
         lost_float = army.pending_hp_damage_this_round / hp_per_troop
         lost_round = round(lost_float)
-        available_troops = min(round(army.current_troop_count), lost_round)
-        return max(0.0, army.current_troop_count - available_troops)
+        return max(0.0, min(round(army.current_troop_count), lost_round))
 
     def _estimate_post_wound_total_hp(self, army: Army) -> float:
         if army.current_troop_count <= 0:
@@ -1727,6 +1726,23 @@ class GameSimulator:
         larger_ratio = min(1.0, max(0.0, larger_ratio))
         return smaller_ratio, larger_ratio
 
+    @staticmethod
+    def _calculate_sizeref_loss_ratios(
+        higher_losses: float,
+        lower_losses: float,
+        loser_coeff: float,
+        winner_coeff: float,
+    ) -> tuple[float, float]:
+        if lower_losses <= 0 or higher_losses <= 0:
+            log_ratio = 0.0
+        else:
+            log_ratio = math.log10(higher_losses / lower_losses)
+        loser_ratio = 0.1 + (loser_coeff * log_ratio)
+        winner_ratio = 0.1 + (winner_coeff * log_ratio)
+        loser_ratio = min(1.0, max(0.0, loser_ratio))
+        winner_ratio = min(1.0, max(0.0, winner_ratio))
+        return loser_ratio, winner_ratio
+
     def _apply_sizeref_unrevivable_ratios(self) -> None:
         armies = (self.army1, self.army2)
         if not any(
@@ -1737,11 +1753,15 @@ class GameSimulator:
                 army.pending_unrevivable_ratio = None
             return
 
-        army1_post_wound = self._estimate_post_wound_troops(self.army1)
-        army2_post_wound = self._estimate_post_wound_troops(self.army2)
-        troop_smaller_ratio, troop_larger_ratio = self._calculate_sizeref_ratios(
-            max(army1_post_wound, army2_post_wound),
-            min(army1_post_wound, army2_post_wound),
+        army1_round_losses = self._estimate_round_losses(self.army1)
+        army2_round_losses = self._estimate_round_losses(self.army2)
+        higher_losses = max(army1_round_losses, army2_round_losses)
+        lower_losses = min(army1_round_losses, army2_round_losses)
+        loser_ratio, winner_ratio = self._calculate_sizeref_loss_ratios(
+            higher_losses,
+            lower_losses,
+            loser_coeff=1.05,
+            winner_coeff=0.6,
         )
 
         army1_post_hp = self._estimate_post_wound_total_hp(self.army1)
@@ -1762,14 +1782,16 @@ class GameSimulator:
                 smaller_ratio = hp_smaller_ratio
                 larger_ratio = hp_larger_ratio
             else:
-                current_post = army1_post_wound if army is self.army1 else army2_post_wound
-                other_post = army2_post_wound if army is self.army1 else army1_post_wound
-                smaller_ratio = troop_smaller_ratio
-                larger_ratio = troop_larger_ratio
-            if current_post <= other_post:
-                army.pending_unrevivable_ratio = smaller_ratio
-            else:
-                army.pending_unrevivable_ratio = larger_ratio
+                current_losses = (
+                    army1_round_losses if army is self.army1 else army2_round_losses
+                )
+                other_losses = (
+                    army2_round_losses if army is self.army1 else army1_round_losses
+                )
+                if current_losses >= other_losses:
+                    army.pending_unrevivable_ratio = loser_ratio
+                else:
+                    army.pending_unrevivable_ratio = winner_ratio
 
     def apply_unrevivable_post_commit(self, mutual_engagement: bool = True) -> None:
         self._apply_dynamic_unrevivable_between(

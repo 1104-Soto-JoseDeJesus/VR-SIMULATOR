@@ -3803,6 +3803,8 @@ class ArmyFrame(QtWidgets.QGroupBox):
                 mount_skills = [sid for sid in self._mount_skills.get(idx, []) if sid]
                 if mount_skills:
                     cfg["mount_skill_ids"] = mount_skills
+                else:
+                    cfg.pop("mount_skill_ids", None)
 
                 gear_selection = self._hero_gear.get(idx, {})
                 if gear_selection:

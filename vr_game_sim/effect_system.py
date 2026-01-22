@@ -38,6 +38,7 @@ class EffectInstance:
     config: Dict[str, Any] = field(default_factory=dict)
     name: Optional[str] = None
     applied_this_round: bool = True
+    activate_next_round: bool = False
 
     def __post_init__(self):
         if not self.name:

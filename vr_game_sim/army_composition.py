@@ -1109,6 +1109,7 @@ class Army:
             duration=new_effect_duration,
             magnitude=magnitude,
             config=final_config,
+            activate_next_round=activate_next_round_flag,
         )
         if activate_next_round_flag:
             target_army.effects_to_activate_next_round.append(inst)

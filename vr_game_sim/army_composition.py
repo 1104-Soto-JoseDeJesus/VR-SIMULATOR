@@ -1428,6 +1428,19 @@ class Army:
                     if effect in self.active_effects:
                         self.active_effects.remove(effect)
 
+            elif effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round' and effect.duration <= 0:
+                    rage_amt = effect.config.get("rage_amount", 0)
+                    if rage_amt > 0 and effect.activate_next_round:
+                        source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
+                        gained = self.add_rage(rage_amt, source_id)
+                        if self.simulator:
+                            self.simulator._log_skill_trigger(
+                                self, effect.name,
+                                f"gains {gained:.0f} rage (delayed). New rage: {self.current_rage:.0f}")
+                        if effect in self.active_effects:
+                            self.active_effects.remove(effect)
+
             elif effect.name == EFFECT_NAME_DELAYED_RAGE_REDUCTION and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round' and effect.duration <= 0:
                     reduction = effect.config.get("rage_reduction", 0)

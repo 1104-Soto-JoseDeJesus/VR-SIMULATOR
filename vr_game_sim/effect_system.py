@@ -268,7 +268,11 @@ class EffectInstance:
                 EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
             ]:
                 desc_parts.append("Pending buff removal for start of next round")
-            elif self.name == EFFECT_NAME_DELAYED_RAGE_GAIN:
+            elif self.name == EFFECT_NAME_DELAYED_RAGE_GAIN or (
+                self.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+                and self.config.get("rage_amount", 0) > 0
+                and self.activate_next_round
+            ):
                 amt = self.config.get('rage_amount', 0)
                 desc_parts.append(f"Gain {amt} rage next round")
             elif self.name == EFFECT_NAME_DELAYED_RAGE_REDUCTION:

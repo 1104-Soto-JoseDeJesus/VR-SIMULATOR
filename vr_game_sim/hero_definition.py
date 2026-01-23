@@ -57,7 +57,7 @@ class Hero:
         if len(self.mount_skill_ids) > 2:
             raise ValueError(f"Hero {self.name} mount skills limited to a maximum of 2. Got {len(self.mount_skill_ids)}")
 
-        for skill_id_list in [self.talent_ids, self.base_skill_ids, self.plugin_skill_ids, self.mount_skill_ids]:
+        for skill_id_list in [self.talent_ids, self.base_skill_ids, self.plugin_skill_ids]:
             for skill_id in skill_id_list:
                 if skill_id and skill_id.lower() not in ["", "none", "blank"]:
                     if skill_id in skill_registry:
@@ -67,6 +67,22 @@ class Hero:
                             print(f"Warning: Skill ID '{skill_id}' for hero '{self.name}' not found in SKILL_REGISTRY.")
                         elif "dummy_talent_empty" in skill_registry:
                             self.skills.append(copy.deepcopy(skill_registry["dummy_talent_empty"]))
+
+        normalized_mount_ids = [
+            skill_id
+            for skill_id in self.mount_skill_ids
+            if skill_id and str(skill_id).lower() not in ["", "none", "blank"]
+        ]
+        has_duplicate_mounts = len(set(normalized_mount_ids)) != len(normalized_mount_ids)
+        for mount_index, skill_id in enumerate(self.mount_skill_ids):
+            if skill_id and str(skill_id).lower() not in ["", "none", "blank"]:
+                if skill_id in skill_registry:
+                    mount_skill_def = copy.deepcopy(skill_registry[skill_id])
+                    if has_duplicate_mounts:
+                        mount_skill_def["mount_instance_index"] = mount_index
+                    self.skills.append(mount_skill_def)
+                else:
+                    print(f"Warning: Skill ID '{skill_id}' for hero '{self.name}' not found in SKILL_REGISTRY.")
 
         self.gear_ids = {}
         self.gear_items = {}

@@ -1037,6 +1037,22 @@ class GameSimulator:
                 if random.random() < final_chance:
                     skill_id = skill_def["id"]
                     skill_cfg = skill_def.get("config", {})
+                    cooldown_key = skill_id
+                    if (
+                        skill_def.get("type") == SkillType.MOUNT_SKILL
+                        and self._mount_skill_has_direct_damage(skill_def)
+                        and skill_def.get("trigger")
+                        in (
+                            SkillTriggerType.ON_OWN_RAGE_SKILL_CAST,
+                            SkillTriggerType.ON_OWN_COMMAND_SKILL_CAST,
+                        )
+                    ):
+                        instance_index = skill_def.get("mount_instance_index")
+                        instance_key = skill_def.get("instance_key")
+                        if instance_index is not None:
+                            cooldown_key = f"{skill_id}::mount::{instance_index}"
+                        elif instance_key is not None:
+                            cooldown_key = str(instance_key)
                     cooldown = None
                     if skill_def.get("trigger") != SkillTriggerType.CHANCE_PER_ROUND:
                         cooldown_enabled = self._cooldown_enabled_for_skill(skill_def)
@@ -1066,7 +1082,7 @@ class GameSimulator:
                         if cooldown_enabled_for_active_cast:
                             max_triggers_limit = 1 if skill_id in ACTIVE_CAST_ONE_TRIGGER_SKILLS else 2
                             
-                            trigger_rounds = triggering_army.skill_active_cast_trigger_rounds.get(skill_id, [])
+                            trigger_rounds = triggering_army.skill_active_cast_trigger_rounds.get(cooldown_key, [])
                             current_round = triggering_army.army_round
                             
                             # Filter out old triggers (more than 9 rounds ago)
@@ -1187,20 +1203,20 @@ class GameSimulator:
                             if cooldown_enabled_for_active_cast:
                                 max_triggers_to_keep = 1 if skill_id in ACTIVE_CAST_ONE_TRIGGER_SKILLS else 2
                                 
-                                if skill_id not in triggering_army.skill_active_cast_trigger_rounds:
-                                    triggering_army.skill_active_cast_trigger_rounds[skill_id] = []
+                                if cooldown_key not in triggering_army.skill_active_cast_trigger_rounds:
+                                    triggering_army.skill_active_cast_trigger_rounds[cooldown_key] = []
                                 current_round = triggering_army.army_round
                                 # Clean up old triggers (more than 9 rounds ago) before adding new one
-                                triggering_army.skill_active_cast_trigger_rounds[skill_id] = [
-                                    r for r in triggering_army.skill_active_cast_trigger_rounds[skill_id]
+                                triggering_army.skill_active_cast_trigger_rounds[cooldown_key] = [
+                                    r for r in triggering_army.skill_active_cast_trigger_rounds[cooldown_key]
                                     if current_round - r < 9
                                 ]
                                 # Add the new trigger round
-                                triggering_army.skill_active_cast_trigger_rounds[skill_id].append(current_round)
+                                triggering_army.skill_active_cast_trigger_rounds[cooldown_key].append(current_round)
                                 # Keep only the max allowed triggers (1 for special skills, 2 for others)
-                                if len(triggering_army.skill_active_cast_trigger_rounds[skill_id]) > max_triggers_to_keep:
-                                    triggering_army.skill_active_cast_trigger_rounds[skill_id] = sorted(
-                                        triggering_army.skill_active_cast_trigger_rounds[skill_id]
+                                if len(triggering_army.skill_active_cast_trigger_rounds[cooldown_key]) > max_triggers_to_keep:
+                                    triggering_army.skill_active_cast_trigger_rounds[cooldown_key] = sorted(
+                                        triggering_army.skill_active_cast_trigger_rounds[cooldown_key]
                                     )[-max_triggers_to_keep:]
 
                         if max_triggers > 1:

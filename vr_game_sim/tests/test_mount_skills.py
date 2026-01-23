@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from vr_game_sim.enums import SkillType, SkillTriggerType, StatType
+from vr_game_sim.enums import DoTType, EffectType, SkillType, SkillTriggerType, StatType
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
 from vr_game_sim.main import create_armies_from_data, get_setup_data_for_saving
@@ -247,3 +247,56 @@ def test_duplicate_mount_damage_active_cast_cooldown_per_instance():
     for key in cooldown_keys:
         assert len(army.skill_active_cast_trigger_rounds.get(key, [])) == 2
     assert sum(len(v) for v in army.skill_active_cast_trigger_rounds.values()) == 4
+
+
+def test_duplicate_mount_dot_and_heal_instances_trigger():
+    cfg_single = copy.deepcopy(_BASE_CFG)
+    cfg_single["heroes"][0]["mount_skill_ids"] = ["mount_poison_n_heal"]
+
+    cfg_double = copy.deepcopy(_BASE_CFG)
+    cfg_double["heroes"][0]["mount_skill_ids"] = ["mount_poison_n_heal", "mount_poison_n_heal"]
+
+    army_single, opponent_single = create_armies_from_data([cfg_single, cfg_single])[0:2]
+    army_double, opponent_double = create_armies_from_data([cfg_double, cfg_double])[0:2]
+
+    for army, opponent in [
+        (army_single, opponent_single),
+        (army_double, opponent_double),
+    ]:
+        army.current_troop_count = 8000
+        opponent.current_troop_count = 12000
+        army.army_round = 1
+        opponent.army_round = 1
+        for skill in army.heroes[0].skills:
+            if skill.get("id") == "mount_poison_n_heal":
+                skill.setdefault("config", {})["trigger_interval"] = 1
+
+    simulator_single = GameSimulator(army_single, opponent_single, mode="battlefield")
+    simulator_double = GameSimulator(army_double, opponent_double, mode="battlefield")
+
+    simulator_single._process_skill_triggers(
+        army_single, opponent_single, SkillTriggerType.CHANCE_PER_ROUND
+    )
+    simulator_double._process_skill_triggers(
+        army_double, opponent_double, SkillTriggerType.CHANCE_PER_ROUND
+    )
+
+    dot_effects_single = [
+        eff
+        for eff in opponent_single.effects_to_activate_next_round
+        if eff.effect_type == EffectType.DAMAGE_OVER_TIME
+        and eff.config.get("dot_type") == DoTType.POISON
+    ]
+    dot_effects_double = [
+        eff
+        for eff in opponent_double.effects_to_activate_next_round
+        if eff.effect_type == EffectType.DAMAGE_OVER_TIME
+        and eff.config.get("dot_type") == DoTType.POISON
+    ]
+
+    assert len(dot_effects_single) == 1
+    assert len(dot_effects_double) == 2
+    assert army_single.pending_hp_healing_this_round > 0
+    assert army_double.pending_hp_healing_this_round == pytest.approx(
+        army_single.pending_hp_healing_this_round * 2
+    )

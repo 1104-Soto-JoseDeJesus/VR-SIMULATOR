@@ -1107,7 +1107,6 @@ class BattlefieldEngine:
             if army.current_troop_count <= 0:
                 continue
             army.activate_queued_effects()
-            army.apply_start_of_round_rage_deductions()
             # Determine the primary opponent for non-reactive skills –
             # defenders should only aim such skills at their direct target.
             primary_opponent = opponent
@@ -1116,6 +1115,7 @@ class BattlefieldEngine:
             army.process_periodic_effects(
                 "start_of_round", opponent=primary_opponent, skip_dot_at_start=True
             )
+            army.apply_start_of_round_rage_deductions()
             army.activate_queued_effects()
             sim._process_skill_triggers(
                 army,

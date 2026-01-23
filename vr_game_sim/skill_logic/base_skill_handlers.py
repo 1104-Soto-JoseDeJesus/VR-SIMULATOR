@@ -208,10 +208,30 @@ def handle_base_skill_zeal(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: SkillD
             )
         ]
         if dbuffs_on_army:
-            dbuff_to_rmv = random.choice(dbuffs_on_army);
-            trig_army.active_effects.remove(dbuff_to_rmv)
-            logs.append((f"Removes debuff: {dbuff_to_rmv.name}.", None));
-            eff_hpnd = True
+            dbuff_to_rmv = random.choice(dbuffs_on_army)
+            pending_cleanse = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
+                "duration": 0,
+                "config": {
+                    "debuff_ids_to_remove": [dbuff_to_rmv.id],
+                    "debuff_names_removed_log": [
+                        dbuff_to_rmv.name
+                        if dbuff_to_rmv.name
+                        else f"Unnamed Debuff ({str(dbuff_to_rmv.id)[:4]})"
+                    ],
+                },
+                "activate_next_round": True,
+            }
+            created_cleanse = trig_army._create_and_add_single_effect(
+                pending_cleanse, sk_def["id"], trig_army, trig_army, opp_army
+            )
+            if created_cleanse:
+                debuff_name = dbuff_to_rmv.name or f"Unnamed Debuff ({str(dbuff_to_rmv.id)[:4]})"
+                logs.append((f"Schedules debuff cleanse for {debuff_name} next round.", None))
+                eff_hpnd = True
+        else:
+            logs.append(("Attempted self-cleanse, but no active debuffs found.", None))
     return eff_hpnd, logs
 
 
@@ -1927,5 +1947,3 @@ def handle_base_skill_shield_breaker(
                 happened = True
                 logs.append((f"Gains '{EFFECT_NAME_SHIELD_BREAKER_BASIC_BUFF}' for {buff_dur + 1} rounds (starting next round).", None))
     return happened, logs
-
-

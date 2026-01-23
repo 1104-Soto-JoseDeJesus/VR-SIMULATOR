@@ -1234,12 +1234,15 @@ class Army:
                 )
 
         if phase == "start_of_round":
+            processed_pending_debuff_cleanse: set[uuid.UUID] = set()
+            processed_pending_buff_removal: set[uuid.UUID] = set()
             for effect in list(self.active_effects):
                 if (
                     effect.name in pending_cleanse_effects
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT
                 ):
                     apply_pending_debuff_cleanse(effect)
+                    processed_pending_debuff_cleanse.add(effect.id)
                 if (
                     effect.name
                     in {
@@ -1256,6 +1259,23 @@ class Army:
                         effect,
                         shield_only=effect.name == EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP,
                     )
+                    processed_pending_buff_removal.add(effect.id)
+
+            for effect in list(self.active_effects):
+                if effect.effect_type != EffectType.CUSTOM_SKILL_EFFECT:
+                    continue
+                if (
+                    effect.id not in processed_pending_debuff_cleanse
+                    and effect.config.get("debuff_ids_to_remove")
+                ):
+                    apply_pending_debuff_cleanse(effect)
+                    processed_pending_debuff_cleanse.add(effect.id)
+                if (
+                    effect.id not in processed_pending_buff_removal
+                    and effect.config.get("buff_ids_to_remove")
+                ):
+                    apply_pending_buff_removal(effect)
+                    processed_pending_buff_removal.add(effect.id)
 
         for effect in list(self.active_effects):
             is_immediate_custom_effect = effect.name in [

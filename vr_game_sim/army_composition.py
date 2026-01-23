@@ -1157,6 +1157,7 @@ class Army:
             EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
             EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY,
             EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
+            EFFECT_NAME_PENDING_HALO_OF_SACRIFICE_CLEANSE,
             EFFECT_NAME_DEER_REDEMPTION_CLEANSE,
             EFFECT_NAME_DIVINE_AWE_CLEANSE,
             EFFECT_NAME_BLESSED_DEW_CLEANSE,
@@ -1185,6 +1186,51 @@ class Army:
                     f"Removes targeted debuffs: {', '.join(debuff_names_removed_log)}.",
                 )
 
+        def apply_pending_buff_removal(
+            removal_effect: EffectInstance,
+            *,
+            shield_only: bool = False,
+        ) -> None:
+            buff_ids_to_remove = removal_effect.config.get("buff_ids_to_remove", [])
+            targeted_buff_names_initial_log = removal_effect.config.get(
+                "targeted_buff_names_initial_log",
+                [],
+            )
+            actually_removed_names_this_step = []
+            new_active_effects_after_removal = []
+            for current_eff_in_army in list(self.active_effects):
+                should_remove = current_eff_in_army.id in buff_ids_to_remove
+                if shield_only:
+                    should_remove = should_remove and current_eff_in_army.effect_type == EffectType.SHIELD
+                if should_remove:
+                    actually_removed_names_this_step.append(
+                        current_eff_in_army.name
+                        if current_eff_in_army.name
+                        else f"Buff ID ...{str(current_eff_in_army.id)[-4:]}"
+                    )
+                else:
+                    new_active_effects_after_removal.append(current_eff_in_army)
+
+            source_skill_name = self.simulator.SKILL_REGISTRY_GLOBAL.get(
+                removal_effect.source_skill_id,
+                {},
+            ).get("name", removal_effect.source_skill_id)
+            if actually_removed_names_this_step:
+                self.active_effects = new_active_effects_after_removal
+                self.simulator._log_skill_trigger(
+                    self,
+                    f"{source_skill_name} ({removal_effect.name})",
+                    f"Removes targeted buffs from self: {', '.join(actually_removed_names_this_step)}.",
+                )
+            elif targeted_buff_names_initial_log:
+                self.simulator._log_skill_trigger(
+                    self,
+                    f"{source_skill_name} ({removal_effect.name} Attempt)",
+                    "Targeted buffs "
+                    f"({', '.join(targeted_buff_names_initial_log)}) "
+                    "were no longer active or already expired on self.",
+                )
+
         if phase == "start_of_round":
             for effect in list(self.active_effects):
                 if (
@@ -1192,6 +1238,22 @@ class Army:
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT
                 ):
                     apply_pending_debuff_cleanse(effect)
+                if (
+                    effect.name
+                    in {
+                        EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
+                        EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
+                        EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
+                        EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
+                        EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
+                        EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP,
+                    }
+                    and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+                ):
+                    apply_pending_buff_removal(
+                        effect,
+                        shield_only=effect.name == EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP,
+                    )
 
         for effect in list(self.active_effects):
             is_immediate_custom_effect = effect.name in [
@@ -1205,6 +1267,7 @@ class Army:
                 EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
                 EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
                 EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
+                EFFECT_NAME_PENDING_HALO_OF_SACRIFICE_CLEANSE,
                 EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
                 EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
                 EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP,
@@ -1588,6 +1651,7 @@ class Army:
             elif effect.name in [EFFECT_NAME_PENDING_AWAKENING_CLEANSE, EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
                                  EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
                                  EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY, EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
+                                 EFFECT_NAME_PENDING_HALO_OF_SACRIFICE_CLEANSE,
                                  EFFECT_NAME_DEER_REDEMPTION_CLEANSE, EFFECT_NAME_DIVINE_AWE_CLEANSE,
                                  EFFECT_NAME_BLESSED_DEW_CLEANSE] \
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
@@ -1598,30 +1662,14 @@ class Army:
                                  EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
                                  EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
                                  EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
-                                 EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL] \
+                                 EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
+                                 EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP] \
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
-                    buff_ids_to_remove = effect.config.get("buff_ids_to_remove", [])
-                    targeted_buff_names_initial_log = effect.config.get("targeted_buff_names_initial_log", [])
-                    actually_removed_names_this_step = []
-
-                    new_active_effects_after_removal = []
-                    for current_eff_in_army in list(self.active_effects):
-                        if current_eff_in_army.id in buff_ids_to_remove:
-                            actually_removed_names_this_step.append(
-                                current_eff_in_army.name if current_eff_in_army.name else f"Buff ID ...{str(current_eff_in_army.id)[-4:]}")
-                        else:
-                            new_active_effects_after_removal.append(current_eff_in_army)
-
-                    source_skill_name = self.simulator.SKILL_REGISTRY_GLOBAL.get(effect.source_skill_id, {}).get("name",
-                                                                                                                 effect.source_skill_id)
-                    if actually_removed_names_this_step:
-                        self.active_effects = new_active_effects_after_removal
-                        self.simulator._log_skill_trigger(self, f"{source_skill_name} ({effect.name})",
-                                                          f"Removes targeted buffs from self: {', '.join(actually_removed_names_this_step)}.")
-                    elif targeted_buff_names_initial_log:
-                        self.simulator._log_skill_trigger(self, f"{source_skill_name} ({effect.name} Attempt)",
-                                                          f"Targeted buffs ({', '.join(targeted_buff_names_initial_log)}) were no longer active or already expired on self.")
+                    apply_pending_buff_removal(
+                        effect,
+                        shield_only=effect.name == EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP,
+                    )
 
     def activate_queued_effects(self):
         effects_to_add_to_active = []

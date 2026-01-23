@@ -918,19 +918,9 @@ class GameSimulator:
                 continue
             if stat not in stat_mods or magnitude > stat_mods[stat].get("buff_magnitude", 0):
                 stat_mods[stat] = mod
-        if stat_mods:
-            cfg["stat_mods"] = list(stat_mods.values())
-        elif "stat_mods" in cfg:
-            cfg["stat_mods"] = []
-
-        for key, value in list(cfg.items()):
-            if key == "stat_mods":
-                continue
-            if isinstance(value, (int, float)):
-                continue
-            cfg[key] = value
-
-        return cfg
+        if not stat_mods:
+            return {}
+        return {"stat_mods": list(stat_mods.values())}
 
     def _merge_mount_skill_non_damage_configs(self, skill_defs: List[SkillDefinition]) -> Dict[str, Any]:
         merged: Dict[str, Any] = {}
@@ -1038,21 +1028,15 @@ class GameSimulator:
                     skill_id = skill_def["id"]
                     skill_cfg = skill_def.get("config", {})
                     cooldown_key = skill_id
-                    if (
-                        skill_def.get("type") == SkillType.MOUNT_SKILL
-                        and self._mount_skill_has_direct_damage(skill_def)
-                        and skill_def.get("trigger")
-                        in (
-                            SkillTriggerType.ON_OWN_RAGE_SKILL_CAST,
-                            SkillTriggerType.ON_OWN_COMMAND_SKILL_CAST,
-                        )
-                    ):
+                    trigger_key = skill_id
+                    if skill_def.get("type") == SkillType.MOUNT_SKILL:
                         instance_index = skill_def.get("mount_instance_index")
                         instance_key = skill_def.get("instance_key")
                         if instance_index is not None:
                             cooldown_key = f"{skill_id}::mount::{instance_index}"
                         elif instance_key is not None:
                             cooldown_key = str(instance_key)
+                        trigger_key = cooldown_key
                     cooldown = None
                     if skill_def.get("trigger") != SkillTriggerType.CHANCE_PER_ROUND:
                         cooldown_enabled = self._cooldown_enabled_for_skill(skill_def)
@@ -1067,7 +1051,7 @@ class GameSimulator:
                     is_on_cooldown = False
                     if cooldown is not None:
                         last_triggered = triggering_army.skill_last_triggered_round.get(
-                            skill_id, -(cooldown + 1)
+                            cooldown_key, -(cooldown + 1)
                         )
                         if triggering_army.army_round < last_triggered + cooldown:
                             is_on_cooldown = True
@@ -1109,12 +1093,12 @@ class GameSimulator:
                         ):
                             continue
                     else:
-                        if skill_def.get("type") == SkillType.MOUNT_SKILL and skill_id in triggering_army.triggered_skills_this_round:
+                        if skill_def.get("type") == SkillType.MOUNT_SKILL and trigger_key in triggering_army.triggered_skills_this_round:
                             damage_limit = mount_skill_damage_allowance.get(skill_id, 0)
                             damage_used = triggering_army.mount_skill_damage_triggers_this_round.get(skill_id, 0)
                             if not (self._mount_skill_has_direct_damage(skill_def) and damage_used < damage_limit):
                                 continue
-                        elif skill_id in triggering_army.triggered_skills_this_round:
+                        elif trigger_key in triggering_army.triggered_skills_this_round:
                             continue
 
                     effective_skill_def = skill_def
@@ -1127,6 +1111,8 @@ class GameSimulator:
                         effective_skill_def["config"] = self._apply_mount_skill_non_damage_config(
                             base_cfg, merged_cfg, include_non_damage
                         )
+                        if cooldown_key != skill_id:
+                            effective_skill_def["id"] = cooldown_key
 
                     logic_handler: Optional[SkillLogicHandler] = effective_skill_def.get("logic_handler")
                     if logic_handler:
@@ -1194,7 +1180,7 @@ class GameSimulator:
                             )
 
                         if cooldown is not None:
-                            triggering_army.skill_last_triggered_round[skill_id] = triggering_army.army_round
+                            triggering_army.skill_last_triggered_round[cooldown_key] = triggering_army.army_round
 
                         # Record trigger round for active skill cast cooldown tracking
                         # Only track if cooldowns are enabled for this skill type
@@ -1224,8 +1210,8 @@ class GameSimulator:
                             targets_triggered.add(actual_effect_target.name)
                             triggering_army.skill_triggers_against_this_round[skill_id] = targets_triggered
                         else:
-                            if skill_id not in triggering_army.triggered_skills_this_round:
-                                triggering_army.triggered_skills_this_round.append(skill_id)
+                            if trigger_key not in triggering_army.triggered_skills_this_round:
+                                triggering_army.triggered_skills_this_round.append(trigger_key)
 
     def _execute_rage_skills(self, army: Army, opponent: Army, is_hero2_delayed_trigger: bool = False):
         skill_to_execute_id: Optional[str] = None

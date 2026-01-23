@@ -2615,7 +2615,8 @@ def handle_plugin_silent_invasion(
                 "effect_type": EffectType.DAMAGE_OVER_TIME,
                 "name": skill_config.get("bleed_effect_name", EFFECT_NAME_SILENT_INVASION_BLEED),
                 "duration": bleed_duration,
-                "config": {"dot_type": DoTType.BLEED, "status_effect_factor": bleed_factor},
+                "dot_type": DoTType.BLEED,
+                "status_effect_factor": bleed_factor,
                 "activate_next_round": True,
             }
             created_bleed = opponent_army._create_and_add_single_effect(

@@ -1351,16 +1351,22 @@ class GameSimulator:
                             damage_dealt_by_rage = True;
                             break
 
+        self._process_skill_triggers(
+            army,
+            opponent,
+            SkillTriggerType.ON_OWN_RAGE_SKILL_CAST,
+            event_data={
+                "source_rage_skill_id": skill_to_execute_id,
+                "hero_slot": hero_slot,
+                "opponent_for_shield_calc": opponent,
+            },
+        )
+
         if an_effect_happened_rage:
             self._log_skill_trigger(army, f"{log_prefix}{skill_def['name']}", "Rage Skill Triggered.")
             for desc_str, dmg_details in log_details_rage:
                 self._log_skill_trigger(army, "  ↳", desc_str, damage_details=dmg_details)
             army.increment_skill_trigger_count(skill_def["id"])
-
-            self._process_skill_triggers(army, opponent, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST,
-                                         event_data={"source_rage_skill_id": skill_to_execute_id,
-                                                     "hero_slot": hero_slot,
-                                                     "opponent_for_shield_calc": opponent})
             army.activate_queued_effects()
             if opponent.current_troop_count > 0:
                 opponent.activate_queued_effects()

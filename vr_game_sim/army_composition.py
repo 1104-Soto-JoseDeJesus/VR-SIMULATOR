@@ -1736,7 +1736,7 @@ class Army:
         self.active_effects = next_active_effects
 
     def apply_start_of_round_rage_deductions(self):
-        """Apply all pending rage reduction effects before other start-of-round logic."""
+        """Apply pending rage reduction effects once start-of-round cleanses are resolved."""
         to_remove = []
         for eff in list(self.active_effects):
             if (eff.name == EFFECT_NAME_DELAYED_RAGE_REDUCTION and

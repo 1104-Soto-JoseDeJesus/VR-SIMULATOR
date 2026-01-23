@@ -1147,6 +1147,46 @@ class Army:
         if not self.simulator:
             return
 
+        pending_cleanse_effects = {
+            EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
+            EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
+            EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
+            EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
+            EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY,
+            EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
+        }
+
+        def apply_pending_debuff_cleanse(cleanse_effect: EffectInstance) -> None:
+            debuff_ids_to_remove = cleanse_effect.config.get("debuff_ids_to_remove", [])
+            debuff_names_removed_log = []
+
+            new_active_effects_after_cleanse = []
+            for current_eff_in_army in list(self.active_effects):
+                if current_eff_in_army.id in debuff_ids_to_remove:
+                    debuff_names_removed_log.append(
+                        current_eff_in_army.name
+                        if current_eff_in_army.name
+                        else f"Unnamed Debuff ({str(current_eff_in_army.id)[:4]})"
+                    )
+                else:
+                    new_active_effects_after_cleanse.append(current_eff_in_army)
+
+            if debuff_names_removed_log:
+                self.active_effects = new_active_effects_after_cleanse
+                self.simulator._log_skill_trigger(
+                    self,
+                    cleanse_effect.name,
+                    f"Removes targeted debuffs: {', '.join(debuff_names_removed_log)}.",
+                )
+
+        if phase == "start_of_round":
+            for effect in list(self.active_effects):
+                if (
+                    effect.name in pending_cleanse_effects
+                    and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+                ):
+                    apply_pending_debuff_cleanse(effect)
+
         for effect in list(self.active_effects):
             is_immediate_custom_effect = effect.name in [
                 EFFECT_NAME_FIRST_STRIKE_RAGE_AURA,
@@ -1541,21 +1581,7 @@ class Army:
                                  EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY, EFFECT_NAME_PENDING_HEIMDALL_PURIFY] \
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
-                    debuff_ids_to_remove = effect.config.get("debuff_ids_to_remove", [])
-                    debuff_names_removed_log = []
-
-                    new_active_effects_after_cleanse = []
-                    for current_eff_in_army in list(self.active_effects):
-                        if current_eff_in_army.id in debuff_ids_to_remove:
-                            debuff_names_removed_log.append(
-                                current_eff_in_army.name if current_eff_in_army.name else f"Unnamed Debuff ({str(current_eff_in_army.id)[:4]})")
-                        else:
-                            new_active_effects_after_cleanse.append(current_eff_in_army)
-
-                    if debuff_names_removed_log:
-                        self.active_effects = new_active_effects_after_cleanse
-                        self.simulator._log_skill_trigger(self, effect.name,
-                                                          f"Removes targeted debuffs: {', '.join(debuff_names_removed_log)}.")
+                    apply_pending_debuff_cleanse(effect)
 
             elif effect.name in [EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
                                  EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,

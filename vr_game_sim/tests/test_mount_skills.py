@@ -218,3 +218,32 @@ def test_duplicate_mount_damage_and_buff_resolution():
         if getattr(effect, "_stat_type_from_config", lambda: None)() == StatType.BURN_DAMAGE_BOOST
     ]
     assert burn_boosts == [high_magnitude]
+
+
+def test_duplicate_mount_damage_active_cast_cooldown_per_instance():
+    cfg = copy.deepcopy(_BASE_CFG)
+    cfg["heroes"][0]["mount_skill_ids"] = ["mount_strangled_death", "mount_strangled_death"]
+
+    army, opponent = create_armies_from_data([cfg, cfg])[0:2]
+    hero = army.heroes[0]
+    mount_skills = [skill for skill in hero.skills if skill.get("id") == "mount_strangled_death"]
+    assert len(mount_skills) == 2
+    assert all("mount_instance_index" in skill for skill in mount_skills)
+
+    simulator = GameSimulator(army, opponent, mode="battlefield")
+    for round_num in range(1, 3):
+        army.army_round = round_num
+        opponent.army_round = round_num
+        army.triggered_skills_this_round.clear()
+        army.skill_trigger_counts_this_round.clear()
+        army.skill_triggers_against_this_round.clear()
+        army.mount_skill_damage_triggers_this_round.clear()
+        army.mount_skill_non_damage_applied_this_round.clear()
+        simulator._process_skill_triggers(army, opponent, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST)
+
+    cooldown_keys = [
+        f"mount_strangled_death::mount::{skill['mount_instance_index']}" for skill in mount_skills
+    ]
+    for key in cooldown_keys:
+        assert len(army.skill_active_cast_trigger_rounds.get(key, [])) == 2
+    assert sum(len(v) for v in army.skill_active_cast_trigger_rounds.values()) == 4

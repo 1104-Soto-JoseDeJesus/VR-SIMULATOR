@@ -1081,16 +1081,15 @@ def _schedule_shield_strip(
     if not opponent_army:
         return False, None
 
-    shield_ids = [
-        eff.id for eff in opponent_army.active_effects if eff.effect_type == EffectType.SHIELD
-    ]
+    has_active_shields = any(
+        eff.effect_type == EffectType.SHIELD for eff in opponent_army.active_effects
+    )
     pending_strip = {
         "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
         "name": effect_name,
         "duration": 0,
         "config": {
-            "buff_ids_to_remove": shield_ids,
-            "targeted_buff_names_initial_log": [eff.name for eff in opponent_army.active_effects if eff.id in shield_ids],
+            "remove_active_shields": True,
         },
         "activate_next_round": True,
     }
@@ -1100,7 +1099,11 @@ def _schedule_shield_strip(
     if not created:
         return False, None
 
-    log_text = "Attempts to strip enemy shields next round (none active)." if not shield_ids else "Strips enemy shields next round."
+    log_text = (
+        "Attempts to strip enemy shields next round (none active)."
+        if not has_active_shields
+        else "Strips enemy shields next round."
+    )
     return True, (log_text, None)
 
 

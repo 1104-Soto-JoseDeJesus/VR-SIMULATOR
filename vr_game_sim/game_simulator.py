@@ -210,6 +210,54 @@ class GameSimulator:
         self.army2._apply_initial_passive_skills()
         self.report_builder = report_builder or ReportBuilder()
         self.track_stats = track_stats
+        self._active_skill_id: Optional[str] = None
+        self._active_skill_label: Optional[str] = None
+        self._active_skill_crit_bonus: Optional[float] = None
+        self._active_skill_crit_rate: float = 0.0
+        self._active_skill_crit_triggered: bool = False
+
+    def _get_skill_label_context(
+        self, source_skill_def: Optional[SkillDefinition]
+    ) -> tuple[Optional[str], list[PluginSkillLabel]]:
+        labels: list[PluginSkillLabel] = []
+        if source_skill_def:
+            labels = source_skill_def.get("labels", []) or []
+        skill_label_context = None
+        if PluginSkillLabel.REACTIVE in labels:
+            skill_label_context = PluginSkillLabel.REACTIVE.value.upper()
+        elif PluginSkillLabel.COOPERATION in labels:
+            skill_label_context = PluginSkillLabel.COOPERATION.value.upper()
+        elif PluginSkillLabel.COMMAND in labels:
+            skill_label_context = PluginSkillLabel.COMMAND.value.upper()
+        return skill_label_context, labels
+
+    def _roll_skill_crit_bonus(
+        self,
+        source_army: Army,
+        target_army: Optional[Army],
+        source_skill_def: SkillDefinition,
+        skill_label_context: Optional[str],
+    ) -> tuple[float, float, bool]:
+        if skill_label_context is None:
+            return 0.0, 0.0, False
+        crit_stat_lookup = {
+            PluginSkillLabel.REACTIVE.value.upper(): StatType.REACTIVE_SKILL_CRIT_RATE,
+            PluginSkillLabel.COOPERATION.value.upper(): StatType.COOPERATION_SKILL_CRIT_RATE,
+            PluginSkillLabel.COMMAND.value.upper(): StatType.COMMAND_SKILL_CRIT_RATE,
+        }
+        crit_stat = crit_stat_lookup.get(skill_label_context)
+        if crit_stat is None:
+            return 0.0, 0.0, False
+        target_unit_type = target_army.unit.unit_type if target_army else None
+        crit_rate = source_army.get_sum_stat_magnitudes(
+            crit_stat,
+            attack_type_filter="SKILL",
+            target_unit_type=target_unit_type,
+            skill_label=skill_label_context,
+        )
+        crit_rate = max(0.0, min(1.0, crit_rate))
+        crit_triggered = crit_rate > 0 and random.random() < crit_rate
+        return (0.5 if crit_triggered else 0.0), crit_rate, crit_triggered
 
     def _log_active_effects_for_report(self) -> List[str]:
         lines: List[str] = []
@@ -370,16 +418,7 @@ class GameSimulator:
         target_unit_type = calc_target.unit.unit_type
         attacker_unit_type = source_army.unit.unit_type
 
-        skill_label_context = None
-        labels: list[PluginSkillLabel] = []
-        if source_skill_def:
-            labels = source_skill_def.get("labels", []) or []
-            if PluginSkillLabel.REACTIVE in labels:
-                skill_label_context = PluginSkillLabel.REACTIVE.value.upper()
-            elif PluginSkillLabel.COOPERATION in labels:
-                skill_label_context = PluginSkillLabel.COOPERATION.value.upper()
-            elif PluginSkillLabel.COMMAND in labels:
-                skill_label_context = PluginSkillLabel.COMMAND.value.upper()
+        skill_label_context, labels = self._get_skill_label_context(source_skill_def)
 
         skill_damage_percent_boosts = source_army.get_sum_stat_magnitudes(
             StatType.GENERAL_DAMAGE_MODIFIER,
@@ -527,25 +566,29 @@ class GameSimulator:
         total_skill_percentage_points = skill_damage_percent_boosts + damage_taken_percent_mods
         base_skill_percentage_points = total_skill_percentage_points
 
-        crit_stat_lookup = {
-            PluginSkillLabel.REACTIVE.value.upper(): StatType.REACTIVE_SKILL_CRIT_RATE,
-            PluginSkillLabel.COOPERATION.value.upper(): StatType.COOPERATION_SKILL_CRIT_RATE,
-            PluginSkillLabel.COMMAND.value.upper(): StatType.COMMAND_SKILL_CRIT_RATE,
-        }
         crit_rate = 0.0
         crit_triggered = False
-        crit_stat = crit_stat_lookup.get(skill_label_context or "")
-        if crit_stat is not None:
-            crit_rate = source_army.get_sum_stat_magnitudes(
-                crit_stat,
-                attack_type_filter="SKILL",
-                target_unit_type=target_unit_type,
-                skill_label=skill_label_context,
+        used_active_context = False
+        if (
+            source_skill_def
+            and self._active_skill_id == source_skill_def.get("id")
+            and self._active_skill_label == skill_label_context
+            and self._active_skill_crit_bonus is not None
+        ):
+            crit_rate = self._active_skill_crit_rate
+            crit_triggered = self._active_skill_crit_triggered
+            if crit_triggered:
+                total_skill_percentage_points += self._active_skill_crit_bonus
+            used_active_context = True
+        if not used_active_context and source_skill_def:
+            crit_bonus, crit_rate, crit_triggered = self._roll_skill_crit_bonus(
+                source_army,
+                calc_target,
+                source_skill_def,
+                skill_label_context,
             )
-            crit_rate = max(0.0, min(1.0, crit_rate))
-        if crit_rate > 0 and random.random() < crit_rate:
-            total_skill_percentage_points += 0.5
-            crit_triggered = True
+            if crit_triggered:
+                total_skill_percentage_points += crit_bonus
 
         advantage_multiplier, advantage_bonus = self._resolve_advantage_adjustment(
             source_army.unit, calc_target.unit
@@ -881,8 +924,11 @@ class GameSimulator:
 
         own_troop_scalar = GameSimulator.troop_scalar(owner_army.current_troop_count)
         base_shield_mag = round(((own_atk / enemy_def) * own_troop_scalar * (shield_factor / 200.0)))
-        sum_shield_strength_mods = owner_army.get_sum_stat_magnitudes(StatType.SHIELD_STRENGTH_MODIFIER)
-        shield_strength_multiplier = 1.0 + sum_shield_strength_mods
+        sum_shield_strength_mods = owner_army.get_sum_stat_magnitudes(
+            StatType.SHIELD_STRENGTH_MODIFIER
+        )
+        crit_bonus = self._active_skill_crit_bonus or 0.0
+        shield_strength_multiplier = 1.0 + sum_shield_strength_mods + crit_bonus
         magnitude = round(base_shield_mag * shield_strength_multiplier)
         
         # Apply pairing multiplier (same logic as in _create_and_add_single_effect)
@@ -1124,43 +1170,72 @@ class GameSimulator:
                         )
                         if cooldown_key != skill_id:
                             effective_skill_def["id"] = cooldown_key
-
-                    logic_handler: Optional[SkillLogicHandler] = effective_skill_def.get("logic_handler")
-                    if logic_handler:
-                        handler_event_data = (event_data or {}).copy()
-                        handler_event_data["actual_opponent_for_calc"] = actual_opponent_for_calc
-                        an_effect_truly_happened, log_details_current_skill = logic_handler(
-                            triggering_army, actual_effect_target, effective_skill_def, handler_event_data, self
-                        )
-                    elif "sub_effects" in effective_skill_def:
-                        for sub_effect_data in effective_skill_def["sub_effects"]:
-                            if random.random() < sub_effect_data.get("chance", 1.0):
-                                effect_to_apply = sub_effect_data["effect_to_apply"]
-                                target_sub = actual_effect_target if effective_skill_def.get("target") == "ENEMY" else triggering_army
-                                created_effect = triggering_army._create_and_add_single_effect(
-                                    effect_to_apply.copy(),
-                                    skill_id,
-                                    triggering_army,
-                                    target_sub,
-                                    actual_opponent_for_calc,
-                                )
-                                if created_effect:
-                                    an_effect_truly_happened = True
-                                    log_details_current_skill.append(
-                                        (
-                                            f"{sub_effect_data.get('name_suffix', 'Effect')}: {created_effect.get_functionality_description()} for {created_effect.duration + 1} rounds.",
-                                            None,
-                                        )
+                    prev_crit_context = (
+                        self._active_skill_id,
+                        self._active_skill_label,
+                        self._active_skill_crit_bonus,
+                        self._active_skill_crit_rate,
+                        self._active_skill_crit_triggered,
+                    )
+                    skill_label_context, _labels = self._get_skill_label_context(
+                        effective_skill_def
+                    )
+                    crit_bonus, crit_rate, crit_triggered = self._roll_skill_crit_bonus(
+                        triggering_army,
+                        actual_effect_target,
+                        effective_skill_def,
+                        skill_label_context,
+                    )
+                    self._active_skill_id = effective_skill_def.get("id")
+                    self._active_skill_label = skill_label_context
+                    self._active_skill_crit_bonus = crit_bonus
+                    self._active_skill_crit_rate = crit_rate
+                    self._active_skill_crit_triggered = crit_triggered
+                    try:
+                        logic_handler: Optional[SkillLogicHandler] = effective_skill_def.get("logic_handler")
+                        if logic_handler:
+                            handler_event_data = (event_data or {}).copy()
+                            handler_event_data["actual_opponent_for_calc"] = actual_opponent_for_calc
+                            an_effect_truly_happened, log_details_current_skill = logic_handler(
+                                triggering_army, actual_effect_target, effective_skill_def, handler_event_data, self
+                            )
+                        elif "sub_effects" in effective_skill_def:
+                            for sub_effect_data in effective_skill_def["sub_effects"]:
+                                if random.random() < sub_effect_data.get("chance", 1.0):
+                                    effect_to_apply = sub_effect_data["effect_to_apply"]
+                                    target_sub = actual_effect_target if effective_skill_def.get("target") == "ENEMY" else triggering_army
+                                    created_effect = triggering_army._create_and_add_single_effect(
+                                        effect_to_apply.copy(),
+                                        skill_id,
+                                        triggering_army,
+                                        target_sub,
+                                        actual_opponent_for_calc,
                                     )
-                    elif "effects_to_apply" in effective_skill_def and effective_skill_def["effects_to_apply"]:
-                        target_std = actual_effect_target if effective_skill_def.get("target") == "ENEMY" else triggering_army
-                        applied_details = triggering_army._add_effects_from_skill_def(
-                            effective_skill_def, target_std, triggering_army, actual_opponent_for_calc
-                        )
-                        if applied_details:
-                            an_effect_truly_happened = True
-                            for _, desc in applied_details:
-                                log_details_current_skill.append((desc, None))
+                                    if created_effect:
+                                        an_effect_truly_happened = True
+                                        log_details_current_skill.append(
+                                            (
+                                                f"{sub_effect_data.get('name_suffix', 'Effect')}: {created_effect.get_functionality_description()} for {created_effect.duration + 1} rounds.",
+                                                None,
+                                            )
+                                        )
+                        elif "effects_to_apply" in effective_skill_def and effective_skill_def["effects_to_apply"]:
+                            target_std = actual_effect_target if effective_skill_def.get("target") == "ENEMY" else triggering_army
+                            applied_details = triggering_army._add_effects_from_skill_def(
+                                effective_skill_def, target_std, triggering_army, actual_opponent_for_calc
+                            )
+                            if applied_details:
+                                an_effect_truly_happened = True
+                                for _, desc in applied_details:
+                                    log_details_current_skill.append((desc, None))
+                    finally:
+                        (
+                            self._active_skill_id,
+                            self._active_skill_label,
+                            self._active_skill_crit_bonus,
+                            self._active_skill_crit_rate,
+                            self._active_skill_crit_triggered,
+                        ) = prev_crit_context
 
                     if an_effect_truly_happened:
                         self._log_skill_trigger(triggering_army, effective_skill_def["name"], "Triggered.")

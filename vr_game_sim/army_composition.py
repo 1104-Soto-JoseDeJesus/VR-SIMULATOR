@@ -796,6 +796,7 @@ class Army:
         opponent_of_healer: 'Army',
         skill_heal_adjustment_magnitude: float = 0.0,
         source_skill_id: str | None = None,
+        crit_bonus: float | None = None,
         calculation_steps: Optional[list[dict[str, Any]]] = None,
     ) -> float:
         if not self.simulator or healer_army.current_troop_count <= 0: return 0.0
@@ -812,11 +813,24 @@ class Army:
         ]
         total_positive_heal_adj = sum(eff.magnitude for eff in positive_heal_adj_effects)
         total_negative_heal_adj = total_heal_adj_recipient - total_positive_heal_adj
+        effective_crit_bonus = 0.0
+        if crit_bonus is None:
+            sim = healer_army.simulator
+            if (
+                sim
+                and source_skill_id
+                and sim._active_skill_id == source_skill_id
+                and sim._active_skill_crit_bonus is not None
+            ):
+                effective_crit_bonus = sim._active_skill_crit_bonus
+        else:
+            effective_crit_bonus = crit_bonus or 0.0
         heal_adj_mult = (
             1.0
             + total_negative_heal_adj
             + total_positive_heal_adj
             + skill_heal_adjustment_magnitude
+            + effective_crit_bonus
         )
         opp_def_calc = opponent_of_healer.unit.effective_defense(opponent_of_healer.active_effects)
         if opp_def_calc == 0: opp_def_calc = 1
@@ -831,7 +845,12 @@ class Army:
         # Calculate boost tracking BEFORE applying pairing multiplier
         # (boost totals should only reflect legacy boost differences, not pairing multipliers)
         if hp_healed_raw > 0 and total_positive_heal_adj > 0:
-            base_mult = 1.0 + total_negative_heal_adj + skill_heal_adjustment_magnitude
+            base_mult = (
+                1.0
+                + total_negative_heal_adj
+                + skill_heal_adjustment_magnitude
+                + effective_crit_bonus
+            )
             hp_without_boost = round(
                 (healer_atk / opp_def_calc)
                 * healer_troop_scalar
@@ -932,6 +951,14 @@ class Army:
         new_effect_duration = effect_data.get("duration", 1)
         activate_next_round_flag = effect_data.get("activate_next_round", False)
         magnitude = effect_data.get("magnitude", 0.0)
+        crit_bonus = 0.0
+        if (
+            self.simulator
+            and source_skill_id
+            and self.simulator._active_skill_id == source_skill_id
+            and self.simulator._active_skill_crit_bonus is not None
+        ):
+            crit_bonus = self.simulator._active_skill_crit_bonus
 
         final_config: Dict[str, Any] = {}
         keys_to_exclude_from_config = ["effect_type", "name", "duration", "magnitude", "magnitude_calc",
@@ -971,6 +998,8 @@ class Army:
             final_config['original_caster_army_name'] = owner_army.name
             final_config['original_caster_army_ref'] = owner_army
             final_config['effect_owner_army_ref'] = owner_army
+            if crit_bonus:
+                final_config["crit_bonus"] = crit_bonus
 
             if self.simulator and opponent_of_owner_for_calc:
                 final_config['snapshotted_attacker_total_attack'] = owner_army.unit.effective_attack(
@@ -1021,11 +1050,11 @@ class Army:
             ]
             total_positive_shield = sum(eff.magnitude for eff in positive_shield_effects)
             total_negative_shield = sum_shield_strength_mods_recipient - total_positive_shield
-            shield_strength_multiplier = 1.0 + sum_shield_strength_mods_recipient
+            shield_strength_multiplier = 1.0 + sum_shield_strength_mods_recipient + crit_bonus
             magnitude = round(base_shield_magnitude * shield_strength_multiplier)
             if total_positive_shield > 0 and base_shield_magnitude > 0:
                 magnitude_without_boost = round(
-                    base_shield_magnitude * (1.0 + total_negative_shield)
+                    base_shield_magnitude * (1.0 + total_negative_shield + crit_bonus)
                 )
                 extra_hp = magnitude - magnitude_without_boost
                 if extra_hp > 0:
@@ -1090,6 +1119,11 @@ class Army:
                     dot_damage = 0.0
             final_config["dot_damage_per_round"] = dot_damage
             final_config['dot_type'] = DoTType.GENERIC
+            if crit_bonus:
+                final_config["crit_bonus"] = crit_bonus
+
+        if effect_data.get("effect_type") == EffectType.HEAL_OVER_TIME and crit_bonus:
+            final_config["crit_bonus"] = crit_bonus
 
         if effect_data.get("stat_to_mod") and "stat_to_mod" not in final_config: final_config["stat_to_mod"] = \
         effect_data["stat_to_mod"]
@@ -1194,6 +1228,9 @@ class Army:
             *,
             shield_only: bool = False,
         ) -> None:
+            remove_active_shields = bool(
+                removal_effect.config.get("remove_active_shields")
+            )
             buff_ids_to_remove = removal_effect.config.get("buff_ids_to_remove", [])
             targeted_buff_names_initial_log = removal_effect.config.get(
                 "targeted_buff_names_initial_log",
@@ -1202,9 +1239,15 @@ class Army:
             actually_removed_names_this_step = []
             new_active_effects_after_removal = []
             for current_eff_in_army in list(self.active_effects):
-                should_remove = current_eff_in_army.id in buff_ids_to_remove
-                if shield_only:
-                    should_remove = should_remove and current_eff_in_army.effect_type == EffectType.SHIELD
+                if shield_only and remove_active_shields:
+                    should_remove = current_eff_in_army.effect_type == EffectType.SHIELD
+                else:
+                    should_remove = current_eff_in_army.id in buff_ids_to_remove
+                    if shield_only:
+                        should_remove = (
+                            should_remove
+                            and current_eff_in_army.effect_type == EffectType.SHIELD
+                        )
                 if should_remove:
                     actually_removed_names_this_step.append(
                         current_eff_in_army.name
@@ -1224,6 +1267,12 @@ class Army:
                     self,
                     f"{source_skill_name} ({removal_effect.name})",
                     f"Removes targeted buffs from self: {', '.join(actually_removed_names_this_step)}.",
+                )
+            elif shield_only and remove_active_shields:
+                self.simulator._log_skill_trigger(
+                    self,
+                    f"{source_skill_name} ({removal_effect.name} Attempt)",
+                    "No active shields to remove.",
                 )
             elif targeted_buff_names_initial_log:
                 self.simulator._log_skill_trigger(
@@ -1329,6 +1378,7 @@ class Army:
                         attack_type_filter="status_effect",
                     )
 
+                crit_bonus = float(effect.config.get("crit_bonus", 0.0) or 0.0)
                 if is_special_dot:
                     snap_atk = effect.config.get('snapshotted_attacker_total_attack', 0.0)
                     snap_def = effect.config.get('snapshotted_defender_total_defense', 1.0)
@@ -1381,7 +1431,13 @@ class Army:
 
                     base_dot_damage_for_log = ((snap_atk / snap_def) * snap_scalar * (status_factor / 200.0))
                     snapshot_bonus = effect.config.get("holy_blessed_damage_taken_snapshot", 0.0)
-                    base_multiplier = 1.0 + current_specific_dot_boost + current_specific_dot_reduction + general_damage_reduction
+                    base_multiplier = (
+                        1.0
+                        + current_specific_dot_boost
+                        + current_specific_dot_reduction
+                        + general_damage_reduction
+                        + crit_bonus
+                    )
                     final_dot_multiplier_for_log = max(0.05, base_multiplier + snapshot_bonus)
                     potential_dot_damage_tick = base_dot_damage_for_log * final_dot_multiplier_for_log
                     dot_damage_after_target_debuffs = potential_dot_damage_tick  # For DoTs, this is the final pre-shield damage
@@ -1390,7 +1446,7 @@ class Army:
                 elif dot_type == DoTType.GENERIC and effect.config.get("dot_damage_per_round", 0) > 0:
                     base_dot_damage_for_log = effect.config["dot_damage_per_round"]
                     snapshot_bonus = effect.config.get("holy_blessed_damage_taken_snapshot", 0.0)
-                    base_multiplier = 1.0 + general_damage_reduction
+                    base_multiplier = 1.0 + general_damage_reduction + crit_bonus
                     final_dot_multiplier_for_log = max(0.05, base_multiplier + snapshot_bonus)
                     potential_dot_damage_tick = base_dot_damage_for_log * final_dot_multiplier_for_log
                     dot_damage_after_target_debuffs = potential_dot_damage_tick
@@ -1401,7 +1457,11 @@ class Army:
                     absorbed_by_shield_dot = damage_result_dict['absorbed_by_shield']
                     if total_positive_dot > 0:
                         multiplier_without_positive = max(
-                            0.05, 1.0 + current_specific_dot_reduction + effect.config.get("holy_blessed_damage_taken_snapshot", 0.0)
+                            0.05,
+                            1.0
+                            + current_specific_dot_reduction
+                            + effect.config.get("holy_blessed_damage_taken_snapshot", 0.0)
+                            + crit_bonus,
                         )
                         dmg_without_boost = base_dot_damage_for_log * multiplier_without_positive
                         hp_without_boost = max(0.0, dmg_without_boost - current_shield_hp_dot)
@@ -1478,11 +1538,13 @@ class Army:
                     continue
                 if opponent:
                     heal_trace: list[dict[str, Any]] = []
+                    crit_bonus = float(effect.config.get("crit_bonus", 0.0) or 0.0)
                     hot_amount_this_tick = self.calculate_and_add_pending_healing(
                         heal_factor=effect.magnitude,
                         healer_army=self,
                         opponent_of_healer=opponent,
                         source_skill_id=effect.source_skill_id,
+                        crit_bonus=crit_bonus,
                         calculation_steps=heal_trace,
                     )
                     if hot_amount_this_tick > 0 and self.simulator:

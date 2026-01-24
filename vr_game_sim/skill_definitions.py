@@ -6137,7 +6137,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
             "rage_gain": 100,
             "effect_name": EFFECT_NAME_BLOODTHIRSTY_EYE_RAGE_GAIN,
             "conditional_effect_condition": "has_shield",
-            "conditional_damage_factor": 350.0,
+            "conditional_damage_factor": 375,
             "max_additional_targets": 3,
             "cooldown_rounds": 4,
         },

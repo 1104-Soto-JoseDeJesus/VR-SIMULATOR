@@ -14,9 +14,11 @@ from vr_game_sim.enums import (
     SkillType,
     PluginSkillLabel,
     StatType,
+    DoTType,
 )
 from vr_game_sim.hero_definition import Hero
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
+from vr_game_sim.skill_logic.gem_skill_handlers import _apply_composite_combat_effects
 
 
 def _make_skill_def() -> dict:
@@ -37,6 +39,14 @@ def _make_armies(bonus_stats: dict | None = None) -> tuple[Army, Army, GameSimul
     attacker = Army(name="A", unit=atk_unit, bonus_stats_config=bonus_stats or {})
     defender = Army(name="D", unit=dfd_unit)
     sim = GameSimulator(attacker, defender)
+    return attacker, defender, sim
+
+
+def _trigger_single_skill(skill_def: dict, bonus_stats: dict | None = None) -> tuple[Army, Army, GameSimulator]:
+    attacker, defender, sim = _make_armies(bonus_stats)
+    attacker.gem_skills = [skill_def]
+    random.seed(0)
+    sim._process_skill_triggers(attacker, defender, skill_def["trigger"])
     return attacker, defender, sim
 
 
@@ -113,6 +123,101 @@ def test_command_crit_rate_sums_multiple_sources(monkeypatch):
 
     assert crit_damage > base_damage
     assert pytest.approx(crit_damage / base_damage, rel=1e-6) == 1.5
+
+
+def test_cooperation_crit_boosts_heal_and_shield():
+    skill_def = {
+        "id": "test_heal_shield_skill",
+        "name": "Heal Shield Skill",
+        "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "logic_handler": _apply_composite_combat_effects,
+        "config": {"heal_factor": 200.0, "shield_factor": 200.0, "shield_duration": 1},
+    }
+    base_attacker, _base_defender, _ = _trigger_single_skill(skill_def)
+    base_heal = base_attacker.pending_hp_healing_this_round
+    base_shield = base_attacker.shield_hp_gained_this_round
+    assert base_heal > 0
+    assert base_shield > 0
+
+    crit_attacker, _crit_defender, _ = _trigger_single_skill(
+        skill_def, {"damage_boost": {"cooperation_crit_rate": 1.0}}
+    )
+    crit_heal = crit_attacker.pending_hp_healing_this_round
+    crit_shield = crit_attacker.shield_hp_gained_this_round
+
+    assert crit_heal > base_heal
+    assert crit_shield > base_shield
+    assert pytest.approx(crit_heal / base_heal, rel=1e-2) == 1.5
+    assert pytest.approx(crit_shield / base_shield, rel=1e-2) == 1.5
+
+
+def _run_hot_tick(bonus_stats: dict | None = None) -> float:
+    skill_def = {
+        "id": "test_hot_skill",
+        "name": "HoT Skill",
+        "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "target": "SELF",
+        "effects_to_apply": [
+            {
+                "effect_type": EffectType.HEAL_OVER_TIME,
+                "name": "Test HoT",
+                "magnitude": 200.0,
+                "duration": 1,
+                "activate_next_round": True,
+            }
+        ],
+    }
+    attacker, defender, _ = _trigger_single_skill(skill_def, bonus_stats)
+    attacker.activate_queued_effects()
+    attacker.decrement_effect_durations()
+    attacker.process_periodic_effects("start_of_round", defender)
+    return attacker.pending_hp_healing_this_round
+
+
+def test_cooperation_crit_boosts_hot_ticks():
+    base_heal = _run_hot_tick()
+    crit_heal = _run_hot_tick({"damage_boost": {"cooperation_crit_rate": 1.0}})
+    assert base_heal > 0
+    assert crit_heal > base_heal
+    assert pytest.approx(crit_heal / base_heal, rel=1e-2) == 1.5
+
+
+def _run_dot_tick(bonus_stats: dict | None = None) -> float:
+    skill_def = {
+        "id": "test_dot_skill",
+        "name": "DoT Skill",
+        "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "target": "ENEMY",
+        "effects_to_apply": [
+            {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": "Test DoT",
+                "dot_type": DoTType.BURN,
+                "status_effect_factor": 200.0,
+                "duration": 1,
+                "activate_next_round": True,
+            }
+        ],
+    }
+    attacker, defender, _ = _trigger_single_skill(skill_def, bonus_stats)
+    defender.activate_queued_effects()
+    defender.decrement_effect_durations()
+    defender.process_periodic_effects("start_of_round", attacker)
+    return defender.pending_hp_damage_this_round
+
+
+def test_cooperation_crit_boosts_dot_ticks():
+    base_damage = _run_dot_tick()
+    crit_damage = _run_dot_tick({"damage_boost": {"cooperation_crit_rate": 1.0}})
+    assert base_damage > 0
+    assert crit_damage > base_damage
+    assert pytest.approx(crit_damage / base_damage, rel=1e-2) == 1.5
 
 
 def test_gem_evasion_counts_damage_reduction():

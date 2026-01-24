@@ -995,6 +995,12 @@ class GameSimulator:
             if skill_def.get("type") == SkillType.MOUNT_SKILL:
                 mount_skill_groups.setdefault(skill_def["id"], []).append(skill_def)
 
+        for skill_id, defs in mount_skill_groups.items():
+            if len(defs) > 1:
+                for idx, skill_def in enumerate(defs):
+                    if skill_def.get("mount_instance_index") is None and skill_def.get("instance_key") is None:
+                        skill_def["instance_key"] = f"{skill_id}::army::{idx}"
+
         mount_skill_non_damage_configs = {
             skill_id: self._merge_mount_skill_non_damage_configs(defs)
             for skill_id, defs in mount_skill_groups.items()
@@ -1029,6 +1035,7 @@ class GameSimulator:
                     skill_cfg = skill_def.get("config", {})
                     cooldown_key = skill_id
                     trigger_key = skill_id
+                    mount_tracking_key = skill_id
                     if skill_def.get("type") == SkillType.MOUNT_SKILL:
                         instance_index = skill_def.get("mount_instance_index")
                         instance_key = skill_def.get("instance_key")
@@ -1037,6 +1044,7 @@ class GameSimulator:
                         elif instance_key is not None:
                             cooldown_key = str(instance_key)
                         trigger_key = cooldown_key
+                        mount_tracking_key = cooldown_key
                     cooldown = None
                     if skill_def.get("trigger") != SkillTriggerType.CHANCE_PER_ROUND:
                         cooldown_enabled = self._cooldown_enabled_for_skill(skill_def)
@@ -1095,7 +1103,7 @@ class GameSimulator:
                     else:
                         if skill_def.get("type") == SkillType.MOUNT_SKILL and trigger_key in triggering_army.triggered_skills_this_round:
                             damage_limit = mount_skill_damage_allowance.get(skill_id, 0)
-                            damage_used = triggering_army.mount_skill_damage_triggers_this_round.get(skill_id, 0)
+                            damage_used = triggering_army.mount_skill_damage_triggers_this_round.get(mount_tracking_key, 0)
                             if not (self._mount_skill_has_direct_damage(skill_def) and damage_used < damage_limit):
                                 continue
                         elif trigger_key in triggering_army.triggered_skills_this_round:
@@ -1104,7 +1112,10 @@ class GameSimulator:
                     effective_skill_def = skill_def
                     include_non_damage = True
                     if skill_def.get("type") == SkillType.MOUNT_SKILL:
-                        include_non_damage = skill_id not in triggering_army.mount_skill_non_damage_applied_this_round
+                        include_non_damage = (
+                            mount_tracking_key
+                            not in triggering_army.mount_skill_non_damage_applied_this_round
+                        )
                         merged_cfg = mount_skill_non_damage_configs.get(skill_id, {})
                         effective_skill_def = copy.deepcopy(skill_def)
                         base_cfg = effective_skill_def.get("config", {}) or {}
@@ -1158,13 +1169,15 @@ class GameSimulator:
                         triggering_army.increment_skill_trigger_count(skill_id)
 
                         if include_non_damage and skill_def.get("type") == SkillType.MOUNT_SKILL:
-                            triggering_army.mount_skill_non_damage_applied_this_round.add(skill_id)
+                            triggering_army.mount_skill_non_damage_applied_this_round.add(
+                                mount_tracking_key
+                            )
 
                         if skill_def.get("type") == SkillType.MOUNT_SKILL and self._mount_skill_has_direct_damage(effective_skill_def):
                             had_damage = any(details for _, details in log_details_current_skill if details and "damage_done_hp" in details)
                             if had_damage:
-                                triggering_army.mount_skill_damage_triggers_this_round[skill_id] = (
-                                    triggering_army.mount_skill_damage_triggers_this_round.get(skill_id, 0) + 1
+                                triggering_army.mount_skill_damage_triggers_this_round[mount_tracking_key] = (
+                                    triggering_army.mount_skill_damage_triggers_this_round.get(mount_tracking_key, 0) + 1
                                 )
 
                         if skill_def.get("trigger") == SkillTriggerType.CHANCE_PER_ROUND:

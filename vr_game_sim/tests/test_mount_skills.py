@@ -206,8 +206,13 @@ def test_duplicate_mount_damage_and_buff_resolution():
 
     simulator._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND)
 
-    damage_triggers = army.mount_skill_damage_triggers_this_round.get("mount_flame_serpent")
-    assert damage_triggers == 2, "Both mount skills should contribute direct damage"
+    mount_keys = [
+        f"mount_flame_serpent::mount::{skill['mount_instance_index']}" for skill in mount_skills
+    ]
+    damage_triggers = sum(
+        army.mount_skill_damage_triggers_this_round.get(key, 0) for key in mount_keys
+    )
+    assert damage_triggers == len(mount_keys), "Both mount skills should contribute direct damage"
 
     relevant_effects = (
         army.active_effects + army.effects_to_activate_next_round + army.upcoming_effects
@@ -217,7 +222,7 @@ def test_duplicate_mount_damage_and_buff_resolution():
         for effect in relevant_effects
         if getattr(effect, "_stat_type_from_config", lambda: None)() == StatType.BURN_DAMAGE_BOOST
     ]
-    assert burn_boosts == [high_magnitude]
+    assert burn_boosts == [high_magnitude] * len(mount_keys)
 
 
 def test_duplicate_mount_damage_active_cast_cooldown_per_instance():
@@ -245,6 +250,51 @@ def test_duplicate_mount_damage_active_cast_cooldown_per_instance():
         f"mount_strangled_death::mount::{skill['mount_instance_index']}" for skill in mount_skills
     ]
     for key in cooldown_keys:
+        assert len(army.skill_active_cast_trigger_rounds.get(key, [])) == 2
+    assert sum(len(v) for v in army.skill_active_cast_trigger_rounds.values()) == 4
+
+
+def test_duplicate_mount_active_cast_across_heroes_tracks_independently():
+    cfg = copy.deepcopy(_BASE_CFG)
+    cfg["heroes"][0]["mount_skill_ids"] = ["mount_strangled_death"]
+    cfg["heroes"].append(
+        {
+            "hero_name_or_preset": "sigurd",
+            "talent_ids": [
+                "talent_fiery_snake_spirit",
+                "talent_serpents_rage",
+                "talent_full_focus",
+            ],
+            "base_skill_ids": [
+                "base_skill_snake_eyes",
+                "base_skill_snakes_frenzy",
+            ],
+            "plugin_skill_ids": [],
+            "mount_skill_ids": ["mount_strangled_death"],
+        }
+    )
+
+    army, opponent = create_armies_from_data([cfg, cfg])[0:2]
+    simulator = GameSimulator(army, opponent, mode="battlefield")
+    for round_num in range(1, 3):
+        army.army_round = round_num
+        opponent.army_round = round_num
+        army.triggered_skills_this_round.clear()
+        army.skill_trigger_counts_this_round.clear()
+        army.skill_triggers_against_this_round.clear()
+        army.mount_skill_damage_triggers_this_round.clear()
+        army.mount_skill_non_damage_applied_this_round.clear()
+        simulator._process_skill_triggers(army, opponent, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST)
+
+    instance_keys = [
+        skill.get("instance_key")
+        for hero in army.heroes
+        for skill in hero.skills
+        if skill.get("id") == "mount_strangled_death"
+    ]
+    assert len(instance_keys) == 2
+    assert all(instance_keys)
+    for key in instance_keys:
         assert len(army.skill_active_cast_trigger_rounds.get(key, [])) == 2
     assert sum(len(v) for v in army.skill_active_cast_trigger_rounds.values()) == 4
 

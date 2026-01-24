@@ -29,7 +29,7 @@
                     "plugin_silent_invasion"
                 ],
                 "mount_skill_ids": [
-                    "mount_stinging_tongue"
+                    "mount_spiked_shield"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -58,10 +58,7 @@
                     "weapon": "gear_immolated_axe_legendary",
                     "chest": "gear_inferno_armor_legendary",
                     "boots": "gear_ferocious_boots_legendary"
-                },
-                "mount_skill_ids": [
-                    "mount_stinging_tongue"
-                ]
+                }
             }
         ]
     },
@@ -95,7 +92,7 @@
                     "plugin_silent_invasion"
                 ],
                 "mount_skill_ids": [
-                    "mount_strangled_death"
+                    "mount_slaughter_n_heal"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -124,10 +121,7 @@
                     "weapon": "gear_immolated_axe_legendary",
                     "chest": "gear_inferno_armor_legendary",
                     "boots": "gear_ferocious_boots_legendary"
-                },
-                "mount_skill_ids": [
-                    "mount_strangled_death"
-                ]
+                }
             }
         ]
     }

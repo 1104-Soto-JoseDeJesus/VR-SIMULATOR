@@ -207,6 +207,16 @@ class Army:
         self.simulator = simulator
         if simulator not in self.simulators:
             self.simulators.append(simulator)
+        if not hasattr(self.simulator, "_active_skill_id"):
+            self.simulator._active_skill_id = None
+        if not hasattr(self.simulator, "_active_skill_label"):
+            self.simulator._active_skill_label = None
+        if not hasattr(self.simulator, "_active_skill_crit_bonus"):
+            self.simulator._active_skill_crit_bonus = None
+        if not hasattr(self.simulator, "_active_skill_crit_rate"):
+            self.simulator._active_skill_crit_rate = 0.0
+        if not hasattr(self.simulator, "_active_skill_crit_triggered"):
+            self.simulator._active_skill_crit_triggered = False
 
     def clear_dynamic_unrevivable_tracking(self) -> None:
         self.dynamic_losses_by_opponent.clear()

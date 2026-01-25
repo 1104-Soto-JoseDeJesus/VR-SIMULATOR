@@ -6,7 +6,57 @@
   <component name="ChangeListManager">
     <list default="true" id="0ec79d29-f83e-4486-9f45-deb2b221e113" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Awakening.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Awakening.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Baldrs-Blessing.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Baldrs-Blessing.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Battle-Hymn.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Battle-Hymn.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Blessed-Healing.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Blessed-Healing.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Blessed-Negation.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Blessed-Negation.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Blessed-by-Fate.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Blessed-by-Fate.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Bloodstained-Icefield.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Bloodstained-Icefield.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Bloody-Rage.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Bloody-Rage.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Blow-of-Chaos.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Blow-of-Chaos.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Breaking-Free.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Breaking-Free.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Chance-of-Reversal.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Chance-of-Reversal.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Dampened-Spirits.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Dampened-Spirits.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Disarmament.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Disarmament.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Divine-Blessing.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Divine-Blessing.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Enchanted-Pursuit.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Enchanted-Pursuit.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Enrage.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Enrage.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Fading-Battle.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Fading-Battle.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Fearless.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Fearless.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Fiery-Detonation.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Fiery-Detonation.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Fiery-Rage.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Fiery-Rage.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/First-Strike.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/First-Strike.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Freyas-Blessing.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Freyas-Blessing.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Hale-of-Thorns.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Hale-of-Thorns.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Halo-of-Sacrifice.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Halo-of-Sacrifice.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Heightened-Chance.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Heightened-Chance.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Helas-Curse.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Helas-Curse.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Hymn-of-Life.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Hymn-of-Life.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Joint-Offense.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Joint-Offense.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Lokis-Trick.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Lokis-Trick.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Odins-Asylum.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Odins-Asylum.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/On-Alert.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/On-Alert.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rage-Leech.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rage-Leech.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rage-Purge.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rage-Purge.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rapid-Attack.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rapid-Attack.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rapid-Defense.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rapid-Defense.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rare-Defense-Up.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rare-Defense-Up.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rare-Viking-Hymn.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rare-Viking-Hymn.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rest-and-Counterattack.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Rest-and-Counterattack.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Retaliate.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Retaliate.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Shield-Attacker.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Shield-Attacker.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Shield-Reflector.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Shield-Reflector.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Shield-Support.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Shield-Support.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Silencer.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Silencer.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Splinter.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Splinter.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Tenacity.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Tenacity.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/This-Too-Shall-Pass.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/This-Too-Shall-Pass.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Thors-Determination.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Thors-Determination.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Tidal-Attack.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Tidal-Attack.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Wild-Indulgence.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/Plugin Skill Images/Wild-Indulgence.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/army_composition.py" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/army_composition.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/game_simulator.py" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/game_simulator.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/damage_accumulated_army1.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/damage_accumulated_army1.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/damage_accumulated_army2.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/damage_accumulated_army2.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/diff_vs_rounds.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/diff_vs_rounds.png" afterDir="false" />
@@ -26,6 +76,8 @@
       <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/victory_distribution.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/victory_distribution.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/setups/MST.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/setups/MST.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/vr_game_sim/setups/_last_run_setup.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/setups/_last_run_setup.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/skill_definitions.py" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/skill_definitions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/tests/test_mount_skills.py" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/tests/test_mount_skills.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

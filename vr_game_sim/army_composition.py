@@ -131,6 +131,7 @@ class Army:
     skill_trigger_counts: Dict[str, int] = field(init=False, default_factory=dict)
     skill_last_triggered_round: Dict[str, int] = field(init=False, default_factory=dict)
     skill_active_cast_trigger_rounds: Dict[str, List[int]] = field(init=False, default_factory=dict)
+    skill_trigger_window_rounds: Dict[str, List[int]] = field(init=False, default_factory=dict)
     debuff_last_applied_round: Dict[str, int] = field(init=False, default_factory=dict)
 
     current_rage: float = field(init=False, default=0.0)
@@ -1912,6 +1913,7 @@ class Army:
         self.pending_unrevivable_ratio = None
         self.skill_trigger_counts.clear()
         self.skill_last_triggered_round.clear()
+        self.skill_trigger_window_rounds.clear()
         self.debuff_last_applied_round.clear()
         self.current_rage = 0.0
         self.hero1_rage_skill_queued_this_round = False

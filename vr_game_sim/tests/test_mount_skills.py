@@ -299,6 +299,35 @@ def test_duplicate_mount_active_cast_across_heroes_tracks_independently():
     assert sum(len(v) for v in army.skill_active_cast_trigger_rounds.values()) == 4
 
 
+def test_mount_trigger_window_limits_reactive_skills():
+    cfg = copy.deepcopy(_BASE_CFG)
+    cfg["heroes"][0]["mount_skill_ids"] = ["mount_ragebeast_soul"]
+
+    army, opponent = create_armies_from_data([cfg, cfg])[0:2]
+    simulator = GameSimulator(army, opponent, mode="battlefield")
+
+    def reset_round_state(army_ref):
+        army_ref.triggered_skills_this_round.clear()
+        army_ref.skill_trigger_counts_this_round.clear()
+        army_ref.skill_triggers_against_this_round.clear()
+        army_ref.mount_skill_damage_triggers_this_round.clear()
+        army_ref.mount_skill_non_damage_applied_this_round.clear()
+
+    def trigger_round(round_num):
+        army.army_round = round_num
+        opponent.army_round = round_num
+        reset_round_state(army)
+        simulator._process_skill_triggers(
+            army, opponent, SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE
+        )
+        return list(army.skill_trigger_window_rounds.get("mount_ragebeast_soul", []))
+
+    assert len(trigger_round(1)) == 1
+    assert len(trigger_round(2)) == 2
+    assert len(trigger_round(3)) == 2
+    assert sorted(trigger_round(9)) == [2, 9]
+
+
 def test_duplicate_mount_dot_and_heal_instances_trigger():
     cfg_single = copy.deepcopy(_BASE_CFG)
     cfg_single["heroes"][0]["mount_skill_ids"] = ["mount_poison_n_heal"]

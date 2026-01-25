@@ -5449,7 +5449,8 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "config": {
             "rage_gain": 105,
             "effect_name": EFFECT_NAME_RAGEBEAST_SOUL_RAGE_GAIN,
-            "cooldown_rounds": 4,
+            "trigger_window_rounds": 8,
+            "max_triggers_per_window": 2,
         },
         "passive_effects": [
             {
@@ -5675,7 +5676,11 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "target": "ENEMY",
         "logic_handler": handle_generic_single_damage_skill,
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"damage_factor": 500.0, "cooldown_rounds": 4},
+        "config": {
+            "damage_factor": 500.0,
+            "trigger_window_rounds": 8,
+            "max_triggers_per_window": 2,
+        },
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
@@ -5698,7 +5703,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger_chance": 1.0,
         "target": "SELF",
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"cooldown_rounds": 4},
+        "config": {"trigger_window_rounds": 8, "max_triggers_per_window": 2},
         "effects_to_apply": [
             {
                 "effect_type": EffectType.STAT_MOD,
@@ -5731,7 +5736,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger_chance": 1.0,
         "target": "SELF",
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"cooldown_rounds": 4},
+        "config": {"trigger_window_rounds": 8, "max_triggers_per_window": 2},
         "effects_to_apply": [
             {
                 "effect_type": EffectType.STAT_MOD,
@@ -5764,7 +5769,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger_chance": 1.0,
         "target": "SELF",
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"cooldown_rounds": 4},
+        "config": {"trigger_window_rounds": 8, "max_triggers_per_window": 2},
         "effects_to_apply": [
             {
                 "effect_type": EffectType.STAT_MOD,
@@ -5895,7 +5900,8 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
             "disarm_chance": 0.35,
             "disarm_condition": "less_troops",
             "disarm_duration": 1,
-            "cooldown_rounds": 4,
+            "trigger_window_rounds": 8,
+            "max_triggers_per_window": 2,
         },
         "passive_effects": [
             {
@@ -5928,7 +5934,8 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
             "disarm_chance": 0.35,
             "disarm_condition": "less_troops",
             "disarm_duration": 1,
-            "cooldown_rounds": 4,
+            "trigger_window_rounds": 8,
+            "max_triggers_per_window": 2,
         },
         "passive_effects": [
             {
@@ -6226,7 +6233,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger_chance": 1.0,
         "target": "SELF",
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"cooldown_rounds": 4},
+        "config": {"trigger_window_rounds": 8, "max_triggers_per_window": 2},
         "effects_to_apply": [
             {
                 "effect_type": EffectType.STAT_MOD,

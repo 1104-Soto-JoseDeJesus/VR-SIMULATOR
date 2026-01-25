@@ -1038,7 +1038,7 @@ class GameSimulator:
 
         mount_skill_groups: Dict[str, List[SkillDefinition]] = {}
         for skill_def in skill_definitions:
-            if skill_def.get("type") == SkillType.MOUNT_SKILL:
+            if self._is_mount_skill(skill_def):
                 mount_skill_groups.setdefault(skill_def["id"], []).append(skill_def)
 
         for skill_id, defs in mount_skill_groups.items():
@@ -1079,10 +1079,22 @@ class GameSimulator:
                 if random.random() < final_chance:
                     skill_id = skill_def["id"]
                     skill_cfg = skill_def.get("config", {})
+                    window_rounds = skill_cfg.get("trigger_window_rounds")
+                    max_triggers_per_window = skill_cfg.get("max_triggers_per_window")
+                    use_window_limit = False
+                    if window_rounds is not None and max_triggers_per_window is not None:
+                        try:
+                            window_rounds = int(window_rounds)
+                            max_triggers_per_window = int(max_triggers_per_window)
+                        except (TypeError, ValueError):
+                            window_rounds = 0
+                            max_triggers_per_window = 0
+                        if window_rounds > 0 and max_triggers_per_window > 0:
+                            use_window_limit = True
                     cooldown_key = skill_id
                     trigger_key = skill_id
                     mount_tracking_key = skill_id
-                    if skill_def.get("type") == SkillType.MOUNT_SKILL:
+                    if self._is_mount_skill(skill_def):
                         instance_index = skill_def.get("mount_instance_index")
                         instance_key = skill_def.get("instance_key")
                         if instance_index is not None:
@@ -1092,7 +1104,7 @@ class GameSimulator:
                         trigger_key = cooldown_key
                         mount_tracking_key = cooldown_key
                     cooldown = None
-                    if skill_def.get("trigger") != SkillTriggerType.CHANCE_PER_ROUND:
+                    if not use_window_limit and skill_def.get("trigger") != SkillTriggerType.CHANCE_PER_ROUND:
                         cooldown_enabled = self._cooldown_enabled_for_skill(skill_def)
                         if skill_def.get("trigger") == SkillTriggerType.ON_COUNTER_ATTACK:
                             cooldown_enabled = True
@@ -1101,6 +1113,18 @@ class GameSimulator:
                         )
                     an_effect_truly_happened = False
                     log_details_current_skill: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+
+                    if use_window_limit:
+                        current_round = triggering_army.army_round
+                        trigger_rounds = triggering_army.skill_trigger_window_rounds.get(
+                            cooldown_key, []
+                        )
+                        recent_triggers = [
+                            r for r in trigger_rounds if current_round - r < window_rounds
+                        ]
+                        if len(recent_triggers) >= max_triggers_per_window:
+                            continue
+                        triggering_army.skill_trigger_window_rounds[cooldown_key] = recent_triggers
 
                     is_on_cooldown = False
                     if cooldown is not None:
@@ -1243,12 +1267,12 @@ class GameSimulator:
                             self._log_skill_trigger(triggering_army, f"  ↳", desc_str, damage_details=dmg_details)
                         triggering_army.increment_skill_trigger_count(skill_id)
 
-                        if include_non_damage and skill_def.get("type") == SkillType.MOUNT_SKILL:
+                        if include_non_damage and self._is_mount_skill(skill_def):
                             triggering_army.mount_skill_non_damage_applied_this_round.add(
                                 mount_tracking_key
                             )
 
-                        if skill_def.get("type") == SkillType.MOUNT_SKILL and self._mount_skill_has_direct_damage(effective_skill_def):
+                        if self._is_mount_skill(skill_def) and self._mount_skill_has_direct_damage(effective_skill_def):
                             had_damage = any(details for _, details in log_details_current_skill if details and "damage_done_hp" in details)
                             if had_damage:
                                 triggering_army.mount_skill_damage_triggers_this_round[mount_tracking_key] = (
@@ -1269,6 +1293,16 @@ class GameSimulator:
 
                         if cooldown is not None:
                             triggering_army.skill_last_triggered_round[cooldown_key] = triggering_army.army_round
+                        if use_window_limit:
+                            current_round = triggering_army.army_round
+                            trigger_rounds = triggering_army.skill_trigger_window_rounds.get(
+                                cooldown_key, []
+                            )
+                            trigger_rounds = [
+                                r for r in trigger_rounds if current_round - r < window_rounds
+                            ]
+                            trigger_rounds.append(current_round)
+                            triggering_army.skill_trigger_window_rounds[cooldown_key] = trigger_rounds
 
                         # Record trigger round for active skill cast cooldown tracking
                         # Only track if cooldowns are enabled for this skill type

@@ -253,7 +253,7 @@ class Army:
 
     def resolve_unrevivable_ratio(self) -> float:
         if (
-            self.resolve_unrevivable_ratio_method() in {"sizeref", "sizeref_hp"}
+            self.resolve_unrevivable_ratio_method() in {"sizeref", "sizeref_hp", "univ"}
             and self.pending_unrevivable_ratio is not None
         ):
             return self.pending_unrevivable_ratio

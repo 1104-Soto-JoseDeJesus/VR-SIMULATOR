@@ -2939,6 +2939,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         "dynamic": "Dynamic",
         "sizeref": "Sizeref",
         "sizeref_hp": "Sizeref (HP)",
+        "univ": "Univ",
     }
     UNREVIVABLE_LABEL_TO_METHOD = {
         label.lower(): key for key, label in UNREVIVABLE_METHOD_LABELS.items()
@@ -2998,7 +2999,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.unrevivable_method_combo.addItems(
             [
                 self.UNREVIVABLE_METHOD_LABELS[key]
-                for key in ["static", "dynamic", "sizeref", "sizeref_hp"]
+                for key in ["static", "dynamic", "sizeref", "sizeref_hp", "univ"]
             ]
         )
         self.unrevivable_method_combo.setToolTip(
@@ -3598,6 +3599,10 @@ class ArmyFrame(QtWidgets.QGroupBox):
         elif normalized in {"sizeref", "sizeref_hp"}:
             self.unrevivable_spin.setToolTip(
                 "Static heavily wounded ratio is ignored while Sizeref mode is active."
+            )
+        elif normalized == "univ":
+            self.unrevivable_spin.setToolTip(
+                "Static heavily wounded ratio is ignored while Univ mode is active."
             )
         else:
             self.unrevivable_spin.setToolTip("")

@@ -975,6 +975,7 @@ class BattlefieldEngine:
 
         for sim in self._engagements.values():
             sim._apply_sizeref_unrevivable_ratios()
+            sim._apply_univ_unrevivable_ratios()
 
         for army in unique_armies:
             army.commit_pending_healing_and_damage()

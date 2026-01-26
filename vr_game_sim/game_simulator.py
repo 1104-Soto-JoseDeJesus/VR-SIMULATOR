@@ -1873,6 +1873,30 @@ class GameSimulator:
         winner_ratio = min(1.0, max(0.0, winner_ratio))
         return loser_ratio, winner_ratio
 
+    @staticmethod
+    def _calculate_univ_hospital_ratio(
+        own_losses: float,
+        enemy_losses: float,
+        current_troops: float,
+    ) -> float:
+        base_rate = 0.10
+        if current_troops <= 0:
+            intensity_penalty = 0.0
+        else:
+            intensity_penalty = 2.0 * (own_losses / current_troops)
+
+        if enemy_losses <= 0:
+            loss_ratio = own_losses if own_losses > 0 else 1.0
+        else:
+            loss_ratio = own_losses / enemy_losses
+        if loss_ratio <= 0:
+            loss_ratio = 1e-6
+
+        factor = 0.60 if own_losses < enemy_losses else 1.00
+        trade_penalty = math.log10(loss_ratio) * factor
+        ratio = base_rate + intensity_penalty + trade_penalty
+        return min(1.0, max(0.0, ratio))
+
     def _apply_sizeref_unrevivable_ratios(self) -> None:
         armies = (self.army1, self.army2)
         if not any(
@@ -1922,6 +1946,35 @@ class GameSimulator:
                     army.pending_unrevivable_ratio = loser_ratio
                 else:
                     army.pending_unrevivable_ratio = winner_ratio
+
+    def _apply_univ_unrevivable_ratios(self) -> None:
+        armies = (self.army1, self.army2)
+        if not any(
+            army.resolve_unrevivable_ratio_method() == "univ" for army in armies
+        ):
+            for army in armies:
+                if army.resolve_unrevivable_ratio_method() == "univ":
+                    army.pending_unrevivable_ratio = None
+            return
+
+        army1_round_losses = self._estimate_round_losses(self.army1)
+        army2_round_losses = self._estimate_round_losses(self.army2)
+
+        for army in armies:
+            if army.resolve_unrevivable_ratio_method() != "univ":
+                continue
+            current_troops = max(0.0, float(army.current_troop_count))
+            if army is self.army1:
+                own_losses = army1_round_losses
+                enemy_losses = army2_round_losses
+            else:
+                own_losses = army2_round_losses
+                enemy_losses = army1_round_losses
+            army.pending_unrevivable_ratio = self._calculate_univ_hospital_ratio(
+                own_losses=own_losses,
+                enemy_losses=enemy_losses,
+                current_troops=current_troops,
+            )
 
     def apply_unrevivable_post_commit(self, mutual_engagement: bool = True) -> None:
         self._apply_dynamic_unrevivable_between(
@@ -2303,6 +2356,7 @@ class GameSimulator:
                 break
 
             self._apply_sizeref_unrevivable_ratios()
+            self._apply_univ_unrevivable_ratios()
             self.army1.commit_pending_healing_and_damage()
             self.army2.commit_pending_healing_and_damage()
             self.apply_unrevivable_post_commit(mutual_engagement=True)

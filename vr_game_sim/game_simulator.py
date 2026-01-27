@@ -2200,6 +2200,8 @@ class GameSimulator:
             self.army2.started_last_round_with_active_shield = self.army2.started_round_with_active_shield
             self.army1.started_round_with_active_shield = self.army1.get_current_shield_hp() > 0
             self.army2.started_round_with_active_shield = self.army2.get_current_shield_hp() > 0
+            self.army1.troop_count_at_round_start = self.army1.current_troop_count
+            self.army2.troop_count_at_round_start = self.army2.current_troop_count
 
             # Determine if any rage skills were scheduled for this round
             for army in (self.army1, self.army2):

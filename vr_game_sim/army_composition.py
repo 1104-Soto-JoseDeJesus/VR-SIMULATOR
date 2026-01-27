@@ -113,6 +113,7 @@ class Army:
     army_round: int = field(init=False, default=0)
 
     current_troop_count: float = field(init=False, default=0.0)
+    troop_count_at_round_start: float = field(init=False, default=0.0)
     active_effects: List[EffectInstance] = field(init=False, default_factory=list)
     upcoming_effects: List[EffectInstance] = field(init=False, default_factory=list)
     effects_to_activate_next_round: List[EffectInstance] = field(init=False, default_factory=list)
@@ -222,6 +223,9 @@ class Army:
     def clear_dynamic_unrevivable_tracking(self) -> None:
         self.dynamic_losses_by_opponent.clear()
         self.dynamic_kills_by_opponent.clear()
+
+    def get_round_start_troops(self) -> float:
+        return getattr(self, "troop_count_at_round_start", self.current_troop_count)
 
     def _record_dynamic_losses(self, opponent_name: str, combat: float, skill: float) -> None:
         if combat <= 0 and skill <= 0:
@@ -1900,6 +1904,7 @@ class Army:
         self.simulators.clear()
         self._reload_gem_skills()
         self.current_troop_count = float(self.unit.initial_count)
+        self.troop_count_at_round_start = float(self.unit.initial_count)
         self.max_troop_count_reached = float(self.unit.initial_count)
         self.active_effects.clear()
         self.upcoming_effects.clear()

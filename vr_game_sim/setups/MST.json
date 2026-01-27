@@ -35,7 +35,7 @@
                     "boots": "gear_thicket_boots_legendary"
                 },
                 "mount_skill_ids": [
-                    "mount_teeth_n_claws"
+                    "mount_venom_rip"
                 ]
             },
             {
@@ -98,7 +98,7 @@
                     "boots": "gear_thicket_boots_legendary"
                 },
                 "mount_skill_ids": [
-                    "mount_crippling_strike"
+                    "mount_deer_blessing"
                 ]
             },
             {

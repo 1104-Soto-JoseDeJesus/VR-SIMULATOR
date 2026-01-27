@@ -91,14 +91,16 @@ def _evaluate_mount_condition(condition: Optional[str], triggering_army: ArmyRef
         return False
 
     initial = getattr(triggering_army.unit, "initial_count", 0) or 0
+    triggering_troops = triggering_army.get_round_start_troops()
+    opponent_troops = opponent_army.get_round_start_troops() if opponent_army else 0
     if condition == "less_troops":
-        return bool(opponent_army and triggering_army.current_troop_count < opponent_army.current_troop_count)
+        return bool(opponent_army and triggering_troops < opponent_troops)
     if condition == "more_troops":
-        return bool(opponent_army and triggering_army.current_troop_count > opponent_army.current_troop_count)
+        return bool(opponent_army and triggering_troops > opponent_troops)
     if condition == "above_half_troops":
-        return initial > 0 and triggering_army.current_troop_count > initial * 0.5
+        return initial > 0 and triggering_troops > initial * 0.5
     if condition == "below_half_troops":
-        return initial > 0 and triggering_army.current_troop_count < initial * 0.5
+        return initial > 0 and triggering_troops < initial * 0.5
     if condition == "has_shield":
         return any(eff.effect_type == EffectType.SHIELD and eff.magnitude > 0 for eff in triggering_army.active_effects)
     if condition == "requires_shield":
@@ -672,7 +674,9 @@ def handle_mount_reactive_damage_and_bonus(
     heal_factor = float(cfg.get("heal_factor", 0.0))
     apply_heal = heal_factor > 0
     if cfg.get("heal_if_lower_troops"):
-        apply_heal = apply_heal and opponent_army and triggering_army.current_troop_count < opponent_army.current_troop_count
+        apply_heal = apply_heal and _evaluate_mount_condition(
+            "less_troops", triggering_army, opponent_army
+        )
     if apply_heal:
         healed_amount = triggering_army.calculate_and_add_pending_healing(
             heal_factor, triggering_army, opponent_army, source_skill_id=skill_def.get("id", "")
@@ -926,7 +930,9 @@ def handle_mount_periodic_dot_with_condition(
         return False, []
 
     factor_to_apply = base_factor
-    if cfg.get("boost_if_more_troops") and triggering_army.current_troop_count > opponent_army.current_troop_count:
+    if cfg.get("boost_if_more_troops") and _evaluate_mount_condition(
+        "more_troops", triggering_army, opponent_army
+    ):
         factor_to_apply = float(cfg.get("boosted_status_factor", base_factor))
 
     duration = int(round(float(cfg.get("status_duration", 1))))
@@ -954,7 +960,9 @@ def handle_mount_periodic_dot_with_condition(
         ))
 
     heal_factor = 0.0
-    if cfg.get("heal_if_lower_troops") and triggering_army.current_troop_count < opponent_army.current_troop_count:
+    if cfg.get("heal_if_lower_troops") and _evaluate_mount_condition(
+        "less_troops", triggering_army, opponent_army
+    ):
         heal_factor = float(cfg.get("heal_factor", 0.0))
 
     if heal_factor > 0:
@@ -1142,7 +1150,12 @@ def handle_mount_periodic_rage_strip_and_buff(
             log_details.append((f"Recovers {rage_gain:.0f} rage next round.", None))
 
     buff_magnitude = float(cfg.get("buff_magnitude", 0.0))
-    if buff_magnitude != 0:
+    apply_buff = True
+    if cfg.get("strip_shields_if_more_troops"):
+        apply_buff = _evaluate_mount_condition(
+            "more_troops", triggering_army, opponent_army
+        )
+    if buff_magnitude != 0 and apply_buff:
         buff_data = {
             "effect_type": EffectType.STAT_MOD,
             "name": cfg.get("buff_effect_name") or skill_def.get("name", "Mount Skill"),
@@ -1165,10 +1178,8 @@ def handle_mount_periodic_rage_strip_and_buff(
                 )
             )
 
-    if (
-        cfg.get("strip_shields_if_more_troops")
-        and opponent_army
-        and triggering_army.current_troop_count > opponent_army.current_troop_count
+    if cfg.get("strip_shields_if_more_troops") and _evaluate_mount_condition(
+        "more_troops", triggering_army, opponent_army
     ):
         stripped, strip_log = _schedule_shield_strip(
             triggering_army, opponent_army, skill_def, cfg.get("shield_strip_effect_name", EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP)
@@ -1198,9 +1209,8 @@ def handle_mount_periodic_rage_heal_and_condition(
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     an_effect_happened = False
 
-    has_lower_troops_than_opponent = bool(
-        opponent_army
-        and triggering_army.current_troop_count < opponent_army.current_troop_count
+    has_lower_troops_than_opponent = _evaluate_mount_condition(
+        "less_troops", triggering_army, opponent_army
     )
 
     heal_factor = float(cfg.get("heal_factor", 0.0))
@@ -1384,7 +1394,9 @@ def handle_mount_periodic_damage_and_shield_strip(
     use_boost_if_more = bool(cfg.get("use_boost_if_more", False))
 
     damage_factor_to_use = damage_factor
-    if use_boost_if_more and triggering_army.current_troop_count > opponent_army.current_troop_count:
+    if use_boost_if_more and _evaluate_mount_condition(
+        "more_troops", triggering_army, opponent_army
+    ):
         damage_factor_to_use = boosted_damage_factor
 
     if damage_factor_to_use > 0 and simulator:
@@ -1419,10 +1431,8 @@ def handle_mount_periodic_damage_and_shield_strip(
             if strip_log:
                 log_details.append(strip_log)
 
-    if (
-        cfg.get("heal_if_lower_troops")
-        and opponent_army
-        and triggering_army.current_troop_count < opponent_army.current_troop_count
+    if cfg.get("heal_if_lower_troops") and _evaluate_mount_condition(
+        "less_troops", triggering_army, opponent_army
     ):
         heal_factor = float(cfg.get("heal_factor", 0.0))
         if heal_factor > 0:
@@ -3133,7 +3143,7 @@ def handle_talent_adaptable_agility(triggering_army: ArmyRef, opponent_army: Arm
     logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     cfg = skill_def.get("config", {})
     skill_id = skill_def["id"]
-    if triggering_army.current_troop_count > opponent_army.current_troop_count:
+    if _evaluate_mount_condition("more_troops", triggering_army, opponent_army):
         if random.random() < cfg.get("damage_chance_high", 0.0):
             dmg_factor = cfg.get("damage_factor", 0.0)
             if dmg_factor > 0:
@@ -3145,7 +3155,7 @@ def handle_talent_adaptable_agility(triggering_army: ArmyRef, opponent_army: Arm
                     happened = True
                 logs.append((f"Deals damage to {opponent_army.name}.",
                              {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}))
-    elif triggering_army.current_troop_count < opponent_army.current_troop_count:
+    elif _evaluate_mount_condition("less_troops", triggering_army, opponent_army):
         if random.random() < cfg.get("heal_chance_low", 0.0):
             heal_factor = cfg.get("heal_factor", 0.0)
             healed = triggering_army.calculate_and_add_pending_healing(
@@ -4475,14 +4485,14 @@ def handle_talent_oathbreakers_blade(
             )
         )
 
-    if triggering_army.current_troop_count > opponent_army.current_troop_count:
+    if _evaluate_mount_condition("more_troops", triggering_army, opponent_army):
         damage_factor = cfg.get("damage_factor", 0.0)
         if damage_factor > 0 and simulator:
             did_damage = _apply_damage_with_logging(
                 triggering_army, opponent_army, simulator, damage_factor, skill_def, logs
             )
             happened = happened or did_damage
-    elif triggering_army.current_troop_count < opponent_army.current_troop_count:
+    elif _evaluate_mount_condition("less_troops", triggering_army, opponent_army):
         reduction_mag = cfg.get("damage_reduction", 0.0)
         reduction_duration = cfg.get("reduction_duration", 0)
         heal_factor = cfg.get("heal_factor", 0.0)

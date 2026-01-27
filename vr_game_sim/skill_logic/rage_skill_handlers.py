@@ -963,7 +963,7 @@ def handle_rage_time_of_severance(
             )
         )
 
-    if triggering_army.current_troop_count > opponent_army.current_troop_count:
+    if triggering_army.get_round_start_troops() > opponent_army.get_round_start_troops():
         bleed_factor = cfg.get("bleed_factor", 0.0)
         bleed_duration = cfg.get("bleed_duration", 1)
         if bleed_factor > 0:
@@ -988,7 +988,7 @@ def handle_rage_time_of_severance(
                         None,
                     )
                 )
-    elif triggering_army.current_troop_count < opponent_army.current_troop_count:
+    elif triggering_army.get_round_start_troops() < opponent_army.get_round_start_troops():
         retribution_rate = cfg.get("retribution_rate", 0.0)
         retribution_duration = cfg.get("retribution_duration", 1)
         if retribution_rate > 0:

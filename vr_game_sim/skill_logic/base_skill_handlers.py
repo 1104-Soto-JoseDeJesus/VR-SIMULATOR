@@ -327,7 +327,7 @@ def handle_base_skill_threatening_blade(
     skill_config = skill_def.get("config", {})
     skill_id = skill_def["id"]
 
-    if triggering_army.current_troop_count > opponent_army.current_troop_count:
+    if triggering_army.get_round_start_troops() > opponent_army.get_round_start_troops():
         damage_factor = skill_config.get("damage_factor", 0.0)
         if damage_factor > 0:
             hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
@@ -1111,7 +1111,7 @@ def handle_base_skill_winters_coronation(
                 )
             )
 
-    if triggering_army.current_troop_count > opponent_army.current_troop_count:
+    if triggering_army.get_round_start_troops() > opponent_army.get_round_start_troops():
         slow_duration = cfg.get("slow_duration", 1)
         slow_data = {
             "effect_type": EffectType.DEBUFF,
@@ -1130,7 +1130,7 @@ def handle_base_skill_winters_coronation(
                     None,
                 )
             )
-    elif triggering_army.current_troop_count < opponent_army.current_troop_count:
+    elif triggering_army.get_round_start_troops() < opponent_army.get_round_start_troops():
         shield_factor = cfg.get("shield_factor", 0.0)
         shield_duration = cfg.get("shield_duration", 1)
         if shield_factor > 0:

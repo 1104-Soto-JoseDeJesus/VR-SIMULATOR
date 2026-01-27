@@ -95,7 +95,7 @@ def handle_plugin_shield_support(
         if not already_has_shield_from_this_skill_this_trigger:
             shield_factor = skill_config.get("base_shield_factor", 750.0)
             log_msg_suffix = f"Base factor: {shield_factor}."
-            if triggering_army.current_troop_count < opponent_army.current_troop_count:
+            if triggering_army.get_round_start_troops() < opponent_army.get_round_start_troops():
                 shield_factor = skill_config.get("boosted_shield_factor", 1000.0)
                 log_msg_suffix = f"Troop count lower, using boosted shield factor: {shield_factor}."
             log_details.append((f"Condition Check: {log_msg_suffix}", None))

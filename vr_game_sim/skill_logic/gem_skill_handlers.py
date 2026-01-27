@@ -204,7 +204,7 @@ def _army_has_fewer_troops(triggering_army: ArmyRef, opponent_army: Optional[Arm
 
     if not opponent_army:
         return False
-    return triggering_army.current_troop_count < opponent_army.current_troop_count
+    return triggering_army.get_round_start_troops() < opponent_army.get_round_start_troops()
 
 
 def _army_below_remaining_pct(triggering_army: ArmyRef, pct: Optional[float]) -> bool:

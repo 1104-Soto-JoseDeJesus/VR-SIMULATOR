@@ -1,7 +1,7 @@
 [
     {
-        "army_name": "Rosky/Naya",
-        "unit_type": "pikemen",
+        "army_name": "Sasha/Alf (2)",
+        "unit_type": "archers",
         "tier": 7,
         "count": 300000,
         "is_rally": false,
@@ -14,57 +14,57 @@
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Rosky",
+                "hero_name_or_preset": "Sasha",
                 "talent_ids": [
-                    "talent_blade_wielder",
-                    "talent_maniacal",
-                    "talent_pirate_tricks"
+                    "talent_forest_force",
+                    "talent_natures_killer",
+                    "talent_life_cycle"
                 ],
                 "base_skill_ids": [
-                    "base_skill_flurry",
-                    "rage_skill_spirit_battleship"
+                    "base_skill_nature_blessing",
+                    "base_skill_floral_burial"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_hymn_of_life",
-                    "plugin_deadly_counterattack"
-                ],
-                "mount_skill_ids": [
-                    "mount_shatterbone_bite"
+                    "plugin_bone_corroding_arrow",
+                    "plugin_poison_arrow"
                 ],
                 "gear_ids": {
-                    "head": "gear_abyssal_crown_legendary",
-                    "weapon": "gear_marine_halberd_legendary",
-                    "chest": "gear_bylgjas_armor_legendary",
-                    "boots": "gear_tsunami_plated_boots_legendary"
-                }
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                },
+                "mount_skill_ids": [
+                    "mount_teeth_n_claws"
+                ]
             },
             {
-                "hero_name_or_preset": "Naya",
+                "hero_name_or_preset": "Alf",
                 "talent_ids": [
-                    "talent_forceful_ambush",
-                    "talent_trapped_beasts_struggle",
-                    "talent_bear_spirit_protection"
+                    "talent_fiery_poison_bullet",
+                    "talent_fiery_poison_bomb",
+                    "talent_agile_missile"
                 ],
                 "base_skill_ids": [
-                    "base_skill_nayas_hunting_instinct",
-                    "base_skill_blizzard_spear"
+                    "base_skill_huginns_slingshot",
+                    "base_skill_chain_meteor"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_divine_blessing",
-                    "plugin_divine_shield"
+                    "plugin_this_too_shall_pass",
+                    "plugin_helas_curse"
                 ],
                 "gear_ids": {
-                    "head": "gear_abyssal_crown_legendary",
-                    "weapon": "gear_marine_halberd_legendary",
-                    "chest": "gear_bylgjas_armor_legendary",
-                    "boots": "gear_tsunami_plated_boots_legendary"
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
                 }
             }
         ]
     },
     {
-        "army_name": "Rosky/Naya (2)",
-        "unit_type": "pikemen",
+        "army_name": "Sasha/Alf",
+        "unit_type": "archers",
         "tier": 7,
         "count": 300000,
         "is_rally": false,
@@ -77,50 +77,50 @@
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Rosky",
+                "hero_name_or_preset": "Sasha",
                 "talent_ids": [
-                    "talent_blade_wielder",
-                    "talent_maniacal",
-                    "talent_pirate_tricks"
+                    "talent_forest_force",
+                    "talent_natures_killer",
+                    "talent_life_cycle"
                 ],
                 "base_skill_ids": [
-                    "base_skill_flurry",
-                    "rage_skill_spirit_battleship"
+                    "base_skill_nature_blessing",
+                    "base_skill_floral_burial"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_hymn_of_life",
-                    "plugin_deadly_counterattack"
+                    "plugin_bone_corroding_arrow",
+                    "plugin_poison_arrow"
                 ],
                 "gear_ids": {
-                    "head": "gear_abyssal_crown_legendary",
-                    "weapon": "gear_marine_halberd_legendary",
-                    "chest": "gear_bylgjas_armor_legendary",
-                    "boots": "gear_tsunami_plated_boots_legendary"
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
                 },
                 "mount_skill_ids": [
-                    "mount_spiritual_blessing"
+                    "mount_crippling_strike"
                 ]
             },
             {
-                "hero_name_or_preset": "Naya",
+                "hero_name_or_preset": "Alf",
                 "talent_ids": [
-                    "talent_forceful_ambush",
-                    "talent_trapped_beasts_struggle",
-                    "talent_bear_spirit_protection"
+                    "talent_fiery_poison_bullet",
+                    "talent_fiery_poison_bomb",
+                    "talent_agile_missile"
                 ],
                 "base_skill_ids": [
-                    "base_skill_nayas_hunting_instinct",
-                    "base_skill_blizzard_spear"
+                    "base_skill_huginns_slingshot",
+                    "base_skill_chain_meteor"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_divine_blessing",
-                    "plugin_divine_shield"
+                    "plugin_this_too_shall_pass",
+                    "plugin_helas_curse"
                 ],
                 "gear_ids": {
-                    "head": "gear_abyssal_crown_legendary",
-                    "weapon": "gear_marine_halberd_legendary",
-                    "chest": "gear_bylgjas_armor_legendary",
-                    "boots": "gear_tsunami_plated_boots_legendary"
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
                 }
             }
         ]

@@ -244,6 +244,7 @@ def test_duplicate_mount_damage_active_cast_cooldown_per_instance():
         army.skill_triggers_against_this_round.clear()
         army.mount_skill_damage_triggers_this_round.clear()
         army.mount_skill_non_damage_applied_this_round.clear()
+        army.mount_skill_dot_hot_applied_this_round.clear()
         simulator._process_skill_triggers(army, opponent, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST)
 
     cooldown_keys = [
@@ -284,6 +285,7 @@ def test_duplicate_mount_active_cast_across_heroes_tracks_independently():
         army.skill_triggers_against_this_round.clear()
         army.mount_skill_damage_triggers_this_round.clear()
         army.mount_skill_non_damage_applied_this_round.clear()
+        army.mount_skill_dot_hot_applied_this_round.clear()
         simulator._process_skill_triggers(army, opponent, SkillTriggerType.ON_OWN_RAGE_SKILL_CAST)
 
     instance_keys = [
@@ -312,6 +314,7 @@ def test_mount_trigger_window_limits_reactive_skills():
         army_ref.skill_triggers_against_this_round.clear()
         army_ref.mount_skill_damage_triggers_this_round.clear()
         army_ref.mount_skill_non_damage_applied_this_round.clear()
+        army_ref.mount_skill_dot_hot_applied_this_round.clear()
 
     def trigger_round(round_num):
         army.army_round = round_num
@@ -344,11 +347,20 @@ def test_duplicate_mount_dot_and_heal_instances_trigger():
     ]:
         army.current_troop_count = 8000
         opponent.current_troop_count = 12000
+        army.troop_count_at_round_start = army.current_troop_count
+        opponent.troop_count_at_round_start = opponent.current_troop_count
         army.army_round = 1
         opponent.army_round = 1
-        for skill in army.heroes[0].skills:
-            if skill.get("id") == "mount_poison_n_heal":
-                skill.setdefault("config", {})["trigger_interval"] = 1
+        poison_skills = [skill for skill in army.heroes[0].skills if skill.get("id") == "mount_poison_n_heal"]
+        for idx, skill in enumerate(poison_skills):
+            config = skill.setdefault("config", {})
+            config["trigger_interval"] = 1
+            if len(poison_skills) == 1:
+                config["status_factor"] = 450.0
+                config["heal_factor"] = 600.0
+            else:
+                config["status_factor"] = 200.0 if idx == 0 else 450.0
+                config["heal_factor"] = 300.0 if idx == 0 else 600.0
 
     simulator_single = GameSimulator(army_single, opponent_single, mode="battlefield")
     simulator_double = GameSimulator(army_double, opponent_double, mode="battlefield")
@@ -374,8 +386,10 @@ def test_duplicate_mount_dot_and_heal_instances_trigger():
     ]
 
     assert len(dot_effects_single) == 1
-    assert len(dot_effects_double) == 2
+    assert len(dot_effects_double) == 1
+    assert dot_effects_single[0].config.get("status_effect_factor") == pytest.approx(450.0)
+    assert dot_effects_double[0].config.get("status_effect_factor") == pytest.approx(450.0)
     assert army_single.pending_hp_healing_this_round > 0
     assert army_double.pending_hp_healing_this_round == pytest.approx(
-        army_single.pending_hp_healing_this_round * 2
+        army_single.pending_hp_healing_this_round
     )

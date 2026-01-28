@@ -1028,6 +1028,43 @@ class Army:
                 final_config['snapshotted_attacker_troop_scalar'] = 1.0
                 final_config['snapshotted_defender_total_defense'] = target_army.unit.base_def_stat
 
+            specific_stat = None
+            if dot_type_value == DoTType.BLEED:
+                specific_stat = StatType.BLEED_DAMAGE_BOOST
+                reduction_stat = StatType.BLEED_DAMAGE_REDUCTION
+            elif dot_type_value == DoTType.POISON:
+                specific_stat = StatType.POISON_DAMAGE_BOOST
+                reduction_stat = StatType.POISON_DAMAGE_REDUCTION
+            elif dot_type_value == DoTType.BURN:
+                specific_stat = StatType.BURN_DAMAGE_BOOST
+                reduction_stat = StatType.BURN_DAMAGE_REDUCTION
+            else:
+                specific_stat = StatType.LACERATE_DAMAGE_BOOST
+                reduction_stat = StatType.LACERATE_DAMAGE_REDUCTION
+
+            positive_dot_effects = [
+                eff
+                for eff in owner_army.active_effects
+                if eff.effect_type == EffectType.STAT_MOD
+                and eff.config.get("stat_to_mod") == specific_stat
+                and eff.magnitude > 0
+            ]
+            final_config["snapshotted_specific_dot_boost"] = owner_army.get_sum_stat_magnitudes(
+                specific_stat
+            )
+            final_config["snapshotted_specific_dot_reduction"] = target_army.get_sum_stat_magnitudes(
+                reduction_stat
+            )
+            if getattr(self.simulator, "damage_reduction_affects_dots", False):
+                final_config["snapshotted_general_damage_reduction"] = target_army.get_sum_stat_magnitudes(
+                    StatType.DAMAGE_TAKEN_MULTIPLIER,
+                    attack_type_filter="status_effect",
+                )
+            final_config["snapshotted_positive_dot_effects"] = [
+                {"source_skill_id": eff.source_skill_id, "magnitude": eff.magnitude}
+                for eff in positive_dot_effects
+            ]
+
             # Remove any duplicate upcoming instances from this skill
             for effect_list in [target_army.upcoming_effects, target_army.effects_to_activate_next_round]:
                 for i in range(len(effect_list) - 1, -1, -1):
@@ -1388,10 +1425,14 @@ class Army:
 
                 general_damage_reduction = 0.0
                 if getattr(self.simulator, "damage_reduction_affects_dots", False):
-                    general_damage_reduction = self.get_sum_stat_magnitudes(
-                        StatType.DAMAGE_TAKEN_MULTIPLIER,
-                        attack_type_filter="status_effect",
+                    general_damage_reduction = effect.config.get(
+                        "snapshotted_general_damage_reduction"
                     )
+                    if general_damage_reduction is None:
+                        general_damage_reduction = self.get_sum_stat_magnitudes(
+                            StatType.DAMAGE_TAKEN_MULTIPLIER,
+                            attack_type_filter="status_effect",
+                        )
 
                 crit_bonus = float(effect.config.get("crit_bonus", 0.0) or 0.0)
                 if is_special_dot:
@@ -1409,8 +1450,9 @@ class Army:
                     if caster_army is None and original_caster_name == self.name:
                         caster_army = self
 
-                    current_specific_dot_boost = 0.0
+                    current_specific_dot_boost = effect.config.get("snapshotted_specific_dot_boost")
                     positive_dot_effects: list[EffectInstance] = []
+                    snapshotted_positive_dot_effects = effect.config.get("snapshotted_positive_dot_effects", [])
                     specific_stat = None
                     if caster_army:
                         if dot_type == DoTType.BLEED:
@@ -1422,9 +1464,10 @@ class Army:
                         elif dot_type == DoTType.LACERATE:
                             specific_stat = StatType.LACERATE_DAMAGE_BOOST
                         if specific_stat:
-                            current_specific_dot_boost = caster_army.get_sum_stat_magnitudes(
-                                specific_stat
-                            )
+                            if current_specific_dot_boost is None:
+                                current_specific_dot_boost = caster_army.get_sum_stat_magnitudes(
+                                    specific_stat
+                                )
                             positive_dot_effects = [
                                 eff
                                 for eff in caster_army.active_effects
@@ -1432,17 +1475,34 @@ class Army:
                                 and eff.config.get("stat_to_mod") == specific_stat
                                 and eff.magnitude > 0
                             ]
-                    total_positive_dot = sum(eff.magnitude for eff in positive_dot_effects)
+                    total_positive_dot = sum(
+                        entry.get("magnitude", 0.0) for entry in snapshotted_positive_dot_effects
+                    ) if snapshotted_positive_dot_effects else sum(
+                        eff.magnitude for eff in positive_dot_effects
+                    )
 
-                    current_specific_dot_reduction = 0.0
-                    if dot_type == DoTType.BLEED:
-                        current_specific_dot_reduction = self.get_sum_stat_magnitudes(StatType.BLEED_DAMAGE_REDUCTION)
-                    elif dot_type == DoTType.POISON:
-                        current_specific_dot_reduction = self.get_sum_stat_magnitudes(StatType.POISON_DAMAGE_REDUCTION)
-                    elif dot_type == DoTType.BURN:
-                        current_specific_dot_reduction = self.get_sum_stat_magnitudes(StatType.BURN_DAMAGE_REDUCTION)
-                    elif dot_type == DoTType.LACERATE:
-                        current_specific_dot_reduction = self.get_sum_stat_magnitudes(StatType.LACERATE_DAMAGE_REDUCTION)
+                    current_specific_dot_reduction = effect.config.get("snapshotted_specific_dot_reduction")
+                    if current_specific_dot_reduction is None:
+                        if dot_type == DoTType.BLEED:
+                            current_specific_dot_reduction = self.get_sum_stat_magnitudes(
+                                StatType.BLEED_DAMAGE_REDUCTION
+                            )
+                        elif dot_type == DoTType.POISON:
+                            current_specific_dot_reduction = self.get_sum_stat_magnitudes(
+                                StatType.POISON_DAMAGE_REDUCTION
+                            )
+                        elif dot_type == DoTType.BURN:
+                            current_specific_dot_reduction = self.get_sum_stat_magnitudes(
+                                StatType.BURN_DAMAGE_REDUCTION
+                            )
+                        elif dot_type == DoTType.LACERATE:
+                            current_specific_dot_reduction = self.get_sum_stat_magnitudes(
+                                StatType.LACERATE_DAMAGE_REDUCTION
+                            )
+                    if current_specific_dot_boost is None:
+                        current_specific_dot_boost = 0.0
+                    if current_specific_dot_reduction is None:
+                        current_specific_dot_reduction = 0.0
 
                     base_dot_damage_for_log = ((snap_atk / snap_def) * snap_scalar * (status_factor / 200.0))
                     snapshot_bonus = effect.config.get("holy_blessed_damage_taken_snapshot", 0.0)
@@ -1485,13 +1545,23 @@ class Army:
                             hp_per_troop_boost = self.unit.effective_hp_per_troop(self.active_effects)
                             if hp_per_troop_boost <= 0:
                                 hp_per_troop_boost = 1
-                            for eff in positive_dot_effects:
-                                weight = eff.magnitude / total_positive_dot
+                            for entry in snapshotted_positive_dot_effects or []:
+                                if entry.get("magnitude", 0.0) <= 0:
+                                    continue
+                                weight = entry["magnitude"] / total_positive_dot
                                 troops = (extra_hp * weight) / hp_per_troop_boost
-                                caster_army.skill_kill_boost_totals[eff.source_skill_id] = (
-                                    caster_army.skill_kill_boost_totals.get(eff.source_skill_id, 0.0)
+                                caster_army.skill_kill_boost_totals[entry["source_skill_id"]] = (
+                                    caster_army.skill_kill_boost_totals.get(entry["source_skill_id"], 0.0)
                                     + troops
                                 )
+                            if not snapshotted_positive_dot_effects:
+                                for eff in positive_dot_effects:
+                                    weight = eff.magnitude / total_positive_dot
+                                    troops = (extra_hp * weight) / hp_per_troop_boost
+                                    caster_army.skill_kill_boost_totals[eff.source_skill_id] = (
+                                        caster_army.skill_kill_boost_totals.get(eff.source_skill_id, 0.0)
+                                        + troops
+                                    )
 
                     attacker_name = effect.config.get("source_army_name", "Unknown")
                     if hp_damage_to_troops_dot > 0:

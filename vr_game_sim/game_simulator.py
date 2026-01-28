@@ -43,6 +43,14 @@ ACTIVE_CAST_ONE_TRIGGER_SKILLS = {
 
 class GameSimulator:
     SKILL_REGISTRY_GLOBAL = SKILL_REGISTRY_GLOBAL
+    MOUNT_DOT_HOT_NUMERIC_KEYS = {
+        "status_factor",
+        "boosted_status_factor",
+        "heal_factor",
+        "status_duration",
+    }
+    MOUNT_DOT_HOT_FLAG_KEYS = {"boost_if_more_troops", "heal_if_lower_troops"}
+    MOUNT_DOT_HOT_OTHER_KEYS = {"status_type", "effect_name"}
 
     @staticmethod
     @lru_cache(maxsize=None)
@@ -950,6 +958,19 @@ class GameSimulator:
         cfg = skill_def.get("config", {}) or {}
         return any(cfg.get(key, 0) > 0 for key in ("damage_factor", "instant_damage_factor", "conditional_damage_factor"))
 
+    def _mount_skill_has_dot_hot_components(self, skill_def: SkillDefinition) -> bool:
+        cfg = skill_def.get("config", {}) or {}
+        for key in self.MOUNT_DOT_HOT_NUMERIC_KEYS:
+            if cfg.get(key, 0):
+                return True
+        for key in self.MOUNT_DOT_HOT_FLAG_KEYS:
+            if key in cfg:
+                return True
+        for key in self.MOUNT_DOT_HOT_OTHER_KEYS:
+            if key in cfg:
+                return True
+        return False
+
     def _extract_mount_skill_non_damage_components(self, skill_def: SkillDefinition) -> Dict[str, Any]:
         cfg = copy.deepcopy(skill_def.get("config", {}) or {})
         cfg.pop("damage_factor", None)
@@ -964,9 +985,15 @@ class GameSimulator:
                 continue
             if stat not in stat_mods or magnitude > stat_mods[stat].get("buff_magnitude", 0):
                 stat_mods[stat] = mod
-        if not stat_mods:
-            return {}
-        return {"stat_mods": list(stat_mods.values())}
+        components: Dict[str, Any] = {}
+        if stat_mods:
+            components["stat_mods"] = list(stat_mods.values())
+
+        for key in self.MOUNT_DOT_HOT_NUMERIC_KEYS | self.MOUNT_DOT_HOT_FLAG_KEYS | self.MOUNT_DOT_HOT_OTHER_KEYS:
+            if key in cfg:
+                components[key] = cfg[key]
+
+        return components
 
     def _merge_mount_skill_non_damage_configs(self, skill_defs: List[SkillDefinition]) -> Dict[str, Any]:
         merged: Dict[str, Any] = {}
@@ -988,6 +1015,9 @@ class GameSimulator:
             for key, value in components.items():
                 if key == "stat_mods":
                     continue
+                if key in self.MOUNT_DOT_HOT_FLAG_KEYS:
+                    merged[key] = bool(merged.get(key, False) or value)
+                    continue
                 if isinstance(value, (int, float)):
                     current = merged.get(key, float("-inf"))
                     if value > current:
@@ -998,14 +1028,19 @@ class GameSimulator:
         return merged
 
     def _apply_mount_skill_non_damage_config(self, base_config: Dict[str, Any], merged_config: Dict[str, Any],
-                                             include_non_damage: bool) -> Dict[str, Any]:
+                                             include_non_damage: bool, include_dot_hot: bool) -> Dict[str, Any]:
         cfg = copy.deepcopy(base_config)
+        dot_hot_keys = (
+            self.MOUNT_DOT_HOT_NUMERIC_KEYS | self.MOUNT_DOT_HOT_FLAG_KEYS | self.MOUNT_DOT_HOT_OTHER_KEYS
+        )
         if not include_non_damage:
             cfg.pop("stat_mods", None)
             for key in merged_config:
                 if key in ("damage_factor", "instant_damage_factor", "conditional_damage_factor"):
                     continue
                 if key in ("trigger_interval",):
+                    continue
+                if key in dot_hot_keys and include_dot_hot:
                     continue
                 if isinstance(cfg.get(key), (int, float)):
                     cfg[key] = 0
@@ -1016,6 +1051,11 @@ class GameSimulator:
         for key, value in merged_config.items():
             if key == "stat_mods":
                 cfg[key] = copy.deepcopy(value)
+            elif key in dot_hot_keys and not include_dot_hot:
+                if key in self.MOUNT_DOT_HOT_NUMERIC_KEYS:
+                    cfg[key] = 0
+                elif key in self.MOUNT_DOT_HOT_FLAG_KEYS:
+                    cfg[key] = False
             elif key not in ("damage_factor", "instant_damage_factor", "conditional_damage_factor"):
                 cfg[key] = value
         return cfg
@@ -1181,16 +1221,23 @@ class GameSimulator:
 
                     effective_skill_def = skill_def
                     include_non_damage = True
+                    include_dot_hot = True
+                    dot_hot_present = False
                     if skill_def.get("type") == SkillType.MOUNT_SKILL:
                         include_non_damage = (
                             mount_tracking_key
                             not in triggering_army.mount_skill_non_damage_applied_this_round
                         )
+                        dot_hot_present = self._mount_skill_has_dot_hot_components(skill_def)
+                        if dot_hot_present:
+                            include_dot_hot = (
+                                skill_id not in triggering_army.mount_skill_dot_hot_applied_this_round
+                            )
                         merged_cfg = mount_skill_non_damage_configs.get(skill_id, {})
                         effective_skill_def = copy.deepcopy(skill_def)
                         base_cfg = effective_skill_def.get("config", {}) or {}
                         effective_skill_def["config"] = self._apply_mount_skill_non_damage_config(
-                            base_cfg, merged_cfg, include_non_damage
+                            base_cfg, merged_cfg, include_non_damage, include_dot_hot
                         )
                         if cooldown_key != skill_id:
                             effective_skill_def["id"] = cooldown_key
@@ -1271,6 +1318,8 @@ class GameSimulator:
                             triggering_army.mount_skill_non_damage_applied_this_round.add(
                                 mount_tracking_key
                             )
+                        if include_dot_hot and dot_hot_present and self._is_mount_skill(skill_def):
+                            triggering_army.mount_skill_dot_hot_applied_this_round.add(skill_id)
 
                         if self._is_mount_skill(skill_def) and self._mount_skill_has_direct_damage(effective_skill_def):
                             had_damage = any(details for _, details in log_details_current_skill if details and "damage_done_hp" in details)
@@ -2185,6 +2234,7 @@ class GameSimulator:
                 army.skill_triggers_against_this_round.clear()
                 army.mount_skill_damage_triggers_this_round.clear()
                 army.mount_skill_non_damage_applied_this_round.clear()
+                army.mount_skill_dot_hot_applied_this_round.clear()
                 army.maniacal_hot_triggered_this_round = False
                 army.healing_hymn_triggered_this_round = False
                 army.base_rage_awarded_this_round = False

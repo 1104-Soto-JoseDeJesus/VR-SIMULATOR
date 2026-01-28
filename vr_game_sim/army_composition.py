@@ -128,6 +128,7 @@ class Army:
 
     mount_skill_damage_triggers_this_round: Dict[str, int] = field(init=False, default_factory=dict)
     mount_skill_non_damage_applied_this_round: Set[str] = field(init=False, default_factory=set)
+    mount_skill_dot_hot_applied_this_round: Set[str] = field(init=False, default_factory=set)
 
     skill_trigger_counts: Dict[str, int] = field(init=False, default_factory=dict)
     skill_last_triggered_round: Dict[str, int] = field(init=False, default_factory=dict)

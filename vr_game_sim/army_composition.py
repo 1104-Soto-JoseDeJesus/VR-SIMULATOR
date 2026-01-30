@@ -945,10 +945,20 @@ class Army:
             return None
 
         for active_immunity_effect in target_army.active_effects:
-            if active_immunity_effect.effect_type == EffectType.IMMUNITY and \
-                    active_immunity_effect.config.get("immune_to") == canonical_effect_name:
-                if self.simulator: self.simulator._log_skill_trigger(target_army, active_immunity_effect.name,
-                                                                     f"Immune to '{canonical_effect_name}' from skill '{source_skill_id}'.")
+            if active_immunity_effect.effect_type != EffectType.IMMUNITY:
+                continue
+            immune_to = active_immunity_effect.config.get("immune_to")
+            if isinstance(immune_to, (list, tuple, set)):
+                is_immune = canonical_effect_name in immune_to
+            else:
+                is_immune = immune_to == canonical_effect_name
+            if is_immune:
+                if self.simulator:
+                    self.simulator._log_skill_trigger(
+                        target_army,
+                        active_immunity_effect.name,
+                        f"Immune to '{canonical_effect_name}' from skill '{source_skill_id}'.",
+                    )
                 return None
 
         debuff_limit_names = {

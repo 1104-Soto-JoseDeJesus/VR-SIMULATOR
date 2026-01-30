@@ -56,6 +56,9 @@ from .constants import (
     EFFECT_NAME_RAGEBEAST_SOUL_RAGE_GAIN,
     EFFECT_NAME_UNTAMED_WILDERNESS_RAGE_GAIN,
     EFFECT_NAME_NATURE_MARK,
+    CUSTOM_EFFECT_PRIORITY,
+    CUSTOM_EFFECT_PRIORITY_DEFAULT,
+    CUSTOM_EFFECT_IMMEDIATE_EFFECTS,
 )
 
 GameSimulatorRef = "GameSimulator"  # Forward reference
@@ -1388,33 +1391,249 @@ class Army:
                     apply_pending_buff_removal(effect)
                     processed_pending_buff_removal.add(effect.id)
 
+        def _custom_effect_priority(effect: EffectInstance) -> int:
+            return CUSTOM_EFFECT_PRIORITY.get(
+                effect.name, CUSTOM_EFFECT_PRIORITY_DEFAULT
+            )
+
+        def _process_custom_effect(effect: EffectInstance) -> None:
+            if effect.name == EFFECT_NAME_FIRST_STRIKE_RAGE_AURA and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round':
+                    start_gain_round = effect.config.get("start_rage_gain_round", 0);
+                    end_gain_round = effect.config.get("end_rage_gain_round", 0)
+                    current_round = getattr(self, "army_round", self.simulator.round if self.simulator else 0)
+                    if start_gain_round <= current_round <= end_gain_round:
+                        rage_to_gain = effect.config.get("rage_per_round", 0)
+                        if rage_to_gain > 0:
+                            source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
+                            self.add_rage(rage_to_gain, source_id)
+
+            # Handle multi-round rage gain effects
+            elif effect.name in (
+                EFFECT_NAME_CONCENTRATION_RAGE_GAIN,
+                EFFECT_NAME_MOUNT_PERIODIC_RAGE_GAIN,
+                EFFECT_NAME_UNTAMED_WILDERNESS_RAGE_GAIN,
+            ) and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round':
+                    current_sim_round = getattr(self, "army_round", self.simulator.round if self.simulator else 0)
+                    effect_applied_in_round = effect.config.get("effect_applied_in_round", -1)
+                    base_rage = effect.config.get("base_rage_amount", 0)
+                    bonus_rage = effect.config.get("bonus_rage_amount",
+                                                   0)  # This is the pre-calculated bonus (200 or 0)
+                    bonus_applied_round = effect.config.get("bonus_applied_round", -1)
+                    bonus_tick = effect.config.get("bonus_tick", 1)
+                    total_ticks = effect.config.get("ticks", 2)
+
+                    gained_this_tick = 0
+                    log_parts = []
+
+                    tick_offset = current_sim_round - effect_applied_in_round
+                    if 1 <= tick_offset <= total_ticks:
+                        if base_rage > 0:
+                            source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
+                            gained = self.add_rage(base_rage, source_id)
+                            gained_this_tick += gained
+                            log_parts.append(f"{gained:.0f} base rage")
+                        if (
+                            bonus_rage > 0
+                            and bonus_applied_round == -1
+                            and tick_offset == bonus_tick
+                        ):  # Apply bonus only on the configured tick if applicable
+                            source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
+                            gained_bonus = self.add_rage(bonus_rage, source_id)
+                            gained_this_tick += gained_bonus
+                            effect.config["bonus_applied_round"] = current_sim_round  # Mark bonus as applied
+                            log_parts.append(f"{gained_bonus:.0f} bonus rage")
+
+                    if gained_this_tick > 0:
+                        self.simulator._log_skill_trigger(self, effect.name,
+                                                          f"gains {', '.join(log_parts)} ({gained_this_tick} total this round). New rage: {self.current_rage:.0f}")
+                    if tick_offset >= total_ticks and effect in self.active_effects:
+                        self.active_effects.remove(effect)
+
+            elif effect.name in (
+                EFFECT_NAME_DELAYED_RAGE_GAIN,
+                EFFECT_NAME_PAIN_N_FURY_RAGE_GAIN,
+                EFFECT_NAME_RAGEBEAST_SOUL_RAGE_GAIN,
+            ) and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round' and effect.duration <= 0:
+                    rage_amt = effect.config.get("rage_amount", 0)
+                    if rage_amt > 0:
+                        source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
+                        gained = self.add_rage(rage_amt, source_id)
+                        if self.simulator:
+                            self.simulator._log_skill_trigger(
+                                self, effect.name,
+                                f"gains {gained:.0f} rage (delayed). New rage: {self.current_rage:.0f}")
+                    if effect in self.active_effects:
+                        self.active_effects.remove(effect)
+
+            elif (
+                effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+                and effect.name != EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
+            ):
+                if phase == 'start_of_round' and effect.duration <= 0:
+                    rage_amt = effect.config.get("rage_amount", 0)
+                    if rage_amt > 0 and effect.activate_next_round:
+                        source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
+                        gained = self.add_rage(rage_amt, source_id)
+                        if self.simulator:
+                            self.simulator._log_skill_trigger(
+                                self, effect.name,
+                                f"gains {gained:.0f} rage (delayed). New rage: {self.current_rage:.0f}")
+                        if effect in self.active_effects:
+                            self.active_effects.remove(effect)
+
+            elif effect.name == EFFECT_NAME_DELAYED_RAGE_REDUCTION and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round' and effect.duration <= 0:
+                    reduction = effect.config.get("rage_reduction", 0)
+                    if reduction > 0 and self.current_rage > 0:
+                        actual = min(self.current_rage, float(reduction))
+                        self.current_rage -= actual
+                        if self.simulator and effect.source_skill_id:
+                            src_name = effect.config.get("source_army_name")
+                            src_army = None
+                            if src_name == self.simulator.army1.name:
+                                src_army = self.simulator.army1
+                            elif src_name == self.simulator.army2.name:
+                                src_army = self.simulator.army2
+                            if src_army:
+                                src_army.skill_rage_reduction_totals[effect.source_skill_id] = (
+                                    src_army.skill_rage_reduction_totals.get(effect.source_skill_id, 0.0)
+                                    + actual
+                                )
+                            self.simulator._log_skill_trigger(
+                                self, effect.name,
+                                f"loses {actual:.0f} rage (delayed). New rage: {self.current_rage:.0f}")
+                        elif effect.source_skill_id:
+                            self.skill_rage_reduction_totals[effect.source_skill_id] = (
+                                self.skill_rage_reduction_totals.get(effect.source_skill_id, 0.0)
+                                + actual
+                            )
+                    if effect in self.active_effects:
+                        self.active_effects.remove(effect)
+
+            elif effect.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round':
+                    cnt = int(effect.config.get("marker_count", 1))
+                    for _ in range(cnt):
+                        marker_data = {
+                            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                            "name": EFFECT_NAME_JUDGEMENT_MARKER,
+                            "duration": -1,
+                        }
+                        self._create_and_add_single_effect(marker_data, effect.source_skill_id, self, self, opponent)
+                    if self.simulator:
+                        self.simulator._log_skill_trigger(self, effect.name, f"gains {cnt} Judgement Marker(s).")
+                    if effect in self.active_effects:
+                        self.active_effects.remove(effect)
+
+            elif effect.name == EFFECT_NAME_PENDING_HEROIC_BLESSING_DEBUFF and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round' and effect.duration <= 0:
+                    debuff_duration = effect.config.get("debuff_duration", 30)
+                    debuff_data = {
+                        "effect_type": EffectType.STAT_MOD,
+                        "name": EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF,
+                        "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+                        "magnitude": -0.30,
+                        "duration": debuff_duration,
+                    }
+                    created = self._create_and_add_single_effect(
+                        debuff_data, effect.source_skill_id, self, self, opponent
+                    )
+                    if created:
+                        self.simulator._log_skill_trigger(
+                            self,
+                            effect.name,
+                            f"Gains '{EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF}': {created.get_functionality_description()} for {debuff_duration} rounds."
+                        )
+                    if effect in self.active_effects:
+                        self.active_effects.remove(effect)
+
+            elif effect.name == EFFECT_NAME_PENDING_HEROIC_BLESSING_BUFF and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round' and effect.duration <= 0:
+                    boost_mag = effect.config.get("burn_boost_magnitude", 0.0)
+                    if boost_mag != 0:
+                        buff_data = {
+                            "effect_type": EffectType.STAT_MOD,
+                            "name": EFFECT_NAME_HEROIC_BLESSING_BURN_BOOST,
+                            "stat_to_mod": StatType.BURN_DAMAGE_BOOST,
+                            "magnitude": boost_mag,
+                            "duration": -1,
+                        }
+                        created = self._create_and_add_single_effect(
+                            buff_data, effect.source_skill_id, self, self, opponent
+                        )
+                        if created:
+                            self.simulator._log_skill_trigger(
+                                self,
+                                effect.name,
+                                f"Heroic Blessing debuff expired. Gains permanent burn damage boost (+{boost_mag*100:.0f}%)."
+                            )
+                    for i in range(len(self.active_effects) - 1, -1, -1):
+                        if self.active_effects[i].name == EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF:
+                            self.active_effects.pop(i)
+                            break
+                    if effect in self.active_effects:
+                        self.active_effects.remove(effect)
+
+            elif effect.name in [EFFECT_NAME_PENDING_AWAKENING_CLEANSE, EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
+                                 EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
+                                 EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY, EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
+                                 EFFECT_NAME_PENDING_HALO_OF_SACRIFICE_CLEANSE,
+                                 EFFECT_NAME_DEER_REDEMPTION_CLEANSE, EFFECT_NAME_DIVINE_AWE_CLEANSE,
+                                 EFFECT_NAME_BLESSED_DEW_CLEANSE,
+                                 EFFECT_NAME_WINTERS_CORONATION_PURIFY] \
+                    and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round':
+                    apply_pending_debuff_cleanse(effect)
+
+            elif effect.name in [EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
+                                 EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
+                                 EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
+                                 EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
+                                 EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
+                                 EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP] \
+                    and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+                if phase == 'start_of_round':
+                    apply_pending_buff_removal(
+                        effect,
+                        shield_only=effect.name == EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP,
+                    )
+
+        custom_effects = [
+            (idx, eff)
+            for idx, eff in enumerate(self.active_effects)
+            if eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+        ]
+        if custom_effects:
+            if phase == "start_of_round":
+                custom_effects.sort(
+                    key=lambda item: (_custom_effect_priority(item[1]), item[0])
+                )
+            for _, effect in custom_effects:
+                is_immediate_custom_effect = (
+                    effect.name in CUSTOM_EFFECT_IMMEDIATE_EFFECTS
+                )
+                if (
+                    effect.applied_this_round
+                    and phase == "start_of_round"
+                    and not is_immediate_custom_effect
+                ):
+                    continue
+                _process_custom_effect(effect)
+
         for effect in list(self.active_effects):
-            is_immediate_custom_effect = effect.name in [
-                EFFECT_NAME_FIRST_STRIKE_RAGE_AURA,
-                EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
-                EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
-                EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
-                EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
-                EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
-                EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
-                EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Add Olena's custom rage gain effect
-                EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
-                EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
-                EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
-                EFFECT_NAME_PENDING_HALO_OF_SACRIFICE_CLEANSE,
-                EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
-                EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
-                EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP,
-                EFFECT_NAME_DEER_REDEMPTION_CLEANSE,
-                EFFECT_NAME_DIVINE_AWE_CLEANSE,
-                EFFECT_NAME_BLESSED_DEW_CLEANSE,
-                EFFECT_NAME_WINTERS_CORONATION_PURIFY,
-            ]
+            is_immediate_custom_effect = (
+                effect.name in CUSTOM_EFFECT_IMMEDIATE_EFFECTS
+            )
             if (
                 effect.applied_this_round
                 and phase == "start_of_round"
                 and not is_immediate_custom_effect
             ):
+                continue
+            if effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 continue
 
             if effect.effect_type == EffectType.DAMAGE_OVER_TIME:
@@ -1650,211 +1869,6 @@ class Army:
                             calculation_steps=heal_trace,
                             damage_details={"healed_hp": round(hot_amount_this_tick)},
                         )
-
-            elif effect.name == EFFECT_NAME_FIRST_STRIKE_RAGE_AURA and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
-                if phase == 'start_of_round':
-                    start_gain_round = effect.config.get("start_rage_gain_round", 0);
-                    end_gain_round = effect.config.get("end_rage_gain_round", 0)
-                    current_round = getattr(self, "army_round", self.simulator.round if self.simulator else 0)
-                    if start_gain_round <= current_round <= end_gain_round:
-                        rage_to_gain = effect.config.get("rage_per_round", 0)
-                        if rage_to_gain > 0:
-                            source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
-                            self.add_rage(rage_to_gain, source_id)
-
-            # Handle multi-round rage gain effects
-            elif effect.name in (
-                EFFECT_NAME_CONCENTRATION_RAGE_GAIN,
-                EFFECT_NAME_MOUNT_PERIODIC_RAGE_GAIN,
-                EFFECT_NAME_UNTAMED_WILDERNESS_RAGE_GAIN,
-            ) and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
-                if phase == 'start_of_round':
-                    current_sim_round = getattr(self, "army_round", self.simulator.round if self.simulator else 0)
-                    effect_applied_in_round = effect.config.get("effect_applied_in_round", -1)
-                    base_rage = effect.config.get("base_rage_amount", 0)
-                    bonus_rage = effect.config.get("bonus_rage_amount",
-                                                   0)  # This is the pre-calculated bonus (200 or 0)
-                    bonus_applied_round = effect.config.get("bonus_applied_round", -1)
-                    bonus_tick = effect.config.get("bonus_tick", 1)
-                    total_ticks = effect.config.get("ticks", 2)
-
-                    gained_this_tick = 0
-                    log_parts = []
-
-                    tick_offset = current_sim_round - effect_applied_in_round
-                    if 1 <= tick_offset <= total_ticks:
-                        if base_rage > 0:
-                            source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
-                            gained = self.add_rage(base_rage, source_id)
-                            gained_this_tick += gained
-                            log_parts.append(f"{gained:.0f} base rage")
-                        if (
-                            bonus_rage > 0
-                            and bonus_applied_round == -1
-                            and tick_offset == bonus_tick
-                        ):  # Apply bonus only on the configured tick if applicable
-                            source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
-                            gained_bonus = self.add_rage(bonus_rage, source_id)
-                            gained_this_tick += gained_bonus
-                            effect.config["bonus_applied_round"] = current_sim_round  # Mark bonus as applied
-                            log_parts.append(f"{gained_bonus:.0f} bonus rage")
-
-                    if gained_this_tick > 0:
-                        self.simulator._log_skill_trigger(self, effect.name,
-                                                          f"gains {', '.join(log_parts)} ({gained_this_tick} total this round). New rage: {self.current_rage:.0f}")
-                    if tick_offset >= total_ticks and effect in self.active_effects:
-                        self.active_effects.remove(effect)
-
-            elif effect.name in (
-                EFFECT_NAME_DELAYED_RAGE_GAIN,
-                EFFECT_NAME_PAIN_N_FURY_RAGE_GAIN,
-                EFFECT_NAME_RAGEBEAST_SOUL_RAGE_GAIN,
-            ) and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
-                if phase == 'start_of_round' and effect.duration <= 0:
-                    rage_amt = effect.config.get("rage_amount", 0)
-                    if rage_amt > 0:
-                        source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
-                        gained = self.add_rage(rage_amt, source_id)
-                        if self.simulator:
-                            self.simulator._log_skill_trigger(
-                                self, effect.name,
-                                f"gains {gained:.0f} rage (delayed). New rage: {self.current_rage:.0f}")
-                    if effect in self.active_effects:
-                        self.active_effects.remove(effect)
-
-            elif (
-                effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT
-                and effect.name != EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
-            ):
-                if phase == 'start_of_round' and effect.duration <= 0:
-                    rage_amt = effect.config.get("rage_amount", 0)
-                    if rage_amt > 0 and effect.activate_next_round:
-                        source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
-                        gained = self.add_rage(rage_amt, source_id)
-                        if self.simulator:
-                            self.simulator._log_skill_trigger(
-                                self, effect.name,
-                                f"gains {gained:.0f} rage (delayed). New rage: {self.current_rage:.0f}")
-                        if effect in self.active_effects:
-                            self.active_effects.remove(effect)
-
-            elif effect.name == EFFECT_NAME_DELAYED_RAGE_REDUCTION and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
-                if phase == 'start_of_round' and effect.duration <= 0:
-                    reduction = effect.config.get("rage_reduction", 0)
-                    if reduction > 0 and self.current_rage > 0:
-                        actual = min(self.current_rage, float(reduction))
-                        self.current_rage -= actual
-                        if self.simulator and effect.source_skill_id:
-                            src_name = effect.config.get("source_army_name")
-                            src_army = None
-                            if src_name == self.simulator.army1.name:
-                                src_army = self.simulator.army1
-                            elif src_name == self.simulator.army2.name:
-                                src_army = self.simulator.army2
-                            if src_army:
-                                src_army.skill_rage_reduction_totals[effect.source_skill_id] = (
-                                    src_army.skill_rage_reduction_totals.get(effect.source_skill_id, 0.0)
-                                    + actual
-                                )
-                            self.simulator._log_skill_trigger(
-                                self, effect.name,
-                                f"loses {actual:.0f} rage (delayed). New rage: {self.current_rage:.0f}")
-                        elif effect.source_skill_id:
-                            self.skill_rage_reduction_totals[effect.source_skill_id] = (
-                                self.skill_rage_reduction_totals.get(effect.source_skill_id, 0.0)
-                                + actual
-                            )
-                    if effect in self.active_effects:
-                        self.active_effects.remove(effect)
-
-            elif effect.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
-                if phase == 'start_of_round':
-                    cnt = int(effect.config.get("marker_count", 1))
-                    for _ in range(cnt):
-                        marker_data = {
-                            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
-                            "name": EFFECT_NAME_JUDGEMENT_MARKER,
-                            "duration": -1,
-                        }
-                        self._create_and_add_single_effect(marker_data, effect.source_skill_id, self, self, opponent)
-                    if self.simulator:
-                        self.simulator._log_skill_trigger(self, effect.name, f"gains {cnt} Judgement Marker(s).")
-                    if effect in self.active_effects:
-                        self.active_effects.remove(effect)
-
-            elif effect.name == EFFECT_NAME_PENDING_HEROIC_BLESSING_DEBUFF and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
-                if phase == 'start_of_round' and effect.duration <= 0:
-                    debuff_duration = effect.config.get("debuff_duration", 30)
-                    debuff_data = {
-                        "effect_type": EffectType.STAT_MOD,
-                        "name": EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF,
-                        "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
-                        "magnitude": -0.30,
-                        "duration": debuff_duration,
-                    }
-                    created = self._create_and_add_single_effect(
-                        debuff_data, effect.source_skill_id, self, self, opponent
-                    )
-                    if created:
-                        self.simulator._log_skill_trigger(
-                            self,
-                            effect.name,
-                            f"Gains '{EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF}': {created.get_functionality_description()} for {debuff_duration} rounds."
-                        )
-                    if effect in self.active_effects:
-                        self.active_effects.remove(effect)
-
-            elif effect.name == EFFECT_NAME_PENDING_HEROIC_BLESSING_BUFF and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
-                if phase == 'start_of_round' and effect.duration <= 0:
-                    boost_mag = effect.config.get("burn_boost_magnitude", 0.0)
-                    if boost_mag != 0:
-                        buff_data = {
-                            "effect_type": EffectType.STAT_MOD,
-                            "name": EFFECT_NAME_HEROIC_BLESSING_BURN_BOOST,
-                            "stat_to_mod": StatType.BURN_DAMAGE_BOOST,
-                            "magnitude": boost_mag,
-                            "duration": -1,
-                        }
-                        created = self._create_and_add_single_effect(
-                            buff_data, effect.source_skill_id, self, self, opponent
-                        )
-                        if created:
-                            self.simulator._log_skill_trigger(
-                                self,
-                                effect.name,
-                                f"Heroic Blessing debuff expired. Gains permanent burn damage boost (+{boost_mag*100:.0f}%)."
-                            )
-                    for i in range(len(self.active_effects) - 1, -1, -1):
-                        if self.active_effects[i].name == EFFECT_NAME_HEROIC_BLESSING_COUNTER_DEBUFF:
-                            self.active_effects.pop(i)
-                            break
-                    if effect in self.active_effects:
-                        self.active_effects.remove(effect)
-
-
-            elif effect.name in [EFFECT_NAME_PENDING_AWAKENING_CLEANSE, EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
-                                 EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
-                                 EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY, EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
-                                 EFFECT_NAME_PENDING_HALO_OF_SACRIFICE_CLEANSE,
-                                 EFFECT_NAME_DEER_REDEMPTION_CLEANSE, EFFECT_NAME_DIVINE_AWE_CLEANSE,
-                                 EFFECT_NAME_BLESSED_DEW_CLEANSE,
-                                 EFFECT_NAME_WINTERS_CORONATION_PURIFY] \
-                    and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
-                if phase == 'start_of_round':
-                    apply_pending_debuff_cleanse(effect)
-
-            elif effect.name in [EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
-                                 EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
-                                 EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
-                                 EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
-                                 EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
-                                 EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP] \
-                    and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
-                if phase == 'start_of_round':
-                    apply_pending_buff_removal(
-                        effect,
-                        shield_only=effect.name == EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP,
-                    )
 
     def activate_queued_effects(self):
         effects_to_add_to_active = []

@@ -3,12 +3,12 @@
         "army_name": "Rosky/Helgar",
         "unit_type": "pikemen",
         "tier": 7,
-        "count": 250000,
+        "count": 100000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.37,
-        "def_mod": 2.41,
-        "hp_mod": 1.0,
+        "atk_mod": 2.7198,
+        "def_mod": 2.6263,
+        "hp_mod": 0.8692,
         "unrevivable_ratio": 0.65,
         "unrevivable_ratio_method": "sizeref",
         "use_dynamic_unrevivable_ratio": false,
@@ -28,14 +28,9 @@
                     "plugin_divine_shield",
                     "plugin_divine_blessing"
                 ],
-                "mount_skill_ids": [
-                    "mount_hoof_strike"
-                ],
                 "gear_ids": {
-                    "head": "gear_abyssal_crown_legendary",
-                    "weapon": "gear_marine_halberd_legendary",
-                    "chest": "gear_bylgjas_armor_legendary",
-                    "boots": "gear_tsunami_plated_boots_legendary"
+                    "head": "gear_abyssal_crown_epic",
+                    "boots": "gear_tsunami_plated_boots_epic"
                 }
             },
             {
@@ -51,30 +46,29 @@
                 ],
                 "plugin_skill_ids": [
                     "plugin_hymn_of_life",
-                    "plugin_deadly_counterattack"
-                ],
-                "mount_skill_ids": [
-                    "mount_retaliation_fangs"
+                    "plugin_blessed_negation"
                 ],
                 "gear_ids": {
-                    "head": "gear_abyssal_crown_legendary",
-                    "weapon": "gear_marine_halberd_legendary",
-                    "chest": "gear_bylgjas_armor_legendary",
-                    "boots": "gear_tsunami_plated_boots_legendary"
+                    "head": "gear_abyssal_crown_epic",
+                    "boots": "gear_tsunami_plated_boots_epic"
                 }
             }
-        ]
+        ],
+        "bonus_stats": {
+            "basic_boost": 0.0608,
+            "hero2_rage_skill_boost": 0.0482
+        }
     },
     {
         "army_name": "Rosky/Helgar (2)",
         "unit_type": "pikemen",
         "tier": 7,
-        "count": 250000,
+        "count": 100000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.37,
-        "def_mod": 2.41,
-        "hp_mod": 1.0,
+        "atk_mod": 2.7429,
+        "def_mod": 2.1884,
+        "hp_mod": 1.0397,
         "unrevivable_ratio": 0.65,
         "unrevivable_ratio_method": "sizeref",
         "use_dynamic_unrevivable_ratio": false,
@@ -94,14 +88,9 @@
                     "plugin_divine_shield",
                     "plugin_divine_blessing"
                 ],
-                "mount_skill_ids": [
-                    "mount_power_swipe"
-                ],
                 "gear_ids": {
-                    "head": "gear_abyssal_crown_legendary",
-                    "weapon": "gear_marine_halberd_legendary",
-                    "chest": "gear_bylgjas_armor_legendary",
-                    "boots": "gear_tsunami_plated_boots_legendary"
+                    "head": "gear_abyssal_crown_epic",
+                    "boots": "gear_tsunami_plated_boots_epic"
                 }
             },
             {
@@ -117,16 +106,11 @@
                 ],
                 "plugin_skill_ids": [
                     "plugin_hymn_of_life",
-                    "plugin_deadly_counterattack"
-                ],
-                "mount_skill_ids": [
-                    "mount_purple_gold_scales"
+                    "plugin_blessed_negation"
                 ],
                 "gear_ids": {
-                    "head": "gear_abyssal_crown_legendary",
-                    "weapon": "gear_marine_halberd_legendary",
-                    "chest": "gear_bylgjas_armor_legendary",
-                    "boots": "gear_tsunami_plated_boots_legendary"
+                    "head": "gear_abyssal_crown_epic",
+                    "boots": "gear_tsunami_plated_boots_epic"
                 }
             }
         ]

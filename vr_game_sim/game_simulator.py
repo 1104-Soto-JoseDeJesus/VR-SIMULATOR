@@ -277,10 +277,17 @@ class GameSimulator:
                 continue
 
             marker_count = sum(1 for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER)
-            other_effects = [e for e in army.active_effects if e.name != EFFECT_NAME_JUDGEMENT_MARKER]
+            nature_mark_count = sum(1 for e in army.active_effects if e.name == EFFECT_NAME_NATURE_MARK)
+            other_effects = [
+                e
+                for e in army.active_effects
+                if e.name not in {EFFECT_NAME_JUDGEMENT_MARKER, EFFECT_NAME_NATURE_MARK}
+            ]
 
             if marker_count > 0:
                 lines.append(f"  - Judgement Markers: {marker_count}")
+            if nature_mark_count > 0:
+                lines.append(f"  - Nature Marks: {nature_mark_count}")
 
             sorted_effects = sorted(other_effects, key=lambda e: (e.source_skill_id, e.name or ""))
             for eff in sorted_effects:

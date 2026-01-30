@@ -206,6 +206,7 @@ def handle_base_skill_zeal(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: SkillD
                 or eff.config.get("prevents_basic_attack")
                 or eff.name == EFFECT_NAME_SILENCE_DEBUFF
             )
+            and eff.name not in PROTECTED_MARKER_EFFECTS
         ]
         if dbuffs_on_army:
             dbuff_to_rmv = random.choice(dbuffs_on_army)
@@ -1173,6 +1174,7 @@ def handle_base_skill_winters_coronation(
                     or eff.config.get("prevents_basic_attack")
                     or eff.config.get("prevents_rage_skill_cast")
                 )
+                and eff.name not in PROTECTED_MARKER_EFFECTS
             ]
             if eligible_debuffs:
                 selected = random.choice(eligible_debuffs)
@@ -1629,6 +1631,7 @@ def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
                 or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
                 or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
             )
+            and eff.name not in PROTECTED_MARKER_EFFECTS
         ][: cfg.get("self_cleanse_count", 1)]
         pending_cleanse = {"effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
                            "duration": 0, "config": {"debuff_ids_to_remove": own_debuff_ids,

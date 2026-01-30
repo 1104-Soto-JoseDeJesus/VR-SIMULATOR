@@ -555,6 +555,8 @@ def handle_plugin_awakening(
     if cleanse_effect_data_template:
         debuffs_to_target_ids = []
         for eff in triggering_army.active_effects:  # Check current active effects
+            if eff.name in PROTECTED_MARKER_EFFECTS:
+                continue
             is_debuff = (
                 eff.effect_type == EffectType.DEBUFF
                 or (
@@ -1110,6 +1112,8 @@ def handle_plugin_wild_indulgence(
 
     debuffs_to_target_ids = []
     for eff in triggering_army.active_effects:
+        if eff.name in PROTECTED_MARKER_EFFECTS:
+            continue
         is_debuff = (
             eff.effect_type == EffectType.DEBUFF
             or (
@@ -1196,6 +1200,8 @@ def handle_plugin_breaking_free(
 
     debuffs_to_target_ids = []
     for eff in triggering_army.active_effects:
+        if eff.name in PROTECTED_MARKER_EFFECTS:
+            continue
         is_debuff = (
             eff.effect_type == EffectType.DEBUFF
             or (
@@ -2147,6 +2153,8 @@ def handle_plugin_halo_of_sacrifice(
 
     debuff_ids = []
     for eff in triggering_army.active_effects:
+        if eff.name in PROTECTED_MARKER_EFFECTS:
+            continue
         is_debuff = (
             eff.effect_type == EffectType.DEBUFF
             or (

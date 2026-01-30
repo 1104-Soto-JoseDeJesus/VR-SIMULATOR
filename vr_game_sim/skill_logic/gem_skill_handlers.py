@@ -14,6 +14,7 @@ from ..constants import (
     EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
     EFFECT_NAME_HEIMDALL_STEALTH_EVASION,
     EFFECT_NAME_HEIMDALL_RETRIBUTION,
+    PROTECTED_MARKER_EFFECTS,
 )
 
 
@@ -515,6 +516,7 @@ def _apply_composite_combat_effects(
                 or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
                 or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
             )
+            and eff.name not in PROTECTED_MARKER_EFFECTS
         ]
         if eligible_debuffs:
             selected = random.sample(

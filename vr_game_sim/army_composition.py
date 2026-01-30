@@ -50,6 +50,7 @@ from .constants import (
     EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF,
     EFFECT_NAME_JUDGEMENT_MARKER,
     EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
+    PROTECTED_MARKER_EFFECTS,
     EFFECT_NAME_HOLY_ENLIGHTENMENT_DMG_TAKEN_DEBUFF,
     EFFECT_NAME_BLESSED_BY_FATE_ENEMY_DMG_TAKEN_DEBUFF,
     EFFECT_NAME_RAGEBEAST_SOUL_RAGE_GAIN,
@@ -1252,6 +1253,7 @@ class Army:
             EFFECT_NAME_BLESSED_DEW_CLEANSE,
             EFFECT_NAME_WINTERS_CORONATION_PURIFY,
         }
+        protected_marker_names = PROTECTED_MARKER_EFFECTS
 
         def apply_pending_debuff_cleanse(cleanse_effect: EffectInstance) -> None:
             debuff_ids_to_remove = cleanse_effect.config.get("debuff_ids_to_remove", [])
@@ -1259,7 +1261,10 @@ class Army:
 
             new_active_effects_after_cleanse = []
             for current_eff_in_army in list(self.active_effects):
-                if current_eff_in_army.id in debuff_ids_to_remove:
+                if (
+                    current_eff_in_army.id in debuff_ids_to_remove
+                    and current_eff_in_army.name not in protected_marker_names
+                ):
                     debuff_names_removed_log.append(
                         current_eff_in_army.name
                         if current_eff_in_army.name
@@ -1292,6 +1297,9 @@ class Army:
             actually_removed_names_this_step = []
             new_active_effects_after_removal = []
             for current_eff_in_army in list(self.active_effects):
+                if current_eff_in_army.name in protected_marker_names:
+                    new_active_effects_after_removal.append(current_eff_in_army)
+                    continue
                 if shield_only and remove_active_shields:
                     should_remove = current_eff_in_army.effect_type == EffectType.SHIELD
                 else:
@@ -1386,6 +1394,7 @@ class Army:
                 EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
                 EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL,
                 EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL,
+                EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
                 EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
                 EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
                 EFFECT_NAME_CONCENTRATION_RAGE_GAIN,  # Add Olena's custom rage gain effect
@@ -1713,7 +1722,10 @@ class Army:
                     if effect in self.active_effects:
                         self.active_effects.remove(effect)
 
-            elif effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
+            elif (
+                effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+                and effect.name != EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
+            ):
                 if phase == 'start_of_round' and effect.duration <= 0:
                     rage_amt = effect.config.get("rage_amount", 0)
                     if rage_amt > 0 and effect.activate_next_round:

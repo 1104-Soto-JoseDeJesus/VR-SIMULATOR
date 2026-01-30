@@ -1,0 +1,134 @@
+[
+    {
+        "army_name": "Rosky/Helgar",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 250000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 2.37,
+        "def_mod": 2.41,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "sizeref",
+        "use_dynamic_unrevivable_ratio": false,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_shield",
+                    "plugin_divine_blessing"
+                ],
+                "mount_skill_ids": [
+                    "mount_hoof_strike"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_hymn_of_life",
+                    "plugin_deadly_counterattack"
+                ],
+                "mount_skill_ids": [
+                    "mount_retaliation_fangs"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            }
+        ]
+    },
+    {
+        "army_name": "Rosky/Helgar (2)",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 250000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 2.37,
+        "def_mod": 2.41,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "sizeref",
+        "use_dynamic_unrevivable_ratio": false,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_shield",
+                    "plugin_divine_blessing"
+                ],
+                "mount_skill_ids": [
+                    "mount_power_swipe"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_hymn_of_life",
+                    "plugin_deadly_counterattack"
+                ],
+                "mount_skill_ids": [
+                    "mount_purple_gold_scales"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            }
+        ]
+    }
+]

@@ -1,0 +1,20 @@
+{
+  "archers_vs_archers_heal": 1.0,
+  "archers_vs_archers_shield": 1.0,
+  "archers_vs_infantry_heal": 0.84,
+  "archers_vs_infantry_shield": 0.843,
+  "archers_vs_pikemen_heal": 1.21,
+  "archers_vs_pikemen_shield": 1.218,
+  "infantry_vs_archers_heal": 1.19,
+  "infantry_vs_archers_shield": 1.055,
+  "infantry_vs_infantry_heal": 1.0,
+  "infantry_vs_infantry_shield": 0.886,
+  "infantry_vs_pikemen_heal": 1.243,
+  "infantry_vs_pikemen_shield": 1.103,
+  "pikemen_vs_archers_heal": 0.82,
+  "pikemen_vs_archers_shield": 0.955,
+  "pikemen_vs_infantry_heal": 0.803,
+  "pikemen_vs_infantry_shield": 0.932,
+  "pikemen_vs_pikemen_heal": 1.0,
+  "pikemen_vs_pikemen_shield": 1.161
+}

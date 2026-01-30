@@ -12,6 +12,8 @@ from .utility_skill_handlers import handle_generic_single_damage_skill
 def _collect_harmful_debuff_ids(army: ArmyRef) -> List[str]:
     debuff_ids = []
     for eff in army.active_effects:
+        if eff.name in PROTECTED_MARKER_EFFECTS:
+            continue
         is_debuff = (
             eff.effect_type == EffectType.DEBUFF
             or (
@@ -3919,6 +3921,7 @@ def handle_talent_seas_grace(
             or eff.config.get("prevents_basic_attack")
             or eff.config.get("prevents_rage_skill_cast")
         )
+        and eff.name not in PROTECTED_MARKER_EFFECTS
     ]
     if eligible_debuffs:
         selected = random.choice(eligible_debuffs)

@@ -10,8 +10,9 @@ import uuid
 def test_rage_per_round_tracks_only_additions():
     army = Army('A', Unit('pikemen', 5, initial_count=10), heroes=[])
     enemy = Army('E', Unit('archers', 5, initial_count=10), heroes=[])
-    sim = GameSimulator(army, enemy)
+    sim = GameSimulator(army, enemy, fairness_rage_enabled=False)
     sim.round = 1
+    army.army_round = enemy.army_round = 1
 
     army.current_rage = 200
     eff = EffectInstance(

@@ -178,6 +178,7 @@ class GameSimulator:
         damage_reduction_affects_dots: bool = True,
         advantage_mode: str = "multiplicative",
         per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
+        fairness_rage_enabled: bool = True,
     ):
         self.army1: Army = army1
         self.army2: Army = army2
@@ -208,6 +209,7 @@ class GameSimulator:
             dict(per_skill_cooldown_overrides) if per_skill_cooldown_overrides is not None else {}
         )
         self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
+        self.fairness_rage_enabled: bool = bool(fairness_rage_enabled)
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
             self.army1.name: [], self.army2.name: []
@@ -1579,6 +1581,17 @@ class GameSimulator:
             if army.current_troop_count > 0:
                 army.activate_queued_effects()
 
+    def _army_stat_score(self, army: Army) -> float:
+        """Return sum of hp, atk, def % boosts for comparing army strength."""
+        u = army.unit
+        base_hp = float(u.base_hp_stat)
+        base_atk = float(u.base_atk_stat)
+        base_def = float(u.base_def_stat)
+        eff_hp = u.effective_hp_per_troop(army.active_effects)
+        eff_atk = u.effective_attack(army.active_effects)
+        eff_def = u.effective_defense(army.active_effects)
+        return (eff_hp / base_hp - 1.0) + (eff_atk / base_atk - 1.0) + (eff_def / base_def - 1.0)
+
     def _apply_base_rage_gain(self) -> None:
         """Grant each army 100 rage at end of round unless their Hero 1 rage skill was used or blocked."""
         for army in [self.army1, self.army2]:
@@ -1593,6 +1606,19 @@ class GameSimulator:
             # for the current round.
             if army.base_rage_awarded_this_round:
                 continue
+
+            # Fairness rage: on first round, the army with higher stats
+            # (hp+atk+def % boosts) does not gain base rage (delayed by 1 round).
+            if (
+                self.fairness_rage_enabled
+                and army.army_round == 1
+            ):
+                score1 = self._army_stat_score(self.army1)
+                score2 = self._army_stat_score(self.army2)
+                stronger_army = self.army1 if score1 > score2 else (self.army2 if score2 > score1 else None)
+                if army is stronger_army:
+                    army.base_rage_awarded_this_round = True  # Mark processed, no rage granted
+                    continue
 
             if (
                 army.army_used_rage_skill_this_round_for_rage_gain_block

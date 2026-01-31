@@ -50,8 +50,9 @@ def test_no_base_rage_when_skill_cast():
 def test_base_rage_awarded_when_skill_canceled():
     army1 = make_army_with_rage_skill("A1")
     army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
-    sim = GameSimulator(army1, army2, mode="arena")
+    sim = GameSimulator(army1, army2, mode="arena", fairness_rage_enabled=False)
     sim.round = 1
+    army1.army_round = army2.army_round = 1
 
     army1.current_rage = 900
     army1.hero1_rage_skill_queued_this_round = True
@@ -89,8 +90,9 @@ def test_base_rage_granted_when_hero2_silenced():
     army1 = Army("A1", unit, heroes=[hero1, hero2])
     army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
 
-    sim = GameSimulator(army1, army2)
+    sim = GameSimulator(army1, army2, fairness_rage_enabled=False)
     sim.round = 1
+    army1.army_round = army2.army_round = 1
 
     army1.current_rage = 1000
     army1.hero2_rage_skill_primed_for_round = sim.round
@@ -147,8 +149,9 @@ def test_hero2_rage_skill_requeues_while_silenced():
 def test_rage_skill_resets_to_round_gain():
     army1 = make_army_with_rage_skill("A1")
     army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
-    sim = GameSimulator(army1, army2)
+    sim = GameSimulator(army1, army2, fairness_rage_enabled=False)
     sim.round = 1
+    army1.army_round = army2.army_round = 1
 
     army1.current_rage = 1050
     army1.hero1_rage_skill_queued_this_round = True
@@ -175,8 +178,9 @@ def test_hero2_rage_skill_primes_for_two_round_delay():
     hero2 = Hero("H2", [], ["base_skill_snakes_frenzy", "rage_skill_ruling_trial"], [], SKILL_REGISTRY_GLOBAL)
     army1 = Army("A1", Unit("pikemen", 5, initial_count=10), heroes=[hero1, hero2])
     army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
-    sim = GameSimulator(army1, army2, mode="arena")
+    sim = GameSimulator(army1, army2, mode="arena", fairness_rage_enabled=False)
     sim.round = 1
+    army1.army_round = army2.army_round = 1
     army1.current_rage = 1000
     army1.hero1_rage_skill_queued_this_round = True
     sim._execute_rage_skills(army1, army2)
@@ -196,6 +200,39 @@ def test_hero2_rage_skill_does_not_reset_rage():
     sim._execute_rage_skills(army1, army2, is_hero2_delayed_trigger=True)
 
     assert army1.current_rage == 1500
+
+
+def test_fairness_rage_skips_base_rage_for_stronger_army_round_one():
+    """With fairness rage on, the army with higher hp+atk+def % boosts gets no base rage on round 1."""
+    # Army1 has higher stats (atk_mod 0.5 vs 0)
+    army1 = Army("A1", Unit("pikemen", 5, initial_count=10, initial_atk_modifier=0.5), heroes=[])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+
+    sim = GameSimulator(army1, army2, fairness_rage_enabled=True)
+    sim.round = 1
+    army1.army_round = army2.army_round = 1
+
+    sim._apply_base_rage_gain()
+
+    # Army1 (stronger) should NOT get base rage on round 1; army2 (weaker) should
+    assert army1.current_rage == 0
+    assert army2.current_rage == 100
+    assert army2.base_rage_awarded_this_round
+
+
+def test_fairness_rage_disabled_grants_base_rage_to_both():
+    """With fairness rage off, both armies get base rage on round 1."""
+    army1 = Army("A1", Unit("pikemen", 5, initial_count=10, initial_atk_modifier=0.5), heroes=[])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+
+    sim = GameSimulator(army1, army2, fairness_rage_enabled=False)
+    sim.round = 1
+    army1.army_round = army2.army_round = 1
+
+    sim._apply_base_rage_gain()
+
+    assert army1.current_rage == 100
+    assert army2.current_rage == 100
 
 
 def test_rage_skill_absorbed_damage_still_triggers_reaction():

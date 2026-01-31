@@ -119,6 +119,7 @@ class BattlefieldEngine:
         damage_reduction_affects_dots: bool = True,
         advantage_mode: str = "multiplicative",
         per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
+        fairness_rage_enabled: bool = True,
     ) -> None:
         # Registry of armies keyed by name.
         self._armies: Dict[str, _ArmyContext] = {}
@@ -173,6 +174,7 @@ class BattlefieldEngine:
             "per_skill_cooldown_overrides": dict(per_skill_cooldown_overrides)
             if per_skill_cooldown_overrides
             else {},
+            "fairness_rage_enabled": bool(fairness_rage_enabled),
         }
 
     def get_engaged_enemies(self, army_name: str) -> List[Army]:
@@ -194,6 +196,7 @@ class BattlefieldEngine:
         damage_reduction_affects_dots: Any = _UNSET,
         advantage_mode: Any = _UNSET,
         per_skill_cooldown_overrides: Any = _UNSET,
+        fairness_rage_enabled: Any = _UNSET,
     ) -> None:
         """Update the default settings passed to new :class:`GameSimulator` instances."""
 
@@ -230,6 +233,8 @@ class BattlefieldEngine:
                     except Exception:
                         continue
             self._simulator_kwargs["per_skill_cooldown_overrides"] = mapping
+        if fairness_rage_enabled is not self._UNSET:
+            self._simulator_kwargs["fairness_rage_enabled"] = bool(fairness_rage_enabled)
 
     # ------------------------------------------------------------------
     # Reset

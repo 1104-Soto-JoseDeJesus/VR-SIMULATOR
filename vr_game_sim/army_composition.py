@@ -939,6 +939,22 @@ class Army:
             if opponent_of_healer.current_troop_count > 0:
                 opponent_of_healer.activate_queued_effects()
             return hp_healed_raw
+        elif heal_factor > 0:
+            self.simulator._process_skill_triggers(
+                self,
+                opponent_of_healer,
+                SkillTriggerType.ON_RECEIVING_HEALING,
+                event_data={
+                    'healed_army': self,
+                    'opponent_for_shield_calc': opponent_of_healer,
+                    'heal_amount_hp': 0,
+                    'source_heal_factor': heal_factor,
+                },
+            )
+            self.activate_queued_effects()
+            if opponent_of_healer.current_troop_count > 0:
+                opponent_of_healer.activate_queued_effects()
+            return 0.0
         return 0.0
 
     def _create_and_add_single_effect(self, effect_data: Dict[str, Any], source_skill_id: str,

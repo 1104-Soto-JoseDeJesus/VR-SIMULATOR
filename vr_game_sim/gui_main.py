@@ -5503,6 +5503,7 @@ class SimulationWorker(QtCore.QThread):
         gem_cooldowns_enabled: bool = True,
         mount_cooldowns_enabled: bool = True,
         damage_reduction_affects_dots: bool = True,
+        fairness_rage_enabled: bool = True,
         advantage_mode: str = "multiplicative",
         max_rounds: int | None = None,
     ) -> None:
@@ -5522,6 +5523,7 @@ class SimulationWorker(QtCore.QThread):
         self.gem_cooldowns_enabled: bool = bool(gem_cooldowns_enabled)
         self.mount_cooldowns_enabled: bool = bool(mount_cooldowns_enabled)
         self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
+        self.fairness_rage_enabled: bool = bool(fairness_rage_enabled)
         self.advantage_mode: str = advantage_mode
         # Optional per-skill cooldown overrides applied to the representative
         # battle once the best match has been located.
@@ -5553,6 +5555,7 @@ class SimulationWorker(QtCore.QThread):
                 plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
                 gem_cooldowns_enabled=self.gem_cooldowns_enabled,
                 mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+                fairness_rage_enabled=self.fairness_rage_enabled,
                 advantage_mode=self.advantage_mode,
                 max_rounds=self.max_rounds,
                 per_skill_cooldown_overrides=self.per_skill_cooldown_overrides,
@@ -5600,6 +5603,7 @@ class SimulationWorker(QtCore.QThread):
                 gem_cooldowns_enabled=self.gem_cooldowns_enabled,
                 mount_cooldowns_enabled=self.mount_cooldowns_enabled,
                 damage_reduction_affects_dots=self.damage_reduction_affects_dots,
+                fairness_rage_enabled=self.fairness_rage_enabled,
                 advantage_mode=self.advantage_mode,
                 per_skill_cooldown_overrides=self.per_skill_cooldown_overrides,
             )
@@ -6105,6 +6109,7 @@ class ArenaTab(QtWidgets.QWidget):
             damage_reduction = bool(
                 getattr(window, "damage_reduction_affects_dots", damage_reduction)
             )
+            fairness_rage = bool(getattr(window, "fairness_rage_enabled", True))
             advantage_mode = getattr(window, "troop_advantage_mode", advantage_mode)
             if hasattr(window, "max_rounds_checkbox") and hasattr(window, "max_rounds_spin"):
                 if window.max_rounds_checkbox.isChecked():
@@ -6117,6 +6122,7 @@ class ArenaTab(QtWidgets.QWidget):
             "gem_cooldowns_enabled": gem_cooldowns,
             "mount_cooldowns_enabled": mount_cooldowns,
             "damage_reduction_affects_dots": damage_reduction,
+            "fairness_rage_enabled": fairness_rage,
             "advantage_mode": advantage_mode,
             "max_rounds": max_rounds,  # This is used by _simulate_arena_battle, not by the engine
         }
@@ -7461,6 +7467,7 @@ class MainWindow(QtWidgets.QMainWindow):
             _cd_defaults.get("skills") or {}
         )
         self.damage_reduction_affects_dots: bool = True
+        self.fairness_rage_enabled: bool = True
         self.troop_advantage_mode: str = "multiplicative"
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
         self._troop_scalar_multiplier = troop_scalar_config.get_multiplier()
@@ -7524,6 +7531,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _on_dot_damage_reduction_toggled(self, checked: bool) -> None:
         self.damage_reduction_affects_dots = bool(checked)
+
+    def _on_fairness_rage_toggled(self, checked: bool) -> None:
+        self.fairness_rage_enabled = bool(checked)
 
     def _set_troop_advantage_mode(self, mode: str) -> None:
         self.troop_advantage_mode = mode
@@ -7745,6 +7755,10 @@ class MainWindow(QtWidgets.QMainWindow):
         dot_damage_reduction_action.setCheckable(True)
         dot_damage_reduction_action.setChecked(self.damage_reduction_affects_dots)
         dot_damage_reduction_action.toggled.connect(self._on_dot_damage_reduction_toggled)
+        fairness_rage_action = dbg_menu.addAction("Fairness rage")
+        fairness_rage_action.setCheckable(True)
+        fairness_rage_action.setChecked(self.fairness_rage_enabled)
+        fairness_rage_action.toggled.connect(self._on_fairness_rage_toggled)
         pairing_action = dbg_menu.addAction("Heal/Shield Pairing Multipliers…")
         pairing_action.triggered.connect(self._open_heal_shield_pairing_dialog)
         shield_consumption_action = dbg_menu.addAction("Shield consumption…")
@@ -13507,6 +13521,7 @@ class MainWindow(QtWidgets.QMainWindow):
             gem_cooldowns_enabled=self.gem_cooldowns_enabled,
             mount_cooldowns_enabled=self.mount_cooldowns_enabled,
             damage_reduction_affects_dots=self.damage_reduction_affects_dots,
+            fairness_rage_enabled=self.fairness_rage_enabled,
             advantage_mode=self.troop_advantage_mode,
             max_rounds=max_rounds,
         )

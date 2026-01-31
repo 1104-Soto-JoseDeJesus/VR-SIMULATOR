@@ -252,9 +252,11 @@ def test_run_additional_simulations_propagates_dynamic_settings(monkeypatch: pyt
         troop_scalar_multiplier: float | None = None,
         advantage_mode: str = "multiplicative",
         return_report: bool = False,
+        **kwargs: object,
     ):
         captured.append((dynamic_settings, troop_scalar_multiplier))
-        base_result = (0, 0, 1, 0, 0, 0, 0)
+        # 9 values: own, enemy, rounds, diff, winner, army1_unrev, army2_unrev, army1_hw_dealt, army2_hw_dealt
+        base_result = (0, 0, 1, 0, 0, 0, 0, 0, 0)
         if return_report:
             return (*base_result, "report")
         return base_result

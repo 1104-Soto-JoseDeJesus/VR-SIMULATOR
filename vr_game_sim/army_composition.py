@@ -966,7 +966,20 @@ class Army:
             EFFECT_NAME_BROKEN_BLADE_DEBUFF,
             EFFECT_NAME_SILENCE_DEBUFF,
         }
-        if target_army.is_rally and canonical_effect_name in debuff_limit_names:
+        if canonical_effect_name in debuff_limit_names:
+            for eff_list in (
+                target_army.active_effects,
+                target_army.upcoming_effects,
+                target_army.effects_to_activate_next_round,
+            ):
+                if any(eff.name == canonical_effect_name for eff in eff_list):
+                    if self.simulator:
+                        self.simulator._log_skill_trigger(
+                            target_army,
+                            canonical_effect_name,
+                            f"Already has '{canonical_effect_name}'; re-application blocked (no duration refresh).",
+                        )
+                    return None
             if target_army.simulator:
                 current_round = getattr(
                     target_army,

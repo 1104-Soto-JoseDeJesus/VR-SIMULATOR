@@ -61,7 +61,6 @@ def test_debuffs_have_two_round_cooldown():
         EFFECT_NAME_DISARM_DEBUFF,
         EFFECT_NAME_BROKEN_BLADE_DEBUFF,
     ]
-    army2.is_rally = True
 
     for name in effect_names:
         data = {
@@ -71,14 +70,20 @@ def test_debuffs_have_two_round_cooldown():
             "activate_next_round": True,
         }
         sim.round = 1
+        army1.army_round = army2.army_round = 1
         first = army2._create_and_add_single_effect(data, "s", army1, army2, army1)
         assert first
         second = army2._create_and_add_single_effect(data, "s", army1, army2, army1)
         assert second is None
         sim.round = 2
+        army1.army_round = army2.army_round = 2
         third = army2._create_and_add_single_effect(data, "s", army1, army2, army1)
         assert third is None
         sim.round = 3
+        army1.army_round = army2.army_round = 3
+        # Simulate prior instance expiring (so re-application is allowed after 2-round cooldown)
+        for lst in (army2.active_effects, army2.upcoming_effects, army2.effects_to_activate_next_round):
+            lst[:] = [e for e in lst if e.name != name]
         fourth = army2._create_and_add_single_effect(data, "s", army1, army2, army1)
         assert fourth
         army2.active_effects.clear()
@@ -87,8 +92,11 @@ def test_debuffs_have_two_round_cooldown():
         army2.debuff_last_applied_round.clear()
 
 
-def test_rally_only_debuff_cooldown(sim, army1, army2):
-    """Non-rally armies should not throttle duplicate debuff scheduling."""
+def test_debuff_two_round_cooldown_applies_without_rally():
+    """2-round cooldown for Silence/Disarm/Broken Blade applies in normal (non-rally) battles."""
+    army1 = Army("A1", Unit("pikemen", 5, initial_count=10), heroes=[])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army1, army2)
 
     data = {
         "effect_type": EffectType.DEBUFF,
@@ -98,8 +106,51 @@ def test_rally_only_debuff_cooldown(sim, army1, army2):
     }
 
     sim.round = 5
+    army1.army_round = army2.army_round = 5
     first = army2._create_and_add_single_effect(data, "s", army1, army2, army1)
     assert first
 
     second = army2._create_and_add_single_effect(data, "s", army1, army2, army1)
-    assert second
+    assert second is None
+
+    sim.round = 6
+    army1.army_round = army2.army_round = 6
+    third = army2._create_and_add_single_effect(data, "s", army1, army2, army1)
+    assert third is None
+
+    sim.round = 7
+    army1.army_round = army2.army_round = 7
+    # Simulate prior instance expiring (so re-application is allowed after 2-round cooldown)
+    for lst in (army2.active_effects, army2.upcoming_effects, army2.effects_to_activate_next_round):
+        lst[:] = [e for e in lst if e.name != EFFECT_NAME_SILENCE_DEBUFF]
+    fourth = army2._create_and_add_single_effect(data, "s", army1, army2, army1)
+    assert fourth
+
+
+def test_silence_disarm_broken_blade_no_reapply_or_refresh_while_active():
+    """Silence, Disarm, and Broken Blade cannot be re-applied or duration-refreshed while already on target (any source)."""
+    army1 = Army("A1", Unit("pikemen", 5, initial_count=10), heroes=[])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army1, army2)
+
+    for name in (EFFECT_NAME_SILENCE_DEBUFF, EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_BROKEN_BLADE_DEBUFF):
+        data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": name,
+            "duration": 2,
+            "activate_next_round": True,
+        }
+        sim.round = 1
+        army1.army_round = army2.army_round = 1
+        first = army2._create_and_add_single_effect(data, "skill_a", army1, army2, army1)
+        assert first is not None
+        # Same source trying again: blocked (no duration refresh)
+        second_same = army2._create_and_add_single_effect(data, "skill_a", army1, army2, army1)
+        assert second_same is None
+        # Different source trying: also blocked
+        second_other = army2._create_and_add_single_effect(data, "skill_b", army1, army2, army1)
+        assert second_other is None
+        # Clear so next debuff name can be tested
+        for lst in (army2.active_effects, army2.upcoming_effects, army2.effects_to_activate_next_round):
+            lst[:] = [e for e in lst if e.name != name]
+        army2.debuff_last_applied_round.pop(name, None)

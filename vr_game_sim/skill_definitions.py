@@ -1175,7 +1175,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
     "talent_fearless_pursuit": {
         "id": "talent_fearless_pursuit", "name": "Fearless Pursuit", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
-        "logic_handler": handle_generic_single_damage_skill,
+        "logic_handler": handle_talent_fearless_pursuit,
         "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_factor": 350.0, "alt_damage_factor": 700.0}
     },

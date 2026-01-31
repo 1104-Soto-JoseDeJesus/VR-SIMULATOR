@@ -3306,21 +3306,20 @@ def handle_talent_steadfast_armor(triggering_army: ArmyRef, opponent_army: ArmyR
     happened = False
     logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     cfg = skill_def.get("config", {})
-    if random.random() < 1.0:
-        reduction = cfg.get("reduction", -0.28)
-        dur = cfg.get("duration", 1)
-        buff = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_STEADFAST_ARMOR_REDUCTION,
-                "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER, "magnitude": reduction,
-                "duration": dur, "activate_next_round": True}
-        if triggering_army._create_and_add_single_effect(buff, skill_def["id"], triggering_army, triggering_army, opponent_army):
-            happened = True
-            logs.append((f"Gains damage reduction for {dur + 1} rounds (starting next round).", None))
-        slow_dur = cfg.get("slow_duration", 2)
-        slow_data = {"effect_type": EffectType.DEBUFF, "name": EFFECT_NAME_SLOW_DEBUFF,
-                     "duration": slow_dur, "activate_next_round": True, "config": {}}
-        if opponent_army._create_and_add_single_effect(slow_data, skill_def["id"], triggering_army, opponent_army, triggering_army):
-            happened = True
-            logs.append((f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {opponent_army.name} for {slow_dur + 1} rounds (starting next round).", None))
+    reduction = cfg.get("reduction", -0.28)
+    dur = cfg.get("duration", 1)
+    buff = {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_STEADFAST_ARMOR_REDUCTION,
+            "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER, "magnitude": reduction,
+            "duration": dur, "activate_next_round": True}
+    if triggering_army._create_and_add_single_effect(buff, skill_def["id"], triggering_army, triggering_army, opponent_army):
+        happened = True
+        logs.append((f"Gains damage reduction for {dur + 1} rounds (starting next round).", None))
+    slow_dur = cfg.get("slow_duration", 2)
+    slow_data = {"effect_type": EffectType.DEBUFF, "name": EFFECT_NAME_SLOW_DEBUFF,
+                 "duration": slow_dur, "activate_next_round": True, "config": {}}
+    if opponent_army._create_and_add_single_effect(slow_data, skill_def["id"], triggering_army, opponent_army, triggering_army):
+        happened = True
+        logs.append((f"Inflicts '{EFFECT_NAME_SLOW_DEBUFF}' on {opponent_army.name} for {slow_dur + 1} rounds (starting next round).", None))
     return happened, logs
 
 
@@ -3348,7 +3347,7 @@ def handle_talent_fearless_pursuit(triggering_army: ArmyRef, opponent_army: Army
         dmg_factor = alt
     else:
         dmg_factor = dmg
-    if dmg_factor > 0 and random.random() < 1.0:
+    if dmg_factor > 0:
         hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
             triggering_army, opponent_army, dmg_factor, source_skill_def=skill_def)
         if hp_damage > 0:

@@ -123,6 +123,7 @@ class Army:
     effects_to_activate_next_round: List[EffectInstance] = field(init=False, default_factory=list)
 
     triggered_skills_this_round: List[str] = field(init=False, default_factory=list)
+    on_receiving_healing_rolls_this_round: Set[str] = field(init=False, default_factory=set)
     skill_trigger_counts_this_round: Dict[str, int] = field(init=False, default_factory=dict)
     skill_triggers_against_this_round: Dict[str, Set[str]] = field(init=False, default_factory=dict)
     pending_hp_damage_this_round: float = field(init=False, default=0.0)
@@ -2045,6 +2046,7 @@ class Army:
         self.upcoming_effects.clear()
         self.effects_to_activate_next_round.clear()
         self.triggered_skills_this_round.clear()
+        self.on_receiving_healing_rolls_this_round.clear()
         self.skill_trigger_counts_this_round.clear()
         self.skill_triggers_against_this_round.clear()
         self.pending_hp_damage_this_round = 0.0  # Reset here is good

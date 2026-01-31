@@ -1229,24 +1229,25 @@ def handle_base_skill_nayas_hunting_instinct(
         )
 
     debuff_duration = skill_config.get("debuff_duration", 0)
-    debuff_data = {
-        "effect_type": EffectType.DEBUFF,
-        "name": EFFECT_NAME_BROKEN_BLADE_DEBUFF,
-        "duration": debuff_duration,
-        "config": {"prevents_counterattack": True},
-        "activate_next_round": True,
-    }
-    created_debuff = opponent_army._create_and_add_single_effect(
-        debuff_data, skill_def["id"], triggering_army, opponent_army, triggering_army
-    )
-    if created_debuff:
-        an_effect_happened = True
-        log_details.append(
-            (
-                f"Inflicts '{EFFECT_NAME_BROKEN_BLADE_DEBUFF}' on {opponent_army.name} for {created_debuff.duration + 1} rounds (starting next round).",
-                None,
-            )
+    if triggering_army.started_round_with_active_shield and debuff_duration >= 0:
+        debuff_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_BROKEN_BLADE_DEBUFF,
+            "duration": debuff_duration,
+            "config": {"prevents_counterattack": True},
+            "activate_next_round": True,
+        }
+        created_debuff = opponent_army._create_and_add_single_effect(
+            debuff_data, skill_def["id"], triggering_army, opponent_army, triggering_army
         )
+        if created_debuff:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Inflicts '{EFFECT_NAME_BROKEN_BLADE_DEBUFF}' on {opponent_army.name} for {created_debuff.duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
     return an_effect_happened, log_details
 
 

@@ -24,6 +24,7 @@ def _start_round(sim: GameSimulator) -> None:
     sim.round_skill_triggers_log = {sim.army1.name: [], sim.army2.name: []}
     for army in (sim.army1, sim.army2):
         army.triggered_skills_this_round.clear()
+        army.on_receiving_healing_rolls_this_round.clear()
         army.skill_trigger_counts_this_round.clear()
         army.skill_triggers_against_this_round.clear()
         army.maniacal_hot_triggered_this_round = False

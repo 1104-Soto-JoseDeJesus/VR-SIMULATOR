@@ -1124,7 +1124,28 @@ class GameSimulator:
                         StatType.COOPERATION_TRIGGER_RATE_MODIFIER
                     )
                 final_chance = min(1.0, base_chance + coop_bonus)
-                if random.random() < final_chance:
+                roll_passed = False
+                if trigger_type == SkillTriggerType.ON_RECEIVING_HEALING:
+                    skill_id_early = skill_def["id"]
+                    cooldown_key_early = skill_id_early
+                    trigger_key_early = skill_id_early
+                    if self._is_mount_skill(skill_def):
+                        instance_index = skill_def.get("mount_instance_index")
+                        instance_key = skill_def.get("instance_key")
+                        if instance_index is not None:
+                            cooldown_key_early = f"{skill_id_early}::mount::{instance_index}"
+                        elif instance_key is not None:
+                            cooldown_key_early = str(instance_key)
+                        trigger_key_early = cooldown_key_early
+                    rolls_set = getattr(triggering_army, "on_receiving_healing_rolls_this_round", None)
+                    if rolls_set is not None and trigger_key_early in rolls_set:
+                        continue
+                    roll_passed = random.random() < final_chance
+                    if rolls_set is not None:
+                        rolls_set.add(trigger_key_early)
+                else:
+                    roll_passed = random.random() < final_chance
+                if roll_passed:
                     skill_id = skill_def["id"]
                     skill_cfg = skill_def.get("config", {})
                     window_rounds = skill_cfg.get("trigger_window_rounds")
@@ -2243,6 +2264,7 @@ class GameSimulator:
             # flags are reset later so we can inspect last round's values.
             for army in [self.army1, self.army2]:
                 army.triggered_skills_this_round.clear()
+                army.on_receiving_healing_rolls_this_round.clear()
                 army.skill_trigger_counts_this_round.clear()
                 army.skill_triggers_against_this_round.clear()
                 army.mount_skill_damage_triggers_this_round.clear()

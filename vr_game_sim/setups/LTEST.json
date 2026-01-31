@@ -1,17 +1,17 @@
 [
     {
-        "army_name": "Rosky/Rolfe",
+        "army_name": "Rosky/Helgar",
         "unit_type": "pikemen",
         "tier": 7,
         "count": 250000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.37,
-        "def_mod": 2.41,
+        "atk_mod": 2.65,
+        "def_mod": 2.65,
         "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
-        "unrevivable_ratio_method": "sizeref",
-        "use_dynamic_unrevivable_ratio": false,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
                 "hero_name_or_preset": "Rosky",
@@ -36,15 +36,15 @@
                 }
             },
             {
-                "hero_name_or_preset": "Rolfe",
+                "hero_name_or_preset": "Helgar",
                 "talent_ids": [
-                    "talent_assassination_raid",
-                    "talent_scale_armor_shield",
-                    "talent_feigned_death_strike"
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
                 ],
                 "base_skill_ids": [
-                    "base_skill_inspiration_arrives",
-                    "base_skill_indomitable_spirit"
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
                 ],
                 "plugin_skill_ids": [
                     "plugin_hymn_of_life",
@@ -66,12 +66,12 @@
         "count": 250000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.37,
-        "def_mod": 2.41,
+        "atk_mod": 2.65,
+        "def_mod": 2.65,
         "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
-        "unrevivable_ratio_method": "sizeref",
-        "use_dynamic_unrevivable_ratio": false,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
                 "hero_name_or_preset": "Rosky",

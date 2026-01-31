@@ -619,6 +619,7 @@ class BattlefieldEngine:
                 # per-round counters are reset below.
                 # army.skill_trigger_counts.clear()
                 army.triggered_skills_this_round.clear()
+                army.on_receiving_healing_rolls_this_round.clear()
                 army.skill_trigger_counts_this_round.clear()
                 army.skill_triggers_against_this_round.clear()
                 if ctx.last_engaged_time > 0 and not ctx.idle_reset_done:
@@ -934,6 +935,7 @@ class BattlefieldEngine:
         for ctx in self._armies.values():
             army = ctx.army
             army.triggered_skills_this_round.clear()
+            army.on_receiving_healing_rolls_this_round.clear()
             army.skill_trigger_counts_this_round.clear()
             army.skill_triggers_against_this_round.clear()
             army.maniacal_hot_triggered_this_round = False

@@ -2,13 +2,13 @@
   "targeting_mode": "legacy",
   "entries": [
     {
-      "army_name": "Rosky/Rolfe",
+      "army_name": "Rosky/Naya",
       "team": "team1",
       "column": 1,
       "row": 0,
       "speed": 50.0,
       "config": {
-        "army_name": "Rosky/Rolfe",
+        "army_name": "Rosky/Naya",
         "unit_type": "pikemen",
         "tier": 7,
         "count": 300000,
@@ -41,15 +41,15 @@
             ]
           },
           {
-            "hero_name_or_preset": "Rolfe",
+            "hero_name_or_preset": "Naya",
             "talent_ids": [
-              "talent_assassination_raid",
-              "talent_scale_armor_shield",
-              "talent_feigned_death_strike"
+              "talent_forceful_ambush",
+              "talent_trapped_beasts_struggle",
+              "talent_bear_spirit_protection"
             ],
             "base_skill_ids": [
-              "base_skill_inspiration_arrives",
-              "base_skill_indomitable_spirit"
+              "base_skill_nayas_hunting_instinct",
+              "base_skill_blizzard_spear"
             ],
             "plugin_skill_ids": [
               "plugin_hymn_of_life",

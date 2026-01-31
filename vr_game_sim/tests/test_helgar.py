@@ -7,6 +7,7 @@ from vr_game_sim.enums import EffectType, SkillTriggerType
 from vr_game_sim.constants import (
     EFFECT_NAME_JUDGEMENT_MARKER,
     EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
+    EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF,
 )
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.skill_logic.rage_skill_handlers import handle_rage_ruling_trial
@@ -50,11 +51,20 @@ def test_judgements_fury_triggers_at_threshold():
         army._create_and_add_single_effect(marker_data, 'dummy', army, army)
         army.activate_queued_effects()
 
-    happened, _ = skill_def['logic_handler'](army, enemy, skill_def, None, sim)
+    happened, logs = skill_def['logic_handler'](army, enemy, skill_def, None, sim)
     remaining_markers = [e for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER]
+    pending_markers = [e for e in army.effects_to_activate_next_round if e.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS]
+    pending_counter_buff = [
+        e for e in army.effects_to_activate_next_round if e.name == EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF
+    ]
 
     assert happened
     assert len(remaining_markers) == 0
+    assert any("Deals damage" in log[0] for log in logs)
+    assert enemy.pending_hp_damage_this_round > 0
+    assert pending_markers
+    assert pending_counter_buff
+    assert not any(e.name == EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF for e in army.active_effects)
 
 
 def test_judgements_fury_above_threshold_removes_all_markers():
@@ -92,6 +102,87 @@ def test_judgements_fury_below_threshold_no_buff():
     # The skill should queue a marker even below the damage threshold.
     assert happened
     assert logs == []
+    assert enemy.pending_hp_damage_this_round == 0
+    assert any(
+        e.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
+        for e in army.effects_to_activate_next_round
+    )
+    assert not any(
+        e.name == EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF
+        for e in army.effects_to_activate_next_round
+    )
+
+
+def test_judgements_fury_pending_markers_do_not_count_toward_threshold():
+    hero = Hero('Helgar', [], ['base_skill_judgements_fury'], [], SKILL_REGISTRY_GLOBAL)
+    army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
+    enemy = Army('E', Unit('archers', 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy)
+    skill_def = SKILL_REGISTRY_GLOBAL['base_skill_judgements_fury']
+    marker_data = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": EFFECT_NAME_JUDGEMENT_MARKER,
+        "duration": -1,
+    }
+    for _ in range(skill_def['config']['marker_threshold'] - 1):
+        army._create_and_add_single_effect(marker_data, 'dummy', army, army)
+        army.activate_queued_effects()
+    pending_marker_data = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
+        "duration": 0,
+        "config": {"marker_count": 1},
+        "activate_next_round": True,
+    }
+    army._create_and_add_single_effect(pending_marker_data, 'dummy', army, army)
+
+    happened, logs = skill_def['logic_handler'](army, enemy, skill_def, None, sim)
+
+    assert happened
+    assert logs == []
+    assert enemy.pending_hp_damage_this_round == 0
+    assert sum(1 for e in army.active_effects if e.name == EFFECT_NAME_JUDGEMENT_MARKER) == (
+        skill_def['config']['marker_threshold'] - 1
+    )
+    assert not any(
+        e.name == EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF
+        for e in army.effects_to_activate_next_round
+    )
+
+
+def test_judgements_fury_removes_only_active_markers_on_trigger():
+    hero = Hero('Helgar', [], ['base_skill_judgements_fury'], [], SKILL_REGISTRY_GLOBAL)
+    army = Army('H', Unit('pikemen', 5, initial_count=10), heroes=[hero])
+    enemy = Army('E', Unit('archers', 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy)
+    skill_def = SKILL_REGISTRY_GLOBAL['base_skill_judgements_fury']
+    marker_data = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": EFFECT_NAME_JUDGEMENT_MARKER,
+        "duration": -1,
+    }
+    for _ in range(skill_def['config']['marker_threshold']):
+        army._create_and_add_single_effect(marker_data, 'dummy', army, army)
+        army.activate_queued_effects()
+    pending_marker_data = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
+        "duration": 0,
+        "config": {"marker_count": 1},
+        "activate_next_round": True,
+    }
+    army._create_and_add_single_effect(pending_marker_data, 'dummy', army, army)
+
+    happened, logs = skill_def['logic_handler'](army, enemy, skill_def, None, sim)
+
+    assert happened
+    assert any("Deals damage" in log[0] for log in logs)
+    assert enemy.pending_hp_damage_this_round > 0
+    assert not any(e.name == EFFECT_NAME_JUDGEMENT_MARKER for e in army.active_effects)
+    assert any(
+        e.name == EFFECT_NAME_PENDING_JUDGEMENT_MARKERS
+        for e in army.effects_to_activate_next_round
+    )
 
 
 def test_judgements_fury_queues_marker_for_next_round():

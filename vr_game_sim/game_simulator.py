@@ -29,7 +29,7 @@ from .dynamic_unrevivable_config import (
     get_type_settings as get_dynamic_unrevivable_type_settings,
 )
 from .report_builder import ReportBuilder
-from . import troop_scalar_config, heal_shield_pairing_config
+from . import troop_scalar_config, heal_shield_pairing_config, shield_consumption_config
 from colorama import Fore
 
 # Skills that trigger on active skill casts but have a 1 trigger per 9 rounds limit instead of 2
@@ -1784,7 +1784,12 @@ class GameSimulator:
             )
             return 0.0, 0.0, 0.0, 0
 
-        shield_processing_result = dfd.apply_shields_and_get_hp_damage(damage_after_all_percent_mods)
+        consumption_mult = shield_consumption_config.get_multiplier(
+            attacker_unit_type, target_unit_type
+        )
+        shield_processing_result = dfd.apply_shields_and_get_hp_damage(
+            damage_after_all_percent_mods, shield_consumption_mult=consumption_mult
+        )
         hp_damage_to_troops = shield_processing_result['hp_damage_to_troops']
         absorbed_by_shield = shield_processing_result['absorbed_by_shield']
         extra_hp_from_boost = hp_damage_to_troops - hp_damage_without_boost

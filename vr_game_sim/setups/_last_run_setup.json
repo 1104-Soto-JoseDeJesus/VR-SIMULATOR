@@ -1,14 +1,14 @@
 [
     {
-        "army_name": "Rosky/Helgar",
+        "army_name": "Rosky/Rolfe",
         "unit_type": "pikemen",
         "tier": 7,
-        "count": 100000,
+        "count": 250000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.7198,
-        "def_mod": 2.6263,
-        "hp_mod": 0.8692,
+        "atk_mod": 2.37,
+        "def_mod": 2.41,
+        "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
         "unrevivable_ratio_method": "sizeref",
         "use_dynamic_unrevivable_ratio": false,
@@ -29,46 +29,46 @@
                     "plugin_divine_blessing"
                 ],
                 "gear_ids": {
-                    "head": "gear_abyssal_crown_epic",
-                    "boots": "gear_tsunami_plated_boots_epic"
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
                 }
             },
             {
-                "hero_name_or_preset": "Helgar",
+                "hero_name_or_preset": "Rolfe",
                 "talent_ids": [
-                    "talent_saintly_guardian",
-                    "talent_war_blessing",
-                    "talent_judgement_mark"
+                    "talent_assassination_raid",
+                    "talent_scale_armor_shield",
+                    "talent_feigned_death_strike"
                 ],
                 "base_skill_ids": [
-                    "base_skill_judgements_fury",
-                    "rage_skill_ruling_trial"
+                    "base_skill_inspiration_arrives",
+                    "base_skill_indomitable_spirit"
                 ],
                 "plugin_skill_ids": [
                     "plugin_hymn_of_life",
-                    "plugin_blessed_negation"
+                    "plugin_deadly_counterattack"
                 ],
                 "gear_ids": {
-                    "head": "gear_abyssal_crown_epic",
-                    "boots": "gear_tsunami_plated_boots_epic"
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
                 }
             }
-        ],
-        "bonus_stats": {
-            "basic_boost": 0.0608,
-            "hero2_rage_skill_boost": 0.0482
-        }
+        ]
     },
     {
-        "army_name": "Rosky/Helgar (2)",
+        "army_name": "Rosky/Naya",
         "unit_type": "pikemen",
         "tier": 7,
-        "count": 100000,
+        "count": 250000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.7429,
-        "def_mod": 2.1884,
-        "hp_mod": 1.0397,
+        "atk_mod": 2.37,
+        "def_mod": 2.41,
+        "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
         "unrevivable_ratio_method": "sizeref",
         "use_dynamic_unrevivable_ratio": false,
@@ -89,28 +89,32 @@
                     "plugin_divine_blessing"
                 ],
                 "gear_ids": {
-                    "head": "gear_abyssal_crown_epic",
-                    "boots": "gear_tsunami_plated_boots_epic"
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
                 }
             },
             {
-                "hero_name_or_preset": "Helgar",
+                "hero_name_or_preset": "Naya",
                 "talent_ids": [
-                    "talent_saintly_guardian",
-                    "talent_war_blessing",
-                    "talent_judgement_mark"
+                    "talent_forceful_ambush",
+                    "talent_trapped_beasts_struggle",
+                    "talent_bear_spirit_protection"
                 ],
                 "base_skill_ids": [
-                    "base_skill_judgements_fury",
-                    "rage_skill_ruling_trial"
+                    "base_skill_nayas_hunting_instinct",
+                    "base_skill_blizzard_spear"
                 ],
                 "plugin_skill_ids": [
                     "plugin_hymn_of_life",
-                    "plugin_blessed_negation"
+                    "plugin_deadly_counterattack"
                 ],
                 "gear_ids": {
-                    "head": "gear_abyssal_crown_epic",
-                    "boots": "gear_tsunami_plated_boots_epic"
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
                 }
             }
         ]

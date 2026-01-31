@@ -11,7 +11,7 @@ from .hero_definition import Hero
 from .effect_system import EffectInstance
 from .skill_system import SkillDefinition
 from .skill_definitions import SKILL_REGISTRY_GLOBAL
-from . import heal_shield_pairing_config
+from . import heal_shield_pairing_config, shield_consumption_config
 from .constants import (
     EFFECT_NAME_BROKEN_BLADE_DEBUFF, EFFECT_NAME_DISARM_DEBUFF, EFFECT_NAME_SILENCE_DEBUFF,
     EFFECT_NAME_FIRST_STRIKE_RAGE_AURA, EFFECT_NAME_PENDING_AWAKENING_CLEANSE,
@@ -574,6 +574,15 @@ class Army:
         return sum(effect.magnitude for effect in self.active_effects if
                    effect.effect_type == EffectType.SHIELD and effect.magnitude > 0)
 
+    def _get_active_shields_in_damage_order(self) -> List[EffectInstance]:
+        """Return active shield effects in damage-targeting order: not re-applied next round first (smallest first), then re-applied (smallest first)."""
+        reapplied_sources: Set[str] = set()
+        for eff in list(self.upcoming_effects) + list(self.effects_to_activate_next_round):
+            if eff.effect_type == EffectType.SHIELD and getattr(eff, "source_skill_id", None):
+                reapplied_sources.add(eff.source_skill_id)
+        active = [eff for eff in self.active_effects if eff.effect_type == EffectType.SHIELD and eff.magnitude > 0]
+        return sorted(active, key=lambda e: (e.source_skill_id in reapplied_sources, e.magnitude))
+
     def preview_shield_absorption(self, incoming_damage: float) -> tuple[float, float]:
         """Return the (hp_damage_to_troops, absorbed_by_shield) without altering shields."""
 
@@ -583,14 +592,7 @@ class Army:
         hp_dmg_final = incoming_damage
         absorbed_total = 0.0
 
-        active_shields = sorted(
-            [
-                eff
-                for eff in self.active_effects
-                if eff.effect_type == EffectType.SHIELD and eff.magnitude > 0
-            ],
-            key=lambda e: e.duration,
-        )
+        active_shields = self._get_active_shields_in_damage_order()
 
         for shield_eff in active_shields:
             if hp_dmg_final <= 0:
@@ -601,18 +603,20 @@ class Army:
 
         return max(0.0, hp_dmg_final), absorbed_total
 
-    def apply_shields_and_get_hp_damage(self, damage_after_percent_mods: float) -> Dict[str, float]:
+    def apply_shields_and_get_hp_damage(
+        self, damage_after_percent_mods: float, shield_consumption_mult: float = 1.0
+    ) -> Dict[str, float]:
         hp_dmg_final = damage_after_percent_mods
         absorbed_total = 0.0
 
-        active_shields = sorted(
-            [eff for eff in self.active_effects if eff.effect_type == EffectType.SHIELD and eff.magnitude > 0],
-            key=lambda e: e.duration)
+        active_shields = self._get_active_shields_in_damage_order()
 
         for shield_eff in active_shields:
-            if hp_dmg_final <= 0: break
+            if hp_dmg_final <= 0:
+                break
             can_absorb = min(hp_dmg_final, shield_eff.magnitude)
-            shield_eff.magnitude -= can_absorb
+            shield_damage = min(shield_eff.magnitude, can_absorb * shield_consumption_mult)
+            shield_eff.magnitude -= shield_damage
             hp_dmg_final -= can_absorb
             absorbed_total += can_absorb
 
@@ -1779,7 +1783,18 @@ class Army:
                     dot_damage_after_target_debuffs = potential_dot_damage_tick
 
                 if dot_damage_after_target_debuffs > 0:  # Use damage after target's specific DoT reductions
-                    damage_result_dict = self.apply_shields_and_get_hp_damage(dot_damage_after_target_debuffs)
+                    caster_for_consumption = (
+                        effect.config.get('original_caster_army_ref')
+                        or (self._find_army_by_name(effect.config.get('original_caster_army_name'))
+                            if effect.config.get('original_caster_army_name') else None)
+                        or effect.config.get('effect_owner_army_ref')
+                    )
+                    attacker_type = caster_for_consumption.unit.unit_type if caster_for_consumption else "infantry"
+                    defender_type = self.unit.unit_type
+                    consumption_mult = shield_consumption_config.get_multiplier(attacker_type, defender_type)
+                    damage_result_dict = self.apply_shields_and_get_hp_damage(
+                        dot_damage_after_target_debuffs, shield_consumption_mult=consumption_mult
+                    )
                     hp_damage_to_troops_dot = damage_result_dict['hp_damage_to_troops']
                     absorbed_by_shield_dot = damage_result_dict['absorbed_by_shield']
                     if total_positive_dot > 0:

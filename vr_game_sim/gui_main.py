@@ -52,7 +52,7 @@ from vr_game_sim.main import (
     HISTOGRAM_BG_COLOR,
     SeedTarget,
 )
-from vr_game_sim import dynamic_unrevivable_config, troop_scalar_config, heal_shield_pairing_config
+from vr_game_sim import dynamic_unrevivable_config, troop_scalar_config, heal_shield_pairing_config, shield_consumption_config
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.enums import StatType
 from vr_game_sim.metadata_loader import get_skill_description
@@ -1708,7 +1708,7 @@ class TroopScalarDialog(QtWidgets.QDialog):
 
         self._spin = QtWidgets.QDoubleSpinBox()
         self._spin.setRange(0.0, 1000.0)
-        self._spin.setDecimals(3)
+        self._spin.setDecimals(8)
         self._spin.setSingleStep(0.05)
         self._spin.setValue(troop_scalar_config.get_multiplier())
         layout.addWidget(self._spin)
@@ -1752,7 +1752,7 @@ class TroopScalarDialog(QtWidgets.QDialog):
         except ValueError as exc:  # pragma: no cover - GUI feedback
             self._set_status(str(exc), error=True)
             return
-        self._set_status(f"Session multiplier set to {value:.3f}")
+        self._set_status(f"Session multiplier set to {value:.8f}")
         self._emit_multiplier(value)
 
     def _save_and_close(self) -> None:
@@ -1761,7 +1761,7 @@ class TroopScalarDialog(QtWidgets.QDialog):
         except ValueError as exc:  # pragma: no cover - GUI feedback
             self._set_status(str(exc), error=True)
             return
-        self._set_status(f"Multiplier saved at {value:.3f}")
+        self._set_status(f"Multiplier saved at {value:.8f}")
         self._spin.setValue(value)
         self._emit_multiplier(value)
         self.accept()
@@ -1883,6 +1883,97 @@ class HealShieldPairingDialog(QtWidgets.QDialog):
 
     def _reset_defaults(self) -> None:
         heal_shield_pairing_config.reset_to_defaults()
+        self._load_current_settings()
+        self._status.setText("Multipliers reset to defaults.")
+        self.settings_applied.emit()
+
+
+class ShieldConsumptionDialog(QtWidgets.QDialog):
+    """Dialog for configuring shield consumption multipliers by unit type pairing."""
+
+    settings_applied = QtCore.pyqtSignal()
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Shield Consumption Multipliers")
+        self.setMinimumSize(600, 400)
+
+        main_layout = QtWidgets.QVBoxLayout(self)
+        self._multiplier_spins: dict[str, QtWidgets.QDoubleSpinBox] = {}
+
+        scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        scroll_content = QtWidgets.QWidget()
+        content_layout = QtWidgets.QVBoxLayout(scroll_content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+
+        pairings = [
+            ("Pike vs Pike", "pikemen", "pikemen"),
+            ("Infantry vs Infantry", "infantry", "infantry"),
+            ("Archer vs Archer", "archers", "archers"),
+            ("Pike vs Infantry", "pikemen", "infantry"),
+            ("Infantry vs Pike", "infantry", "pikemen"),
+            ("Pike vs Archer", "pikemen", "archers"),
+            ("Archer vs Pike", "archers", "pikemen"),
+            ("Infantry vs Archer", "infantry", "archers"),
+            ("Archer vs Infantry", "archers", "infantry"),
+        ]
+
+        group = QtWidgets.QGroupBox("Shield Consumption Multipliers")
+        form = QtWidgets.QFormLayout(group)
+        for pairing_label, triggering_type, opponent_type in pairings:
+            key = f"{triggering_type}_vs_{opponent_type}_shield_consumption"
+            spin = QtWidgets.QDoubleSpinBox()
+            spin.setRange(0.0, 10.0)
+            spin.setDecimals(3)
+            spin.setSingleStep(0.01)
+            form.addRow(f"{pairing_label}:", spin)
+            self._multiplier_spins[key] = spin
+        content_layout.addWidget(group)
+        content_layout.addStretch(1)
+        scroll_area.setWidget(scroll_content)
+        main_layout.addWidget(scroll_area)
+
+        self._status = QtWidgets.QLabel("")
+        self._status.setWordWrap(True)
+        main_layout.addWidget(self._status)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        main_layout.addLayout(btn_row)
+        save_btn = QtWidgets.QPushButton("Save")
+        save_btn.clicked.connect(self._save_settings)
+        btn_row.addWidget(save_btn)
+        reset_btn = QtWidgets.QPushButton("Reset to Default")
+        reset_btn.clicked.connect(self._reset_defaults)
+        btn_row.addWidget(reset_btn)
+        btn_row.addStretch(1)
+        close_btn = QtWidgets.QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        main_layout.addWidget(close_btn, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+
+        self._load_current_settings()
+
+    def _load_current_settings(self) -> None:
+        settings = shield_consumption_config.get_settings()
+        for key, spin in self._multiplier_spins.items():
+            spin.setValue(settings.get(key, 1.15))
+
+    def _gather_settings(self) -> dict[str, float]:
+        return {key: spin.value() for key, spin in self._multiplier_spins.items()}
+
+    def _save_settings(self) -> None:
+        try:
+            shield_consumption_config.save_universal_settings(self._gather_settings())
+        except (OSError, shield_consumption_config.PairingConfigError) as exc:
+            QtWidgets.QMessageBox.critical(self, "Save Failed", str(exc))
+            return
+        self._status.setText("Shield consumption multipliers saved to disk.")
+        self._load_current_settings()
+        self.settings_applied.emit()
+
+    def _reset_defaults(self) -> None:
+        shield_consumption_config.reset_to_defaults()
         self._load_current_settings()
         self._status.setText("Multipliers reset to defaults.")
         self.settings_applied.emit()
@@ -7402,6 +7493,11 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog.settings_applied.connect(lambda: None)  # Can emit signal if needed
         dialog.exec()
 
+    def _open_shield_consumption_dialog(self) -> None:
+        dialog = ShieldConsumptionDialog(self)
+        dialog.settings_applied.connect(lambda: None)
+        dialog.exec()
+
     def open_troop_scalar_tool(self) -> None:
         """Open the troop scalar multiplier configuration dialog."""
         dlg = TroopScalarDialog(self)
@@ -7651,6 +7747,8 @@ class MainWindow(QtWidgets.QMainWindow):
         dot_damage_reduction_action.toggled.connect(self._on_dot_damage_reduction_toggled)
         pairing_action = dbg_menu.addAction("Heal/Shield Pairing Multipliers…")
         pairing_action.triggered.connect(self._open_heal_shield_pairing_dialog)
+        shield_consumption_action = dbg_menu.addAction("Shield consumption…")
+        shield_consumption_action.triggered.connect(self._open_shield_consumption_dialog)
         star_action = dbg_menu.addAction("Star Layout")
         star_action.triggered.connect(self.open_star_overlay_tuner)
         debug_btn.setMenu(dbg_menu)

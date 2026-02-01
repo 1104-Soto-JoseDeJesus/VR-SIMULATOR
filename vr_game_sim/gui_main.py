@@ -13,6 +13,7 @@ import html
 from functools import partial
 import time
 import re
+import sys
 import concurrent.futures
 import multiprocessing
 import base64
@@ -4991,8 +4992,15 @@ def _skill_stats_entry(
     *,
     casts_override: Any | None = None,
     rage_totals: dict[str, float] | None = None,
+    stats_lookup_key: str | None = None,
 ) -> dict[str, Any]:
-    """Return aggregated statistics for ``skill_id`` from ``army``."""
+    """Return aggregated statistics for ``skill_id`` from ``army``.
+
+    When ``stats_lookup_key`` is provided (e.g. instance key for duplicate mount skills),
+    use it for all stat map lookups instead of ``skill_id``.
+    """
+    lookup = stats_lookup_key if stats_lookup_key else skill_id
+    allow_fallback = not stats_lookup_key or stats_lookup_key == skill_id
 
     boosted_burn_map = getattr(army, "skill_kill_boost_burn_totals", {}) or {}
     boosted_counter_map = (
@@ -5000,7 +5008,7 @@ def _skill_stats_entry(
     )
     boosted_other_map = getattr(army, "skill_kill_boost_other_totals", {}) or {}
     crit_boost_map = getattr(army, "skill_crit_kill_boost_totals", {}) or {}
-    crit_breakdown_raw = crit_boost_map.get(skill_id, {}) if isinstance(crit_boost_map, dict) else {}
+    crit_breakdown_raw = crit_boost_map.get(lookup, {}) if isinstance(crit_boost_map, dict) else {}
     crit_breakdown: dict[str, int] = {}
     crit_label_display = {
         "REACTIVE": "Reactive Skill Crit Kills",
@@ -5017,10 +5025,10 @@ def _skill_stats_entry(
         crit_boost_total += as_float
         if abs(as_float) > 1e-9:
             crit_breakdown[display] = int(round(as_float))
-    total_boosted_kills = float(army.skill_kill_boost_totals.get(skill_id, 0.0))
-    boosted_burn_kills = float(boosted_burn_map.get(skill_id, 0.0))
-    boosted_counter_kills = float(boosted_counter_map.get(skill_id, 0.0))
-    boosted_other_kills_val = boosted_other_map.get(skill_id)
+    total_boosted_kills = float(army.skill_kill_boost_totals.get(lookup, 0.0))
+    boosted_burn_kills = float(boosted_burn_map.get(lookup, 0.0))
+    boosted_counter_kills = float(boosted_counter_map.get(lookup, 0.0))
+    boosted_other_kills_val = boosted_other_map.get(lookup)
     try:
         boosted_other_kills = float(boosted_other_kills_val)
     except (TypeError, ValueError):
@@ -5030,30 +5038,50 @@ def _skill_stats_entry(
 
     rage_map = rage_totals if rage_totals is not None else army.skill_rage_totals
 
+    # Helper to get stat value with fallback aggregation for mount skills
+    def get_stat_with_fallback(stat_map: dict, lookup_key: str, skill_id: str) -> float:
+        value = stat_map.get(lookup_key, 0.0)
+        if value == 0.0 and allow_fallback and _is_mount_skill(skill_id):
+            # Aggregate any instance-keyed values (e.g. mount_x::mount::0, mount_x::mount::1)
+            prefix = skill_id + "::"
+            value = sum(
+                float(v) for k, v in stat_map.items()
+                if isinstance(k, str) and k.startswith(prefix)
+            )
+        return float(value)
+
+    casts = army.skill_trigger_counts.get(lookup, 0)
+    if casts == 0 and allow_fallback and _is_mount_skill(skill_id):
+        casts = sum(
+            army.skill_trigger_counts.get(k, 0)
+            for k in army.skill_trigger_counts
+            if isinstance(k, str) and k.startswith(skill_id + "::")
+        )
+
     entry = {
         "id": skill_id,
         "name": name,
-        "casts": army.skill_trigger_counts.get(skill_id, 0),
-        "kills": int(round(army.skill_kill_totals.get(skill_id, 0.0))),
-        "heals": int(round(army.skill_heal_totals.get(skill_id, 0.0))),
-        "shielded": int(round(army.skill_shield_totals.get(skill_id, 0.0))),
-        "rage": int(round(rage_map.get(skill_id, 0.0))),
-        "rage_reduced": int(round(army.skill_rage_reduction_totals.get(skill_id, 0.0))),
-        "damage_reduced": int(round(army.skill_damage_reduction_totals.get(skill_id, 0.0))),
+        "casts": casts,
+        "kills": int(round(get_stat_with_fallback(army.skill_kill_totals, lookup, skill_id))),
+        "heals": int(round(get_stat_with_fallback(army.skill_heal_totals, lookup, skill_id))),
+        "shielded": int(round(get_stat_with_fallback(army.skill_shield_totals, lookup, skill_id))),
+        "rage": int(round(get_stat_with_fallback(rage_map, lookup, skill_id))),
+        "rage_reduced": int(round(get_stat_with_fallback(army.skill_rage_reduction_totals, lookup, skill_id))),
+        "damage_reduced": int(round(get_stat_with_fallback(army.skill_damage_reduction_totals, lookup, skill_id))),
         "boosted_kills": int(round(total_boosted_kills)),
         "boosted_burn_kills": int(round(boosted_burn_kills)),
         "boosted_counter_kills": int(round(boosted_counter_kills)),
         "boosted_other_kills": int(round(boosted_other_kills)),
         "crit_boosted_kills": int(round(crit_boost_total)),
         "crit_boosted_breakdown": crit_breakdown,
-        "boosted_heals": int(round(army.skill_heal_boost_totals.get(skill_id, 0.0))),
-        "boosted_shielded": int(round(army.skill_shield_boost_totals.get(skill_id, 0.0))),
-        "boosted_rage": int(round(army.skill_rage_boost_totals.get(skill_id, 0.0))),
+        "boosted_heals": int(round(get_stat_with_fallback(army.skill_heal_boost_totals, lookup, skill_id))),
+        "boosted_shielded": int(round(get_stat_with_fallback(army.skill_shield_boost_totals, lookup, skill_id))),
+        "boosted_rage": int(round(get_stat_with_fallback(army.skill_rage_boost_totals, lookup, skill_id))),
         "boosted_rage_reduced": int(
-            round(army.skill_rage_reduction_boost_totals.get(skill_id, 0.0))
+            round(get_stat_with_fallback(army.skill_rage_reduction_boost_totals, lookup, skill_id))
         ),
         "boosted_damage_reduced": int(
-            round(army.skill_damage_reduction_boost_totals.get(skill_id, 0.0))
+            round(get_stat_with_fallback(army.skill_damage_reduction_boost_totals, lookup, skill_id))
         ),
     }
     if casts_override is not None:
@@ -5152,12 +5180,21 @@ def build_army_skill_summary(army: Army, cfg: dict, team: str) -> dict[str, Any]
             if skill_def.get("id") == "dummy_talent_empty":
                 continue
             sid = skill_def.get("id", "")
+            stats_lookup_key = None
+            if _is_mount_skill(sid):
+                if skill_def.get("mount_instance_index") is not None:
+                    stats_lookup_key = f"{sid}::mount::{skill_def['mount_instance_index']}"
+                else:
+                    instance_key = skill_def.get("instance_key")
+                    if instance_key:
+                        stats_lookup_key = str(instance_key)
             hero_entries.append(
                 _skill_stats_entry(
                     army,
                     sid,
                     skill_def.get("name", sid),
                     rage_totals=rage_totals,
+                    stats_lookup_key=stats_lookup_key,
                 )
             )
         cfg_mount_ids: set[str] = set()
@@ -13680,6 +13717,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 def main() -> None:
+    # Raise recursion limit to support arena battles where one army fights
+    # multiple enemies simultaneously (e.g. 1 vs 3), which can create deep
+    # call stacks in skill/effect processing.
+    sys.setrecursionlimit(5000)
     app = QtWidgets.QApplication([])
     app.setStyle("Fusion")
     app.setStyleSheet(

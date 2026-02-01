@@ -1826,25 +1826,27 @@ def handle_rage_indomitable_spirit(
                 )
             )
 
-        debuff_duration = skill_config.get("debuff_duration", 1)
-        debuff_data = {
-            "effect_type": EffectType.DEBUFF,
-            "name": EFFECT_NAME_BROKEN_BLADE_DEBUFF,
-            "duration": debuff_duration,
-            "config": {"prevents_counterattack": True},
-            "activate_next_round": True,
-        }
-        created_debuff = target._create_and_add_single_effect(
-            debuff_data, skill_id, triggering_army, target, triggering_army
-        )
-        if created_debuff:
-            an_effect_happened = True
-            log_details.append(
-                (
-                    f"Inflicts '{EFFECT_NAME_BROKEN_BLADE_DEBUFF}' on {target.name} for {created_debuff.duration + 1} rounds (starting next round).",
-                    None,
-                )
+        # Broken Blade debuff applies only to the main target, not additional targets
+        if target is opponent_army:
+            debuff_duration = skill_config.get("debuff_duration", 1)
+            debuff_data = {
+                "effect_type": EffectType.DEBUFF,
+                "name": EFFECT_NAME_BROKEN_BLADE_DEBUFF,
+                "duration": debuff_duration,
+                "config": {"prevents_counterattack": True},
+                "activate_next_round": True,
+            }
+            created_debuff = target._create_and_add_single_effect(
+                debuff_data, skill_id, triggering_army, target, triggering_army
             )
+            if created_debuff:
+                an_effect_happened = True
+                log_details.append(
+                    (
+                        f"Inflicts '{EFFECT_NAME_BROKEN_BLADE_DEBUFF}' on {target.name} for {created_debuff.duration + 1} rounds (starting next round).",
+                        None,
+                    )
+                )
 
     return an_effect_happened, log_details, damage_dealt_flag
 

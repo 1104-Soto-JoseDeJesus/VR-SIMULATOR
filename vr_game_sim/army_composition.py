@@ -134,6 +134,7 @@ class Army:
     mount_skill_damage_triggers_this_round: Dict[str, int] = field(init=False, default_factory=dict)
     mount_skill_non_damage_applied_this_round: Set[str] = field(init=False, default_factory=set)
     mount_skill_dot_hot_applied_this_round: Set[str] = field(init=False, default_factory=set)
+    mount_attribution_cache: Dict[str, str] = field(init=False, default_factory=dict)
 
     skill_trigger_counts: Dict[str, int] = field(init=False, default_factory=dict)
     skill_last_triggered_round: Dict[str, int] = field(init=False, default_factory=dict)
@@ -285,6 +286,12 @@ class Army:
             engine = getattr(sim, "parent_engine", None)
             if engine and name in engine._armies:
                 return engine._armies[name].army
+            # Fallback: search engine._armies for army with matching .name
+            if engine and hasattr(engine, "_armies"):
+                for army_ctx in engine._armies.values():
+                    army_obj = getattr(army_ctx, "army", army_ctx)
+                    if hasattr(army_obj, "name") and army_obj.name == name:
+                        return army_obj
         return None
 
     def increment_skill_trigger_count(self, skill_id: str):
@@ -731,6 +738,14 @@ class Army:
                 for src, dmg in self.damage_contributors_this_round.items():
                     kills = available_troops * (dmg / total_dmg)
                     army_obj = self._find_army_by_name(src)
+                    if army_obj is None:
+                        # Log when army lookup fails to aid debugging
+                        for sim in self.simulators:
+                            sim._log_skill_trigger(
+                                self,
+                                "Warning",
+                                f"Could not find army '{src}' for skill kill attribution. Kills: {kills:.1f}",
+                            )
                     skill_map = self.damage_contributors_by_skill_this_round.get(src, {})
                     skill_total = sum(skill_map.values())
                     basic_kills = 0.0
@@ -2118,6 +2133,7 @@ class Army:
         self.skill_rage_boost_totals.clear()
         self.skill_damage_reduction_boost_totals.clear()
         self.skill_rage_reduction_boost_totals.clear()
+        self.mount_attribution_cache.clear()
 
         self._identify_hero_rage_skills()
         self._apply_bonus_stats()

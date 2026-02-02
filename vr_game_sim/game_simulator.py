@@ -22,6 +22,7 @@ from .constants import (
     EFFECT_NAME_NATURE_MARK,
     EFFECT_NAME_HEIMDALL_STEALTH_EVASION,
     EFFECT_NAME_HEIMDALL_RETRIBUTION,
+    BROKEN_BLADE_BLOCKED_COUNTERATTACK_SKILL_IDS,
 )
 from .dynamic_unrevivable_config import (
     UNIT_TYPES as DYNAMIC_UNIT_TYPES,
@@ -1149,6 +1150,13 @@ class GameSimulator:
             skill_id: sum(1 for sd in defs if self._mount_skill_has_direct_damage(sd))
             for skill_id, defs in mount_skill_groups.items()
         }
+        counterattack_prevented = False
+        if trigger_type == SkillTriggerType.ON_COUNTER_ATTACK:
+            counterattack_prevented = any(
+                eff.name == EFFECT_NAME_BROKEN_BLADE_DEBUFF
+                or eff.config.get("prevents_counterattack")
+                for eff in triggering_army.active_effects
+            )
 
         for skill_def in skill_definitions:
             if skill_def["id"] == "dummy_talent_empty":
@@ -1159,6 +1167,12 @@ class GameSimulator:
                 continue
 
             if skill_def["trigger"] == trigger_type:
+                if (
+                    counterattack_prevented
+                    and skill_def.get("id")
+                    in BROKEN_BLADE_BLOCKED_COUNTERATTACK_SKILL_IDS
+                ):
+                    continue
                 base_chance = skill_def.get("trigger_chance", 1.0)
                 coop_bonus = 0.0
                 if (

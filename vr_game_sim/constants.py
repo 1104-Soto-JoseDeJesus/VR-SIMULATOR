@@ -14,6 +14,28 @@ EFFECT_NAME_DISARM_DEBUFF = "Disarm Debuff"
 EFFECT_NAME_SLOW_DEBUFF = "Slow Debuff"
 EFFECT_NAME_SILENCE_DEBUFF = "Silence Debuff"
 
+# --- Broken Blade counterattack trigger suppression ---
+BROKEN_BLADE_BLOCKED_COUNTERATTACK_SKILL_IDS = frozenset(
+    {
+        "plugin_deadly_counterattack",
+        "plugin_rest_and_counterattack",
+        "plugin_disarmament",
+        "plugin_retaliate",
+        "plugin_blow_of_chaos",
+        "plugin_battle_hymn",
+        "plugin_lokis_trick",
+        "talent_maniacal",
+        "talent_judgement_mark",
+        "base_skill_flame_guardian",
+        "talent_blade_counter",
+        "base_skill_planned_attack",
+        "talent_horn_of_countering",
+        "talent_scale_armor_shield",
+        "base_skill_nayas_hunting_instinct",
+        "talent_bold_charge",
+    }
+)
+
 
 EFFECT_NAME_BLADE_COUNTER_BOOST = "Blade Counter Boost"
 EFFECT_NAME_BLADE_COUNTER_IMMUNITY = "Broken Blade Immunity"

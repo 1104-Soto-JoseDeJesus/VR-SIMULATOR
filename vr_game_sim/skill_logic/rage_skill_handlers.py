@@ -19,6 +19,66 @@ def _count_effects_by_name(army: ArmyRef, effect_name: str) -> int:
     return sum(1 for eff in army.active_effects if eff.name == effect_name)
 
 
+def _estimate_dot_total_damage(
+    effect: EffectInstance, target_army: ArmyRef, simulator: GameSimulatorRef
+) -> float:
+    """Estimate total DoT damage (pre-shield) using snapshot config."""
+    if not effect or effect.effect_type != EffectType.DAMAGE_OVER_TIME:
+        return 0.0
+    dot_type_val = effect.config.get("dot_type")
+    if isinstance(dot_type_val, str):
+        try:
+            dot_type_val = DoTType(dot_type_val.upper())
+        except ValueError:
+            dot_type_val = None
+    is_special_dot = dot_type_val in {
+        DoTType.BLEED,
+        DoTType.POISON,
+        DoTType.BURN,
+        DoTType.LACERATE,
+    }
+
+    general_damage_reduction = 0.0
+    if simulator and getattr(simulator, "damage_reduction_affects_dots", False):
+        general_damage_reduction = effect.config.get("snapshotted_general_damage_reduction")
+        if general_damage_reduction is None:
+            general_damage_reduction = target_army.get_sum_stat_magnitudes(
+                StatType.DAMAGE_TAKEN_MULTIPLIER,
+                attack_type_filter="status_effect",
+            )
+
+    crit_bonus = float(effect.config.get("crit_bonus", 0.0) or 0.0)
+    snapshot_bonus = effect.config.get("holy_blessed_damage_taken_snapshot", 0.0)
+
+    if is_special_dot:
+        snap_atk = effect.config.get("snapshotted_attacker_total_attack", 0.0)
+        snap_def = effect.config.get("snapshotted_defender_total_defense", 1.0) or 1.0
+        snap_scalar = effect.config.get("snapshotted_attacker_troop_scalar", 0.0)
+        status_factor = effect.config.get("status_effect_factor", 0.0)
+        current_specific_dot_boost = effect.config.get("snapshotted_specific_dot_boost", 0.0)
+        current_specific_dot_reduction = effect.config.get(
+            "snapshotted_specific_dot_reduction", 0.0
+        )
+        base_dot_damage = (snap_atk / snap_def) * snap_scalar * (status_factor / 200.0)
+        base_multiplier = (
+            1.0
+            + current_specific_dot_boost
+            + current_specific_dot_reduction
+            + general_damage_reduction
+            + crit_bonus
+        )
+        final_multiplier = max(0.05, base_multiplier + snapshot_bonus)
+        tick_damage = base_dot_damage * final_multiplier
+    else:
+        base_dot_damage = float(effect.config.get("dot_damage_per_round", 0.0) or 0.0)
+        base_multiplier = 1.0 + general_damage_reduction + crit_bonus
+        final_multiplier = max(0.05, base_multiplier + snapshot_bonus)
+        tick_damage = base_dot_damage * final_multiplier
+
+    total_ticks = max(0, int(effect.duration)) + 1
+    return max(0.0, tick_damage) * total_ticks
+
+
 def handle_rage_sharp_pursuit(army: ArmyRef, opp: ArmyRef, sk_def: SkillDefinition, ev_data: Dict[str, Any],
                               sim: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
     eff_hpnd, logs, dmg_dealt_flag = False, [], False;
@@ -1937,6 +1997,7 @@ def handle_rage_floral_burial(
 
     poison_factor = cfg.get("poison_factor", 0.0)
     poison_duration = cfg.get("poison_duration", 2)
+    created_poison_effect: Optional[EffectInstance] = None
     if poison_factor > 0:
         poison_effect = {
             "effect_type": EffectType.DAMAGE_OVER_TIME,
@@ -1946,10 +2007,10 @@ def handle_rage_floral_burial(
             "duration": poison_duration,
             "activate_next_round": True,
         }
-        created_poison = opponent_army._create_and_add_single_effect(
+        created_poison_effect = opponent_army._create_and_add_single_effect(
             poison_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
         )
-        if created_poison:
+        if created_poison_effect:
             happened = True
             logs.append((
                 f"Inflicts '{EFFECT_NAME_FLORAL_BURIAL_POISON}' on {opponent_army.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
@@ -1974,8 +2035,12 @@ def handle_rage_floral_burial(
             {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
         ))
 
-        if heal_conversion > 0 and hp_damage > 0:
-            heal_amount = hp_damage * heal_conversion
+    if heal_conversion > 0 and created_poison_effect:
+        poison_total_damage = _estimate_dot_total_damage(
+            created_poison_effect, opponent_army, simulator
+        )
+        if poison_total_damage > 0:
+            heal_amount = poison_total_damage * heal_conversion
             triggering_army.pending_hp_healing_this_round += heal_amount
             healer_name = getattr(triggering_army, "name", None) or ""
             skill_map = triggering_army.heal_contributors_this_round.setdefault(
@@ -1986,7 +2051,7 @@ def handle_rage_floral_burial(
             ) + heal_amount
             happened = True
             logs.append((
-                f"Converts {heal_conversion * 100:.0f}% of damage into healing ({heal_amount:.0f} HP).",
+                f"Converts {heal_conversion * 100:.0f}% of predicted poison damage ({poison_total_damage:.0f} HP) into healing ({heal_amount:.0f} HP).",
                 None,
             ))
 

@@ -118,6 +118,8 @@ class EffectInstance:
             return False
         if not include_shields and self.effect_type == EffectType.SHIELD:
             return False
+        if self.config.get("evasion_chance", 0.0) > 0:
+            return self.is_beneficial_for_target()
         if not self.config.get("is_dispellable", True):
             return False
         return self.is_beneficial_for_target()

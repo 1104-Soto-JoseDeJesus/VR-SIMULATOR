@@ -36,6 +36,36 @@ BROKEN_BLADE_BLOCKED_COUNTERATTACK_SKILL_IDS = frozenset(
     }
 )
 
+# --- Disarm basic-hit reactive trigger suppression ---
+DISARM_BLOCKED_ON_HIT_BY_BASIC_ATTACK_SKILL_IDS = frozenset(
+    {
+        "plugin_rapid_attack",
+        "plugin_hymn_of_life",
+        "plugin_freyas_blessing",
+        "plugin_rage_purge",
+        "base_skill_flurry",
+        "talent_sacred_counter",
+        "talent_revenge_echo",
+        "talent_feigned_death_strike",
+        "talent_trapped_beasts_struggle",
+        "mount_pincer_strike",
+        "mount_spiritual_blessing",
+        "mount_beastly_rage",
+        "mount_retaliation_fangs",
+        "mount_shatterbone_bite",
+        "mount_impenetrable_scales",
+        "mount_steel_scale",
+        "mount_golden_feather",
+        "mount_razor_armor",
+        "mount_roaring_waves",
+        "mount_moonlit_howl",
+        "mount_armor_chant",
+        "mount_bloodthirsty_eye",
+        "mount_manic_heal",
+        "mount_wolfus_gnaw",
+    }
+)
+
 
 EFFECT_NAME_BLADE_COUNTER_BOOST = "Blade Counter Boost"
 EFFECT_NAME_BLADE_COUNTER_IMMUNITY = "Broken Blade Immunity"

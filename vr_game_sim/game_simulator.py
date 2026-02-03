@@ -23,6 +23,7 @@ from .constants import (
     EFFECT_NAME_HEIMDALL_STEALTH_EVASION,
     EFFECT_NAME_HEIMDALL_RETRIBUTION,
     BROKEN_BLADE_BLOCKED_COUNTERATTACK_SKILL_IDS,
+    DISARM_BLOCKED_ON_HIT_BY_BASIC_ATTACK_SKILL_IDS,
 )
 from .dynamic_unrevivable_config import (
     UNIT_TYPES as DYNAMIC_UNIT_TYPES,
@@ -1157,6 +1158,16 @@ class GameSimulator:
                 or eff.config.get("prevents_counterattack")
                 for eff in triggering_army.active_effects
             )
+        hit_by_basic_attack_blocked = False
+        if trigger_type == SkillTriggerType.ON_HIT_BY_BASIC_ATTACK:
+            attacking_army = opponent_army
+            if event_data and event_data.get("attacking_army_for_tit_for_tat"):
+                attacking_army = event_data["attacking_army_for_tit_for_tat"]
+            if attacking_army:
+                hit_by_basic_attack_blocked = any(
+                    eff.name == EFFECT_NAME_DISARM_DEBUFF
+                    for eff in attacking_army.active_effects
+                )
 
         for skill_def in skill_definitions:
             if skill_def["id"] == "dummy_talent_empty":
@@ -1171,6 +1182,12 @@ class GameSimulator:
                     counterattack_prevented
                     and skill_def.get("id")
                     in BROKEN_BLADE_BLOCKED_COUNTERATTACK_SKILL_IDS
+                ):
+                    continue
+                if (
+                    hit_by_basic_attack_blocked
+                    and skill_def.get("id")
+                    in DISARM_BLOCKED_ON_HIT_BY_BASIC_ATTACK_SKILL_IDS
                 ):
                     continue
                 base_chance = skill_def.get("trigger_chance", 1.0)

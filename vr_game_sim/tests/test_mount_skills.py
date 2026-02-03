@@ -491,9 +491,7 @@ def test_duplicate_mount_skill_per_instance_metrics():
     army, opponent = create_armies_from_data([cfg, cfg])[0:2]
     hero = army.heroes[0]
     mount_skills = [skill for skill in hero.skills if skill.get("id") == "mount_flame_serpent"]
-    assert len(mount_skills) == 2
-
-    for idx, skill in enumerate(mount_skills):
+    assert len(mount_skills) == 2    for idx, skill in enumerate(mount_skills):
         config = skill.get("config", {})
         config.update({"trigger_interval": 1, "damage_factor": 50.0})
 

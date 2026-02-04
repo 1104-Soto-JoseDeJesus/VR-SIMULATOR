@@ -1,7 +1,7 @@
 [
   {
     "name": "Furious Hack and Slash",
-    "description": "When deployed Troop performs a basic attack, there is a 20% chance to inflict Bleed on the target, dealing continuous damage every second (Damage Factor 350) for 2s. There is also a 15% chance for this hero Troop to recover 60 Rage, and a 15% chance to inflict Silence on the tarqetfor 1s."
+    "description": "When deployed Troop performs a basic attack, there is a 20% chance to inflict Bleed on the target, dealing continuous damage (Damage Factor 350) for 2 rounds (starting next round). There is also a separate 15% chance for this hero Troop to recover 60 Rage next round, and a separate 15% chance to inflict Silence on the target for 1 round (starting next round)."
   },
   {
     "name": "Poison Arrow",
@@ -217,11 +217,11 @@
   },
   {
     "name": "Valkyries Gaze",
-    "description": "When deployed Troop are healed, there is a 20% chance to grant the Troop a Shield (Shield Factor 500) for 2s, and a 25% chance to deal damage to the target (Damage Factor 500) 1 time, and a 15% chance to inflict Broken Blade on the target for 1s. This effect can only trigger once every 3s."
+    "description": "When deployed Troop receives Healing, there is a 20% chance to grant a Shield (Shield Factor 500) for 2 rounds (starting next round), a separate 25% chance to deal direct damage (Damage Factor 500) 1 time, and a separate 15% chance to inflict Broken Blade on the target for 1 round (starting next round). This effect can only trigger once every 3 rounds."
   },
   {
-    "name": "Venom Agrregation",
-    "description": "Every 9 seconds, inflict Poison on the target, dealing continuous damage every second (Damage Factor 350) for 3s. If target is protected by a Shield, Dispel targets Shield and deal additional damage to the target (Damage Factor 600) 1 time."
+    "name": "Venom Aggregation",
+    "description": "Every 9 rounds, inflict Poison on the target, dealing continuous damage (Damage Factor 350) for 3 rounds (starting next round). If the target started this round shielded, mark shields for removal next round and deal additional direct damage to the target (Damage Factor 600) 1 time this round."
   },
   {
     "name": "Silent Invasion",

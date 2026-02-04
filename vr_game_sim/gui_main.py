@@ -3398,6 +3398,20 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self._slot_plugin_star_counts[slot] = []
             return
 
+        plugin_icon_lookup: dict[str, str] = {}
+        plugin_dir = os.path.join(os.path.dirname(__file__), "Plugin Skill Images")
+
+        def _normalize_plugin_key(value: str) -> str:
+            return re.sub(r"[^a-z0-9]", "", (value or "").lower())
+
+        if os.path.isdir(plugin_dir):
+            for fname in os.listdir(plugin_dir):
+                if not fname.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                    continue
+                key = _normalize_plugin_key(os.path.splitext(fname)[0])
+                if key:
+                    plugin_icon_lookup[key] = os.path.join(plugin_dir, fname)
+
         updated_counts: list[int] = []
         for idx, sid in enumerate(plugin_ids):
             if idx >= len(plugin_labels):
@@ -3410,6 +3424,19 @@ class ArmyFrame(QtWidgets.QGroupBox):
                     os.path.dirname(__file__), "Plugin Skill Images", img_name
                 )
                 lbl.setToolTip(skill_def.get("name", sid))
+                if not os.path.exists(skill_img_path) and plugin_icon_lookup:
+                    preferred_label = skill_def.get("name", sid)
+                    key = _normalize_plugin_key(preferred_label)
+                    if key:
+                        alt_path = plugin_icon_lookup.get(key)
+                        if not alt_path:
+                            matches = difflib.get_close_matches(
+                                key, list(plugin_icon_lookup.keys()), n=1, cutoff=0.75
+                            )
+                            if matches:
+                                alt_path = plugin_icon_lookup.get(matches[0])
+                        if alt_path:
+                            skill_img_path = alt_path
                 if os.path.exists(skill_img_path):
                     lbl.set_image(skill_img_path)
                     lbl.setText("")

@@ -100,14 +100,16 @@ from .skill_logic.base_skill_handlers import (
 )
 from .skill_logic.plugin_skill_handlers import (
     handle_plugin_divine_blessing, handle_plugin_shield_support, handle_plugin_freyas_blessing,
-    handle_plugin_hymn_of_life, handle_plugin_chance_of_reversal, handle_plugin_shield_reflector,
+    handle_plugin_hymn_of_life, handle_plugin_chance_of_reversal, handle_plugin_valkyries_gaze,
+    handle_plugin_shield_reflector,
     handle_plugin_first_strike_control, handle_plugin_shield_attacker, handle_plugin_awakening,
     handle_plugin_baldr_blessing, handle_plugin_lokis_trick, handle_plugin_odins_asylum,
     handle_plugin_thors_determination, handle_plugin_disarmament, handle_plugin_fiery_rage,
     handle_plugin_fiery_detonation, handle_plugin_rage_leech, handle_plugin_enchanted_pursuit,
     handle_plugin_blow_of_chaos, handle_plugin_on_alert, handle_plugin_helas_curse,
     handle_plugin_fearless, handle_plugin_joint_offense, handle_plugin_bloody_rage,
-    handle_plugin_silencer, handle_plugin_enrage, handle_plugin_blessed_negation,
+    handle_plugin_silencer, handle_plugin_furious_hack_and_slash, handle_plugin_enrage,
+    handle_plugin_blessed_negation,
     handle_plugin_wild_indulgence, handle_plugin_breaking_free, handle_plugin_fading_battle,
     handle_plugin_battle_hymn,
     handle_plugin_rapid_attack, handle_plugin_rage_purge, handle_plugin_blessed_by_fate,
@@ -119,7 +121,8 @@ from .skill_logic.plugin_skill_handlers import (
     handle_plugin_this_too_shall_pass, handle_plugin_silent_invasion,
     handle_plugin_deadly_counterattack, handle_plugin_bone_corroding_arrow,
     # ROSKY PLUGIN SKILL HANDLERS
-    handle_plugin_trap_of_despair, handle_plugin_poison_arrow, handle_plugin_divine_shield
+    handle_plugin_trap_of_despair, handle_plugin_poison_arrow,
+    handle_plugin_venom_aggregation, handle_plugin_divine_shield
 )
 from .skill_logic.gem_skill_handlers import (
     handle_gem_skill_delayed_stat_mod,
@@ -1540,6 +1543,16 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "labels": [PluginSkillLabel.COOPERATION],
         "config": {"damage_factor": 300.0, "rage_gain": 100}
     },
+    "plugin_furious_hack_and_slash": {
+        "id": "plugin_furious_hack_and_slash", "name": "Furious Hack and Slash", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_furious_hack_and_slash,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"bleed_chance": 0.20, "bleed_factor": 350.0, "bleed_duration": 1,
+                   "bleed_effect_name": EFFECT_NAME_FURIOUS_HACK_AND_SLASH_BLEED,
+                   "rage_chance": 0.15, "rage_gain": 60.0,
+                   "silence_chance": 0.15, "silence_duration": 0}
+    },
     "plugin_retaliate": {
         "id": "plugin_retaliate", "name": "Retaliate", "type": SkillType.PLUGIN_SKILL,
         "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.15, "target": "ENEMY",
@@ -1647,6 +1660,16 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.ON_RECEIVING_HEALING, "trigger_chance": 0.25, "target": "SELF",
         "logic_handler": handle_plugin_chance_of_reversal,
         "config": {"damage_factor": 550.0, "rage_gain": 50.0}
+    },
+    "plugin_valkyries_gaze": {
+        "id": "plugin_valkyries_gaze", "name": "Valkyries Gaze", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_RECEIVING_HEALING, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_plugin_valkyries_gaze,
+        "config": {"shield_chance": 0.20, "shield_factor": 500.0, "shield_duration": 1,
+                   "shield_effect_name": EFFECT_NAME_VALKYRIES_GAZE_SHIELD,
+                   "damage_chance": 0.25, "damage_factor": 500.0,
+                   "broken_blade_chance": 0.15, "broken_blade_duration": 0,
+                   "cooldown_rounds": 3}
     },
     "plugin_shield_reflector": {
         "id": "plugin_shield_reflector", "name": "Shield Reflector", "type": SkillType.PLUGIN_SKILL,
@@ -1956,6 +1979,16 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "config": {"trigger_interval": 9, "poison_factor": 425.0, "poison_duration": 2,
                    "attack_reduction_chance": 0.35, "attack_reduction_magnitude": -0.15,
                    "attack_reduction_duration": 1}
+    },
+    "plugin_venom_aggregation": {
+        "id": "plugin_venom_aggregation", "name": "Venom Aggregation", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_venom_aggregation,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 9, "poison_factor": 350.0, "poison_duration": 2,
+                   "poison_effect_name": EFFECT_NAME_VENOM_AGGREGATION_POISON,
+                   "shield_damage_factor": 600.0,
+                   "shield_strip_effect_name": EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP}
     },
     "plugin_divine_shield": {
         "id": "plugin_divine_shield", "name": "Divine Shield", "type": SkillType.PLUGIN_SKILL,

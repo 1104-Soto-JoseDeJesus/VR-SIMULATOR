@@ -306,6 +306,9 @@ EFFECT_NAME_REST_AND_COUNTERATTACK_SHIELD = "Rest and Counterattack Shield"
 EFFECT_NAME_SILENT_INVASION_BLEED = "Silent Invasion Bleed"
 EFFECT_NAME_DEADLY_COUNTERATTACK_HEAL = "Deadly Counterattack Heal"
 EFFECT_NAME_BONE_CORRODING_ARROW_REDUCTION = "Bone-corroding Arrow Damage Reduction"
+EFFECT_NAME_VALKYRIES_GAZE_SHIELD = "Valkyries Gaze Shield"
+EFFECT_NAME_VENOM_AGGREGATION_POISON = "Venom Aggregation Poison"
+EFFECT_NAME_FURIOUS_HACK_AND_SLASH_BLEED = "Furious Hack and Slash Bleed"
 
 # --- Helgar Skill Effect Names ---
 EFFECT_NAME_SAINTLY_GUARDIAN_SHIELD_BOOST = "Saintly Guardian Shield Boost"

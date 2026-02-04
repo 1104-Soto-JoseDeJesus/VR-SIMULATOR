@@ -231,6 +231,83 @@ def handle_plugin_chance_of_reversal(
     return an_effect_happened, log_details
 
 
+def handle_plugin_valkyries_gaze(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    shield_chance = skill_config.get("shield_chance", 0.20)
+    shield_factor = skill_config.get("shield_factor", 500.0)
+    shield_duration = skill_config.get("shield_duration", 1)
+    shield_name = skill_config.get("shield_effect_name", EFFECT_NAME_VALKYRIES_GAZE_SHIELD)
+    if shield_factor > 0 and random.random() < shield_chance:
+        shield_data = {
+            "effect_type": EffectType.SHIELD,
+            "name": shield_name,
+            "duration": shield_duration,
+            "magnitude_calc_type": "dynamic_shield_resistance_v1",
+            "shield_factor": shield_factor,
+            "activate_next_round": True,
+        }
+        created_shield = triggering_army._create_and_add_single_effect(
+            shield_data, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created_shield:
+            an_effect_happened = True
+            est_mag = simulator._calculate_shield_magnitude_for_logging(
+                triggering_army, opponent_army, float(shield_factor)
+            ) if simulator else created_shield.magnitude
+            log_details.append(
+                (
+                    f"Grants shield ({created_shield.get_functionality_description()}) active for next {shield_duration + 1} rounds. Est. Mag: {est_mag:.0f}",
+                    None,
+                )
+            )
+
+    damage_chance = skill_config.get("damage_chance", 0.25)
+    damage_factor = skill_config.get("damage_factor", 500.0)
+    if damage_factor > 0 and random.random() < damage_chance:
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor,
+            source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            an_effect_happened = True
+        log_details.append((
+            f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
+        ))
+
+    broken_blade_chance = skill_config.get("broken_blade_chance", 0.15)
+    broken_blade_duration = skill_config.get("broken_blade_duration", 0)
+    if random.random() < broken_blade_chance:
+        debuff_effect_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_BROKEN_BLADE_DEBUFF,
+            "duration": broken_blade_duration,
+            "config": {"prevents_counterattack": True},
+            "activate_next_round": True
+        }
+        created_debuff = opponent_army._create_and_add_single_effect(
+            debuff_effect_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created_debuff:
+            an_effect_happened = True
+            log_details.append((
+                f"Inflicts '{EFFECT_NAME_BROKEN_BLADE_DEBUFF}' on {opponent_army.name} for {created_debuff.duration + 1} rounds (starting next round).",
+                None
+            ))
+
+    return an_effect_happened, log_details
+
+
 def handle_plugin_trap_of_despair(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
@@ -342,6 +419,80 @@ def handle_plugin_poison_arrow(
                     None,
                 )
             )
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_venom_aggregation(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    interval = cfg.get("trigger_interval", 9)
+
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % interval == 0):
+        return False, []
+
+    poison_factor = cfg.get("poison_factor", 0.0)
+    poison_duration = cfg.get("poison_duration", 2)
+    poison_effect_name = cfg.get("poison_effect_name", EFFECT_NAME_VENOM_AGGREGATION_POISON)
+    if poison_factor > 0:
+        poison_data = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": poison_effect_name,
+            "dot_type": DoTType.POISON,
+            "status_effect_factor": poison_factor,
+            "duration": poison_duration,
+            "activate_next_round": True,
+        }
+        created_poison = opponent_army._create_and_add_single_effect(
+            poison_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created_poison:
+            an_effect_happened = True
+            log_details.append(
+                (
+                    f"Inflicts '{poison_effect_name}' on {opponent_army.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                    None,
+                )
+            )
+
+    if opponent_army.started_round_with_active_shield:
+        damage_factor = cfg.get("shield_damage_factor", 600.0)
+        if damage_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, damage_factor,
+                source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                an_effect_happened = True
+            log_details.append((
+                f"Deals damage (Factor: {damage_factor}) to {opponent_army.name} (target started the round shielded).",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}
+            ))
+
+        strip_effect_name = cfg.get("shield_strip_effect_name", EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP)
+        pending_strip = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": strip_effect_name,
+            "duration": 0,
+            "config": {
+                "remove_active_shields": True,
+            },
+            "activate_next_round": True,
+        }
+        created_strip = opponent_army._create_and_add_single_effect(
+            pending_strip, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created_strip:
+            an_effect_happened = True
+            log_details.append(("Marks enemy shields for removal next round.", None))
 
     return an_effect_happened, log_details
 
@@ -952,6 +1103,78 @@ def handle_plugin_silencer(
             f"Inflicts '{EFFECT_NAME_SILENCE_DEBUFF}' on {opponent_army.name} for {created_silence.duration + 1} rounds (starting next round).",
             None
         ))
+    return an_effect_happened, log_details
+
+
+def handle_plugin_furious_hack_and_slash(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    bleed_chance = skill_config.get("bleed_chance", 0.20)
+    bleed_factor = skill_config.get("bleed_factor", 350.0)
+    bleed_duration = skill_config.get("bleed_duration", 1)
+    if bleed_factor > 0 and random.random() < bleed_chance:
+        bleed_effect_data = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": skill_config.get("bleed_effect_name", EFFECT_NAME_FURIOUS_HACK_AND_SLASH_BLEED),
+            "duration": bleed_duration,
+            "dot_type": DoTType.BLEED,
+            "status_effect_factor": bleed_factor,
+            "activate_next_round": True,
+        }
+        created_bleed = opponent_army._create_and_add_single_effect(
+            bleed_effect_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created_bleed:
+            an_effect_happened = True
+            log_details.append((
+                f"Inflicts '{created_bleed.get_functionality_description()}' for {bleed_duration + 1} round(s) (starting next round).",
+                None
+            ))
+
+    rage_chance = skill_config.get("rage_chance", 0.15)
+    rage_gain = skill_config.get("rage_gain", 60.0)
+    if rage_gain > 0 and random.random() < rage_chance:
+        effect_data = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+            "duration": 0,
+            "config": {"rage_amount": rage_gain},
+            "activate_next_round": True,
+        }
+        created = triggering_army._create_and_add_single_effect(
+            effect_data, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created:
+            an_effect_happened = True
+            log_details.append((f"Gains {rage_gain:.0f} rage next round.", None))
+
+    silence_chance = skill_config.get("silence_chance", 0.15)
+    silence_duration = skill_config.get("silence_duration", 0)
+    if random.random() < silence_chance:
+        silence_effect_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_SILENCE_DEBUFF,
+            "duration": silence_duration,
+            "config": {"prevents_rage_skill_cast": True},
+            "activate_next_round": True
+        }
+        created_silence = opponent_army._create_and_add_single_effect(
+            silence_effect_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created_silence:
+            an_effect_happened = True
+            log_details.append((
+                f"Inflicts '{EFFECT_NAME_SILENCE_DEBUFF}' on {opponent_army.name} for {created_silence.duration + 1} rounds (starting next round).",
+                None
+            ))
+
     return an_effect_happened, log_details
 
 

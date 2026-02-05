@@ -481,14 +481,10 @@ def test_duplicate_mount_dot_and_heal_instances_trigger():
     # Merged DoT/heal attributes to higher-value instance (mount_poison_n_heal::mount::1)
     higher_instance_key = "mount_poison_n_heal::mount::1"
     assert dot_effects_double[0].source_skill_id == higher_instance_key
-
-
 def test_duplicate_mount_skill_per_instance_metrics():
     """Duplicate mount skills report damage independently per instance key."""
     cfg = copy.deepcopy(_BASE_CFG)
-    cfg["heroes"][0]["mount_skill_ids"] = ["mount_flame_serpent", "mount_flame_serpent"]
-
-    army, opponent = create_armies_from_data([cfg, cfg])[0:2]
+    cfg["heroes"][0]["mount_skill_ids"] = ["mount_flame_serpent", "mount_flame_serpent"]    army, opponent = create_armies_from_data([cfg, cfg])[0:2]
     hero = army.heroes[0]
     mount_skills = [skill for skill in hero.skills if skill.get("id") == "mount_flame_serpent"]
     assert len(mount_skills) == 2    for idx, skill in enumerate(mount_skills):

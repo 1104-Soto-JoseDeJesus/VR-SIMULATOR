@@ -495,9 +495,7 @@ def test_duplicate_mount_skill_per_instance_metrics():
     army.army_round = 1
     opponent.army_round = 1
     opponent.current_troop_count = 100000
-    opponent.pending_hp_damage_this_round = 0
-
-    simulator._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND)
+    opponent.pending_hp_damage_this_round = 0    simulator._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND)
 
     instance_keys = [
         f"mount_flame_serpent::mount::{skill['mount_instance_index']}" for skill in mount_skills

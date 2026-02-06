@@ -78,6 +78,43 @@ def test_healing_hymn_resets_each_round_battlefield_engine(monkeypatch):
     assert army.healing_hymn_triggered_this_round
 
 
+def test_on_heal_rolls_once_per_round_by_default(monkeypatch):
+    hero = Hero("H", [], [], ["talent_healing_hymn"], SKILL_REGISTRY_GLOBAL)
+    army = Army("A", Unit("pikemen", 5, initial_count=10), heroes=[hero])
+    enemy = Army("E", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy, track_stats=False, multi_heal_trig_enabled=False)
+
+    _start_round(sim)
+    rolls = iter([0.9, 0.0])
+    monkeypatch.setattr(random, "random", lambda: next(rolls))
+    army.calculate_and_add_pending_healing(1000.0, army, enemy)
+    army.calculate_and_add_pending_healing(1000.0, army, enemy)
+
+    assert enemy.pending_hp_damage_this_round == 0
+    assert not army.healing_hymn_triggered_this_round
+
+
+def test_multi_heal_trig_allows_more_rolls_but_one_trigger(monkeypatch):
+    hero = Hero("H", [], [], ["talent_healing_hymn"], SKILL_REGISTRY_GLOBAL)
+    army = Army("A", Unit("pikemen", 5, initial_count=10), heroes=[hero])
+    enemy = Army("E", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy, track_stats=False, multi_heal_trig_enabled=True)
+
+    _start_round(sim)
+    rolls = iter([0.9, 0.0, 0.0])
+    monkeypatch.setattr(random, "random", lambda: next(rolls))
+    army.calculate_and_add_pending_healing(1000.0, army, enemy)
+    assert enemy.pending_hp_damage_this_round == 0
+
+    army.calculate_and_add_pending_healing(1000.0, army, enemy)
+    dmg_after_second = enemy.pending_hp_damage_this_round
+    assert dmg_after_second > 0
+    assert army.healing_hymn_triggered_this_round
+
+    army.calculate_and_add_pending_healing(1000.0, army, enemy)
+    assert enemy.pending_hp_damage_this_round == dmg_after_second
+
+
 def test_maniacal_applies_one_hot_per_round(monkeypatch):
     monkeypatch.setattr(random, "random", lambda: 0.0)
     hero = Hero("H", [], [], ["talent_maniacal"], SKILL_REGISTRY_GLOBAL)

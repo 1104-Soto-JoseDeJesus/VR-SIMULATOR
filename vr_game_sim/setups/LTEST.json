@@ -2,8 +2,8 @@
     {
         "army_name": "Rosky/Rolfe",
         "unit_type": "pikemen",
-        "tier": 7,
-        "count": 300000,
+        "tier": 10,
+        "count": 200000,
         "is_rally": false,
         "rally_config": null,
         "atk_mod": 3.0,
@@ -33,10 +33,7 @@
                     "weapon": "gear_marine_halberd_legendary",
                     "chest": "gear_bylgjas_armor_legendary",
                     "boots": "gear_tsunami_plated_boots_legendary"
-                },
-                "mount_skill_ids": [
-                    "mount_hoof_strike"
-                ]
+                }
             },
             {
                 "hero_name_or_preset": "Rolfe",
@@ -53,9 +50,6 @@
                     "plugin_hymn_of_life",
                     "plugin_deadly_counterattack"
                 ],
-                "mount_skill_ids": [
-                    "mount_retaliation_fangs"
-                ],
                 "gear_ids": {
                     "head": "gear_abyssal_crown_legendary",
                     "weapon": "gear_marine_halberd_legendary",
@@ -68,8 +62,8 @@
     {
         "army_name": "Rosky/Naya",
         "unit_type": "pikemen",
-        "tier": 7,
-        "count": 300000,
+        "tier": 10,
+        "count": 200000,
         "is_rally": false,
         "rally_config": null,
         "atk_mod": 3.0,
@@ -99,10 +93,7 @@
                     "weapon": "gear_marine_halberd_legendary",
                     "chest": "gear_bylgjas_armor_legendary",
                     "boots": "gear_tsunami_plated_boots_legendary"
-                },
-                "mount_skill_ids": [
-                    "mount_power_swipe"
-                ]
+                }
             },
             {
                 "hero_name_or_preset": "Naya",
@@ -118,9 +109,6 @@
                 "plugin_skill_ids": [
                     "plugin_hymn_of_life",
                     "plugin_deadly_counterattack"
-                ],
-                "mount_skill_ids": [
-                    "mount_power_swipe"
                 ],
                 "gear_ids": {
                     "head": "gear_abyssal_crown_legendary",

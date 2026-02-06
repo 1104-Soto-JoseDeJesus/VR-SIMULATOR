@@ -1,0 +1,13 @@
+{
+  "categories": {
+    "gem": true,
+    "hero": true,
+    "mount": true,
+    "plugin": true
+  },
+  "global": {
+    "cooldowns_enabled": true,
+    "multi_heal_trig": true
+  },
+  "skills": {}
+}

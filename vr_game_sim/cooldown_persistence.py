@@ -11,7 +11,7 @@ DEFAULTS_PATH = os.path.join(os.path.dirname(__file__), "cooldown_defaults.json"
 def _default_payload() -> Dict[str, Any]:
     """Return the built-in fallback structure for cooldown defaults."""
     return {
-        "global": {"cooldowns_enabled": True},
+        "global": {"cooldowns_enabled": True, "multi_heal_trig": False},
         "categories": {
             "hero": True,
             "plugin": True,

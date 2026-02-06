@@ -117,6 +117,7 @@ class BattlefieldEngine:
         gem_cooldowns_enabled: bool | None = None,
         mount_cooldowns_enabled: bool | None = None,
         damage_reduction_affects_dots: bool = True,
+        multi_heal_trig_enabled: bool = False,
         advantage_mode: str = "multiplicative",
         per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
         fairness_rage_enabled: bool = True,
@@ -170,6 +171,7 @@ class BattlefieldEngine:
             if mount_cooldowns_enabled is None
             else bool(mount_cooldowns_enabled),
             "damage_reduction_affects_dots": bool(damage_reduction_affects_dots),
+            "multi_heal_trig_enabled": bool(multi_heal_trig_enabled),
             "advantage_mode": advantage_mode,
             "per_skill_cooldown_overrides": dict(per_skill_cooldown_overrides)
             if per_skill_cooldown_overrides
@@ -194,6 +196,7 @@ class BattlefieldEngine:
         gem_cooldowns_enabled: Any = _UNSET,
         mount_cooldowns_enabled: Any = _UNSET,
         damage_reduction_affects_dots: Any = _UNSET,
+        multi_heal_trig_enabled: Any = _UNSET,
         advantage_mode: Any = _UNSET,
         per_skill_cooldown_overrides: Any = _UNSET,
         fairness_rage_enabled: Any = _UNSET,
@@ -221,6 +224,10 @@ class BattlefieldEngine:
         if damage_reduction_affects_dots is not self._UNSET:
             self._simulator_kwargs["damage_reduction_affects_dots"] = bool(
                 damage_reduction_affects_dots
+            )
+        if multi_heal_trig_enabled is not self._UNSET:
+            self._simulator_kwargs["multi_heal_trig_enabled"] = bool(
+                multi_heal_trig_enabled
             )
         if advantage_mode is not self._UNSET:
             self._simulator_kwargs["advantage_mode"] = advantage_mode

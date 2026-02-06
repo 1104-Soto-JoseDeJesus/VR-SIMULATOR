@@ -178,6 +178,7 @@ class GameSimulator:
         gem_cooldowns_enabled: bool | None = None,
         mount_cooldowns_enabled: bool | None = None,
         damage_reduction_affects_dots: bool = True,
+        multi_heal_trig_enabled: bool = False,
         advantage_mode: str = "multiplicative",
         per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
         fairness_rage_enabled: bool = True,
@@ -211,6 +212,7 @@ class GameSimulator:
             dict(per_skill_cooldown_overrides) if per_skill_cooldown_overrides is not None else {}
         )
         self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
+        self.multi_heal_trig_enabled: bool = bool(multi_heal_trig_enabled)
         self.fairness_rage_enabled: bool = bool(fairness_rage_enabled)
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
@@ -1215,10 +1217,14 @@ class GameSimulator:
                             cooldown_key_early = str(instance_key)
                         trigger_key_early = cooldown_key_early
                     rolls_set = getattr(triggering_army, "on_receiving_healing_rolls_this_round", None)
-                    if rolls_set is not None and trigger_key_early in rolls_set:
+                    if (
+                        not self.multi_heal_trig_enabled
+                        and rolls_set is not None
+                        and trigger_key_early in rolls_set
+                    ):
                         continue
                     roll_passed = random.random() < final_chance
-                    if rolls_set is not None:
+                    if rolls_set is not None and not self.multi_heal_trig_enabled:
                         rolls_set.add(trigger_key_early)
                 else:
                     roll_passed = random.random() < final_chance

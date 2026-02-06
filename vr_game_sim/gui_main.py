@@ -5567,6 +5567,7 @@ class SimulationWorker(QtCore.QThread):
         gem_cooldowns_enabled: bool = True,
         mount_cooldowns_enabled: bool = True,
         damage_reduction_affects_dots: bool = True,
+        multi_heal_trig_enabled: bool = False,
         fairness_rage_enabled: bool = True,
         advantage_mode: str = "multiplicative",
         max_rounds: int | None = None,
@@ -5587,6 +5588,7 @@ class SimulationWorker(QtCore.QThread):
         self.gem_cooldowns_enabled: bool = bool(gem_cooldowns_enabled)
         self.mount_cooldowns_enabled: bool = bool(mount_cooldowns_enabled)
         self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
+        self.multi_heal_trig_enabled: bool = bool(multi_heal_trig_enabled)
         self.fairness_rage_enabled: bool = bool(fairness_rage_enabled)
         self.advantage_mode: str = advantage_mode
         # Optional per-skill cooldown overrides applied to the representative
@@ -5619,6 +5621,7 @@ class SimulationWorker(QtCore.QThread):
                 plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
                 gem_cooldowns_enabled=self.gem_cooldowns_enabled,
                 mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+                multi_heal_trig_enabled=self.multi_heal_trig_enabled,
                 fairness_rage_enabled=self.fairness_rage_enabled,
                 advantage_mode=self.advantage_mode,
                 max_rounds=self.max_rounds,
@@ -5667,6 +5670,7 @@ class SimulationWorker(QtCore.QThread):
                 gem_cooldowns_enabled=self.gem_cooldowns_enabled,
                 mount_cooldowns_enabled=self.mount_cooldowns_enabled,
                 damage_reduction_affects_dots=self.damage_reduction_affects_dots,
+                multi_heal_trig_enabled=self.multi_heal_trig_enabled,
                 fairness_rage_enabled=self.fairness_rage_enabled,
                 advantage_mode=self.advantage_mode,
                 per_skill_cooldown_overrides=self.per_skill_cooldown_overrides,
@@ -6159,6 +6163,7 @@ class ArenaTab(QtWidgets.QWidget):
         gem_cooldowns = True
         mount_cooldowns = True
         damage_reduction = True
+        multi_heal_trig = False
         advantage_mode = "multiplicative"
         max_rounds = None
         if window is not None:
@@ -6173,6 +6178,9 @@ class ArenaTab(QtWidgets.QWidget):
             damage_reduction = bool(
                 getattr(window, "damage_reduction_affects_dots", damage_reduction)
             )
+            multi_heal_trig = bool(
+                getattr(window, "multi_heal_trig_enabled", multi_heal_trig)
+            )
             fairness_rage = bool(getattr(window, "fairness_rage_enabled", True))
             advantage_mode = getattr(window, "troop_advantage_mode", advantage_mode)
             if hasattr(window, "max_rounds_checkbox") and hasattr(window, "max_rounds_spin"):
@@ -6186,6 +6194,7 @@ class ArenaTab(QtWidgets.QWidget):
             "gem_cooldowns_enabled": gem_cooldowns,
             "mount_cooldowns_enabled": mount_cooldowns,
             "damage_reduction_affects_dots": damage_reduction,
+            "multi_heal_trig_enabled": multi_heal_trig,
             "fairness_rage_enabled": fairness_rage,
             "advantage_mode": advantage_mode,
             "max_rounds": max_rounds,  # This is used by _simulate_arena_battle, not by the engine
@@ -7519,11 +7528,13 @@ class MainWindow(QtWidgets.QMainWindow):
         # sessions.  Category level flags are initialised from the stored
         # configuration but continue to be tweakable via the Debug menu.
         _cd_defaults = load_cooldown_defaults()
+        global_defaults = _cd_defaults.get("global", {})
         cat_defaults = _cd_defaults.get("categories", {})
         self.hero_cooldowns_enabled: bool = bool(cat_defaults.get("hero", True))
         self.plugin_cooldowns_enabled: bool = bool(cat_defaults.get("plugin", True))
         self.gem_cooldowns_enabled: bool = bool(cat_defaults.get("gem", True))
         self.mount_cooldowns_enabled: bool = bool(cat_defaults.get("mount", True))
+        self.multi_heal_trig_enabled: bool = bool(global_defaults.get("multi_heal_trig", False))
         # Per-skill overrides shared between 1v1 and arena simulations.  This
         # mapping is persisted via the cooldown defaults file and interpreted by
         # :class:`GameSimulator` using ``per_skill_cooldown_overrides``.
@@ -7593,6 +7604,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def _on_mount_cooldowns_toggled(self, checked: bool) -> None:
         self.mount_cooldowns_enabled = bool(checked)
 
+    def _on_multi_heal_trig_toggled(self, checked: bool) -> None:
+        self.multi_heal_trig_enabled = bool(checked)
+        self._save_cooldown_defaults()
+
     def _on_dot_damage_reduction_toggled(self, checked: bool) -> None:
         self.damage_reduction_affects_dots = bool(checked)
 
@@ -7609,7 +7624,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def _build_cooldown_defaults_payload(self) -> dict[str, Any]:
         """Serialise current cooldown settings into the persistence schema."""
         return {
-            "global": {"cooldowns_enabled": bool(self.hero_cooldowns_enabled)},
+            "global": {
+                "cooldowns_enabled": bool(self.hero_cooldowns_enabled),
+                "multi_heal_trig": bool(self.multi_heal_trig_enabled),
+            },
             "categories": {
                 "hero": bool(self.hero_cooldowns_enabled),
                 "plugin": bool(self.plugin_cooldowns_enabled),
@@ -7823,6 +7841,10 @@ class MainWindow(QtWidgets.QMainWindow):
         fairness_rage_action.setCheckable(True)
         fairness_rage_action.setChecked(self.fairness_rage_enabled)
         fairness_rage_action.toggled.connect(self._on_fairness_rage_toggled)
+        multi_heal_trig_action = dbg_menu.addAction("Multi-Heal-TRIG")
+        multi_heal_trig_action.setCheckable(True)
+        multi_heal_trig_action.setChecked(self.multi_heal_trig_enabled)
+        multi_heal_trig_action.toggled.connect(self._on_multi_heal_trig_toggled)
         pairing_action = dbg_menu.addAction("Heal/Shield Pairing Multipliers…")
         pairing_action.triggered.connect(self._open_heal_shield_pairing_dialog)
         shield_consumption_action = dbg_menu.addAction("Shield consumption…")
@@ -13585,6 +13607,7 @@ class MainWindow(QtWidgets.QMainWindow):
             gem_cooldowns_enabled=self.gem_cooldowns_enabled,
             mount_cooldowns_enabled=self.mount_cooldowns_enabled,
             damage_reduction_affects_dots=self.damage_reduction_affects_dots,
+            multi_heal_trig_enabled=self.multi_heal_trig_enabled,
             fairness_rage_enabled=self.fairness_rage_enabled,
             advantage_mode=self.troop_advantage_mode,
             max_rounds=max_rounds,

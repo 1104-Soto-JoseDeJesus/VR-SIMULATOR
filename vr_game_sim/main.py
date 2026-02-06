@@ -288,6 +288,7 @@ def _run_single_battle(
     plugin_cooldowns_enabled: Optional[bool] = None,
     gem_cooldowns_enabled: Optional[bool] = None,
     mount_cooldowns_enabled: Optional[bool] = None,
+    multi_heal_trig_enabled: bool = False,
     fairness_rage_enabled: bool = True,
     max_rounds: int | None = None,
     per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
@@ -347,6 +348,7 @@ def _run_single_battle(
         plugin_cooldowns_enabled=plugin_cd,
         gem_cooldowns_enabled=gem_cd,
         mount_cooldowns_enabled=mount_cd,
+        multi_heal_trig_enabled=multi_heal_trig_enabled,
         advantage_mode=advantage_mode,
         fairness_rage_enabled=fairness_rage_enabled,
         per_skill_cooldown_overrides=per_skill_cooldown_overrides,
@@ -384,6 +386,7 @@ def _run_single_battle_with_multiplier(
     plugin_cooldowns_enabled: Optional[bool] = None,
     gem_cooldowns_enabled: Optional[bool] = None,
     mount_cooldowns_enabled: Optional[bool] = None,
+    multi_heal_trig_enabled: bool = False,
     fairness_rage_enabled: bool = True,
     max_rounds: int | None = None,
     per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
@@ -399,6 +402,7 @@ def _run_single_battle_with_multiplier(
         plugin_cooldowns_enabled=plugin_cooldowns_enabled,
         gem_cooldowns_enabled=gem_cooldowns_enabled,
         mount_cooldowns_enabled=mount_cooldowns_enabled,
+        multi_heal_trig_enabled=multi_heal_trig_enabled,
         fairness_rage_enabled=fairness_rage_enabled,
         max_rounds=max_rounds,
         per_skill_cooldown_overrides=per_skill_cooldown_overrides,
@@ -419,6 +423,7 @@ def run_additional_simulations(
     plugin_cooldowns_enabled: Optional[bool] = None,
     gem_cooldowns_enabled: Optional[bool] = None,
     mount_cooldowns_enabled: Optional[bool] = None,
+    multi_heal_trig_enabled: bool = False,
     advantage_mode: str = "multiplicative",
     fairness_rage_enabled: bool = True,
     max_rounds: int | None = None,
@@ -486,6 +491,7 @@ def run_additional_simulations(
             plugin_cd_iter = repeat(plugin_cd, runs)
             gem_cd_iter = repeat(gem_cd, runs)
             mount_cd_iter = repeat(mount_cd, runs)
+            multi_heal_iter = repeat(bool(multi_heal_trig_enabled), runs)
             max_rounds_iter = repeat(max_rounds, runs)
             results_iter = ex.map(
                 _run_single_battle_with_multiplier,
@@ -499,6 +505,7 @@ def run_additional_simulations(
                 plugin_cd_iter,
                 gem_cd_iter,
                 mount_cd_iter,
+                multi_heal_iter,
                 fairness_rage_iter,
                 max_rounds_iter,
             )
@@ -544,6 +551,7 @@ def run_additional_simulations(
                 plugin_cooldowns_enabled=plugin_cd,
                 gem_cooldowns_enabled=gem_cd,
                 mount_cooldowns_enabled=mount_cd,
+                multi_heal_trig_enabled=multi_heal_trig_enabled,
                 fairness_rage_enabled=fairness_rage_enabled,
                 max_rounds=max_rounds,
             )

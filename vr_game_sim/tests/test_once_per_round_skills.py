@@ -29,6 +29,7 @@ def _start_round(sim: GameSimulator) -> None:
         army.skill_triggers_against_this_round.clear()
         army.maniacal_hot_triggered_this_round = False
         army.healing_hymn_triggered_this_round = False
+        army.forceful_ambush_shield_triggered_this_round = False
         army.base_rage_awarded_this_round = False
 
 

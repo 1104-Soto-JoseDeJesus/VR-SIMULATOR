@@ -7,7 +7,7 @@
   },
   "global": {
     "cooldowns_enabled": true,
-    "multi_heal_trig": true
+    "multi_heal_trig": false
   },
   "skills": {}
 }

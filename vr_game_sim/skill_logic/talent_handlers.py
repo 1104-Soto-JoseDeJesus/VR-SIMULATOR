@@ -4038,6 +4038,7 @@ def handle_talent_forceful_ambush(
             )
             if created_shield:
                 an_effect_happened = True
+                triggering_army.forceful_ambush_shield_triggered_this_round = True
                 est_mag = (
                     simulator._calculate_shield_magnitude_for_logging(triggering_army, opponent_army, float(shield_factor))
                     if simulator

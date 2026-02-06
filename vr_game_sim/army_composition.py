@@ -45,6 +45,7 @@ from .constants import (
     EFFECT_NAME_DIVINE_AWE_CLEANSE,
     EFFECT_NAME_BLESSED_DEW_CLEANSE,
     EFFECT_NAME_WINTERS_CORONATION_PURIFY,
+    EFFECT_NAME_FORCEFUL_AMBUSH_SHIELD,
     EFFECT_NAME_SAINTLY_GUARDIAN_SHIELD_BOOST,
     EFFECT_NAME_WAR_BLESSING_SHIELD,
     EFFECT_NAME_JUDGEMENT_FURY_COUNTER_BUFF,
@@ -156,6 +157,7 @@ class Army:
     base_rage_awarded_this_round: bool = field(init=False, default=False)
     maniacal_hot_triggered_this_round: bool = field(init=False, default=False)
     healing_hymn_triggered_this_round: bool = field(init=False, default=False)
+    forceful_ambush_shield_triggered_this_round: bool = field(init=False, default=False)
     started_round_with_active_shield: bool = field(init=False, default=False)
     started_last_round_with_active_shield: bool = field(init=False, default=False)
     hero1_rage_skill_cast_blocked_by_silence_this_round: bool = field(init=False, default=False)
@@ -840,6 +842,13 @@ class Army:
         calculation_steps: Optional[list[dict[str, Any]]] = None,
     ) -> float:
         if not self.simulator or healer_army.current_troop_count <= 0: return 0.0
+        multi_heal_enabled = bool(
+            getattr(self.simulator, "multi_heal_trig_enabled", False)
+        )
+        forceful_ambush_triggered_before = (
+            multi_heal_enabled
+            and "talent_forceful_ambush" in self.triggered_skills_this_round
+        )
 
         healer_atk = healer_army.unit.effective_attack(healer_army.active_effects)
         healer_troop_scalar = self.simulator.troop_scalar(healer_army.current_troop_count)
@@ -928,6 +937,188 @@ class Army:
                     {"label": "Heal factor", "value": heal_factor},
                     {"label": "Heal multiplier", "value": heal_adj_mult},
                     {"label": "Pairing multiplier", "value": pairing_mult},
+                    {"label": "Healed HP", "value": hp_healed_raw},
+                ]
+            )
+
+        if hp_healed_raw > 0:
+            self.pending_hp_healing_this_round += hp_healed_raw
+            if source_skill_id:
+                skill_map = self.heal_contributors_this_round.setdefault(
+                    healer_army.name, {}
+                )
+                skill_map[source_skill_id] = skill_map.get(source_skill_id, 0.0) + hp_healed_raw
+            self.simulator._process_skill_triggers(
+                self,
+                opponent_of_healer,
+                SkillTriggerType.ON_RECEIVING_HEALING,
+                event_data={
+                    'healed_army': self,
+                    'opponent_for_shield_calc': opponent_of_healer,
+                    'heal_amount_hp': hp_healed_raw,
+                    'source_heal_factor': heal_factor,
+                },
+            )
+            if forceful_ambush_triggered_before:
+                self._maybe_roll_forceful_ambush_shield(opponent_of_healer)
+            self.activate_queued_effects()
+            if opponent_of_healer.current_troop_count > 0:
+                opponent_of_healer.activate_queued_effects()
+            return hp_healed_raw
+        elif heal_factor > 0:
+            self.simulator._process_skill_triggers(
+                self,
+                opponent_of_healer,
+                SkillTriggerType.ON_RECEIVING_HEALING,
+                event_data={
+                    'healed_army': self,
+                    'opponent_for_shield_calc': opponent_of_healer,
+                    'heal_amount_hp': 0,
+                    'source_heal_factor': heal_factor,
+                },
+            )
+            if forceful_ambush_triggered_before:
+                self._maybe_roll_forceful_ambush_shield(opponent_of_healer)
+            self.activate_queued_effects()
+            if opponent_of_healer.current_troop_count > 0:
+                opponent_of_healer.activate_queued_effects()
+            return 0.0
+        return 0.0
+
+    def _maybe_roll_forceful_ambush_shield(self, opponent_of_healer: 'Army') -> None:
+        if self.forceful_ambush_shield_triggered_this_round:
+            return
+        sim = self.simulator
+        if not sim or not getattr(sim, "multi_heal_trig_enabled", False):
+            return
+        if opponent_of_healer is None:
+            return
+        skill_def = SKILL_REGISTRY_GLOBAL.get("talent_forceful_ambush")
+        if not skill_def:
+            return
+        skill_config = skill_def.get("config", {})
+        shield_chance = float(skill_config.get("shield_chance", 0.0))
+        shield_factor = float(skill_config.get("shield_factor", 0.0))
+        shield_duration = int(round(float(skill_config.get("shield_duration", 1))))
+        if shield_chance <= 0 or shield_factor <= 0:
+            return
+        if random.random() >= shield_chance:
+            return
+        shield_data = {
+            "effect_type": EffectType.SHIELD,
+            "name": EFFECT_NAME_FORCEFUL_AMBUSH_SHIELD,
+            "duration": shield_duration,
+            "magnitude_calc_type": "dynamic_shield_resistance_v1",
+            "shield_factor": shield_factor,
+            "activate_next_round": True,
+        }
+        created_shield = self._create_and_add_single_effect(
+            shield_data, skill_def["id"], self, self, opponent_of_healer
+        )
+        if created_shield:
+            self.forceful_ambush_shield_triggered_this_round = True
+            est_mag = (
+                sim._calculate_shield_magnitude_for_logging(self, opponent_of_healer, shield_factor)
+                if sim
+                else created_shield.magnitude
+            )
+            sim._log_skill_trigger(
+                self,
+                skill_def.get("name", skill_def["id"]),
+                f"Multi-Heal-TRIG: gains '{EFFECT_NAME_FORCEFUL_AMBUSH_SHIELD}' ({created_shield.get_functionality_description()}), "
+                f"active for {created_shield.duration + 1} rounds. Est. Mag: {est_mag:.0f}",
+                damage_details={"shield_hp_gained": round(est_mag)},
+            )
+
+    def _calculate_and_add_pending_healing_snapshot(
+        self,
+        *,
+        heal_factor: float,
+        healer_army: 'Army',
+        opponent_of_healer: 'Army',
+        source_skill_id: str | None = None,
+        crit_bonus: float | None = None,
+        calculation_steps: Optional[list[dict[str, Any]]] = None,
+        snapshot_config: Dict[str, Any],
+    ) -> float:
+        if not self.simulator or healer_army.current_troop_count <= 0:
+            return 0.0
+
+        snap_healer_atk = snapshot_config.get("snapshotted_heal_attacker_atk")
+        snap_troop_scalar = snapshot_config.get("snapshotted_heal_troop_scalar")
+        snap_opp_def = snapshot_config.get("snapshotted_heal_opponent_def")
+        snap_total_heal_adj = snapshot_config.get("snapshotted_heal_adj_total")
+        snap_pairing_mult = snapshot_config.get("snapshotted_heal_pairing_mult")
+        snap_positive_heal_adj_effects = snapshot_config.get(
+            "snapshotted_heal_adj_positive_effects", []
+        )
+
+        if (
+            snap_healer_atk is None
+            or snap_troop_scalar is None
+            or snap_opp_def is None
+            or snap_total_heal_adj is None
+            or snap_pairing_mult is None
+        ):
+            return self.calculate_and_add_pending_healing(
+                heal_factor,
+                healer_army,
+                opponent_of_healer,
+                source_skill_id=source_skill_id,
+                crit_bonus=crit_bonus,
+                calculation_steps=calculation_steps,
+            )
+
+        total_positive_heal_adj = sum(
+            entry.get("magnitude", 0.0) for entry in snap_positive_heal_adj_effects
+        )
+        total_negative_heal_adj = snap_total_heal_adj - total_positive_heal_adj
+        effective_crit_bonus = float(crit_bonus or 0.0)
+        heal_adj_mult = 1.0 + total_negative_heal_adj + total_positive_heal_adj + effective_crit_bonus
+
+        hp_healed_raw = round(
+            (float(snap_healer_atk) / float(snap_opp_def))
+            * float(snap_troop_scalar)
+            * (heal_factor / 200.0)
+            * heal_adj_mult
+        )
+
+        if hp_healed_raw > 0 and total_positive_heal_adj > 0:
+            base_mult = 1.0 + total_negative_heal_adj + effective_crit_bonus
+            hp_without_boost = round(
+                (float(snap_healer_atk) / float(snap_opp_def))
+                * float(snap_troop_scalar)
+                * (heal_factor / 200.0)
+                * base_mult
+            )
+            extra_hp = hp_healed_raw - hp_without_boost
+            if extra_hp > 0:
+                hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)
+                if hp_per_troop <= 0:
+                    hp_per_troop = 1
+                for entry in snap_positive_heal_adj_effects:
+                    magnitude = entry.get("magnitude", 0.0)
+                    if magnitude <= 0:
+                        continue
+                    weight = magnitude / total_positive_heal_adj
+                    troops = (extra_hp * weight) / hp_per_troop
+                    sid = entry.get("source_skill_id")
+                    if sid:
+                        self.skill_heal_boost_totals[sid] = (
+                            self.skill_heal_boost_totals.get(sid, 0.0) + troops
+                        )
+
+        hp_healed_raw = round(hp_healed_raw * float(snap_pairing_mult))
+
+        if calculation_steps is not None:
+            calculation_steps.extend(
+                [
+                    {"label": "Healer ATK", "value": snap_healer_atk},
+                    {"label": "Opponent DEF", "value": snap_opp_def},
+                    {"label": "Troop scalar", "value": snap_troop_scalar},
+                    {"label": "Heal factor", "value": heal_factor},
+                    {"label": "Heal multiplier", "value": heal_adj_mult},
+                    {"label": "Pairing multiplier", "value": snap_pairing_mult},
                     {"label": "Healed HP", "value": hp_healed_raw},
                 ]
             )
@@ -1240,6 +1431,42 @@ class Army:
 
         if effect_data.get("effect_type") == EffectType.HEAL_OVER_TIME and crit_bonus:
             final_config["crit_bonus"] = crit_bonus
+
+        if effect_data.get("effect_type") == EffectType.HEAL_OVER_TIME:
+            if owner_army and target_army and opponent_of_owner_for_calc and self.simulator:
+                snap_healer_atk = owner_army.unit.effective_attack(owner_army.active_effects)
+                snap_troop_scalar = self.simulator.troop_scalar(owner_army.current_troop_count)
+                snap_opp_def = opponent_of_owner_for_calc.unit.effective_defense(
+                    opponent_of_owner_for_calc.active_effects
+                )
+                if snap_opp_def == 0:
+                    snap_opp_def = 1
+                snap_total_heal_adj = target_army.get_sum_stat_magnitudes(StatType.HEAL_ADJUSTMENT)
+                snap_positive_heal_adj_effects = [
+                    {"source_skill_id": eff.source_skill_id, "magnitude": eff.magnitude}
+                    for eff in target_army.active_effects
+                    if eff.effect_type == EffectType.STAT_MOD
+                    and eff.config.get("stat_to_mod") == StatType.HEAL_ADJUSTMENT
+                    and eff.magnitude > 0
+                ]
+                pairing_opponent = target_army._get_pairing_opponent_for_heal(
+                    owner_army, opponent_of_owner_for_calc
+                )
+                snap_pairing_mult = (
+                    heal_shield_pairing_config.get_multiplier(
+                        owner_army.unit.unit_type,
+                        pairing_opponent.unit.unit_type,
+                        "heal",
+                    )
+                    if pairing_opponent
+                    else 1.0
+                )
+                final_config["snapshotted_heal_attacker_atk"] = snap_healer_atk
+                final_config["snapshotted_heal_troop_scalar"] = snap_troop_scalar
+                final_config["snapshotted_heal_opponent_def"] = snap_opp_def
+                final_config["snapshotted_heal_adj_total"] = snap_total_heal_adj
+                final_config["snapshotted_heal_adj_positive_effects"] = snap_positive_heal_adj_effects
+                final_config["snapshotted_heal_pairing_mult"] = snap_pairing_mult
 
         if effect_data.get("stat_to_mod") and "stat_to_mod" not in final_config: final_config["stat_to_mod"] = \
         effect_data["stat_to_mod"]
@@ -1923,14 +2150,25 @@ class Army:
                 if opponent:
                     heal_trace: list[dict[str, Any]] = []
                     crit_bonus = float(effect.config.get("crit_bonus", 0.0) or 0.0)
-                    hot_amount_this_tick = self.calculate_and_add_pending_healing(
-                        heal_factor=effect.magnitude,
-                        healer_army=self,
-                        opponent_of_healer=opponent,
-                        source_skill_id=effect.source_skill_id,
-                        crit_bonus=crit_bonus,
-                        calculation_steps=heal_trace,
-                    )
+                    if "snapshotted_heal_attacker_atk" in effect.config:
+                        hot_amount_this_tick = self._calculate_and_add_pending_healing_snapshot(
+                            heal_factor=effect.magnitude,
+                            healer_army=self,
+                            opponent_of_healer=opponent,
+                            source_skill_id=effect.source_skill_id,
+                            crit_bonus=crit_bonus,
+                            calculation_steps=heal_trace,
+                            snapshot_config=effect.config,
+                        )
+                    else:
+                        hot_amount_this_tick = self.calculate_and_add_pending_healing(
+                            heal_factor=effect.magnitude,
+                            healer_army=self,
+                            opponent_of_healer=opponent,
+                            source_skill_id=effect.source_skill_id,
+                            crit_bonus=crit_bonus,
+                            calculation_steps=heal_trace,
+                        )
                     if hot_amount_this_tick > 0 and self.simulator:
                         self.simulator._log_skill_trigger(
                             self,
@@ -2099,6 +2337,7 @@ class Army:
         self.started_round_with_active_shield = False
         self.started_last_round_with_active_shield = False
         self.healing_hymn_triggered_this_round = False
+        self.forceful_ambush_shield_triggered_this_round = False
         self.hero1_rage_skill_cast_blocked_by_silence_this_round = False
         self.army_round = 0
 

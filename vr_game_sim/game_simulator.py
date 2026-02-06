@@ -2419,6 +2419,7 @@ class GameSimulator:
                 army.mount_skill_dot_hot_applied_this_round.clear()
                 army.maniacal_hot_triggered_this_round = False
                 army.healing_hymn_triggered_this_round = False
+                army.forceful_ambush_shield_triggered_this_round = False
                 army.base_rage_awarded_this_round = False
 
             for army in [self.army1, self.army2]:

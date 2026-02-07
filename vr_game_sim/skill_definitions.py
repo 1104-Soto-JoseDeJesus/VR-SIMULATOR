@@ -722,7 +722,12 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_base_skill_nayas_hunting_instinct,
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"damage_factor": 600.0, "boosted_damage_factor": 1000.0, "debuff_duration": 0}
+        "config": {
+            "damage_factor": 600.0,
+            "boosted_damage_factor": 1000.0,
+            "debuff_duration": 0,
+            "cooldown_rounds": 3,
+        }
     },
     "base_skill_flame_guardian": {
         "id": "base_skill_flame_guardian", "name": "Flame Guardian", "type": SkillType.BASE_SKILL,

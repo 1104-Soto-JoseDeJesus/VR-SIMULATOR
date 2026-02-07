@@ -164,6 +164,30 @@ class GameSimulator:
 
         return self.hero_cooldowns_enabled
 
+    def _reset_active_cast_interval_if_needed(
+        self, triggering_army: Army, cooldown_key: str, current_round: int
+    ) -> List[int]:
+        trigger_rounds = triggering_army.skill_active_cast_trigger_rounds.get(
+            cooldown_key, []
+        )
+        if trigger_rounds:
+            interval_start = min(trigger_rounds)
+            if current_round >= interval_start + 9:
+                trigger_rounds = []
+                triggering_army.skill_active_cast_trigger_rounds[cooldown_key] = (
+                    trigger_rounds
+                )
+        return trigger_rounds
+
+    @staticmethod
+    def _advance_interval_start(
+        interval_start: int, current_round: int, interval_length: int
+    ) -> int:
+        if current_round >= interval_start + interval_length:
+            steps = (current_round - interval_start) // interval_length
+            interval_start += steps * interval_length
+        return interval_start
+
     def __init__(
         self,
         army1: Army,
@@ -179,6 +203,7 @@ class GameSimulator:
         mount_cooldowns_enabled: bool | None = None,
         damage_reduction_affects_dots: bool = True,
         multi_heal_trig_enabled: bool = False,
+        interval_active_cast_cooldowns_enabled: bool = True,
         advantage_mode: str = "multiplicative",
         per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
         fairness_rage_enabled: bool = True,
@@ -213,6 +238,9 @@ class GameSimulator:
         )
         self.damage_reduction_affects_dots: bool = bool(damage_reduction_affects_dots)
         self.multi_heal_trig_enabled: bool = bool(multi_heal_trig_enabled)
+        self.interval_active_cast_cooldowns_enabled: bool = bool(
+            interval_active_cast_cooldowns_enabled
+        )
         self.fairness_rage_enabled: bool = bool(fairness_rage_enabled)
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
@@ -1271,42 +1299,103 @@ class GameSimulator:
                         trigger_rounds = triggering_army.skill_trigger_window_rounds.get(
                             cooldown_key, []
                         )
-                        recent_triggers = [
-                            r for r in trigger_rounds if current_round - r < window_rounds
-                        ]
-                        if len(recent_triggers) >= max_triggers_per_window:
-                            continue
-                        triggering_army.skill_trigger_window_rounds[cooldown_key] = recent_triggers
+                        if self.interval_active_cast_cooldowns_enabled:
+                            interval_start = triggering_army.skill_interval_start_rounds.get(
+                                cooldown_key
+                            )
+                            if interval_start is None and trigger_rounds:
+                                interval_start = min(trigger_rounds)
+                                triggering_army.skill_interval_start_rounds[
+                                    cooldown_key
+                                ] = interval_start
+                            if interval_start is not None:
+                                advanced_start = self._advance_interval_start(
+                                    interval_start, current_round, window_rounds
+                                )
+                                if advanced_start != interval_start:
+                                    interval_start = advanced_start
+                                    triggering_army.skill_interval_start_rounds[
+                                        cooldown_key
+                                    ] = interval_start
+                                    trigger_rounds = []
+                            if len(trigger_rounds) >= max_triggers_per_window:
+                                continue
+                            triggering_army.skill_trigger_window_rounds[
+                                cooldown_key
+                            ] = trigger_rounds
+                        else:
+                            recent_triggers = [
+                                r for r in trigger_rounds if current_round - r < window_rounds
+                            ]
+                            if len(recent_triggers) >= max_triggers_per_window:
+                                continue
+                            triggering_army.skill_trigger_window_rounds[
+                                cooldown_key
+                            ] = recent_triggers
 
                     is_on_cooldown = False
                     if cooldown is not None:
-                        last_triggered = triggering_army.skill_last_triggered_round.get(
-                            cooldown_key, -(cooldown + 1)
-                        )
-                        if triggering_army.army_round < last_triggered + cooldown:
-                            is_on_cooldown = True
+                        current_round = triggering_army.army_round
+                        if self.interval_active_cast_cooldowns_enabled and cooldown > 1:
+                            interval_start = triggering_army.skill_interval_start_rounds.get(
+                                cooldown_key
+                            )
+                            last_triggered = triggering_army.skill_last_triggered_round.get(
+                                cooldown_key
+                            )
+                            if interval_start is None and last_triggered is not None:
+                                interval_start = last_triggered
+                                triggering_army.skill_interval_start_rounds[
+                                    cooldown_key
+                                ] = interval_start
+                            if interval_start is not None:
+                                interval_start = self._advance_interval_start(
+                                    interval_start, current_round, cooldown
+                                )
+                                triggering_army.skill_interval_start_rounds[
+                                    cooldown_key
+                                ] = interval_start
+                            if (
+                                interval_start is not None
+                                and last_triggered is not None
+                                and last_triggered >= interval_start
+                            ):
+                                is_on_cooldown = True
+                        else:
+                            last_triggered = triggering_army.skill_last_triggered_round.get(
+                                cooldown_key, -(cooldown + 1)
+                            )
+                            if triggering_army.army_round < last_triggered + cooldown:
+                                is_on_cooldown = True
                     if is_on_cooldown:
                         continue
 
-                    # New cooldown for skills that trigger on active skill casts: 2 triggers max in 9 rounds
-                    # Some skills have 1 trigger max in 9 rounds instead
-                    # Only apply if cooldowns are enabled for this skill type
+                    # Active-cast cooldowns: 1-2 triggers per 9 rounds (interval or rolling window).
+                    # Only apply if cooldowns are enabled for this skill type.
                     if skill_def["trigger"] in (SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, SkillTriggerType.ON_OWN_COMMAND_SKILL_CAST):
                         cooldown_enabled_for_active_cast = self._cooldown_enabled_for_skill(skill_def)
                         if cooldown_enabled_for_active_cast:
                             max_triggers_limit = 1 if skill_id in ACTIVE_CAST_ONE_TRIGGER_SKILLS else 2
-                            
-                            trigger_rounds = triggering_army.skill_active_cast_trigger_rounds.get(cooldown_key, [])
                             current_round = triggering_army.army_round
-                            
-                            # Filter out old triggers (more than 9 rounds ago)
-                            recent_triggers = [r for r in trigger_rounds if current_round - r < 9]
-                            
-                            # Block if we've reached the max triggers in the last 9 rounds
-                            if len(recent_triggers) >= max_triggers_limit:
-                                oldest_recent_trigger = min(recent_triggers)
-                                if current_round - oldest_recent_trigger < 9:
+                            if self.interval_active_cast_cooldowns_enabled:
+                                trigger_rounds = self._reset_active_cast_interval_if_needed(
+                                    triggering_army, cooldown_key, current_round
+                                )
+                                if len(trigger_rounds) >= max_triggers_limit:
                                     continue
+                            else:
+                                trigger_rounds = triggering_army.skill_active_cast_trigger_rounds.get(
+                                    cooldown_key, []
+                                )
+                                # Filter out old triggers (more than 9 rounds ago)
+                                recent_triggers = [
+                                    r for r in trigger_rounds if current_round - r < 9
+                                ]
+                                # Block if we've reached the max triggers in the last 9 rounds
+                                if len(recent_triggers) >= max_triggers_limit:
+                                    oldest_recent_trigger = min(recent_triggers)
+                                    if current_round - oldest_recent_trigger < 9:
+                                        continue
 
                     max_triggers = 1
                     max_triggers_per_target = 1
@@ -1488,17 +1577,53 @@ class GameSimulator:
                             )
 
                         if cooldown is not None:
-                            triggering_army.skill_last_triggered_round[cooldown_key] = triggering_army.army_round
+                            current_round = triggering_army.army_round
+                            triggering_army.skill_last_triggered_round[cooldown_key] = current_round
+                            if self.interval_active_cast_cooldowns_enabled and cooldown > 1:
+                                if (
+                                    cooldown_key
+                                    not in triggering_army.skill_interval_start_rounds
+                                ):
+                                    triggering_army.skill_interval_start_rounds[
+                                        cooldown_key
+                                    ] = current_round
                         if use_window_limit:
                             current_round = triggering_army.army_round
                             trigger_rounds = triggering_army.skill_trigger_window_rounds.get(
                                 cooldown_key, []
                             )
-                            trigger_rounds = [
-                                r for r in trigger_rounds if current_round - r < window_rounds
-                            ]
-                            trigger_rounds.append(current_round)
-                            triggering_army.skill_trigger_window_rounds[cooldown_key] = trigger_rounds
+                            if self.interval_active_cast_cooldowns_enabled:
+                                interval_start = triggering_army.skill_interval_start_rounds.get(
+                                    cooldown_key
+                                )
+                                if interval_start is None:
+                                    triggering_army.skill_interval_start_rounds[
+                                        cooldown_key
+                                    ] = current_round
+                                    trigger_rounds = []
+                                else:
+                                    advanced_start = self._advance_interval_start(
+                                        interval_start, current_round, window_rounds
+                                    )
+                                    if advanced_start != interval_start:
+                                        triggering_army.skill_interval_start_rounds[
+                                            cooldown_key
+                                        ] = advanced_start
+                                        trigger_rounds = []
+                                trigger_rounds.append(current_round)
+                                triggering_army.skill_trigger_window_rounds[
+                                    cooldown_key
+                                ] = trigger_rounds
+                            else:
+                                trigger_rounds = [
+                                    r
+                                    for r in trigger_rounds
+                                    if current_round - r < window_rounds
+                                ]
+                                trigger_rounds.append(current_round)
+                                triggering_army.skill_trigger_window_rounds[
+                                    cooldown_key
+                                ] = trigger_rounds
 
                         # Record trigger round for active skill cast cooldown tracking
                         # Only track if cooldowns are enabled for this skill type
@@ -1506,22 +1631,33 @@ class GameSimulator:
                             cooldown_enabled_for_active_cast = self._cooldown_enabled_for_skill(skill_def)
                             if cooldown_enabled_for_active_cast:
                                 max_triggers_to_keep = 1 if skill_id in ACTIVE_CAST_ONE_TRIGGER_SKILLS else 2
-                                
-                                if cooldown_key not in triggering_army.skill_active_cast_trigger_rounds:
-                                    triggering_army.skill_active_cast_trigger_rounds[cooldown_key] = []
                                 current_round = triggering_army.army_round
-                                # Clean up old triggers (more than 9 rounds ago) before adding new one
-                                triggering_army.skill_active_cast_trigger_rounds[cooldown_key] = [
-                                    r for r in triggering_army.skill_active_cast_trigger_rounds[cooldown_key]
-                                    if current_round - r < 9
-                                ]
-                                # Add the new trigger round
-                                triggering_army.skill_active_cast_trigger_rounds[cooldown_key].append(current_round)
-                                # Keep only the max allowed triggers (1 for special skills, 2 for others)
-                                if len(triggering_army.skill_active_cast_trigger_rounds[cooldown_key]) > max_triggers_to_keep:
-                                    triggering_army.skill_active_cast_trigger_rounds[cooldown_key] = sorted(
-                                        triggering_army.skill_active_cast_trigger_rounds[cooldown_key]
-                                    )[-max_triggers_to_keep:]
+                                trigger_rounds = triggering_army.skill_active_cast_trigger_rounds.setdefault(
+                                    cooldown_key, []
+                                )
+                                if self.interval_active_cast_cooldowns_enabled:
+                                    trigger_rounds = self._reset_active_cast_interval_if_needed(
+                                        triggering_army, cooldown_key, current_round
+                                    )
+                                    trigger_rounds.append(current_round)
+                                    triggering_army.skill_active_cast_trigger_rounds[
+                                        cooldown_key
+                                    ] = trigger_rounds
+                                else:
+                                    # Clean up old triggers (more than 9 rounds ago) before adding new one
+                                    trigger_rounds = [
+                                        r for r in trigger_rounds if current_round - r < 9
+                                    ]
+                                    # Add the new trigger round
+                                    trigger_rounds.append(current_round)
+                                    # Keep only the max allowed triggers (1 for special skills, 2 for others)
+                                    if len(trigger_rounds) > max_triggers_to_keep:
+                                        trigger_rounds = sorted(trigger_rounds)[
+                                            -max_triggers_to_keep:
+                                        ]
+                                    triggering_army.skill_active_cast_trigger_rounds[
+                                        cooldown_key
+                                    ] = trigger_rounds
 
                         if max_triggers > 1:
                             triggering_army.skill_trigger_counts_this_round[trigger_gate_key] = (

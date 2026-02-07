@@ -305,3 +305,116 @@ def test_per_skill_override_can_disable_hero_cooldown(skill_registry_guard) -> N
     # cooldown.  The override disables the cooldown so it can trigger again.
     assert log.count(("hero", 1)) == 1
     assert log.count(("hero", 2)) == 1
+
+
+def test_interval_cooldown_allows_boundary_trigger(skill_registry_guard):
+    log: list[tuple[str, int]] = []
+    allowed_rounds = {1, 5, 7}
+
+    def _handler(triggering_army: Army, _target: Army, _skill_def, _event_data, _simulator):
+        if triggering_army.army_round in allowed_rounds:
+            log.append(("interval", triggering_army.army_round))
+            return True, []
+        return False, []
+
+    interval_skill = {
+        "id": "hero_interval_cd_skill",
+        "name": "Hero Interval Cooldown",
+        "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK,
+        "trigger_chance": 1.0,
+        "config": {"cooldown_rounds": 3},
+        "logic_handler": _handler,
+    }
+    _register_skill(interval_skill, skill_registry_guard)
+
+    army1 = _build_army_with_hero([interval_skill["id"]])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army1, army2, interval_active_cast_cooldowns_enabled=True)
+
+    for round_no in range(1, 8):
+        army1.army_round = round_no
+        sim.round = round_no
+        _reset_round_state(army1)
+        sim._process_skill_triggers(army1, army2, SkillTriggerType.ON_BASIC_ATTACK)
+
+    assert log == [("interval", 1), ("interval", 5), ("interval", 7)]
+
+
+def test_interval_window_clears_trigger_history(skill_registry_guard):
+    log: list[tuple[str, int]] = []
+    allowed_rounds = {1, 2}
+
+    def _handler(triggering_army: Army, _target: Army, _skill_def, _event_data, _simulator):
+        if triggering_army.army_round in allowed_rounds:
+            log.append(("window", triggering_army.army_round))
+            return True, []
+        return False, []
+
+    window_skill = {
+        "id": "mount_interval_window_skill",
+        "name": "Interval Window Skill",
+        "type": "MOUNT_SKILL",
+        "source": "mount",
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK,
+        "trigger_chance": 1.0,
+        "config": {"trigger_window_rounds": 3, "max_triggers_per_window": 2},
+        "logic_handler": _handler,
+    }
+    _register_skill(window_skill, skill_registry_guard)
+
+    hero = Hero(
+        "Rider",
+        ["dummy_talent_empty"] * 3,
+        [window_skill["id"]],
+        [],
+        SKILL_REGISTRY_GLOBAL,
+    )
+    army1 = Army("A1", Unit("pikemen", 5, initial_count=10), heroes=[hero])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army1, army2, interval_active_cast_cooldowns_enabled=True)
+
+    for round_no in range(1, 5):
+        army1.army_round = round_no
+        sim.round = round_no
+        _reset_round_state(army1)
+        sim._process_skill_triggers(army1, army2, SkillTriggerType.ON_BASIC_ATTACK)
+
+    assert log == [("window", 1), ("window", 2)]
+    assert army1.skill_trigger_window_rounds.get(window_skill["id"], []) == []
+
+
+def test_cooldown_rounds_one_unchanged_with_interval_enabled(skill_registry_guard):
+    log: list[tuple[str, int]] = []
+
+    def _handler(triggering_army: Army, _target: Army, _skill_def, _event_data, _simulator):
+        log.append(("once", triggering_army.army_round))
+        return True, []
+
+    single_round_skill = {
+        "id": "hero_single_cd_skill",
+        "name": "Hero Single Cooldown",
+        "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK,
+        "trigger_chance": 1.0,
+        "config": {"cooldown_rounds": 1},
+        "logic_handler": _handler,
+    }
+    _register_skill(single_round_skill, skill_registry_guard)
+
+    army1 = _build_army_with_hero([single_round_skill["id"]])
+    army2 = Army("A2", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army1, army2, interval_active_cast_cooldowns_enabled=True)
+
+    army1.army_round = 1
+    sim.round = 1
+    _reset_round_state(army1)
+    for _ in range(3):
+        sim._process_skill_triggers(army1, army2, SkillTriggerType.ON_BASIC_ATTACK)
+
+    army1.army_round = 2
+    sim.round = 2
+    _reset_round_state(army1)
+    sim._process_skill_triggers(army1, army2, SkillTriggerType.ON_BASIC_ATTACK)
+
+    assert log == [("once", 1), ("once", 2)]

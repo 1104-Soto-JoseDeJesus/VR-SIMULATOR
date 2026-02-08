@@ -575,9 +575,7 @@ def test_mount_skill_fallback_aggregation():
     cfg_dupe = copy.deepcopy(_BASE_CFG)
     cfg_dupe["heroes"][0]["mount_skill_ids"] = ["mount_flame_serpent", "mount_flame_serpent"]
     army_dupe = create_armies_from_data([cfg_dupe])[0]
-    army_dupe.skill_kill_totals["mount_flame_serpent::mount::0"] = 30.0
-
-    summary_dupe = build_army_skill_summary(army_dupe, cfg_dupe, team="red")
+    army_dupe.skill_kill_totals["mount_flame_serpent::mount::0"] = 30.0    summary_dupe = build_army_skill_summary(army_dupe, cfg_dupe, team="red")
     hero_entries_dupe = summary_dupe["skills"][0] if summary_dupe.get("skills") else []
     flame_entries = [
         entry for entry in hero_entries_dupe if entry.get("id") == "mount_flame_serpent"

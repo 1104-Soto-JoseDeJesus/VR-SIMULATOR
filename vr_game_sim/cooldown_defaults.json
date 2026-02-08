@@ -8,7 +8,7 @@
   "global": {
     "cooldowns_enabled": true,
     "interval_active_cast_cooldowns": true,
-    "multi_heal_trig": true
+    "multi_heal_trig": false
   },
   "skills": {}
 }

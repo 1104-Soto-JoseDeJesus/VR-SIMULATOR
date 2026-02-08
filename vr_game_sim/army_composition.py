@@ -190,6 +190,8 @@ class Army:
     rally_config: Dict[str, Any] | None = field(default=None)
     troops_at_last_reinforcement: float = field(init=False, default=0.0)
     max_troop_count_reached: float = field(init=False, default=0.0)
+    # Rally mode only: pool of lightly wounded troops that can be restored by healing.
+    heal_pool: float = field(init=False, default=0.0)
     heal_contributors_this_round: Dict[str, Dict[str, float]] = field(
         init=False, default_factory=dict
     )
@@ -643,62 +645,106 @@ class Army:
         # previous rounds are eligible to be revived. Damage taken during the
         # current round cannot be healed until the following round.
         if self.pending_hp_healing_this_round > 0:
-            # Use max troop count reached (including rally additions) instead of initial_count
-            # This allows healing to work even when rally mode has added troops above initial_count
-            max_participants = max(self.unit.initial_count, self.max_troop_count_reached)
-            max_healable_count = max_participants - round(self.unrevivable_troops)
-            if self.current_troop_count < max_healable_count:
-                hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)
-                if hp_per_troop <= 0: hp_per_troop = 1
+            hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)
+            if hp_per_troop <= 0:
+                hp_per_troop = 1
 
-                hp_needed_to_reach_cap = (max_healable_count - self.current_troop_count) * hp_per_troop
-                actual_healed_hp = max(0, min(self.pending_hp_healing_this_round, hp_needed_to_reach_cap))
+            if self.is_rally:
+                # Rally mode: only the lightly wounded pool can be healed; army size not restricted by initial count.
+                if self.heal_pool > 0:
+                    troops_healable_by_hp = self.pending_hp_healing_this_round / hp_per_troop
+                    troops_to_heal_float = min(troops_healable_by_hp, self.heal_pool)
+                    healed_troops_round = round(troops_to_heal_float)
+                    if healed_troops_round > 0:
+                        actual_healed_hp = healed_troops_round * hp_per_troop
+                        for sim in self.simulators:
+                            sim._log_skill_trigger(
+                                self,
+                                "Healing Commitment",
+                                f"Commits {actual_healed_hp:.0f} HP healing, restoring {healed_troops_round} troops (heal pool: {self.heal_pool:.0f} → {self.heal_pool - healed_troops_round:.0f}). Unrevivable: {round(self.unrevivable_troops)}",
+                            )
+                        self.troops_healed_total += troops_to_heal_float
+                        self.heal_pool = max(0.0, self.heal_pool - troops_to_heal_float)
+                        self.current_troop_count += healed_troops_round
+                        self.max_troop_count_reached = max(self.max_troop_count_reached, self.current_troop_count)
 
-                if actual_healed_hp > 0:
-                    healed_troops_float = actual_healed_hp / hp_per_troop
-                    healed_troops_round = round(healed_troops_float)
-                    for sim in self.simulators:
-                        sim._log_skill_trigger(
-                            self,
-                            "Healing Commitment",
-                            f"Commits {actual_healed_hp:.0f} HP healing, restoring {healed_troops_round} troops. Unrevivable: {round(self.unrevivable_troops)}",
+                        total_contrib_hp = sum(
+                            sum(skills.values()) for skills in self.heal_contributors_this_round.values()
                         )
-                    self.troops_healed_total += healed_troops_float
-                    new_troop_count = min(
-                        max_healable_count,
-                        self.current_troop_count + healed_troops_round,
-                    )
-                    self.current_troop_count = new_troop_count
-                    self.max_troop_count_reached = max(self.max_troop_count_reached, new_troop_count)
+                        if total_contrib_hp > 0:
+                            for src, skills in self.heal_contributors_this_round.items():
+                                healer_army = None
+                                for sim in self.simulators:
+                                    engine = getattr(sim, "parent_engine", None)
+                                    if not engine:
+                                        continue
+                                    armies = getattr(engine, "_armies", {})
+                                    entry = armies.get(src)
+                                    if entry:
+                                        healer_army = getattr(entry, "army", entry)
+                                        break
+                                if healer_army is None:
+                                    healer_army = self._find_army_by_name(src)
+                                if healer_army:
+                                    for sid, hp in skills.items():
+                                        portion = actual_healed_hp * (hp / total_contrib_hp)
+                                        healer_army.skill_heal_totals[sid] = healer_army.skill_heal_totals.get(sid, 0.0) + (
+                                            portion / hp_per_troop
+                                        )
 
-                    total_contrib_hp = sum(
-                        sum(skills.values()) for skills in self.heal_contributors_this_round.values()
-                    )
-                    if total_contrib_hp > 0:
-                        for src, skills in self.heal_contributors_this_round.items():
-                            healer_army = None
-                            for sim in self.simulators:
-                                engine = getattr(sim, "parent_engine", None)
-                                if not engine:
-                                    continue
-                                armies = getattr(engine, "_armies", {})
-                                entry = armies.get(src)
-                                if entry:
-                                    healer_army = getattr(entry, "army", entry)
-                                    break
-                            if healer_army is None:
-                                healer_army = self._find_army_by_name(src)
-                            if healer_army:
-                                for sid, hp in skills.items():
-                                    portion = actual_healed_hp * (hp / total_contrib_hp)
-                                    healer_army.skill_heal_totals[sid] = healer_army.skill_heal_totals.get(sid, 0.0) + (
-                                        portion / hp_per_troop
-                                    )
+                        self.heal_contributors_this_round = {}
+                        self.pending_hp_healing_this_round = actual_healed_hp
+            else:
+                # Non-rally: cap by max participants minus unrevivable (original behavior).
+                max_participants = max(self.unit.initial_count, self.max_troop_count_reached)
+                max_healable_count = max_participants - round(self.unrevivable_troops)
+                if self.current_troop_count < max_healable_count:
+                    hp_needed_to_reach_cap = (max_healable_count - self.current_troop_count) * hp_per_troop
+                    actual_healed_hp = max(0, min(self.pending_hp_healing_this_round, hp_needed_to_reach_cap))
 
-                    # Preserve the healed amount for logging in the simulator.
-                    # It will be cleared at the start of the next round.
-                    self.heal_contributors_this_round = {}
-                    self.pending_hp_healing_this_round = actual_healed_hp
+                    if actual_healed_hp > 0:
+                        healed_troops_float = actual_healed_hp / hp_per_troop
+                        healed_troops_round = round(healed_troops_float)
+                        for sim in self.simulators:
+                            sim._log_skill_trigger(
+                                self,
+                                "Healing Commitment",
+                                f"Commits {actual_healed_hp:.0f} HP healing, restoring {healed_troops_round} troops. Unrevivable: {round(self.unrevivable_troops)}",
+                            )
+                        self.troops_healed_total += healed_troops_float
+                        new_troop_count = min(
+                            max_healable_count,
+                            self.current_troop_count + healed_troops_round,
+                        )
+                        self.current_troop_count = new_troop_count
+                        self.max_troop_count_reached = max(self.max_troop_count_reached, new_troop_count)
+
+                        total_contrib_hp = sum(
+                            sum(skills.values()) for skills in self.heal_contributors_this_round.values()
+                        )
+                        if total_contrib_hp > 0:
+                            for src, skills in self.heal_contributors_this_round.items():
+                                healer_army = None
+                                for sim in self.simulators:
+                                    engine = getattr(sim, "parent_engine", None)
+                                    if not engine:
+                                        continue
+                                    armies = getattr(engine, "_armies", {})
+                                    entry = armies.get(src)
+                                    if entry:
+                                        healer_army = getattr(entry, "army", entry)
+                                        break
+                                if healer_army is None:
+                                    healer_army = self._find_army_by_name(src)
+                                if healer_army:
+                                    for sid, hp in skills.items():
+                                        portion = actual_healed_hp * (hp / total_contrib_hp)
+                                        healer_army.skill_heal_totals[sid] = healer_army.skill_heal_totals.get(sid, 0.0) + (
+                                            portion / hp_per_troop
+                                        )
+
+                        self.heal_contributors_this_round = {}
+                        self.pending_hp_healing_this_round = actual_healed_hp
 
         if self.pending_hp_damage_this_round > 0 and self.current_troop_count > 0:
             hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)
@@ -736,6 +782,16 @@ class Army:
                 # Allow unrevivable_troops to accumulate without cap - it represents total casualties
                 # In rally mode, armies can receive reinforcements, so casualties can exceed initial count
                 self.unrevivable_troops = self.unrevivable_troops + unrevivable_increase
+                if self.is_rally:
+                    # Lightly wounded (restorable by healing) go into the heal pool.
+                    lightly_wounded_this_round = available_troops - unrevivable_increase
+                    if lightly_wounded_this_round > 0:
+                        self.heal_pool += lightly_wounded_this_round
+            elif self.is_rally:
+                # Rally only: dynamic (deferred) unrevivable — add all losses to heal pool now;
+                # when unrevivable is applied later, simulator subtracts that amount from heal_pool.
+                if available_troops > 0:
+                    self.heal_pool += available_troops
             total_dmg = sum(self.damage_contributors_this_round.values())
             if available_troops > 0 and total_dmg > 0:
                 for src, dmg in self.damage_contributors_this_round.items():
@@ -2360,6 +2416,7 @@ class Army:
         self.unrevivable_caused_by_opponent.clear()
         self.clear_dynamic_unrevivable_tracking()
         self.troops_at_last_reinforcement = self.current_troop_count
+        self.heal_pool = 0.0
         self.skill_kill_totals.clear()
         self.skill_heal_totals.clear()
         self.skill_shield_totals.clear()

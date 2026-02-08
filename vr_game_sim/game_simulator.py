@@ -54,6 +54,8 @@ class GameSimulator:
     }
     MOUNT_DOT_HOT_FLAG_KEYS = {"boost_if_more_troops", "heal_if_lower_troops"}
     MOUNT_DOT_HOT_OTHER_KEYS = {"status_type", "effect_name"}
+    # Immediate-heal keys: duplicated per instance (own config/tracking); not merged like HoT.
+    MOUNT_IMMEDIATE_HEAL_KEYS = {"heal_factor", "heal_if_dot_factor", "heal_if_lower_troops"}
 
     @staticmethod
     @lru_cache(maxsize=None)
@@ -1142,6 +1144,8 @@ class GameSimulator:
                     continue
                 if key in dot_hot_keys and include_dot_hot:
                     continue
+                if key in self.MOUNT_IMMEDIATE_HEAL_KEYS:
+                    continue
                 if isinstance(cfg.get(key), (int, float)):
                     cfg[key] = 0
                 elif isinstance(cfg.get(key), list):
@@ -1565,7 +1569,9 @@ class GameSimulator:
                         )
                         triggering_army.increment_skill_trigger_count(trigger_count_key)
 
-                        if include_non_damage and self._is_mount_skill(skill_def):
+                        if self._is_mount_skill(skill_def) and an_effect_truly_happened and (
+                            include_non_damage or include_dot_hot
+                        ):
                             triggering_army.mount_skill_non_damage_applied_this_round.add(
                                 mount_tracking_key
                             )
@@ -2471,6 +2477,9 @@ class GameSimulator:
             # Allow unrevivable_troops to accumulate without cap - it represents total casualties
             # In rally mode, armies can receive reinforcements, so casualties can exceed initial count
             defender.unrevivable_troops = defender.unrevivable_troops + added_unrevivable
+            if defender.is_rally:
+                # Heal pool held all losses; move this many from lightly wounded to heavily wounded.
+                defender.heal_pool = max(0.0, defender.heal_pool - added_unrevivable)
             # Track unrevivable caused by opponent (attacker) to this defender
             opponent.unrevivable_caused_by_opponent[defender.name] = (
                 opponent.unrevivable_caused_by_opponent.get(defender.name, 0.0) + added_unrevivable

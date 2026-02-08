@@ -413,7 +413,8 @@ def test_mount_trigger_window_limits_reactive_skills():
     assert len(trigger_round(1)) == 1
     assert len(trigger_round(2)) == 2
     assert len(trigger_round(3)) == 2
-    assert sorted(trigger_round(9)) == [2, 9]
+    # Fixed window from first trigger (1): at round 9 we advance to new window [9, 17), so only [9].
+    assert sorted(trigger_round(9)) == [9]
 
 
 def test_duplicate_mount_dot_and_heal_instances_trigger():
@@ -475,19 +476,24 @@ def test_duplicate_mount_dot_and_heal_instances_trigger():
     assert dot_effects_single[0].config.get("status_effect_factor") == pytest.approx(450.0)
     assert dot_effects_double[0].config.get("status_effect_factor") == pytest.approx(450.0)
     assert army_single.pending_hp_healing_this_round > 0
+    # Immediate heals duplicate per instance (300 + 600); single has 600. So double ≈ 1.5 * single.
     assert army_double.pending_hp_healing_this_round == pytest.approx(
-        army_single.pending_hp_healing_this_round
+        army_single.pending_hp_healing_this_round * 1.5
     )
-    # Merged DoT/heal attributes to higher-value instance (mount_poison_n_heal::mount::1)
+    # HoT/DoT still merged to higher-value instance (mount_poison_n_heal::mount::1)
     higher_instance_key = "mount_poison_n_heal::mount::1"
     assert dot_effects_double[0].source_skill_id == higher_instance_key
+
+
 def test_duplicate_mount_skill_per_instance_metrics():
     """Duplicate mount skills report damage independently per instance key."""
     cfg = copy.deepcopy(_BASE_CFG)
-    cfg["heroes"][0]["mount_skill_ids"] = ["mount_flame_serpent", "mount_flame_serpent"]    army, opponent = create_armies_from_data([cfg, cfg])[0:2]
+    cfg["heroes"][0]["mount_skill_ids"] = ["mount_flame_serpent", "mount_flame_serpent"]
+    army, opponent = create_armies_from_data([cfg, cfg])[0:2]
     hero = army.heroes[0]
     mount_skills = [skill for skill in hero.skills if skill.get("id") == "mount_flame_serpent"]
-    assert len(mount_skills) == 2    for idx, skill in enumerate(mount_skills):
+    assert len(mount_skills) == 2
+    for idx, skill in enumerate(mount_skills):
         config = skill.get("config", {})
         config.update({"trigger_interval": 1, "damage_factor": 50.0})
 
@@ -495,7 +501,8 @@ def test_duplicate_mount_skill_per_instance_metrics():
     army.army_round = 1
     opponent.army_round = 1
     opponent.current_troop_count = 100000
-    opponent.pending_hp_damage_this_round = 0    simulator._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND)
+    opponent.pending_hp_damage_this_round = 0
+    simulator._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND)
 
     instance_keys = [
         f"mount_flame_serpent::mount::{skill['mount_instance_index']}" for skill in mount_skills
@@ -575,7 +582,8 @@ def test_mount_skill_fallback_aggregation():
     cfg_dupe = copy.deepcopy(_BASE_CFG)
     cfg_dupe["heroes"][0]["mount_skill_ids"] = ["mount_flame_serpent", "mount_flame_serpent"]
     army_dupe = create_armies_from_data([cfg_dupe])[0]
-    army_dupe.skill_kill_totals["mount_flame_serpent::mount::0"] = 30.0    summary_dupe = build_army_skill_summary(army_dupe, cfg_dupe, team="red")
+    army_dupe.skill_kill_totals["mount_flame_serpent::mount::0"] = 30.0
+    summary_dupe = build_army_skill_summary(army_dupe, cfg_dupe, team="red")
     hero_entries_dupe = summary_dupe["skills"][0] if summary_dupe.get("skills") else []
     flame_entries = [
         entry for entry in hero_entries_dupe if entry.get("id") == "mount_flame_serpent"

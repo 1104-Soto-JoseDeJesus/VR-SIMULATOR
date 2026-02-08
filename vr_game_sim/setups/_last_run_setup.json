@@ -3,11 +3,23 @@
         "army_name": "Margit/Lagertha",
         "unit_type": "infantry",
         "tier": 7,
-        "count": 250000,
-        "is_rally": false,
-        "rally_config": null,
-        "atk_mod": 2.308,
-        "def_mod": 2.6727,
+        "count": 2500000,
+        "is_rally": true,
+        "rally_config": {
+            "periodic": {
+                "enabled": false
+            },
+            "loss_based": {
+                "enabled": true,
+                "amount": 200000,
+                "threshold": 250000
+            },
+            "round_specific": {
+                "enabled": false
+            }
+        },
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
         "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
         "unrevivable_ratio_method": "dynamic",
@@ -63,28 +75,29 @@
                     "boots": "gear_ferocious_boots_legendary"
                 }
             }
-        ],
-        "bonus_stats": {
-            "damage_reduction": {
-                "vs_infantry": 0.016
-            },
-            "damage_boost": {
-                "all": 0.008
-            },
-            "basic_boost": 0.0475,
-            "counter_boost": 0.08,
-            "hero2_rage_skill_boost": 0.16
-        }
+        ]
     },
     {
         "army_name": "Margit/Lagertha (2)",
         "unit_type": "infantry",
         "tier": 7,
-        "count": 250000,
-        "is_rally": false,
-        "rally_config": null,
-        "atk_mod": 2.308,
-        "def_mod": 2.6727,
+        "count": 2500000,
+        "is_rally": true,
+        "rally_config": {
+            "periodic": {
+                "enabled": false
+            },
+            "loss_based": {
+                "enabled": true,
+                "amount": 200000,
+                "threshold": 250000
+            },
+            "round_specific": {
+                "enabled": false
+            }
+        },
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
         "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
         "unrevivable_ratio_method": "dynamic",
@@ -103,10 +116,10 @@
                 ],
                 "plugin_skill_ids": [
                     "plugin_enrage",
-                    "plugin_trap_of_despair"
+                    "plugin_odins_asylum"
                 ],
                 "mount_skill_ids": [
-                    "mount_stinging_tongue"
+                    "mount_bloodthirst_gaze"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -127,11 +140,11 @@
                     "rage_skill_showdown"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_blessed_negation",
-                    "plugin_silent_invasion"
+                    "plugin_first_strike",
+                    "plugin_divine_blessing"
                 ],
                 "mount_skill_ids": [
-                    "mount_strangled_death"
+                    "mount_soul_of_fury"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -140,17 +153,6 @@
                     "boots": "gear_ferocious_boots_legendary"
                 }
             }
-        ],
-        "bonus_stats": {
-            "damage_reduction": {
-                "vs_infantry": 0.016
-            },
-            "damage_boost": {
-                "all": 0.008
-            },
-            "basic_boost": 0.0475,
-            "counter_boost": 0.08,
-            "hero2_rage_skill_boost": 0.16
-        }
+        ]
     }
 ]

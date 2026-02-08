@@ -928,38 +928,37 @@ def handle_mount_periodic_dot_with_condition(
 
     status_type = cfg.get("status_type", DoTType.BURN)
     base_factor = float(cfg.get("status_factor", 0.0))
-    if base_factor <= 0:
-        return False, []
-
-    factor_to_apply = base_factor
-    if cfg.get("boost_if_more_troops") and _evaluate_mount_condition(
-        "more_troops", triggering_army, opponent_army
-    ):
-        factor_to_apply = float(cfg.get("boosted_status_factor", base_factor))
-
-    duration = int(round(float(cfg.get("status_duration", 1))))
-    effect_name = cfg.get("effect_name", skill_def.get("name", "Mount Skill"))
 
     log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
     an_effect_happened = False
 
-    dot_effect = {
-        "effect_type": EffectType.DAMAGE_OVER_TIME,
-        "name": effect_name,
-        "dot_type": status_type,
-        "status_effect_factor": factor_to_apply,
-        "duration": duration,
-        "activate_next_round": True,
-    }
-    created_dot = opponent_army._create_and_add_single_effect(
-        dot_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
-    )
-    if created_dot:
-        an_effect_happened = True
-        log_details.append((
-            f"Inflicts '{effect_name}' on {opponent_army.name} (Factor: {factor_to_apply}) for {duration + 1} rounds (starting next round).",
-            None,
-        ))
+    if base_factor > 0:
+        factor_to_apply = base_factor
+        if cfg.get("boost_if_more_troops") and _evaluate_mount_condition(
+            "more_troops", triggering_army, opponent_army
+        ):
+            factor_to_apply = float(cfg.get("boosted_status_factor", base_factor))
+
+        duration = int(round(float(cfg.get("status_duration", 1))))
+        effect_name = cfg.get("effect_name", skill_def.get("name", "Mount Skill"))
+
+        dot_effect = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": effect_name,
+            "dot_type": status_type,
+            "status_effect_factor": factor_to_apply,
+            "duration": duration,
+            "activate_next_round": True,
+        }
+        created_dot = opponent_army._create_and_add_single_effect(
+            dot_effect, skill_def["id"], triggering_army, opponent_army, triggering_army
+        )
+        if created_dot:
+            an_effect_happened = True
+            log_details.append((
+                f"Inflicts '{effect_name}' on {opponent_army.name} (Factor: {factor_to_apply}) for {duration + 1} rounds (starting next round).",
+                None,
+            ))
 
     heal_factor = 0.0
     if cfg.get("heal_if_lower_troops") and _evaluate_mount_condition(

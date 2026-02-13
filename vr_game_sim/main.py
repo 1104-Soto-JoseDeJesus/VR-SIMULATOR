@@ -413,6 +413,138 @@ def _run_single_battle_with_multiplier(
     )
 
 
+def run_batch_return_winners(
+    setup_data: List[Dict[str, Any]],
+    runs: int,
+    *,
+    num_workers: int = 1,
+    progress_callback: Optional[Callable[[int, int], None]] = None,
+    cooldowns_enabled: bool = True,
+    hero_cooldowns_enabled: Optional[bool] = None,
+    plugin_cooldowns_enabled: Optional[bool] = None,
+    gem_cooldowns_enabled: Optional[bool] = None,
+    mount_cooldowns_enabled: Optional[bool] = None,
+    multi_heal_trig_enabled: bool = False,
+    interval_active_cast_cooldowns_enabled: bool = True,
+    advantage_mode: str = "multiplicative",
+    fairness_rage_enabled: bool = True,
+    max_rounds: Optional[int] = None,
+) -> tuple[int, int, int]:
+    """Run N battles and return (army1_wins, army2_wins, draws).
+
+    Used by the mount skill rank feature to get exact winner counts per pair.
+    """
+    dynamic_settings = dynamic_unrevivable_config.get_settings()
+    dynamic_settings_payload = dict(dynamic_settings)
+    current_multiplier = troop_scalar_config.get_multiplier()
+    hero_cd, plugin_cd, gem_cd, mount_cd = _resolve_cooldown_flags(
+        cooldowns_enabled,
+        hero_cooldowns_enabled,
+        plugin_cooldowns_enabled,
+        gem_cooldowns_enabled,
+        mount_cooldowns_enabled,
+    )
+
+    both_rally_mode = False
+    if len(setup_data) >= 2:
+        army1_rally = bool(setup_data[0].get("is_rally", False))
+        army2_rally = bool(setup_data[1].get("is_rally", False))
+        both_rally_mode = army1_rally and army2_rally
+
+    seeds = [random.randrange(1 << 30) for _ in range(runs)]
+    army1_wins = army2_wins = draws = 0
+
+    if num_workers > 1:
+        with ProcessPoolExecutor(
+            max_workers=num_workers, mp_context=multiprocessing.get_context("spawn")
+        ) as ex:
+            worker_inputs = [setup_data] * runs
+            settings_iter = repeat(dynamic_settings_payload, runs)
+            multiplier_iter = repeat(current_multiplier, runs)
+            advantage_iter = repeat(advantage_mode, runs)
+            fairness_rage_iter = repeat(fairness_rage_enabled, runs)
+            cooldown_base_iter = repeat(bool(cooldowns_enabled), runs)
+            hero_cd_iter = repeat(hero_cd, runs)
+            plugin_cd_iter = repeat(plugin_cd, runs)
+            gem_cd_iter = repeat(gem_cd, runs)
+            mount_cd_iter = repeat(mount_cd, runs)
+            multi_heal_iter = repeat(bool(multi_heal_trig_enabled), runs)
+            interval_active_cast_iter = repeat(
+                bool(interval_active_cast_cooldowns_enabled), runs
+            )
+            max_rounds_iter = repeat(max_rounds, runs)
+            results_iter = ex.map(
+                _run_single_battle_with_multiplier,
+                worker_inputs,
+                seeds,
+                settings_iter,
+                multiplier_iter,
+                advantage_iter,
+                cooldown_base_iter,
+                hero_cd_iter,
+                plugin_cd_iter,
+                gem_cd_iter,
+                mount_cd_iter,
+                multi_heal_iter,
+                interval_active_cast_iter,
+                fairness_rage_iter,
+                max_rounds_iter,
+            )
+            completed = 0
+            for own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev, army1_hw_dealt, army2_hw_dealt in results_iter:
+                if max_rounds is not None and both_rally_mode and r_taken >= max_rounds:
+                    if army1_hw_dealt > army2_hw_dealt:
+                        winner = 1
+                    elif army2_hw_dealt > army1_hw_dealt:
+                        winner = 2
+                    else:
+                        winner = 0
+                if winner == 1:
+                    army1_wins += 1
+                elif winner == 2:
+                    army2_wins += 1
+                else:
+                    draws += 1
+                completed += 1
+                if progress_callback:
+                    progress_callback(completed, runs)
+    else:
+        for i, seed_val in enumerate(seeds):
+            own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev, army1_hw_dealt, army2_hw_dealt = _run_single_battle(
+                setup_data,
+                seed=seed_val,
+                dynamic_settings=dynamic_settings_payload,
+                troop_scalar_multiplier=current_multiplier,
+                advantage_mode=advantage_mode,
+                cooldowns_enabled=cooldowns_enabled,
+                hero_cooldowns_enabled=hero_cd,
+                plugin_cooldowns_enabled=plugin_cd,
+                gem_cooldowns_enabled=gem_cd,
+                mount_cooldowns_enabled=mount_cd,
+                multi_heal_trig_enabled=multi_heal_trig_enabled,
+                interval_active_cast_cooldowns_enabled=interval_active_cast_cooldowns_enabled,
+                fairness_rage_enabled=fairness_rage_enabled,
+                max_rounds=max_rounds,
+            )
+            if max_rounds is not None and both_rally_mode and r_taken >= max_rounds:
+                if army1_hw_dealt > army2_hw_dealt:
+                    winner = 1
+                elif army2_hw_dealt > army1_hw_dealt:
+                    winner = 2
+                else:
+                    winner = 0
+            if winner == 1:
+                army1_wins += 1
+            elif winner == 2:
+                army2_wins += 1
+            else:
+                draws += 1
+            if progress_callback:
+                progress_callback(i + 1, runs)
+
+    return army1_wins, army2_wins, draws
+
+
 def run_additional_simulations(
     setup_data: List[Dict[str, Any]],
     runs: int = 300,

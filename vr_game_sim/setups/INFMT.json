@@ -3,7 +3,7 @@
         "army_name": "Margit/Lagertha",
         "unit_type": "infantry",
         "tier": 7,
-        "count": 300000,
+        "count": 250000,
         "is_rally": false,
         "rally_config": null,
         "atk_mod": 3.0,
@@ -28,9 +28,6 @@
                     "plugin_enrage",
                     "plugin_trap_of_despair"
                 ],
-                "mount_skill_ids": [
-                    "mount_bloodthirst_gaze"
-                ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
                     "weapon": "gear_immolated_axe_legendary",
@@ -52,9 +49,6 @@
                 "plugin_skill_ids": [
                     "plugin_blessed_negation",
                     "plugin_silent_invasion"
-                ],
-                "mount_skill_ids": [
-                    "mount_soul_of_fury"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -94,9 +88,6 @@
                     "plugin_enrage",
                     "plugin_trap_of_despair"
                 ],
-                "mount_skill_ids": [
-                    "mount_bloodthirst_gaze"
-                ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
                     "weapon": "gear_immolated_axe_legendary",
@@ -118,9 +109,6 @@
                 "plugin_skill_ids": [
                     "plugin_blessed_negation",
                     "plugin_silent_invasion"
-                ],
-                "mount_skill_ids": [
-                    "mount_strangled_death"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",

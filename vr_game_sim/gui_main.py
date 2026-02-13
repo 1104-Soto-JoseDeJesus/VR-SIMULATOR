@@ -20,6 +20,7 @@ import base64
 import mimetypes
 import difflib
 import io
+import textwrap
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 import shutil
@@ -46,11 +47,13 @@ from vr_game_sim.battlefield_report_builder import BattlefieldReportBuilder
 from vr_game_sim.main import (
     create_armies_from_data,
     run_additional_simulations,
+    run_batch_return_winners,
     save_setup_to_file,
     load_setup_from_file,
     save_army_to_file,
     load_army_from_file,
     HISTOGRAM_BG_COLOR,
+    HISTOGRAM_TEXT_COLOR,
     SeedTarget,
 )
 from vr_game_sim import dynamic_unrevivable_config, troop_scalar_config, heal_shield_pairing_config, shield_consumption_config
@@ -2546,6 +2549,74 @@ class MountSkillsDialog(QtWidgets.QDialog):
         return selections, overrides
 
 
+class MountSkillRankDialog(QtWidgets.QDialog):
+    """Dialog for selecting mount skills to rank against each other."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Mount Skill Rank")
+        self.setModal(True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        info = QtWidgets.QLabel(
+            "Select mount skills to compare. Each unique pair will be tested "
+            "(e.g. A vs B, A vs C, B vs C). At least 2 skills required."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        options: list[tuple[str, str]] = []
+        for sid, sdef in SKILL_REGISTRY_GLOBAL.items():
+            if _is_mount_skill(sid):
+                options.append((sdef.get("name", sid), sid))
+        options.sort(key=lambda item: item[0])
+
+        self.list_widget = QtWidgets.QListWidget()
+        self.list_widget.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.NoSelection
+        )
+        for name, sid in options:
+            item = QtWidgets.QListWidgetItem(name)
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, sid)
+            item.setFlags(
+                item.flags()
+                | QtCore.Qt.ItemFlag.ItemIsUserCheckable
+                | QtCore.Qt.ItemFlag.ItemIsEnabled
+            )
+            item.setCheckState(QtCore.Qt.CheckState.Unchecked)
+            self.list_widget.addItem(item)
+        layout.addWidget(self.list_widget)
+
+        btn_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        btn_box.accepted.connect(self._on_accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+    def _on_accept(self) -> None:
+        selected = self.selected_skill_ids()
+        if len(selected) < 2:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Invalid Selection",
+                "Please select at least 2 mount skills to rank.",
+            )
+            return
+        self.accept()
+
+    def selected_skill_ids(self) -> list[str]:
+        ids: list[str] = []
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item.checkState() == QtCore.Qt.CheckState.Checked:
+                sid = item.data(QtCore.Qt.ItemDataRole.UserRole)
+                if isinstance(sid, str) and sid:
+                    ids.append(sid)
+        return ids
+
+
 class GearSelectionDialog(QtWidgets.QDialog):
     """Dialog for assigning gear to each hero slot."""
 
@@ -4633,6 +4704,8 @@ class BattlefieldTab(QtWidgets.QWidget):
 
         self.report_builder = BattlefieldReportBuilder()
         self.engine = BattlefieldEngine(report_builder=self.report_builder)
+        engine_settings = self._get_debug_settings()
+        self.engine.set_simulator_options(**engine_settings)
 
         # Mapping of army name -> icon for quick updates from engine state
         self._icons: dict[str, ArmyIcon] = {}
@@ -4692,6 +4765,11 @@ class BattlefieldTab(QtWidgets.QWidget):
         window = self.window()
         if window is not None and hasattr(window, "update_battlefield_reports"):
             window.update_battlefield_reports()
+
+    def showEvent(self, event: QtGui.QShowEvent) -> None:  # type: ignore[override]
+        """Sync engine with current debug settings when tab becomes visible."""
+        super().showEvent(event)
+        self.engine.set_simulator_options(**self._get_debug_settings())
 
     # ------------------------------------------------------------------
     # Navigation mesh helpers
@@ -4886,6 +4964,27 @@ class BattlefieldTab(QtWidgets.QWidget):
         self._icons[army.name] = icon
         self._next_x += icon.boundingRect().width() + 10
 
+    def _get_debug_settings(self) -> dict[str, Any]:
+        """Return simulator settings for the engine (excludes max_rounds)."""
+        window = self.window()
+        if window is not None and hasattr(window, "get_simulator_debug_settings"):
+            settings = window.get_simulator_debug_settings(include_max_rounds=False)
+            return {k: v for k, v in settings.items() if k != "max_rounds"}
+        # Fallback when BattlefieldTab is used standalone (e.g. tests)
+        return {
+            "cooldowns_enabled": True,
+            "hero_cooldowns_enabled": True,
+            "plugin_cooldowns_enabled": True,
+            "gem_cooldowns_enabled": True,
+            "mount_cooldowns_enabled": True,
+            "damage_reduction_affects_dots": True,
+            "multi_heal_trig_enabled": False,
+            "interval_active_cast_cooldowns_enabled": True,
+            "fairness_rage_enabled": True,
+            "advantage_mode": "multiplicative",
+            "per_skill_cooldown_overrides": {},
+        }
+
     def _refresh_battlefield(self) -> None:
         """Clear all armies and reset the battlefield engine."""
         self.scene.clear()
@@ -4895,6 +4994,7 @@ class BattlefieldTab(QtWidgets.QWidget):
         self._next_x = 0
         self.report_builder = BattlefieldReportBuilder()
         self.engine.reset(report_builder=self.report_builder)
+        self.engine.set_simulator_options(**self._get_debug_settings())
         self._dragging_icon = None
         self._drag_path = []
         self._snap_target = None
@@ -5714,6 +5814,129 @@ class SimulationWorker(QtCore.QThread):
             self.error.emit(str(exc))
 
 
+class MountSkillRankWorker(QtCore.QThread):
+    """Worker that runs mount skill pair battles and tallies wins."""
+
+    progress_update = QtCore.pyqtSignal(int, int)
+    finished = QtCore.pyqtSignal(dict)
+    error = QtCore.pyqtSignal(str)
+
+    def __init__(
+        self,
+        skill_ids: list[str],
+        base_cfg1: dict,
+        base_cfg2: dict,
+        runs: int,
+        num_workers: int,
+        *,
+        max_rounds: int | None = None,
+        hero_cooldowns_enabled: bool = True,
+        plugin_cooldowns_enabled: bool = True,
+        gem_cooldowns_enabled: bool = True,
+        mount_cooldowns_enabled: bool = True,
+        multi_heal_trig_enabled: bool = False,
+        interval_active_cast_cooldowns_enabled: bool = True,
+        fairness_rage_enabled: bool = True,
+        advantage_mode: str = "multiplicative",
+    ) -> None:
+        super().__init__()
+        self.skill_ids = skill_ids
+        self.base_cfg1 = base_cfg1
+        self.base_cfg2 = base_cfg2
+        self.runs = runs
+        self.num_workers = num_workers
+        self.max_rounds = max_rounds
+        self.hero_cooldowns_enabled = hero_cooldowns_enabled
+        self.plugin_cooldowns_enabled = plugin_cooldowns_enabled
+        self.gem_cooldowns_enabled = gem_cooldowns_enabled
+        self.mount_cooldowns_enabled = mount_cooldowns_enabled
+        self.multi_heal_trig_enabled = multi_heal_trig_enabled
+        self.interval_active_cast_cooldowns_enabled = interval_active_cast_cooldowns_enabled
+        self.fairness_rage_enabled = fairness_rage_enabled
+        self.advantage_mode = advantage_mode
+        self._cancelled = threading.Event()
+
+    def cancel(self) -> None:
+        self._cancelled.set()
+
+    def run(self) -> None:
+        try:
+            wins: dict[str, int] = {sid: 0 for sid in self.skill_ids}
+            beat: dict[str, set[str]] = {sid: set() for sid in self.skill_ids}
+            lost_to: dict[str, set[str]] = {sid: set() for sid in self.skill_ids}
+
+            pairs: list[tuple[str, str]] = []
+            for i in range(len(self.skill_ids)):
+                for j in range(i + 1, len(self.skill_ids)):
+                    pairs.append((self.skill_ids[i], self.skill_ids[j]))
+
+            total_steps = len(pairs) * self.runs
+            completed = 0
+
+            def progress_cb(done: int, total: int) -> None:
+                nonlocal completed
+                pair_done = completed + done
+                self.progress_update.emit(pair_done, total_steps)
+                if self._cancelled.is_set():
+                    raise RuntimeError("cancelled")
+
+            for skill_a, skill_b in pairs:
+                if self._cancelled.is_set():
+                    raise RuntimeError("cancelled")
+
+                cfg1 = copy.deepcopy(self.base_cfg1)
+                cfg2 = copy.deepcopy(self.base_cfg2)
+                for hero in cfg1.get("heroes", []):
+                    hero["mount_skill_ids"] = [skill_a]
+                for hero in cfg2.get("heroes", []):
+                    hero["mount_skill_ids"] = [skill_b]
+
+                setup_data = [cfg1, cfg2]
+                army1_wins, army2_wins, _draws = run_batch_return_winners(
+                    setup_data,
+                    self.runs,
+                    num_workers=self.num_workers,
+                    progress_callback=progress_cb,
+                    cooldowns_enabled=True,
+                    hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+                    plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+                    gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+                    mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+                    multi_heal_trig_enabled=self.multi_heal_trig_enabled,
+                    interval_active_cast_cooldowns_enabled=self.interval_active_cast_cooldowns_enabled,
+                    fairness_rage_enabled=self.fairness_rage_enabled,
+                    advantage_mode=self.advantage_mode,
+                    max_rounds=self.max_rounds,
+                )
+
+                # Count overall match wins (1 per pair), not individual battle wins
+                if army1_wins > army2_wins:
+                    wins[skill_a] += 1
+                    beat[skill_a].add(skill_b)
+                    lost_to[skill_b].add(skill_a)
+                elif army2_wins > army1_wins:
+                    wins[skill_b] += 1
+                    beat[skill_b].add(skill_a)
+                    lost_to[skill_a].add(skill_b)
+
+                completed += self.runs
+
+            result = {
+                "wins": wins,
+                "beat": {sid: list(s) for sid, s in beat.items()},
+                "lost_to": {sid: list(s) for sid, s in lost_to.items()},
+                "runs_per_pair": self.runs,
+            }
+            self.finished.emit(result)
+        except RuntimeError as exc:
+            if str(exc) == "cancelled":
+                self.finished.emit({})
+            else:
+                self.error.emit(str(exc))
+        except Exception as exc:
+            self.error.emit(str(exc))
+
+
 class ArenaBatchWorker(QtCore.QThread):
     progress_update = QtCore.pyqtSignal(int, int)
     finished_dict = QtCore.pyqtSignal(dict)
@@ -6044,22 +6267,11 @@ class ArenaTab(QtWidgets.QWidget):
 
         # Prepare engine and tracking structures for armies placed in slots.
         self.report_builder = BattlefieldReportBuilder()
-        # Arena engine inherits simulator defaults, including cooldown toggles
-        # and any per-skill overrides configured via the main window.
-        parent_window = self.window()
+        # Arena engine inherits simulator defaults from the main window's debug toggles.
         base_settings = self._get_debug_settings()
-        per_skill_overrides: dict[str, bool] = {}
-        if parent_window is not None and hasattr(parent_window, "per_skill_cooldown_overrides"):
-            try:
-                per_skill_overrides = dict(
-                    getattr(parent_window, "per_skill_cooldown_overrides") or {}
-                )
-            except Exception:
-                per_skill_overrides = {}
         engine_settings = {
             k: v for k, v in base_settings.items() if k not in {"max_rounds"}
         }
-        engine_settings["per_skill_cooldown_overrides"] = per_skill_overrides
         self.engine = ArenaEngine(report_builder=self.report_builder, **engine_settings)
         # max_rounds is handled at arena battle level, not by the engine
         self.engine.set_simulator_options(**engine_settings)
@@ -6162,59 +6374,24 @@ class ArenaTab(QtWidgets.QWidget):
 
     def _get_debug_settings(self) -> dict[str, Any]:
         """Return simulator settings based on the parent window's debug toggles."""
-
         window = self.window()
-        hero_cooldowns = True
-        plugin_cooldowns = True
-        gem_cooldowns = True
-        mount_cooldowns = True
-        damage_reduction = True
-        multi_heal_trig = False
-        interval_active_cast_cooldowns = True
-        advantage_mode = "multiplicative"
-        max_rounds = None
-        if window is not None:
-            hero_cooldowns = bool(getattr(window, "hero_cooldowns_enabled", hero_cooldowns))
-            plugin_cooldowns = bool(
-                getattr(window, "plugin_cooldowns_enabled", plugin_cooldowns)
-            )
-            gem_cooldowns = bool(getattr(window, "gem_cooldowns_enabled", gem_cooldowns))
-            mount_cooldowns = bool(
-                getattr(window, "mount_cooldowns_enabled", mount_cooldowns)
-            )
-            damage_reduction = bool(
-                getattr(window, "damage_reduction_affects_dots", damage_reduction)
-            )
-            multi_heal_trig = bool(
-                getattr(window, "multi_heal_trig_enabled", multi_heal_trig)
-            )
-            interval_active_cast_cooldowns = bool(
-                getattr(
-                    window,
-                    "interval_active_cast_cooldowns_enabled",
-                    interval_active_cast_cooldowns,
-                )
-            )
-            fairness_rage = bool(getattr(window, "fairness_rage_enabled", True))
-            advantage_mode = getattr(window, "troop_advantage_mode", advantage_mode)
-            if hasattr(window, "max_rounds_checkbox") and hasattr(window, "max_rounds_spin"):
-                if window.max_rounds_checkbox.isChecked():
-                    max_rounds = window.max_rounds_spin.value()
-
-        settings = {
-            "cooldowns_enabled": hero_cooldowns,
-            "hero_cooldowns_enabled": hero_cooldowns,
-            "plugin_cooldowns_enabled": plugin_cooldowns,
-            "gem_cooldowns_enabled": gem_cooldowns,
-            "mount_cooldowns_enabled": mount_cooldowns,
-            "damage_reduction_affects_dots": damage_reduction,
-            "multi_heal_trig_enabled": multi_heal_trig,
-            "interval_active_cast_cooldowns_enabled": interval_active_cast_cooldowns,
-            "fairness_rage_enabled": fairness_rage,
-            "advantage_mode": advantage_mode,
-            "max_rounds": max_rounds,  # This is used by _simulate_arena_battle, not by the engine
+        if window is not None and hasattr(window, "get_simulator_debug_settings"):
+            return window.get_simulator_debug_settings(include_max_rounds=True)
+        # Fallback when ArenaTab is used standalone (e.g. tests)
+        return {
+            "cooldowns_enabled": True,
+            "hero_cooldowns_enabled": True,
+            "plugin_cooldowns_enabled": True,
+            "gem_cooldowns_enabled": True,
+            "mount_cooldowns_enabled": True,
+            "damage_reduction_affects_dots": True,
+            "multi_heal_trig_enabled": False,
+            "interval_active_cast_cooldowns_enabled": True,
+            "fairness_rage_enabled": True,
+            "advantage_mode": "multiplicative",
+            "per_skill_cooldown_overrides": {},
+            "max_rounds": None,
         }
-        return settings
 
     # ------------------------------------------------------------------
     def _compute_slot_coords(self) -> dict[str, list[tuple[float, float]]]:
@@ -7021,20 +7198,9 @@ class ArenaTab(QtWidgets.QWidget):
             return
         self._save_last_layout()
         settings = self._get_debug_settings()
-        # max_rounds is handled at arena battle level, not by the engine
-        parent_window = self.window()
-        per_skill_overrides: dict[str, bool] = {}
-        if parent_window is not None and hasattr(parent_window, "per_skill_cooldown_overrides"):
-            try:
-                per_skill_overrides = dict(
-                    getattr(parent_window, "per_skill_cooldown_overrides") or {}
-                )
-            except Exception:
-                per_skill_overrides = {}
         engine_settings = {
             k: v for k, v in settings.items() if k not in {"max_rounds"}
         }
-        engine_settings["per_skill_cooldown_overrides"] = per_skill_overrides
         self.engine.set_simulator_options(**engine_settings)
         self.engine.reset(report_builder=self.report_builder)
         targeting_mode = self.targeting_combo.currentData()
@@ -7093,16 +7259,6 @@ class ArenaTab(QtWidgets.QWidget):
 
         layout_entries: list[dict[str, Any]] = []
         sim_settings = self._get_debug_settings()
-        parent_window = self.window()
-        if parent_window is not None and hasattr(parent_window, "per_skill_cooldown_overrides"):
-            try:
-                overrides = dict(
-                    getattr(parent_window, "per_skill_cooldown_overrides") or {}
-                )
-            except Exception:
-                overrides = {}
-            else:
-                sim_settings["per_skill_cooldown_overrides"] = overrides
         for (slot_team, idx), info in self._slot_army.items():
             if not info or not info.get("config"):
                 continue
@@ -7571,6 +7727,31 @@ class MainWindow(QtWidgets.QMainWindow):
         self._last_simulation_payload: dict[str, Any] | None = None
         self.arena_best_match_info: dict[str, Any] | None = None
 
+    def get_simulator_debug_settings(self, *, include_max_rounds: bool = False) -> dict[str, Any]:
+        """Return simulator settings from the main window's debug toggles.
+
+        Used by Arena and Battlefield tabs so they honour the same options as 1v1 mode.
+        """
+        settings: dict[str, Any] = {
+            "cooldowns_enabled": bool(self.hero_cooldowns_enabled),
+            "hero_cooldowns_enabled": self.hero_cooldowns_enabled,
+            "plugin_cooldowns_enabled": self.plugin_cooldowns_enabled,
+            "gem_cooldowns_enabled": self.gem_cooldowns_enabled,
+            "mount_cooldowns_enabled": self.mount_cooldowns_enabled,
+            "damage_reduction_affects_dots": self.damage_reduction_affects_dots,
+            "multi_heal_trig_enabled": self.multi_heal_trig_enabled,
+            "interval_active_cast_cooldowns_enabled": self.interval_active_cast_cooldowns_enabled,
+            "fairness_rage_enabled": self.fairness_rage_enabled,
+            "advantage_mode": self.troop_advantage_mode,
+            "per_skill_cooldown_overrides": dict(self.per_skill_cooldown_overrides),
+        }
+        if include_max_rounds and hasattr(self, "max_rounds_checkbox") and hasattr(self, "max_rounds_spin"):
+            if self.max_rounds_checkbox.isChecked():
+                settings["max_rounds"] = self.max_rounds_spin.value()
+            else:
+                settings["max_rounds"] = None
+        return settings
+
     def open_star_overlay_tuner(self) -> None:
         """Open the star overlay debug dialog."""
         dlg = StarOverlayDebugDialog(self)
@@ -7784,6 +7965,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.run_btn = QtWidgets.QPushButton("Run Simulation")
         self.run_btn.clicked.connect(self.run_simulation)
         controls.addWidget(self.run_btn)
+        self.rank_btn = QtWidgets.QPushButton("Rank")
+        self.rank_btn.clicked.connect(self._open_mount_skill_rank_dialog)
+        controls.addWidget(self.rank_btn)
         self.max_rounds_checkbox = QtWidgets.QCheckBox("Stop at Max Rounds")
         controls.addWidget(self.max_rounds_checkbox)
         controls.addWidget(QtWidgets.QLabel("Max Rounds:"))
@@ -7943,7 +8127,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.addTab(self.setup_tab, "Army Setup")
 
         # --- Battlefield tab ---
-        self.battlefield_tab = BattlefieldTab()
+        self.battlefield_tab = BattlefieldTab(self)
 
         # --- Arena tab ---
         self.arena_tab = ArenaTab(self)
@@ -8185,7 +8369,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hist_scroll = QtWidgets.QScrollArea()
         self.hist_scroll.setWidgetResizable(True)
         self.hist_scroll.setWidget(self.hist_container)
-        fig_layout.addWidget(self.hist_scroll)
+
+        self.fig_content_stack = QtWidgets.QStackedWidget()
+        self.fig_content_stack.addWidget(self.hist_scroll)
+
+        self.rank_text_edit = QtWidgets.QTextEdit()
+        self.rank_text_edit.setReadOnly(True)
+        self.rank_text_edit.setFont(fixed_font)
+        self.rank_text_edit.setStyleSheet(
+            "QTextEdit { background-color: #1e1e1e; color: #ffffff; "
+            "border: 1px solid #444444; }"
+        )
+        self.rank_text_edit.setWordWrapMode(
+            QtGui.QTextOption.WrapMode.WordWrap
+        )
+        self.fig_content_stack.addWidget(self.rank_text_edit)
+
+        fig_layout.addWidget(self.fig_content_stack)
         self.tabs.addTab(self.figures_tab, "Figures")
 
         # --- Skill breakdown tab ---
@@ -8249,6 +8449,134 @@ class MainWindow(QtWidgets.QMainWindow):
             target = dlg.target()
             self.seed_target = dict(target) if target else None
             self._update_seed_display()
+
+    def _open_mount_skill_rank_dialog(self) -> None:
+        """Open the mount skill rank dialog and run the rank worker."""
+        dlg = MountSkillRankDialog(self)
+        if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return
+        skill_ids = dlg.selected_skill_ids()
+        if len(skill_ids) < 2:
+            return
+
+        worker = getattr(self, "_rank_worker", None)
+        if worker and worker.isRunning():
+            QtWidgets.QMessageBox.information(
+                self,
+                "Rank In Progress",
+                "A mount skill rank is already running.",
+            )
+            return
+
+        cfg1 = self.army1_frame.build_config()
+        cfg2 = self.army2_frame.build_config()
+        self._ensure_unique_army_names([cfg1, cfg2])
+
+        max_rounds = None
+        if self.max_rounds_checkbox.isChecked():
+            max_rounds = self.max_rounds_spin.value()
+
+        self._rank_worker = MountSkillRankWorker(
+            skill_ids,
+            cfg1,
+            cfg2,
+            runs=self.runs_spin.value(),
+            num_workers=self.workers_spin.value(),
+            max_rounds=max_rounds,
+            hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+            plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+            gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+            mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+            multi_heal_trig_enabled=self.multi_heal_trig_enabled,
+            interval_active_cast_cooldowns_enabled=self.interval_active_cast_cooldowns_enabled,
+            fairness_rage_enabled=self.fairness_rage_enabled,
+            advantage_mode=self.troop_advantage_mode,
+        )
+        pairs_count = len(skill_ids) * (len(skill_ids) - 1) // 2
+        total = pairs_count * self.runs_spin.value()
+        self.progress.setRange(0, total)
+        self.progress.setValue(0)
+        self.status.setText("Running mount skill rank...")
+        self.rank_btn.setEnabled(False)
+
+        def _on_progress(done: int, total: int) -> None:
+            self.progress.setMaximum(total)
+            self.progress.setValue(done)
+
+        def _on_finished(result: dict) -> None:
+            self.progress.setValue(0)
+            self.status.setText("Ready")
+            self.rank_btn.setEnabled(True)
+            self._rank_worker = None
+            if not result:
+                return
+            formatted_text = self._format_mount_rank_text(result)
+            self.rank_text_edit.setPlainText(formatted_text)
+            self.fig_content_stack.setCurrentIndex(1)
+            self.tabs.setCurrentWidget(self.figures_tab)
+
+        def _on_error(msg: str) -> None:
+            self.progress.setValue(0)
+            self.status.setText("Ready")
+            self.rank_btn.setEnabled(True)
+            self._rank_worker = None
+            QtWidgets.QMessageBox.critical(self, "Rank Error", msg)
+
+        self._rank_worker.progress_update.connect(_on_progress)
+        self._rank_worker.finished.connect(_on_finished)
+        self._rank_worker.error.connect(_on_error)
+        self._rank_worker.finished.connect(self._rank_worker.deleteLater)
+        self._rank_worker.start()
+
+    def _format_mount_rank_text(self, result: dict) -> str:
+        """Format mount skill rank results as plain text with wrapped Beat/Lost to lists."""
+        wins = result.get("wins", {})
+        beat = result.get("beat", {})
+        lost_to = result.get("lost_to", {})
+        runs_per_pair = result.get("runs_per_pair", 0)
+
+        if not wins:
+            return ""
+
+        skill_names = {
+            sid: SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", sid)
+            for sid in wins
+        }
+        sorted_skills = sorted(
+            wins.keys(),
+            key=lambda s: (-wins[s], skill_names.get(s, s)),
+        )
+
+        lines: list[str] = []
+        lines.append(f"Mount Skill Rank ({runs_per_pair} runs per pair, match wins)")
+        lines.append("")
+        for rank, sid in enumerate(sorted_skills, 1):
+            name = skill_names.get(sid, sid)
+            w = wins.get(sid, 0)
+            beat_list = beat.get(sid, [])
+            lost_list = lost_to.get(sid, [])
+            beat_names = [skill_names.get(b, b) for b in beat_list]
+            lost_names = [skill_names.get(l, l) for l in lost_list]
+            lines.append(f"{rank}. {name} - {w} match wins")
+            if beat_names:
+                s = ", ".join(sorted(beat_names))
+                wrapped = textwrap.fill(
+                    s, width=72,
+                    initial_indent="   Beat: ",
+                    subsequent_indent="         ",
+                )
+                lines.append(wrapped)
+            if lost_names:
+                s = ", ".join(sorted(lost_names))
+                wrapped = textwrap.fill(
+                    s, width=72,
+                    initial_indent="   Lost to: ",
+                    subsequent_indent="            ",
+                )
+                lines.append(wrapped)
+            lines.append("")
+
+        return "\n".join(lines)
 
     def _update_seed_display(self) -> None:
         """Refresh the text next to the seed selection button."""
@@ -8362,6 +8690,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.output_tree.clear()
 
     def _clear_figures(self) -> None:
+        self.fig_content_stack.setCurrentIndex(0)
+        self.rank_text_edit.clear()
         old_widget = self.hist_scroll.takeWidget()
         if old_widget is not None:
             old_widget.deleteLater()
@@ -13741,6 +14071,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.army2_frame.name_edit.text() or f"Army 2",
             image_files_override=image_files_override,
         )
+        self.fig_content_stack.setCurrentIndex(0)
         if summary:
             self.update_skill_breakdowns(summary)
         else:

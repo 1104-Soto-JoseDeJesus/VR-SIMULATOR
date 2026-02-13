@@ -33,7 +33,24 @@
                     "weapon": "gear_marine_halberd_legendary",
                     "chest": "gear_bylgjas_armor_legendary",
                     "boots": "gear_tsunami_plated_boots_legendary"
-                }
+                },
+                "skill_overrides": {
+                    "mount_healing_leaf": {
+                        "effects_to_apply": {
+                            "0": {
+                                "magnitude": 0.081
+                            }
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "mount_skill_ids": [
+                    "mount_healing_leaf"
+                ]
             },
             {
                 "hero_name_or_preset": "Naya",
@@ -55,7 +72,26 @@
                     "weapon": "gear_marine_halberd_legendary",
                     "chest": "gear_bylgjas_armor_legendary",
                     "boots": "gear_tsunami_plated_boots_legendary"
-                }
+                },
+                "skill_overrides": {
+                    "mount_shatterbone_bite": {
+                        "sub_effects": {
+                            "0": {
+                                "effect_to_apply": {
+                                    "magnitude": 0.0225
+                                }
+                            }
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "mount_skill_ids": [
+                    "mount_shatterbone_bite"
+                ]
             }
         ]
     },
@@ -93,6 +129,23 @@
                     "weapon": "gear_marine_halberd_legendary",
                     "chest": "gear_bylgjas_armor_legendary",
                     "boots": "gear_tsunami_plated_boots_legendary"
+                },
+                "mount_skill_ids": [
+                    "mount_healing_leaf"
+                ],
+                "skill_overrides": {
+                    "mount_healing_leaf": {
+                        "effects_to_apply": {
+                            "0": {
+                                "magnitude": 0.081
+                            }
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
                 }
             },
             {
@@ -115,6 +168,25 @@
                     "weapon": "gear_marine_halberd_legendary",
                     "chest": "gear_bylgjas_armor_legendary",
                     "boots": "gear_tsunami_plated_boots_legendary"
+                },
+                "mount_skill_ids": [
+                    "mount_shatterbone_bite"
+                ],
+                "skill_overrides": {
+                    "mount_shatterbone_bite": {
+                        "sub_effects": {
+                            "0": {
+                                "effect_to_apply": {
+                                    "magnitude": 0.0225
+                                }
+                            }
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
                 }
             }
         ]

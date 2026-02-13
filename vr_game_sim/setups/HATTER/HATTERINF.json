@@ -29,13 +29,27 @@
                     "plugin_trap_of_despair"
                 ],
                 "mount_skill_ids": [
-                    "mount_bloodthirst_gaze"
+                    "mount_razor_sharp_spikes"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
                     "weapon": "gear_immolated_axe_legendary",
                     "chest": "gear_inferno_armor_legendary",
                     "boots": "gear_ferocious_boots_legendary"
+                },
+                "skill_overrides": {
+                    "mount_razor_sharp_spikes": {
+                        "effects_to_apply": {
+                            "0": {
+                                "magnitude": 0.145
+                            }
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
                 }
             },
             {
@@ -54,13 +68,27 @@
                     "plugin_silent_invasion"
                 ],
                 "mount_skill_ids": [
-                    "mount_soul_of_fury"
+                    "mount_razor_sharp_spikes"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
                     "weapon": "gear_immolated_axe_legendary",
                     "chest": "gear_inferno_armor_legendary",
                     "boots": "gear_ferocious_boots_legendary"
+                },
+                "skill_overrides": {
+                    "mount_razor_sharp_spikes": {
+                        "effects_to_apply": {
+                            "0": {
+                                "magnitude": 0.122
+                            }
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
                 }
             }
         ]
@@ -69,7 +97,7 @@
         "army_name": "Margit/Lagertha (2)",
         "unit_type": "infantry",
         "tier": 7,
-        "count": 250000,
+        "count": 300000,
         "is_rally": false,
         "rally_config": null,
         "atk_mod": 3.0,
@@ -95,13 +123,27 @@
                     "plugin_trap_of_despair"
                 ],
                 "mount_skill_ids": [
-                    "mount_bloodthirst_gaze"
+                    "mount_razor_sharp_spikes"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
                     "weapon": "gear_immolated_axe_legendary",
                     "chest": "gear_inferno_armor_legendary",
                     "boots": "gear_ferocious_boots_legendary"
+                },
+                "skill_overrides": {
+                    "mount_razor_sharp_spikes": {
+                        "effects_to_apply": {
+                            "0": {
+                                "magnitude": 0.145
+                            }
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
                 }
             },
             {
@@ -120,13 +162,27 @@
                     "plugin_silent_invasion"
                 ],
                 "mount_skill_ids": [
-                    "mount_strangled_death"
+                    "mount_razor_sharp_spikes"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
                     "weapon": "gear_immolated_axe_legendary",
                     "chest": "gear_inferno_armor_legendary",
                     "boots": "gear_ferocious_boots_legendary"
+                },
+                "skill_overrides": {
+                    "mount_razor_sharp_spikes": {
+                        "effects_to_apply": {
+                            "0": {
+                                "magnitude": 0.122
+                            }
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
                 }
             }
         ]

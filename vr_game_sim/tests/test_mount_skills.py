@@ -576,9 +576,7 @@ def test_mount_skill_fallback_aggregation():
     # Fallback aggregation should find instance-keyed data
     assert mount_entry.get("kills", 0) == 100, "Fallback should aggregate instance-keyed kills"
     assert mount_entry.get("heals", 0) == 50, "Fallback should aggregate instance-keyed heals"
-    assert mount_entry.get("casts", 0) == 10, "Trigger counts should be found"
-
-    # Per-instance rows should not aggregate across instance keys
+    assert mount_entry.get("casts", 0) == 10, "Trigger counts should be found"    # Per-instance rows should not aggregate across instance keys
     cfg_dupe = copy.deepcopy(_BASE_CFG)
     cfg_dupe["heroes"][0]["mount_skill_ids"] = ["mount_flame_serpent", "mount_flame_serpent"]
     army_dupe = create_armies_from_data([cfg_dupe])[0]

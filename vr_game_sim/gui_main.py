@@ -2108,11 +2108,11 @@ class SkillParamEditor(QtWidgets.QWidget):
                     for path, values in remaining_paths:
                         preferred_paths.add(path)
                 else:
-                    # No parent-child relationships found
-                    # Check if paths share common prefix and have same values - prefer longer path
-                    # Sort by path length (longer = more specific), then by path itself for consistency
-                    paths_with_values.sort(key=lambda x: (-len(x[0]), x[0]))
-                    preferred_paths.add(paths_with_values[0][0])
+                    # No parent-child relationships found: same key in different branches
+                    # (e.g. effects_to_apply[0].magnitude vs passive_effects[0].magnitude).
+                    # Keep all paths so each gets its own row with a distinct label.
+                    for path, values in paths_with_values:
+                        preferred_paths.add(path)
         
         # Third pass: create fields only for preferred paths
         for path in preferred_paths:

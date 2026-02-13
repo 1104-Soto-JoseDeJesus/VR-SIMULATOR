@@ -1,0 +1,230 @@
+[
+    {
+        "army_name": "Margit/Hobert",
+        "unit_type": "infantry",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 2.2968,
+        "def_mod": 2.3241,
+        "hp_mod": 0.7577,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Margit",
+                "talent_ids": [
+                    "talent_cutting_blade",
+                    "talent_thirst_for_blood",
+                    "talent_seas_grace"
+                ],
+                "base_skill_ids": [
+                    "base_skill_ride_the_waves",
+                    "base_skill_raging_tide"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_enrage",
+                    "plugin_divine_blessing"
+                ],
+                "mount_skill_ids": [
+                    "mount_emerald_scales"
+                ],
+                "skill_overrides": {
+                    "plugin_enrage": {
+                        "trigger_chance": 0.18
+                    },
+                    "plugin_divine_blessing": {
+                        "config": {
+                            "reduction_magnitude": -0.275
+                        }
+                    },
+                    "mount_emerald_scales": {
+                        "effects_to_apply": {
+                            "0": {
+                                "magnitude": -0.051
+                            }
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "plugin_star_counts": [
+                    5,
+                    5
+                ]
+            },
+            {
+                "hero_name_or_preset": "Hobert",
+                "talent_ids": [
+                    "talent_bold_shieldaxe",
+                    "talent_fearless_pursuit",
+                    "talent_steadfast_armor"
+                ],
+                "base_skill_ids": [
+                    "base_skill_berserk_fury",
+                    "base_skill_brutal_blow"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_silent_invasion",
+                    "plugin_silencer"
+                ],
+                "mount_skill_ids": [
+                    "mount_soul_of_fury"
+                ],
+                "skill_overrides": {
+                    "plugin_silent_invasion": {
+                        "config": {
+                            "slow_trigger_chance": 0.21,
+                            "damage_factor": 455.0,
+                            "no_slow_trigger_chance": 0.21,
+                            "bleed_factor": 230.0
+                        }
+                    },
+                    "mount_soul_of_fury": {
+                        "config": {
+                            "rage_gain": 44.0
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "plugin_star_counts": [
+                    2,
+                    6
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_epic",
+                    "boots": "gear_ferocious_boots_epic"
+                }
+            }
+        ],
+        "bonus_stats": {
+            "damage_boost": {
+                "command_crit_rate": 0.0044
+            },
+            "basic_boost": 0.0284,
+            "counter_boost": 0.0555
+        }
+    },
+    {
+        "army_name": "Rosky/Helgar",
+        "unit_type": "pikemen",
+        "tier": 6,
+        "count": 200000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 2.4647,
+        "def_mod": 1.7498,
+        "hp_mod": 0.7507,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_shield_reflector",
+                    "plugin_divine_shield"
+                ],
+                "mount_skill_ids": [
+                    "mount_power_swipe"
+                ],
+                "skill_overrides": {
+                    "plugin_shield_reflector": {
+                        "config": {
+                            "counterattack_boost": 1.17
+                        }
+                    },
+                    "mount_power_swipe": {
+                        "config": {
+                            "damage_factor": 140.0
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "plugin_star_counts": [
+                    5,
+                    6
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_epic",
+                    "weapon": "gear_marine_halberd_epic",
+                    "boots": "gear_tsunami_plated_boots_epic"
+                }
+            },
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_blessing",
+                    "plugin_hymn_of_life"
+                ],
+                "mount_skill_ids": [
+                    "mount_retaliation_fangs"
+                ],
+                "skill_overrides": {
+                    "plugin_divine_blessing": {
+                        "config": {
+                            "reduction_magnitude": -0.275
+                        }
+                    },
+                    "mount_retaliation_fangs": {
+                        "sub_effects": {
+                            "0": {
+                                "effect_to_apply": {
+                                    "magnitude": 0.58
+                                }
+                            }
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "plugin_star_counts": [
+                    5,
+                    6
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_epic"
+                }
+            }
+        ],
+        "bonus_stats": {
+            "damage_boost": {
+                "reactive_crit_rate": 0.028
+            }
+        }
+    }
+]

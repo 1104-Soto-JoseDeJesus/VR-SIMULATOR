@@ -1782,11 +1782,10 @@ class GameSimulator:
         damage_dealt_by_rage = False
         rage_before_cast = army.current_rage
 
-        current_round_rage_gain = army.rage_added_this_round
         if not is_hero2_delayed_trigger:
             rage_cost = skill_def.get("rage_cost", 1000)
-            # Rage cost is used only as a trigger threshold; all existing rage is reset
-            army.current_rage = max(0.0, current_round_rage_gain)
+            # Hard reset to 0 when main hero rage skill triggers; no rage carried over
+            army.current_rage = 0.0
             army.army_used_rage_skill_this_round_for_rage_gain_block = True
             army.hero1_rage_skill_used_round = army.army_round
             army.hero1_rage_skill_queued_this_round = False

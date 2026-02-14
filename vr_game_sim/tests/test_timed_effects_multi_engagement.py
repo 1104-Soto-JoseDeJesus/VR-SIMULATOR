@@ -26,7 +26,7 @@ def test_timed_buff_activation_and_global_decrement():
     atk1 = make_army("A1")
     atk2 = make_army("A2")
 
-    dfd.current_rage = 1000  # rage skill will cast next round
+    dfd.current_rage = 850  # reaches 1050 after 2 rounds of base rage, then rage skill triggers
 
     engine.add_army(atk1, "red", position=(0, 0), speed=0)
     engine.add_army(atk2, "red", position=(4, 0), speed=0)

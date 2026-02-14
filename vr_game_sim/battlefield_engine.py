@@ -35,7 +35,7 @@ from math import atan2, cos, sin, hypot, pi, degrees, radians
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .army_composition import Army
-from .game_simulator import GameSimulator
+from .game_simulator import GameSimulator, RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
 from .enums import SkillTriggerType
 from .battlefield_report_builder import BattlefieldReportBuilder
 from .constants import EFFECT_NAME_DISARM_DEBUFF
@@ -1150,21 +1150,23 @@ class BattlefieldEngine:
             )
             army.activate_queued_effects()
 
-        # Schedule rage skills if the threshold has been reached after start of round
+        # Immediate trigger: if rage >= 1050 after start-of-round effects, queue for execution this round
         for army, ctx in ((atk, atk_ctx), (dfd, dfd_ctx)):
             if (
                 army.current_troop_count > 0
                 and army.hero1_rage_skill_id
                 and army.hero1_rage_skill_scheduled_round is None
+                and (army.hero1_rage_skill_used_round is None or army.hero1_rage_skill_used_round != army.army_round)
                 and (
                     army.hero2_rage_skill_primed_for_round is None
                     or army.hero2_rage_skill_primed_for_round != ctx.internal_round + 1
                 )
             ):
                 skill_def = army.hero1_rage_skill_def
-                if skill_def is not None and army.current_rage >= skill_def.get("rage_cost", 1000):
-                    army.hero1_rage_skill_scheduled_round = ctx.internal_round + 1
-                    army.army_used_rage_skill_this_round_for_rage_gain_block = True
+                if skill_def is not None:
+                    effective_threshold = skill_def.get("rage_cost", 1000) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+                    if army.current_rage >= effective_threshold:
+                        army.hero1_rage_skill_queued_this_round = True
 
         # Execute any queued rage skills.
         if atk.current_troop_count > 0 and dfd.current_troop_count > 0:
@@ -1289,6 +1291,35 @@ class BattlefieldEngine:
                 dfd.activate_queued_effects()
                 sim._calculate_and_log_attack(atk, dfd, is_counter=True)
 
+        # Immediate trigger after combat (base rage): if rage >= 1050, execute this round
+        if atk.current_troop_count > 0 and dfd.current_troop_count > 0:
+            for army, ctx in ((atk, atk_ctx), (dfd, dfd_ctx)):
+                if (
+                    army.hero1_rage_skill_id
+                    and army.hero1_rage_skill_scheduled_round is None
+                    and (army.hero1_rage_skill_used_round is None or army.hero1_rage_skill_used_round != army.army_round)
+                    and (
+                        army.hero2_rage_skill_primed_for_round is None
+                        or army.hero2_rage_skill_primed_for_round != ctx.internal_round + 1
+                    )
+                ):
+                    skill_def = army.hero1_rage_skill_def
+                    if skill_def is not None:
+                        effective_threshold = skill_def.get("rage_cost", 1000) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+                        if army.current_rage >= effective_threshold:
+                            army.hero1_rage_skill_queued_this_round = True
+            if (
+                atk.hero1_rage_skill_queued_this_round
+                and atk_ctx
+                and atk_ctx.direct_target == dfd.name
+            ):
+                sim._execute_rage_skills(atk, dfd, is_hero2_delayed_trigger=False)
+            if (
+                dfd.hero1_rage_skill_queued_this_round
+                and dfd_ctx
+                and dfd_ctx.direct_target == atk.name
+            ):
+                sim._execute_rage_skills(dfd, atk, is_hero2_delayed_trigger=False)
 
         # End of round processing and base rage gain
         for army, opponent in ((atk, dfd), (dfd, atk)):
@@ -1305,21 +1336,6 @@ class BattlefieldEngine:
                 for eff in army.active_effects:
                     if id(eff) in pre_existing:
                         eff.applied_this_round = False
-
-        # Schedule primary hero rage skills for the next round if threshold met
-        for army, ctx in ((atk, atk_ctx), (dfd, dfd_ctx)):
-            if (
-                army.current_troop_count > 0
-                and army.hero1_rage_skill_id
-                and army.hero1_rage_skill_scheduled_round is None
-                and (
-                    army.hero2_rage_skill_primed_for_round is None
-                    or army.hero2_rage_skill_primed_for_round != ctx.internal_round + 1
-                )
-            ):
-                skill_def = army.hero1_rage_skill_def
-                if skill_def is not None and army.current_rage >= skill_def.get("rage_cost", 1000):
-                    army.hero1_rage_skill_scheduled_round = ctx.internal_round + 1
 
         # Record latest engagement time for both armies
         self._armies[atk.name].last_engaged_time = self.time_elapsed

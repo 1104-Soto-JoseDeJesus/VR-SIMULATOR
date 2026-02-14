@@ -137,7 +137,7 @@ def test_indomitable_spirit_hits_extra_attackers_in_battlefield():
             return [direct] + extras
 
     sim.parent_engine = DummyEngine()
-    army.current_rage = 1000
+    army.current_rage = 1050
     army.hero1_rage_skill_queued_this_round = True
 
     sim._execute_rage_skills(army, direct)
@@ -164,7 +164,7 @@ def test_indomitable_spirit_single_target_in_standard_mode():
             return [direct] + extras
 
     sim.parent_engine = DummyEngine()
-    army.current_rage = 1000
+    army.current_rage = 1050
     army.hero1_rage_skill_queued_this_round = True
 
     sim._execute_rage_skills(army, direct)

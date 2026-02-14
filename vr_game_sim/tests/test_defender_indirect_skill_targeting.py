@@ -43,7 +43,7 @@ def setup_battlefield(defender):
 def test_defender_rage_skill_does_not_hit_indirect_attacker():
     hero = create_hero_with_skills(base_skill_ids=["base_skill_vanquishing_blade"])
     defender = Army("Def", Unit("pikemen", 5, initial_count=1000), heroes=[hero])
-    defender.current_rage = 1000
+    defender.current_rage = 1050
     apply_broken_blade(defender)
     engine, atk1, atk2 = setup_battlefield(defender)
     engine.tick(1.0)  # round 1 – schedule rage skill

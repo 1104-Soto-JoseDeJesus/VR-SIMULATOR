@@ -41,7 +41,7 @@ def test_no_base_rage_when_skill_cast():
     army1.army_round = army2.army_round = 1
     army1.simulator = army2.simulator = sim
 
-    army1.current_rage = 1000
+    army1.current_rage = 1050
     army1.hero1_rage_skill_queued_this_round = True
     sim._execute_rage_skills(army1, army2)
     # Simulate army1 basic attack - base rage would be blocked on trigger round
@@ -194,7 +194,7 @@ def test_hero2_rage_skill_primes_for_two_round_delay():
     sim = GameSimulator(army1, army2, mode="arena", fairness_rage_enabled=False)
     sim.round = 1
     army1.army_round = army2.army_round = 1
-    army1.current_rage = 1000
+    army1.current_rage = 1050
     army1.hero1_rage_skill_queued_this_round = True
     sim._execute_rage_skills(army1, army2)
 
@@ -282,7 +282,7 @@ def test_rage_skill_absorbed_damage_still_triggers_reaction():
     defender.active_effects.append(shield)
     defender.started_round_with_active_shield = True
 
-    attacker.current_rage = 1000
+    attacker.current_rage = 1050
     attacker.hero1_rage_skill_queued_this_round = True
 
     sim._execute_rage_skills(attacker, defender)

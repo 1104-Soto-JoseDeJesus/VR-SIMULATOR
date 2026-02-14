@@ -39,11 +39,10 @@ def test_rage_skill_executes_in_battlefield():
     engine.add_army(attacker, "red", position=(0, 0), speed=0)
     engine.add_army(defender, "blue", position=(2, 0), speed=0)
 
-    attacker.current_rage = 1000
+    attacker.current_rage = 1050
 
     engine.engage("A", "B")
-    engine.tick(1.0)  # round 1 – schedule rage skill
-    engine.tick(1.0)  # round 2 – execute rage skill
+    engine.tick(1.0)  # round 1 – rage skill triggers immediately at start of round
 
     assert attacker.current_rage == 0
     assert attacker.rage_added_this_round == 0
@@ -170,11 +169,10 @@ def test_rage_skill_blocks_base_rage_in_arena():
     engine.add_army(attacker, "red", position=(0, 0), speed=0)
     engine.add_army(defender, "blue", position=(2, 0), speed=0)
 
-    attacker.current_rage = 1000
+    attacker.current_rage = 1050
 
     engine.engage("A", "B")
-    engine.tick(1.0)
-    engine.tick(1.0)
+    engine.tick(1.0)  # round 1 – rage skill triggers at start, blocks base rage
 
     assert attacker.current_rage == 0
     assert attacker.rage_added_this_round == 0
@@ -187,12 +185,12 @@ def test_no_base_rage_on_trigger_round():
     engine.add_army(attacker, "red", position=(0, 0), speed=0)
     engine.add_army(defender, "blue", position=(2, 0), speed=0)
 
-    attacker.current_rage = 1000
+    attacker.current_rage = 1050
 
     engine.engage("A", "B")
     engine.tick(1.0)
 
-    assert attacker.current_rage == 1000
+    assert attacker.current_rage == 0
     assert not attacker.base_rage_awarded_this_round
 
 

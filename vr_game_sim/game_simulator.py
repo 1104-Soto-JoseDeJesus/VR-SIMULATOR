@@ -34,6 +34,9 @@ from .report_builder import ReportBuilder
 from . import troop_scalar_config, heal_shield_pairing_config, shield_consumption_config
 from colorama import Fore
 
+# Main hero rage skill requires base + 50 rage to trigger (1050 when base is 1000)
+RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET = 50
+
 # Skills that trigger on active skill casts but have a 1 trigger per 9 rounds limit instead of 2
 ACTIVE_CAST_ONE_TRIGGER_SKILLS = {
     "talent_excite",
@@ -1739,7 +1742,8 @@ class GameSimulator:
 
         if not is_hero2_delayed_trigger:
             rage_cost = skill_def.get("rage_cost", 1000)
-            if army.current_rage < rage_cost:
+            effective_threshold = rage_cost + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+            if army.current_rage < effective_threshold:
                 army.hero1_rage_skill_queued_this_round = False
                 army.hero1_rage_skill_scheduled_round = None
                 self._log_skill_trigger(
@@ -2614,21 +2618,24 @@ class GameSimulator:
                 self._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND,
                                              event_data={'opponent_for_shield_calc': opponent})
                 army.activate_queued_effects()
-            # Schedule rage skills if rage threshold reached after start-of-round effects
+
+            # Immediate trigger: if rage >= 1050 after delayed/base rage, queue for execution this round
             for army in (self.army1, self.army2):
                 if (
                     army.current_troop_count > 0
                     and army.hero1_rage_skill_id
                     and army.hero1_rage_skill_scheduled_round is None
+                    and (army.hero1_rage_skill_used_round is None or army.hero1_rage_skill_used_round != self.round)
                     and (
                         army.hero2_rage_skill_primed_for_round is None
                         or army.hero2_rage_skill_primed_for_round != self.round + (2 if self.mode == "standard" else 1)
                     )
                 ):
                     skill_def = army.hero1_rage_skill_def
-                    if skill_def is not None and army.current_rage >= skill_def.get("rage_cost", 1000):
-                        army.hero1_rage_skill_scheduled_round = self.round + 1
-                        army.army_used_rage_skill_this_round_for_rage_gain_block = True
+                    if skill_def is not None:
+                        effective_threshold = skill_def.get("rage_cost", 1000) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+                        if army.current_rage >= effective_threshold:
+                            army.hero1_rage_skill_queued_this_round = True
 
             # Only break early if max_rounds is not set
             if max_rounds is None and not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
@@ -2740,6 +2747,28 @@ class GameSimulator:
                     self.army2.activate_queued_effects()
                     self._calculate_and_log_attack(self.army1, self.army2, is_counter=True)
 
+            # Immediate trigger after combat (base rage): if rage >= 1050, execute this round
+            if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
+                for army in (self.army1, self.army2):
+                    if (
+                        army.hero1_rage_skill_id
+                        and army.hero1_rage_skill_scheduled_round is None
+                        and (army.hero1_rage_skill_used_round is None or army.hero1_rage_skill_used_round != self.round)
+                        and (
+                            army.hero2_rage_skill_primed_for_round is None
+                            or army.hero2_rage_skill_primed_for_round != self.round + (2 if self.mode == "standard" else 1)
+                        )
+                    ):
+                        skill_def = army.hero1_rage_skill_def
+                        if skill_def is not None:
+                            effective_threshold = skill_def.get("rage_cost", 1000) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+                            if army.current_rage >= effective_threshold:
+                                army.hero1_rage_skill_queued_this_round = True
+                if self.army1.hero1_rage_skill_queued_this_round:
+                    self._execute_rage_skills(self.army1, self.army2, is_hero2_delayed_trigger=False)
+                if self.army2.hero1_rage_skill_queued_this_round:
+                    self._execute_rage_skills(self.army2, self.army1, is_hero2_delayed_trigger=False)
+
             # Only break early if max_rounds is not set
             if max_rounds is None and not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0):
                 break
@@ -2805,21 +2834,6 @@ class GameSimulator:
                 self.army2.rage_gained_history.append(self.army2.rage_added_this_round)
                 self.army1.kills_dealt_history.append(self.army1.kills_dealt_this_round)
                 self.army2.kills_dealt_history.append(self.army2.kills_dealt_this_round)
-
-            for army in [self.army1, self.army2]:
-                if army.current_troop_count <= 0:
-                    continue
-                if (
-                    army.hero1_rage_skill_id
-                    and army.hero1_rage_skill_scheduled_round is None
-                    and (
-                        army.hero2_rage_skill_primed_for_round is None
-                        or army.hero2_rage_skill_primed_for_round != self.round + (2 if self.mode == "standard" else 1)
-                    )
-                ):
-                    skill_def_h1_rage = army.hero1_rage_skill_def
-                    if skill_def_h1_rage is not None and army.current_rage >= skill_def_h1_rage.get("rage_cost", 1000):
-                        army.hero1_rage_skill_scheduled_round = self.round + 1
 
             if not (self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0): break
 

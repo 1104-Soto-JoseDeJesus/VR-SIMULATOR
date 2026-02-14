@@ -316,6 +316,14 @@ class Army:
         """Add rage to the army, applying any Berserk Fury bonuses and track source."""
         if amount <= 0:
             return 0.0
+        # Block all rage gain on rounds when main commander rage skill triggers or is scheduled
+        current_round = getattr(self, "army_round", getattr(self.simulator, "round", 0) if self.simulator else 0)
+        if (
+            self.hero1_rage_skill_queued_this_round
+            or (self.hero1_rage_skill_used_round is not None and self.hero1_rage_skill_used_round == current_round)
+            or self.army_used_rage_skill_this_round_for_rage_gain_block
+        ):
+            return 0.0
         multiplier, bonus_effects = self._get_rage_gain_multiplier()
         gained = math.floor(amount * multiplier + 1e-9)
         base_gain = math.floor(amount + 1e-9)

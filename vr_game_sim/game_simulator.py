@@ -1883,42 +1883,22 @@ class GameSimulator:
         eff_def = u.effective_defense(army.active_effects)
         return (eff_hp / base_hp - 1.0) + (eff_atk / base_atk - 1.0) + (eff_def / base_def - 1.0)
 
-    def _apply_base_rage_gain(self) -> None:
-        """Grant each army 100 rage at end of round unless their Hero 1 rage skill was used or blocked."""
-        for army in [self.army1, self.army2]:
-            if army.army_round < 1:
-                army.base_rage_awarded_this_round = False
-                continue
-            # In battlefield mode a defender may participate in multiple
-            # engagements within the same global round.  ``_apply_base_rage_gain``
-            # can therefore be invoked multiple times for the same army which
-            # previously caused base rage to stack erroneously.  Guard against
-            # this by skipping processing if base rage has already been awarded
-            # for the current round.
-            if army.base_rage_awarded_this_round:
-                continue
-
-            # Fairness rage: on first round, the army with higher stats
-            # (hp+atk+def % boosts) does not gain base rage (delayed by 1 round).
-            if (
-                self.fairness_rage_enabled
-                and army.army_round == 1
-            ):
-                score1 = self._army_stat_score(self.army1)
-                score2 = self._army_stat_score(self.army2)
-                stronger_army = self.army1 if score1 > score2 else (self.army2 if score2 > score1 else None)
-                if army is stronger_army:
-                    army.base_rage_awarded_this_round = True  # Mark processed, no rage granted
-                    continue
-
-            if (
-                army.army_used_rage_skill_this_round_for_rage_gain_block
-                or army.hero1_rage_skill_cast_blocked_by_silence_this_round
-            ):
-                army.base_rage_awarded_this_round = False
-            else:
-                army.add_rage(100, source_skill_id="base_rage")
-                army.base_rage_awarded_this_round = True
+    def _grant_base_rage_for_basic_attack(self, att: Army) -> None:
+        """Grant 100 base rage when army performs a basic attack (not counter)."""
+        if att.army_round < 1:
+            return
+        if att.base_rage_awarded_this_round:
+            return
+        if self.fairness_rage_enabled and att.army_round == 1:
+            score1 = self._army_stat_score(self.army1)
+            score2 = self._army_stat_score(self.army2)
+            stronger = self.army1 if score1 > score2 else (self.army2 if score2 > score1 else None)
+            if att is stronger:
+                att.base_rage_awarded_this_round = True
+                return
+        gained = att.add_rage(100, source_skill_id="base_rage")
+        if gained > 0:
+            att.base_rage_awarded_this_round = True
 
     def _generate_round_figures(self) -> None:
         base_dir = os.path.join(os.path.dirname(__file__), "histograms")
@@ -1960,6 +1940,9 @@ class GameSimulator:
             if effect.name == prevent_effect_name or effect.config.get(prevent_config_key):
                 self._log_skill_trigger(att, effect.name, f"{att.name} cannot {action_name_log} due to {effect.name}.")
                 return 0.0, 0.0, 0.0, 0
+
+        if not is_counter:
+            self._grant_base_rage_for_basic_attack(att)
 
         attack_type_code = "COUNTER" if is_counter else "BASIC"
         evasion_effect = self._attempt_evasion(dfd, att, attack_type_code, None)
@@ -2799,8 +2782,6 @@ class GameSimulator:
                 army.process_periodic_effects('end_of_round', opponent=opponent)
                 army.activate_queued_effects()
 
-            # Apply base rage gain after combat and end-of-round effects
-            self._apply_base_rage_gain()
             for army in [self.army1, self.army2]:
                 army.army_used_rage_skill_this_round_for_rage_gain_block = False
                 army.hero1_rage_skill_cast_blocked_by_silence_this_round = False

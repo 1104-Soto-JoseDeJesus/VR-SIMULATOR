@@ -26,7 +26,8 @@ def test_rage_per_round_tracks_only_additions():
     army.active_effects.append(eff)
 
     army.apply_start_of_round_rage_deductions()
-    sim._apply_base_rage_gain()
+    # Base rage is now granted on basic attack; simulate army basic attacking
+    sim._calculate_and_log_attack(army, enemy, is_counter=False)
 
     army.rage_gained_history.append(army.rage_added_this_round)
 

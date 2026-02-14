@@ -1306,8 +1306,6 @@ class BattlefieldEngine:
                     if id(eff) in pre_existing:
                         eff.applied_this_round = False
 
-        sim._apply_base_rage_gain()
-
         # Schedule primary hero rage skills for the next round if threshold met
         for army, ctx in ((atk, atk_ctx), (dfd, dfd_ctx)):
             if (

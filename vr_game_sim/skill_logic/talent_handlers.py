@@ -3920,6 +3920,7 @@ def handle_talent_seas_grace(
             or eff.config.get("prevents_rage_skill_cast")
         )
         and eff.name not in PROTECTED_MARKER_EFFECTS
+        and eff.duration > 0
     ]
     if eligible_debuffs:
         selected = random.choice(eligible_debuffs)

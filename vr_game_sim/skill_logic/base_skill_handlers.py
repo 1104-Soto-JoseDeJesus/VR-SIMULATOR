@@ -207,6 +207,7 @@ def handle_base_skill_zeal(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: SkillD
                 or eff.name == EFFECT_NAME_SILENCE_DEBUFF
             )
             and eff.name not in PROTECTED_MARKER_EFFECTS
+            and eff.duration > 0
         ]
         if dbuffs_on_army:
             dbuff_to_rmv = random.choice(dbuffs_on_army)
@@ -1175,6 +1176,7 @@ def handle_base_skill_winters_coronation(
                     or eff.config.get("prevents_rage_skill_cast")
                 )
                 and eff.name not in PROTECTED_MARKER_EFFECTS
+                and eff.duration > 0
             ]
             if eligible_debuffs:
                 selected = random.choice(eligible_debuffs)
@@ -1605,7 +1607,7 @@ def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
     if cfg.get("buff_removal_count", 2) > 0:
         eligible_buffs = [
             eff for eff in opponent_army.active_effects
-            if eff.is_dispellable_buff_candidate()
+            if eff.is_dispellable_buff_candidate() and eff.duration > 0
         ]
         if eligible_buffs:
             count = cfg.get("buff_removal_count", 2)
@@ -1634,6 +1636,7 @@ def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
                 or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
             )
             and eff.name not in PROTECTED_MARKER_EFFECTS
+            and eff.duration > 0
         ]
         if eligible_debuffs:
             count = cfg.get("self_cleanse_count", 1)

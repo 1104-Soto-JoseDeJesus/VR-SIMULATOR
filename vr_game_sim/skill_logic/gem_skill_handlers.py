@@ -517,6 +517,7 @@ def _apply_composite_combat_effects(
                 or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
             )
             and eff.name not in PROTECTED_MARKER_EFFECTS
+            and eff.duration > 0
         ]
         if eligible_debuffs:
             selected = random.sample(
@@ -558,7 +559,7 @@ def _apply_composite_combat_effects(
         eligible_buffs = [
             eff
             for eff in opponent_army.active_effects
-            if eff.is_dispellable_buff_candidate()
+            if eff.is_dispellable_buff_candidate() and eff.duration > 0
         ]
         if eligible_buffs:
             selected = random.sample(

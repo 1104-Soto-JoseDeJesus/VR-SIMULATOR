@@ -7361,6 +7361,8 @@ class ArenaTab(QtWidgets.QWidget):
         window.status.setText("Running arena batch...")
         window.progress.setRange(0, runs)
         window.progress.setValue(0)
+        window.progress_eta.setText("")
+        window._sim_start_time = time.perf_counter()
         self.run_batch_btn.setEnabled(False)
         worker = ArenaBatchWorker(
             layout_entries,
@@ -7372,13 +7374,13 @@ class ArenaTab(QtWidgets.QWidget):
             custom_targeting=custom_targeting,
         )
         self._batch_worker = worker
-        worker.progress_update.connect(
-            lambda d, t: (window.progress.setMaximum(t), window.progress.setValue(d))
-        )
+        worker.progress_update.connect(window._on_progress_with_eta)
         worker.finished_dict.connect(lambda res: window.update_arena_figures(res))
 
         def _finished() -> None:
             window.progress.setValue(0)
+            window.progress_eta.setText("")
+            window._sim_start_time = None
             window.status.setText("Ready")
             self.run_batch_btn.setEnabled(True)
             self._batch_worker = None
@@ -7722,6 +7724,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._troop_scalar_multiplier = troop_scalar_config.get_multiplier()
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
+        self._sim_start_time: float | None = None
         self.pdf_layout = load_pdf_layout()
         self._last_setup_data: list[dict] | None = None
         self._last_simulation_payload: dict[str, Any] | None = None
@@ -8496,15 +8499,18 @@ class MainWindow(QtWidgets.QMainWindow):
         total = pairs_count * self.runs_spin.value()
         self.progress.setRange(0, total)
         self.progress.setValue(0)
+        self.progress_eta.setText("")
+        self._sim_start_time = time.perf_counter()
         self.status.setText("Running mount skill rank...")
         self.rank_btn.setEnabled(False)
 
         def _on_progress(done: int, total: int) -> None:
-            self.progress.setMaximum(total)
-            self.progress.setValue(done)
+            self._on_progress_with_eta(done, total)
 
         def _on_finished(result: dict) -> None:
             self.progress.setValue(0)
+            self.progress_eta.setText("")
+            self._sim_start_time = None
             self.status.setText("Ready")
             self.rank_btn.setEnabled(True)
             self._rank_worker = None
@@ -8517,6 +8523,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         def _on_error(msg: str) -> None:
             self.progress.setValue(0)
+            self.progress_eta.setText("")
+            self._sim_start_time = None
             self.status.setText("Ready")
             self.rank_btn.setEnabled(True)
             self._rank_worker = None
@@ -8601,14 +8609,41 @@ class MainWindow(QtWidgets.QMainWindow):
                 display += f" (Rounds: {rounds_int})"
         self.seed_display.setText(display)
 
+    def _format_eta_seconds(self, seconds: float) -> str:
+        """Format seconds as '~Xm Ys' or '~Xs' remaining."""
+        if seconds < 0 or not math.isfinite(seconds):
+            return ""
+        s = int(round(seconds))
+        if s < 60:
+            return f"~{s}s"
+        m, s = divmod(s, 60)
+        return f"~{m}m {s}s"
+
+    def _on_progress_with_eta(self, done: int, total: int) -> None:
+        """Update progress bar and ETA label."""
+        self.progress.setMaximum(total)
+        self.progress.setValue(done)
+        if total > 0 and done > 0 and hasattr(self, "_sim_start_time") and self._sim_start_time is not None:
+            elapsed = time.perf_counter() - self._sim_start_time
+            eta_sec = elapsed / done * (total - done)
+            self.progress_eta.setText(self._format_eta_seconds(eta_sec))
+        else:
+            self.progress_eta.setText("")
+
     def _init_status_controls(self, main_layout: QtWidgets.QVBoxLayout) -> None:
         """Create status label, progress bar and run options."""
         self.status = QtWidgets.QLabel("Ready")
         main_layout.addWidget(self.status)
 
+        progress_row = QtWidgets.QHBoxLayout()
         self.progress = QtWidgets.QProgressBar()
         self.progress.setRange(0, 0)
-        main_layout.addWidget(self.progress)
+        progress_row.addWidget(self.progress)
+        self.progress_eta = QtWidgets.QLabel("")
+        self.progress_eta.setMinimumWidth(120)
+        self.progress_eta.setStyleSheet("color: #666;")
+        progress_row.addWidget(self.progress_eta)
+        main_layout.addLayout(progress_row)
 
         self.opts_widget = QtWidgets.QWidget()
         opts_layout = QtWidgets.QHBoxLayout(self.opts_widget)
@@ -9393,6 +9428,7 @@ class MainWindow(QtWidgets.QMainWindow):
         visible = widget in visible_tabs
         self.status.setVisible(visible)
         self.progress.setVisible(visible)
+        self.progress_eta.setVisible(visible)
         self.opts_widget.setVisible(visible)
 
     def export_report(self) -> None:
@@ -13952,6 +13988,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._set_skill_breakdown_message("Generating skill breakdowns…")
         self.progress.setRange(0, runs)
         self.progress.setValue(0)
+        self.progress_eta.setText("")
+        self._sim_start_time = time.perf_counter()
         self.run_btn.setText("Cancel")
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
         max_rounds = None
@@ -13977,9 +14015,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Share any configured per-skill overrides with the worker so both the
         # batch simulations and the representative battle honour them.
         self.worker.per_skill_cooldown_overrides = dict(self.per_skill_cooldown_overrides)
-        self.worker.progress_update.connect(
-            lambda d, t: (self.progress.setMaximum(t), self.progress.setValue(d))
-        )
+        self.worker.progress_update.connect(self._on_progress_with_eta)
         self.worker.finished_text.connect(self._sim_finished)
         self.worker.error.connect(self._sim_error)
         self.worker.finished.connect(self.worker.deleteLater)
@@ -14115,6 +14151,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 export_payload["sample_battle"] = copy.deepcopy(sample_stats)
         self._last_simulation_payload = export_payload
         self.progress.setValue(0)
+        self.progress_eta.setText("")
+        self._sim_start_time = None
         self.status.setText("Ready")
         self.run_btn.setEnabled(True)
         self.run_btn.setText("Run Simulation")
@@ -14123,6 +14161,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def _sim_error(self, msg: str) -> None:  # pragma: no cover - GUI feedback
         QtWidgets.QMessageBox.critical(self, "Error", msg)
         self.progress.setValue(0)
+        self.progress_eta.setText("")
+        self._sim_start_time = None
         self.status.setText("Ready")
         self.run_btn.setEnabled(True)
         self.run_btn.setText("Run Simulation")

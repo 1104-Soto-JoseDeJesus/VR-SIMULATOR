@@ -1603,22 +1603,23 @@ def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
             logs.append((f"Gains shield for {shield_dur + 1} rounds (starting next round).", None))
     # schedule buff removal and self cleanse
     if cfg.get("buff_removal_count", 2) > 0:
-        opp_buff_ids = [
-            eff.id
-            for eff in opponent_army.active_effects
+        eligible_buffs = [
+            eff for eff in opponent_army.active_effects
             if eff.is_dispellable_buff_candidate()
-        ][
-            : cfg.get("buff_removal_count", 2)
         ]
-        pending = {"effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
-                   "duration": 0, "config": {"buff_ids_to_remove": opp_buff_ids,
-                                            "targeted_buff_names_initial_log": [eff.name for eff in opponent_army.active_effects if eff.id in opp_buff_ids]},
-                   "activate_next_round": True}
-        opponent_army._create_and_add_single_effect(pending, skill_def["id"], triggering_army, opponent_army, triggering_army)
+        if eligible_buffs:
+            count = cfg.get("buff_removal_count", 2)
+            selected = random.sample(eligible_buffs, min(len(eligible_buffs), count))
+            opp_buff_ids = [eff.id for eff in selected]
+            buff_names = [eff.name or f"Buff ID ...{str(eff.id)[-4:]}" for eff in selected]
+            pending = {"effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
+                       "duration": 0, "config": {"buff_ids_to_remove": opp_buff_ids,
+                                                "targeted_buff_names_initial_log": buff_names},
+                       "activate_next_round": True}
+            opponent_army._create_and_add_single_effect(pending, skill_def["id"], triggering_army, opponent_army, triggering_army)
     if cfg.get("self_cleanse_count", 1) > 0:
-        own_debuff_ids = [
-            eff.id
-            for eff in triggering_army.active_effects
+        eligible_debuffs = [
+            eff for eff in triggering_army.active_effects
             if (
                 eff.effect_type == EffectType.DEBUFF
                 or (
@@ -1633,12 +1634,17 @@ def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
                 or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
             )
             and eff.name not in PROTECTED_MARKER_EFFECTS
-        ][: cfg.get("self_cleanse_count", 1)]
-        pending_cleanse = {"effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
-                           "duration": 0, "config": {"debuff_ids_to_remove": own_debuff_ids,
-                                                    "debuff_names_removed_log": [eff.name for eff in triggering_army.active_effects if eff.id in own_debuff_ids]},
-                           "activate_next_round": True}
-        triggering_army._create_and_add_single_effect(pending_cleanse, skill_def["id"], triggering_army, triggering_army, opponent_army)
+        ]
+        if eligible_debuffs:
+            count = cfg.get("self_cleanse_count", 1)
+            selected = random.sample(eligible_debuffs, min(len(eligible_debuffs), count))
+            own_debuff_ids = [eff.id for eff in selected]
+            debuff_names = [eff.name or f"Unnamed Debuff ({str(eff.id)[:4]})" for eff in selected]
+            pending_cleanse = {"effect_type": EffectType.CUSTOM_SKILL_EFFECT, "name": EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
+                               "duration": 0, "config": {"debuff_ids_to_remove": own_debuff_ids,
+                                                        "debuff_names_removed_log": debuff_names},
+                               "activate_next_round": True}
+            triggering_army._create_and_add_single_effect(pending_cleanse, skill_def["id"], triggering_army, triggering_army, opponent_army)
     return happened, logs, dmg_flag
 
 

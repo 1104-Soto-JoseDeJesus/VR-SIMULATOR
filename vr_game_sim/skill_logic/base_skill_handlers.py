@@ -1823,7 +1823,7 @@ def handle_base_skill_nature_blessing(
             "config": {
                 "evasion_chance": cfg.get("evasion_magnitude", 1.0),
                 "applies_to": ["BASIC", "COUNTER", "SKILL"],
-                "is_dispellable": False,
+                "is_dispellable": True,
             },
         }
         created_buff = triggering_army._create_and_add_single_effect(

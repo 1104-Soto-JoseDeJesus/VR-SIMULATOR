@@ -3096,7 +3096,9 @@ def handle_talent_patient_waiting(triggering_army: ArmyRef, opponent_army: ArmyR
         if created:
             happened = True
             logs.append((f"Gains '{EFFECT_NAME_PATIENT_WAITING_BUFF}' for {duration + 1} rounds.", None))
-    if random.random() < cfg.get("damage_chance", 0.0):
+    # Only deal damage while the buff is active (dispelling removes both)
+    has_buff = any(eff.name == EFFECT_NAME_PATIENT_WAITING_BUFF for eff in triggering_army.active_effects)
+    if has_buff and random.random() < cfg.get("damage_chance", 0.0):
         dmg_factor = cfg.get("damage_factor", 0.0)
         if dmg_factor > 0:
             hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
@@ -4304,7 +4306,7 @@ def handle_talent_agile_missile(
             "config": {
                 "evasion_chance": cfg.get("evasion_chance", 1.0),
                 "applies_to": ["BASIC", "COUNTER", "SKILL"],
-                "is_dispellable": False,
+                "is_dispellable": True,
             },
         }
         created_buff = triggering_army._create_and_add_single_effect(

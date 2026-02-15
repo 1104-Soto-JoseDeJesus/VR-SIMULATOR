@@ -2589,7 +2589,12 @@ class MountSkillsDialog(QtWidgets.QDialog):
 class MountSkillRankDialog(QtWidgets.QDialog):
     """Dialog for selecting mount skills to rank against each other."""
 
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget | None = None,
+        *,
+        initial_selected_ids: list[str] | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Mount Skill Rank")
         self.setModal(True)
@@ -2629,6 +2634,8 @@ class MountSkillRankDialog(QtWidgets.QDialog):
             item.setForeground(QtGui.QBrush(QtGui.QColor(100, 100, 100)))
             self.list_widget.addItem(item)
 
+        initial_set = set(initial_selected_ids or [])
+
         def _add_skill(name: str) -> None:
             sid = mount_by_name.get(name)
             if sid is None:
@@ -2640,7 +2647,9 @@ class MountSkillRankDialog(QtWidgets.QDialog):
                 | QtCore.Qt.ItemFlag.ItemIsUserCheckable
                 | QtCore.Qt.ItemFlag.ItemIsEnabled
             )
-            item.setCheckState(QtCore.Qt.CheckState.Unchecked)
+            item.setCheckState(
+                QtCore.Qt.CheckState.Checked if sid in initial_set else QtCore.Qt.CheckState.Unchecked
+            )
             self.list_widget.addItem(item)
 
         for troop_type, slot, names in MOUNT_SKILL_RANK_ORDER:
@@ -2686,6 +2695,156 @@ class MountSkillRankDialog(QtWidgets.QDialog):
                 if isinstance(sid, str) and sid:
                     ids.append(sid)
         return ids
+
+
+class MountSkillRankQueueDialog(QtWidgets.QDialog):
+    """Dialog for queuing multiple mount skill rank runs with different setups."""
+
+    MAX_ENTRIES = 10
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Mount Skill Rank Queue")
+        self.setModal(True)
+        self._entries: list[tuple[QtWidgets.QWidget, QtWidgets.QLineEdit, QtWidgets.QPushButton, QtWidgets.QPushButton]] = []
+        self._entries_layout: QtWidgets.QVBoxLayout | None = None
+
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(QtWidgets.QLabel("Queue up to 10 runs. Each entry: setup file + mount skills."))
+
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        entries_container = QtWidgets.QWidget()
+        self._entries_layout = QtWidgets.QVBoxLayout(entries_container)
+        self._entries_layout.setContentsMargins(0, 0, 0, 0)
+        scroll.setWidget(entries_container)
+        layout.addWidget(scroll)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        add_btn = QtWidgets.QPushButton("Add Entry")
+        add_btn.clicked.connect(self._add_entry)
+        btn_row.addWidget(add_btn)
+        btn_row.addStretch()
+        layout.addLayout(btn_row)
+
+        btn_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        btn_box.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setText("Run Queue")
+        btn_box.accepted.connect(self._on_run_queue)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+        self._add_entry()
+
+    def _add_entry(self) -> None:
+        if len(self._entries) >= self.MAX_ENTRIES:
+            QtWidgets.QMessageBox.information(
+                self,
+                "Limit Reached",
+                f"Maximum {self.MAX_ENTRIES} entries allowed.",
+            )
+            return
+        if self._entries_layout is None:
+            return
+
+        row_widget = QtWidgets.QWidget()
+        path_edit = QtWidgets.QLineEdit()
+        path_edit.setPlaceholderText("Setup file path...")
+        path_edit.setReadOnly(True)
+
+        browse_btn = QtWidgets.QPushButton("Browse...")
+        skills_btn = QtWidgets.QPushButton("Select Skills...")
+        remove_btn = QtWidgets.QPushButton("Remove")
+
+        def _browse() -> None:
+            from main import SETUPS_DIR
+            path, _ = QtWidgets.QFileDialog.getOpenFileName(
+                self,
+                "Select Setup File",
+                SETUPS_DIR,
+                "JSON (*.json);;All (*)",
+            )
+            if path:
+                path_edit.setText(path)
+
+        def _pick_skills() -> None:
+            current_ids = getattr(skills_btn, "_skill_ids", []) or []
+            dlg = MountSkillRankDialog(self, initial_selected_ids=current_ids)
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+                ids = dlg.selected_skill_ids()
+                skills_btn._skill_ids = ids
+                skills_btn.setText(f"{len(ids)} skills" if ids else "Select Skills...")
+
+        browse_btn.clicked.connect(_browse)
+        skills_btn.clicked.connect(_pick_skills)
+
+        row = QtWidgets.QHBoxLayout(row_widget)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(QtWidgets.QLabel("Setup:"))
+        row.addWidget(path_edit, 1)
+        row.addWidget(browse_btn)
+        row.addWidget(QtWidgets.QLabel("Skills:"))
+        row.addWidget(skills_btn)
+        row.addWidget(remove_btn)
+
+        self._entries_layout.addWidget(row_widget)
+        self._entries.append((row_widget, path_edit, skills_btn, remove_btn))
+
+        def _remove() -> None:
+            idx = None
+            for i, (rw, _, _, rb) in enumerate(self._entries):
+                if rb is remove_btn:
+                    idx = i
+                    break
+            if idx is not None and self._entries_layout is not None:
+                row_w, _, _, _ = self._entries.pop(idx)
+                self._entries_layout.removeWidget(row_w)
+                row_w.deleteLater()
+
+        remove_btn.clicked.connect(_remove)
+
+    def _validate_entries(self) -> list[tuple[str, list[str]]] | None:
+        result: list[tuple[str, list[str]]] = []
+        for _, path_edit, skills_btn, _ in self._entries:
+            path = (path_edit.text() or "").strip()
+            skill_ids = getattr(skills_btn, "_skill_ids", []) or []
+            if not path:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "Invalid Entry",
+                    "Each entry must have a setup file.",
+                )
+                return None
+            if len(skill_ids) < 2:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "Invalid Entry",
+                    "Each entry must have at least 2 mount skills selected.",
+                )
+                return None
+            result.append((path, skill_ids))
+        if not result:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Empty Queue",
+                "Add at least one valid entry.",
+            )
+            return None
+        return result
+
+    def _on_run_queue(self) -> None:
+        entries = self._validate_entries()
+        if entries is None:
+            return
+        self._queue_result = entries
+        self.accept()
+
+    def get_queue_entries(self) -> list[tuple[str, list[str]]]:
+        return getattr(self, "_queue_result", [])
 
 
 class GearSelectionDialog(QtWidgets.QDialog):
@@ -8042,6 +8201,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.rank_btn = QtWidgets.QPushButton("Rank")
         self.rank_btn.clicked.connect(self._open_mount_skill_rank_dialog)
         controls.addWidget(self.rank_btn)
+        self.rank_queue_btn = QtWidgets.QPushButton("Rank Queue")
+        self.rank_queue_btn.clicked.connect(self._on_rank_queue_clicked)
+        controls.addWidget(self.rank_queue_btn)
         self.max_rounds_checkbox = QtWidgets.QCheckBox("Stop at Max Rounds")
         controls.addWidget(self.max_rounds_checkbox)
         controls.addWidget(QtWidgets.QLabel("Max Rounds:"))
@@ -8386,6 +8548,8 @@ class MainWindow(QtWidgets.QMainWindow):
         export_report_action = QtGui.QAction("Export Report", self)
         export_report_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+R"))
         export_report_action.triggered.connect(self.export_report)
+        export_rank_results_action = QtGui.QAction("Export Rank Results", self)
+        export_rank_results_action.triggered.connect(self._export_rank_results)
         export_fig_action = QtGui.QAction("Export Figures", self)
         export_fig_action.setShortcut(QtGui.QKeySequence("Ctrl+E"))
         export_fig_action.triggered.connect(self.export_figures)
@@ -8420,6 +8584,7 @@ class MainWindow(QtWidgets.QMainWindow):
         export_pdf_action.triggered.connect(self.export_pdf)
         for act in (
             export_report_action,
+            export_rank_results_action,
             export_fig_action,
             export_summary_action,
             export_html_action,
@@ -8606,6 +8771,140 @@ class MainWindow(QtWidgets.QMainWindow):
         self._rank_worker.error.connect(_on_error)
         self._rank_worker.finished.connect(self._rank_worker.deleteLater)
         self._rank_worker.start()
+
+    def _on_rank_queue_clicked(self) -> None:
+        """Handle Rank Queue button: open dialog or cancel queue."""
+        if getattr(self, "_queue_running", False):
+            self._queue_cancelled = True
+            worker = getattr(self, "_rank_worker", None)
+            if worker and worker.isRunning():
+                worker.cancel()
+            return
+        self._open_mount_skill_rank_queue_dialog()
+
+    def _open_mount_skill_rank_queue_dialog(self) -> None:
+        """Open the rank queue dialog and run the queue."""
+        dlg = MountSkillRankQueueDialog(self)
+        if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return
+        entries = dlg.get_queue_entries()
+        if not entries:
+            return
+
+        worker = getattr(self, "_rank_worker", None)
+        if worker and worker.isRunning():
+            QtWidgets.QMessageBox.information(
+                self,
+                "Rank In Progress",
+                "A mount skill rank is already running.",
+            )
+            return
+
+        self._queue_entries = entries
+        self._queue_index = 0
+        self._queue_cancelled = False
+        self._queue_running = True
+        self._queue_accumulated_text: list[str] = []
+        self.rank_btn.setEnabled(False)
+        self.rank_queue_btn.setText("Cancel Queue")
+        self._run_next_queue_entry()
+
+    def _run_next_queue_entry(self) -> None:
+        """Run the next entry in the queue or finish."""
+        if self._queue_cancelled or self._queue_index >= len(self._queue_entries):
+            self._finish_queue()
+            return
+
+        setup_path, skill_ids = self._queue_entries[self._queue_index]
+        data = load_setup_from_file(setup_path)
+        if not data or len(data) < 2:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Invalid Setup",
+                f"Could not load setup from:\n{setup_path}\nSkipping this entry.",
+            )
+            self._queue_index += 1
+            QtCore.QTimer.singleShot(0, self._run_next_queue_entry)
+            return
+
+        cfg1, cfg2 = data[0], data[1]
+        self._ensure_unique_army_names([cfg1, cfg2])
+
+        max_rounds = None
+        if self.max_rounds_checkbox.isChecked():
+            max_rounds = self.max_rounds_spin.value()
+
+        self._rank_worker = MountSkillRankWorker(
+            skill_ids,
+            cfg1,
+            cfg2,
+            runs=self.runs_spin.value(),
+            num_workers=self.workers_spin.value(),
+            max_rounds=max_rounds,
+            hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+            plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+            gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+            mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+            multi_heal_trig_enabled=self.multi_heal_trig_enabled,
+            interval_active_cast_cooldowns_enabled=self.interval_active_cast_cooldowns_enabled,
+            fairness_rage_enabled=self.fairness_rage_enabled,
+            advantage_mode=self.troop_advantage_mode,
+        )
+
+        total = len(skill_ids) * (len(skill_ids) - 1) // 2 * self.runs_spin.value()
+        self.progress.setRange(0, total)
+        self.progress.setValue(0)
+        self.progress_eta.setText("")
+        self._sim_start_time = time.perf_counter()
+        setup_name = os.path.basename(setup_path)
+        self.status.setText(f"Rank Queue: Run {self._queue_index + 1} of {len(self._queue_entries)} ({setup_name})")
+
+        def _on_progress(done: int, total: int) -> None:
+            self._on_progress_with_eta(done, total)
+
+        def _on_finished(result: dict) -> None:
+            self.progress.setValue(0)
+            self.progress_eta.setText("")
+            self._sim_start_time = None
+            self._rank_worker = None
+            if result and not self._queue_cancelled:
+                formatted = self._format_mount_rank_text(result)
+                setup_name = os.path.basename(self._queue_entries[self._queue_index][0])
+                sep = f"\n=== Run {self._queue_index + 1}: {setup_name} ===\n"
+                self._queue_accumulated_text.append(sep + formatted)
+            self._queue_index += 1
+            QtCore.QTimer.singleShot(0, self._run_next_queue_entry)
+
+        def _on_error(msg: str) -> None:
+            self.progress.setValue(0)
+            self.progress_eta.setText("")
+            self._sim_start_time = None
+            self._rank_worker = None
+            QtWidgets.QMessageBox.critical(self, "Rank Queue Error", msg)
+            self._queue_index += 1
+            QtCore.QTimer.singleShot(0, self._run_next_queue_entry)
+
+        self._rank_worker.progress_update.connect(_on_progress)
+        self._rank_worker.finished.connect(_on_finished)
+        self._rank_worker.error.connect(_on_error)
+        self._rank_worker.finished.connect(self._rank_worker.deleteLater)
+        self._rank_worker.start()
+
+    def _finish_queue(self) -> None:
+        """Clean up after queue completes or is cancelled."""
+        self._queue_running = False
+        self.rank_btn.setEnabled(True)
+        self.rank_queue_btn.setText("Rank Queue")
+        self.status.setText("Ready")
+        if self._queue_accumulated_text:
+            full_text = "\n".join(self._queue_accumulated_text)
+            existing = self.rank_text_edit.toPlainText()
+            if existing:
+                self.rank_text_edit.setPlainText(existing + "\n" + full_text)
+            else:
+                self.rank_text_edit.setPlainText(full_text)
+            self.fig_content_stack.setCurrentIndex(1)
+            self.tabs.setCurrentWidget(self.figures_tab)
 
     def _format_mount_rank_text(self, result: dict) -> str:
         """Format mount skill rank results as plain text with wrapped Beat/Lost to lists."""
@@ -9518,6 +9817,33 @@ class MainWindow(QtWidgets.QMainWindow):
             except OSError as exc:
                 QtWidgets.QMessageBox.critical(
                     self, "Error", f"Failed to export report: {exc}"
+                )
+
+    def _export_rank_results(self) -> None:
+        """Export rank_text_edit contents to a .txt file."""
+        text = self.rank_text_edit.toPlainText()
+        if not text.strip():
+            QtWidgets.QMessageBox.information(
+                self,
+                "No Rank Results",
+                "There are no rank results to export.",
+            )
+            return
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Export Rank Results",
+            self.last_setup_dir,
+            "Text Files (*.txt)",
+        )
+        if file_path:
+            self.last_setup_dir = os.path.dirname(file_path)
+            try:
+                with open(file_path, "w", encoding="utf-8") as fh:
+                    fh.write(text)
+                self.status.setText(f"Rank results exported to {os.path.basename(file_path)}")
+            except OSError as exc:
+                QtWidgets.QMessageBox.critical(
+                    self, "Error", f"Failed to export rank results: {exc}"
                 )
 
     def export_figures(self) -> None:

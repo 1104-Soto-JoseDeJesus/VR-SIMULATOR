@@ -111,6 +111,43 @@ JEWEL_SLOTS: list[tuple[str, str]] = [
     ("heimdalls_sapphire", "Heimdall's Sapphire"),
 ]
 
+# Mount skill rank dialog: (troop_type, slot, [skill_names]) for organizational display.
+MOUNT_SKILL_RANK_ORDER: list[tuple[str, int, list[str]]] = [
+    ("Pikemen", 1, [
+        "Hoof Strike", "Retaliation Fangs", "Power Swipe", "Purple-Gold Scales",
+        "Pincer Strike", "Corrosive Claws", "Healing Leaf", "Impenetrable Scales",
+        "Shatterbone Bite", "Spiritual Blessing", "Ragebeast Soul", "Beastly Rage",
+    ]),
+    ("Pikemen", 2, [
+        "Evil Threat", "Destructive Clamp", "Scaly Rebirth", "Steel Scale",
+        "Reptile Heal", "Golden Feather", "Winged Guardian", "Marsh Reptile",
+        "Manic Heal", "Armor Chant", "Moonlit Howl", "Wolfus Gnaw", "Razor Armor",
+        "Roaring Waves", "Bloodthirsty Eye",
+    ]),
+    ("Infantry", 1, [
+        "Stinging Tongue", "Strangled Death", "Severing Strike", "Bone-shatter Jaw",
+        "Emerald Scales", "Sturdy Bone Armor", "Frost Jotun Roar", "Bladed Spines",
+        "Bloodthirst Gaze", "Bloody Jaws", "Soul of Fury", "Razor Sharp Spikes",
+    ]),
+    ("Infantry", 2, [
+        "Bloodwing Assault", "Blessed Dew", "Divine Awe", "Deer Redemption",
+        "Icicle Armor", "Ripping Claws", "Bloodthirst Recovery", "Icedrake Breath",
+        "Fatal Chomp", "Frostwing Fury", "Agonizing Frost", "Kraken Touch",
+        "Spiked Shield", "Slaughter N Heal", "Biting Chill",
+    ]),
+    ("Archers", 1, [
+        "Crippling Strike", "Untamed Wilderness", "Pain N Fury", "Teeth N Claws",
+        "Razor Fangs", "Flame Serpent", "Abyssal Maw", "Hard Shell", "Bone Spurs",
+        "Bonegnaw Bug", "Dragon Venomfire", "Firewing Ashes",
+    ]),
+    ("Archers", 2, [
+        "Venom Rip", "Flaming Claws", "Poison N Heal", "Firedrake Soul",
+        "Toxic Spike", "Blazing Firebird", "Venom Impact", "Blazing Wolf Spirit",
+        "Deer Blessing", "Lava Beast", "Toxic Fly", "Ravens Breath",
+        "Deer Judgement", "Ancient Insight", "Corrosive Poison",
+    ]),
+]
+
 # Map each jewel slot to the hero index the jewel is socketed for.  The first
 # hero receives the first three jewels, while the second hero receives the
 # remaining three.  ``GEM_SLOT_HERO_INDEX`` mirrors the same structure to keep
@@ -2565,17 +2602,37 @@ class MountSkillRankDialog(QtWidgets.QDialog):
         info.setWordWrap(True)
         layout.addWidget(info)
 
-        options: list[tuple[str, str]] = []
+        # Build name -> sid lookup for mount skills
+        mount_by_name: dict[str, str] = {}
         for sid, sdef in SKILL_REGISTRY_GLOBAL.items():
             if _is_mount_skill(sid):
-                options.append((sdef.get("name", sid), sid))
-        options.sort(key=lambda item: item[0])
+                name = sdef.get("name", sid)
+                mount_by_name[name] = sid
+
+        categorized_names: set[str] = set()
+        for _troop, _slot, names in MOUNT_SKILL_RANK_ORDER:
+            categorized_names.update(names)
 
         self.list_widget = QtWidgets.QListWidget()
         self.list_widget.setSelectionMode(
             QtWidgets.QAbstractItemView.SelectionMode.NoSelection
         )
-        for name, sid in options:
+
+        header_font = QtGui.QFont()
+        header_font.setBold(True)
+
+        def _add_header(text: str) -> None:
+            item = QtWidgets.QListWidgetItem(text)
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, None)
+            item.setFlags(QtCore.Qt.ItemFlag.ItemIsEnabled)
+            item.setFont(header_font)
+            item.setForeground(QtGui.QBrush(QtGui.QColor(100, 100, 100)))
+            self.list_widget.addItem(item)
+
+        def _add_skill(name: str) -> None:
+            sid = mount_by_name.get(name)
+            if sid is None:
+                return
             item = QtWidgets.QListWidgetItem(name)
             item.setData(QtCore.Qt.ItemDataRole.UserRole, sid)
             item.setFlags(
@@ -2585,6 +2642,20 @@ class MountSkillRankDialog(QtWidgets.QDialog):
             )
             item.setCheckState(QtCore.Qt.CheckState.Unchecked)
             self.list_widget.addItem(item)
+
+        for troop_type, slot, names in MOUNT_SKILL_RANK_ORDER:
+            _add_header(f"{troop_type} - Slot {slot}")
+            for name in names:
+                _add_skill(name)
+
+        other_names = sorted(
+            n for n in mount_by_name if n not in categorized_names
+        )
+        if other_names:
+            _add_header("Other")
+            for name in other_names:
+                _add_skill(name)
+
         layout.addWidget(self.list_widget)
 
         btn_box = QtWidgets.QDialogButtonBox(

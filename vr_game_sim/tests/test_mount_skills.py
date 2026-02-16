@@ -417,6 +417,36 @@ def test_mount_trigger_window_limits_reactive_skills():
     assert sorted(trigger_round(9)) == [9]
 
 
+
+
+def test_duplicate_mount_rage_gain_is_single_apply():
+    cfg = copy.deepcopy(_BASE_CFG)
+    cfg["heroes"][0]["mount_skill_ids"] = ["mount_pain_n_fury", "mount_pain_n_fury"]
+
+    army, opponent = create_armies_from_data([cfg, cfg])[0:2]
+    hero = army.heroes[0]
+    mount_skills = [skill for skill in hero.skills if skill.get("id") == "mount_pain_n_fury"]
+    assert len(mount_skills) == 2
+
+    for skill in mount_skills:
+        skill.setdefault("config", {})["trigger_interval"] = 1
+
+    simulator = GameSimulator(army, opponent, mode="battlefield")
+    army.army_round = 1
+    opponent.army_round = 1
+
+    simulator._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND)
+
+    rage_effects = [
+        eff
+        for eff in army.effects_to_activate_next_round
+        if eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+        and eff.config.get("rage_amount", 0) > 0
+    ]
+
+    assert len(rage_effects) == 1
+    assert rage_effects[0].config.get("rage_amount") == pytest.approx(155)
+
 def test_duplicate_mount_dot_and_heal_instances_trigger():
     cfg_single = copy.deepcopy(_BASE_CFG)
     cfg_single["heroes"][0]["mount_skill_ids"] = ["mount_poison_n_heal"]

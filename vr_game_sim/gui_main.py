@@ -6116,10 +6116,14 @@ class MountSkillRankWorker(QtCore.QThread):
 
                 cfg1 = copy.deepcopy(self.base_cfg1)
                 cfg2 = copy.deepcopy(self.base_cfg2)
-                for hero in cfg1.get("heroes", []):
-                    hero["mount_skill_ids"] = [skill_a]
-                for hero in cfg2.get("heroes", []):
-                    hero["mount_skill_ids"] = [skill_b]
+                # Replace only the first hero's mount skill in each army so the rank
+                # reflects "which skill on hero 1" rather than "mono skill on all heroes".
+                heroes1 = cfg1.get("heroes", [])
+                if heroes1:
+                    heroes1[0]["mount_skill_ids"] = [skill_a]
+                heroes2 = cfg2.get("heroes", [])
+                if heroes2:
+                    heroes2[0]["mount_skill_ids"] = [skill_b]
 
                 setup_data = [cfg1, cfg2]
                 army1_wins, army2_wins, _draws = run_batch_return_winners(

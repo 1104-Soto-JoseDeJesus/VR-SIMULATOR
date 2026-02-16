@@ -54,6 +54,7 @@ class GameSimulator:
         "boosted_status_factor",
         "heal_factor",
         "status_duration",
+        "rage_gain",
     }
     MOUNT_DOT_HOT_FLAG_KEYS = {"boost_if_more_troops", "heal_if_lower_troops"}
     MOUNT_DOT_HOT_OTHER_KEYS = {"status_type", "effect_name"}

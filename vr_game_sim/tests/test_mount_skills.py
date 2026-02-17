@@ -515,6 +515,67 @@ def test_duplicate_mount_dot_and_heal_instances_trigger():
     assert dot_effects_double[0].source_skill_id == higher_instance_key
 
 
+def test_duplicate_mount_periodic_rage_over_time_dedupes_non_damage_only():
+    cfg_single = copy.deepcopy(_BASE_CFG)
+    cfg_single["heroes"][0]["mount_skill_ids"] = ["mount_untamed_wilderness"]
+
+    cfg_double = copy.deepcopy(_BASE_CFG)
+    cfg_double["heroes"][0]["mount_skill_ids"] = [
+        "mount_untamed_wilderness",
+        "mount_untamed_wilderness",
+    ]
+
+    army_single, opponent_single = create_armies_from_data([cfg_single, cfg_single])[0:2]
+    army_double, opponent_double = create_armies_from_data([cfg_double, cfg_double])[0:2]
+
+    for army, opponent in [(army_single, opponent_single), (army_double, opponent_double)]:
+        army.army_round = 1
+        opponent.army_round = 1
+        for skill in [
+            s
+            for s in army.heroes[0].skills
+            if s.get("id") == "mount_untamed_wilderness"
+        ]:
+            skill.setdefault("config", {})["trigger_interval"] = 1
+
+    simulator_single = GameSimulator(army_single, opponent_single, mode="battlefield")
+    simulator_double = GameSimulator(army_double, opponent_double, mode="battlefield")
+
+    simulator_single._process_skill_triggers(
+        army_single, opponent_single, SkillTriggerType.CHANCE_PER_ROUND
+    )
+    simulator_double._process_skill_triggers(
+        army_double, opponent_double, SkillTriggerType.CHANCE_PER_ROUND
+    )
+
+    assert opponent_single.pending_hp_damage_this_round > 0
+    assert opponent_double.pending_hp_damage_this_round == pytest.approx(
+        opponent_single.pending_hp_damage_this_round * 2
+    )
+
+    rage_effects_single = [
+        eff
+        for eff in army_single.effects_to_activate_next_round
+        if eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+        and eff.name == "Untamed Wilderness Rage Gain"
+    ]
+    rage_effects_double = [
+        eff
+        for eff in army_double.effects_to_activate_next_round
+        if eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+        and eff.name == "Untamed Wilderness Rage Gain"
+    ]
+
+    assert len(rage_effects_single) == 1
+    assert len(rage_effects_double) == 1
+    assert rage_effects_double[0].config.get("base_rage_amount") == pytest.approx(40)
+    assert rage_effects_double[0].duration == 2
+    assert rage_effects_double[0].source_skill_id in {
+        "mount_untamed_wilderness::mount::0",
+        "mount_untamed_wilderness::mount::1",
+    }
+
+
 def test_duplicate_mount_skill_per_instance_metrics():
     """Duplicate mount skills report damage independently per instance key."""
     cfg = copy.deepcopy(_BASE_CFG)

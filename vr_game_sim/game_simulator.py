@@ -55,9 +55,11 @@ class GameSimulator:
         "heal_factor",
         "status_duration",
         "rage_gain",
+        "rage_gain_per_round",
+        "rage_gain_duration",
     }
     MOUNT_DOT_HOT_FLAG_KEYS = {"boost_if_more_troops", "heal_if_lower_troops"}
-    MOUNT_DOT_HOT_OTHER_KEYS = {"status_type", "effect_name"}
+    MOUNT_DOT_HOT_OTHER_KEYS = {"status_type", "effect_name", "status_effect_name", "rage_effect_name"}
     # Immediate-heal keys: duplicated per instance (own config/tracking); not merged like HoT.
     MOUNT_IMMEDIATE_HEAL_KEYS = {"heal_factor", "heal_if_dot_factor", "heal_if_lower_troops"}
 
@@ -1109,7 +1111,15 @@ class GameSimulator:
         for skill_def in defs:
             cfg = skill_def.get("config", {}) or {}
             vals: List[float] = []
-            for key in ("status_factor", "boosted_status_factor", "heal_factor", "heal_if_dot_factor", "rage_gain"):
+            for key in (
+                "status_factor",
+                "boosted_status_factor",
+                "heal_factor",
+                "heal_if_dot_factor",
+                "rage_gain",
+                "rage_gain_per_round",
+                "rage_gain_duration",
+            ):
                 v = cfg.get(key, 0) or 0
                 try:
                     vals.append(float(v))

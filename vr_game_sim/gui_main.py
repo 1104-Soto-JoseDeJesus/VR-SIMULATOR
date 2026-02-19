@@ -6339,8 +6339,18 @@ class GeneralRankWorker(QtCore.QThread):
         heroes = cfg.get("heroes", [])
         if not heroes:
             return
-        hero_cfg = heroes[0]
-        hero_cfg["plugin_skill_ids"] = list(skill_ids)
+
+        remaining = list(skill_ids)
+        for hero_cfg in heroes:
+            hero_cfg["plugin_skill_ids"] = remaining[:2]
+            remaining = remaining[2:]
+
+        if remaining:
+            army_name = cfg.get("name") or cfg.get("army_name") or "Army"
+            total_capacity = len(heroes) * 2
+            raise ValueError(
+                f"{army_name} plugin skill capacity is {total_capacity}, but got {len(skill_ids)} skills."
+            )
 
     def _run_matchup(self, army1_skills: list[str], army2_skills: list[str] | None) -> tuple[int, int]:
         cfg1 = copy.deepcopy(self.base_cfg1)

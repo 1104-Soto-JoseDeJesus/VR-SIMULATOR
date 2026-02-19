@@ -2697,6 +2697,117 @@ class MountSkillRankDialog(QtWidgets.QDialog):
         return ids
 
 
+class GeneralRankDialog(QtWidgets.QDialog):
+    """Dialog for selecting plugin skills and general rank mode."""
+
+    MODE_MIRROR_SWAP = "mirror_swap"
+    MODE_FIXED_OPPONENT = "fixed_opponent"
+
+    def __init__(
+        self,
+        parent: QtWidgets.QWidget | None = None,
+        *,
+        initial_selected_ids: list[str] | None = None,
+        initial_mode: str = MODE_MIRROR_SWAP,
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("General Rank")
+        self.setModal(True)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        info = QtWidgets.QLabel(
+            "Select plugin skills for hill-climb ranking. The rank starts with a random "
+            "build of 4 unique skills and iterates through the remaining selected skills."
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        mode_group = QtWidgets.QGroupBox("General Rank Mode")
+        mode_layout = QtWidgets.QVBoxLayout(mode_group)
+        self.mirror_radio = QtWidgets.QRadioButton(
+            "Mirror-Swap (Army 2 mirrors Army 1 build while testing replacements)"
+        )
+        self.fixed_radio = QtWidgets.QRadioButton(
+            "Fixed Opponent (Army 2 stays fully configured and never changes)"
+        )
+        mode_layout.addWidget(self.mirror_radio)
+        mode_layout.addWidget(self.fixed_radio)
+        if initial_mode == self.MODE_FIXED_OPPONENT:
+            self.fixed_radio.setChecked(True)
+        else:
+            self.mirror_radio.setChecked(True)
+        layout.addWidget(mode_group)
+
+        self.list_widget = QtWidgets.QListWidget()
+        self.list_widget.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.NoSelection
+        )
+        initial_set = set(initial_selected_ids or [])
+        for sid, sdef in sorted(
+            SKILL_REGISTRY_GLOBAL.items(),
+            key=lambda item: item[1].get("name", item[0]),
+        ):
+            if sdef.get("type") != SkillType.PLUGIN_SKILL:
+                continue
+            name = sdef.get("name", sid)
+            item = QtWidgets.QListWidgetItem(name)
+            item.setData(QtCore.Qt.ItemDataRole.UserRole, sid)
+            item.setFlags(
+                item.flags()
+                | QtCore.Qt.ItemFlag.ItemIsUserCheckable
+                | QtCore.Qt.ItemFlag.ItemIsEnabled
+            )
+            item.setCheckState(
+                QtCore.Qt.CheckState.Checked
+                if sid in initial_set
+                else QtCore.Qt.CheckState.Unchecked
+            )
+            self.list_widget.addItem(item)
+        layout.addWidget(self.list_widget)
+
+        btn_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel
+        )
+        btn_box.accepted.connect(self._on_accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+    def _on_accept(self) -> None:
+        ids = self.selected_skill_ids()
+        if len(ids) < 4:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Invalid Selection",
+                "Please select at least 4 unique plugin skills.",
+            )
+            return
+        if len(ids) != len(set(ids)):
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Invalid Selection",
+                "Duplicate plugin skills are not allowed.",
+            )
+            return
+        self.accept()
+
+    def selected_skill_ids(self) -> list[str]:
+        ids: list[str] = []
+        seen: set[str] = set()
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item.checkState() != QtCore.Qt.CheckState.Checked:
+                continue
+            sid = item.data(QtCore.Qt.ItemDataRole.UserRole)
+            if isinstance(sid, str) and sid and sid not in seen:
+                seen.add(sid)
+                ids.append(sid)
+        return ids
+
+    def selected_mode(self) -> str:
+        return self.MODE_FIXED_OPPONENT if self.fixed_radio.isChecked() else self.MODE_MIRROR_SWAP
+
+
 class MountSkillRankQueueDialog(QtWidgets.QDialog):
     """Dialog for queuing multiple mount skill rank runs with different setups."""
 
@@ -6171,6 +6282,173 @@ class MountSkillRankWorker(QtCore.QThread):
             self.error.emit(str(exc))
 
 
+class GeneralRankWorker(QtCore.QThread):
+    """Worker that hill-climbs plugin skill loadouts for rank mode."""
+
+    progress_update = QtCore.pyqtSignal(int, int)
+    finished = QtCore.pyqtSignal(dict)
+    error = QtCore.pyqtSignal(str)
+
+    def __init__(
+        self,
+        selected_skill_ids: list[str],
+        base_cfg1: dict,
+        base_cfg2: dict,
+        runs: int,
+        num_workers: int,
+        *,
+        mode: str,
+        max_rounds: int | None = None,
+        hero_cooldowns_enabled: bool = True,
+        plugin_cooldowns_enabled: bool = True,
+        gem_cooldowns_enabled: bool = True,
+        mount_cooldowns_enabled: bool = True,
+        multi_heal_trig_enabled: bool = False,
+        interval_active_cast_cooldowns_enabled: bool = True,
+        fairness_rage_enabled: bool = True,
+        advantage_mode: str = "multiplicative",
+    ) -> None:
+        super().__init__()
+        unique_ids: list[str] = []
+        seen: set[str] = set()
+        for sid in selected_skill_ids:
+            if sid and sid not in seen:
+                seen.add(sid)
+                unique_ids.append(sid)
+        self.selected_skill_ids = unique_ids
+        self.base_cfg1 = base_cfg1
+        self.base_cfg2 = base_cfg2
+        self.runs = runs
+        self.num_workers = num_workers
+        self.mode = mode
+        self.max_rounds = max_rounds
+        self.hero_cooldowns_enabled = hero_cooldowns_enabled
+        self.plugin_cooldowns_enabled = plugin_cooldowns_enabled
+        self.gem_cooldowns_enabled = gem_cooldowns_enabled
+        self.mount_cooldowns_enabled = mount_cooldowns_enabled
+        self.multi_heal_trig_enabled = multi_heal_trig_enabled
+        self.interval_active_cast_cooldowns_enabled = interval_active_cast_cooldowns_enabled
+        self.fairness_rage_enabled = fairness_rage_enabled
+        self.advantage_mode = advantage_mode
+        self._cancelled = threading.Event()
+
+    def cancel(self) -> None:
+        self._cancelled.set()
+
+    def _set_army_plugin_skills(self, cfg: dict, skill_ids: list[str]) -> None:
+        heroes = cfg.get("heroes", [])
+        if not heroes:
+            return
+        hero_cfg = heroes[0]
+        hero_cfg["plugin_skill_ids"] = list(skill_ids)
+
+    def _run_matchup(self, army1_skills: list[str], army2_skills: list[str] | None) -> tuple[int, int]:
+        cfg1 = copy.deepcopy(self.base_cfg1)
+        cfg2 = copy.deepcopy(self.base_cfg2)
+        self._set_army_plugin_skills(cfg1, army1_skills)
+        if army2_skills is not None:
+            self._set_army_plugin_skills(cfg2, army2_skills)
+        army1_wins, army2_wins, _draws = run_batch_return_winners(
+            [cfg1, cfg2],
+            self.runs,
+            num_workers=self.num_workers,
+            cooldowns_enabled=True,
+            hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+            plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+            gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+            mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+            multi_heal_trig_enabled=self.multi_heal_trig_enabled,
+            interval_active_cast_cooldowns_enabled=self.interval_active_cast_cooldowns_enabled,
+            fairness_rage_enabled=self.fairness_rage_enabled,
+            advantage_mode=self.advantage_mode,
+            max_rounds=self.max_rounds,
+        )
+        return int(army1_wins), int(army2_wins)
+
+    def run(self) -> None:
+        try:
+            if len(self.selected_skill_ids) < 4:
+                raise ValueError("General rank requires at least 4 unique plugin skills.")
+
+            skill_pool = list(self.selected_skill_ids)
+            random.shuffle(skill_pool)
+            current_build = skill_pool[:4]
+            remaining = skill_pool[4:]
+            steps = max(1, len(remaining))
+            total_steps = steps * 4 * self.runs
+            done_steps = 0
+            rounds: list[dict[str, Any]] = []
+
+            for candidate in remaining:
+                if self._cancelled.is_set():
+                    raise RuntimeError("cancelled")
+
+                trial_results: list[dict[str, Any]] = []
+                for slot in range(4):
+                    if self._cancelled.is_set():
+                        raise RuntimeError("cancelled")
+                    challenger = list(current_build)
+                    challenger[slot] = candidate
+                    if len(set(challenger)) < 4:
+                        continue
+
+                    if self.mode == GeneralRankDialog.MODE_FIXED_OPPONENT:
+                        army1_skills = challenger
+                        army2_skills = None
+                    else:
+                        army1_skills = current_build
+                        army2_skills = challenger
+
+                    a1, a2 = self._run_matchup(army1_skills, army2_skills)
+
+                    if self.mode == GeneralRankDialog.MODE_FIXED_OPPONENT:
+                        win_rate = (a1 / self.runs) if self.runs > 0 else 0.0
+                    else:
+                        win_rate = (a2 / self.runs) if self.runs > 0 else 0.0
+                    trial_results.append({
+                        "slot": slot,
+                        "candidate": candidate,
+                        "challenger": challenger,
+                        "army1_wins": a1,
+                        "army2_wins": a2,
+                        "win_rate": win_rate,
+                    })
+                    done_steps += self.runs
+                    self.progress_update.emit(done_steps, total_steps)
+
+                if trial_results:
+                    best_trial = max(
+                        trial_results,
+                        key=lambda t: (t["win_rate"], t["army1_wins"]),
+                    )
+                    if best_trial["win_rate"] > 0.5:
+                        current_build = list(best_trial["challenger"])
+                    rounds.append(
+                        {
+                            "candidate": candidate,
+                            "trials": trial_results,
+                            "selected_build": list(current_build),
+                        }
+                    )
+
+            self.finished.emit(
+                {
+                    "mode": self.mode,
+                    "initial_build": skill_pool[:4],
+                    "final_build": current_build,
+                    "rounds": rounds,
+                    "runs": self.runs,
+                }
+            )
+        except RuntimeError as exc:
+            if str(exc) == "cancelled":
+                self.finished.emit({})
+            else:
+                self.error.emit(str(exc))
+        except Exception as exc:
+            self.error.emit(str(exc))
+
+
 class ArenaBatchWorker(QtCore.QThread):
     progress_update = QtCore.pyqtSignal(int, int)
     finished_dict = QtCore.pyqtSignal(dict)
@@ -8202,8 +8480,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.run_btn = QtWidgets.QPushButton("Run Simulation")
         self.run_btn.clicked.connect(self.run_simulation)
         controls.addWidget(self.run_btn)
-        self.rank_btn = QtWidgets.QPushButton("Rank")
-        self.rank_btn.clicked.connect(self._open_mount_skill_rank_dialog)
+        self.rank_btn = QtWidgets.QToolButton()
+        self.rank_btn.setText("Rank")
+        rank_menu = QtWidgets.QMenu(self.rank_btn)
+        mount_rank_action = rank_menu.addAction("Mount Rank")
+        mount_rank_action.triggered.connect(self._open_mount_skill_rank_dialog)
+        general_rank_action = rank_menu.addAction("General Rank")
+        general_rank_action.triggered.connect(self._open_general_rank_dialog)
+        self.rank_btn.setMenu(rank_menu)
+        self.rank_btn.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.InstantPopup)
         controls.addWidget(self.rank_btn)
         self.rank_queue_btn = QtWidgets.QPushButton("Rank Queue")
         self.rank_queue_btn.clicked.connect(self._on_rank_queue_clicked)
@@ -8776,6 +9061,93 @@ class MainWindow(QtWidgets.QMainWindow):
         self._rank_worker.finished.connect(self._rank_worker.deleteLater)
         self._rank_worker.start()
 
+    def _open_general_rank_dialog(self) -> None:
+        """Open general rank dialog and run plugin hill-climb ranking."""
+        dlg = GeneralRankDialog(self)
+        if dlg.exec() != QtWidgets.QDialog.DialogCode.Accepted:
+            return
+        skill_ids = dlg.selected_skill_ids()
+        if len(skill_ids) < 4:
+            return
+
+        worker = getattr(self, "_rank_worker", None)
+        if worker and worker.isRunning():
+            QtWidgets.QMessageBox.information(
+                self,
+                "Rank In Progress",
+                "A rank run is already in progress.",
+            )
+            return
+
+        cfg1 = self.army1_frame.build_config()
+        cfg2 = self.army2_frame.build_config()
+        self._ensure_unique_army_names([cfg1, cfg2])
+
+        max_rounds = None
+        if self.max_rounds_checkbox.isChecked():
+            max_rounds = self.max_rounds_spin.value()
+
+        self._rank_worker = GeneralRankWorker(
+            skill_ids,
+            cfg1,
+            cfg2,
+            runs=self.runs_spin.value(),
+            num_workers=self.workers_spin.value(),
+            mode=dlg.selected_mode(),
+            max_rounds=max_rounds,
+            hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+            plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+            gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+            mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+            multi_heal_trig_enabled=self.multi_heal_trig_enabled,
+            interval_active_cast_cooldowns_enabled=self.interval_active_cast_cooldowns_enabled,
+            fairness_rage_enabled=self.fairness_rage_enabled,
+            advantage_mode=self.troop_advantage_mode,
+        )
+
+        total = max(1, (len(skill_ids) - 4) * 4 * self.runs_spin.value())
+        self.progress.setRange(0, total)
+        self.progress.setValue(0)
+        self.progress_eta.setText("")
+        self._sim_start_time = time.perf_counter()
+        self.status.setText("Running general rank...")
+        self.rank_btn.setEnabled(False)
+        self.rank_queue_btn.setEnabled(False)
+
+        def _on_progress(done: int, total: int) -> None:
+            self._on_progress_with_eta(done, total)
+
+        def _on_finished(result: dict) -> None:
+            self.progress.setValue(0)
+            self.progress_eta.setText("")
+            self._sim_start_time = None
+            self.status.setText("Ready")
+            self.rank_btn.setEnabled(True)
+            self.rank_queue_btn.setEnabled(True)
+            self._rank_worker = None
+            if not result:
+                return
+            formatted_text = self._format_general_rank_text(result)
+            self.rank_text_edit.setPlainText(formatted_text)
+            self.fig_content_stack.setCurrentIndex(1)
+            self.tabs.setCurrentWidget(self.figures_tab)
+
+        def _on_error(msg: str) -> None:
+            self.progress.setValue(0)
+            self.progress_eta.setText("")
+            self._sim_start_time = None
+            self.status.setText("Ready")
+            self.rank_btn.setEnabled(True)
+            self.rank_queue_btn.setEnabled(True)
+            self._rank_worker = None
+            QtWidgets.QMessageBox.critical(self, "General Rank Error", msg)
+
+        self._rank_worker.progress_update.connect(_on_progress)
+        self._rank_worker.finished.connect(_on_finished)
+        self._rank_worker.error.connect(_on_error)
+        self._rank_worker.finished.connect(self._rank_worker.deleteLater)
+        self._rank_worker.start()
+
     def _on_rank_queue_clicked(self) -> None:
         """Handle Rank Queue button: open dialog or cancel queue."""
         if getattr(self, "_queue_running", False):
@@ -8959,6 +9331,47 @@ class MainWindow(QtWidgets.QMainWindow):
             lines.append("")
 
         return "\n".join(lines)
+
+    def _format_general_rank_text(self, result: dict) -> str:
+        """Format general rank hill-climb results as plain text."""
+        mode = result.get("mode", "")
+        runs = int(result.get("runs", 0))
+        initial_build = result.get("initial_build", []) or []
+        final_build = result.get("final_build", []) or []
+        rounds = result.get("rounds", []) or []
+
+        mode_label = (
+            "Fixed Opponent" if mode == GeneralRankDialog.MODE_FIXED_OPPONENT else "Mirror-Swap"
+        )
+
+        def _name(sid: str) -> str:
+            return SKILL_REGISTRY_GLOBAL.get(sid, {}).get("name", sid)
+
+        lines: list[str] = [
+            f"General Rank ({mode_label}, {runs} runs per test)",
+            "",
+            "Initial Build: " + ", ".join(_name(s) for s in initial_build),
+            "Final Build: " + ", ".join(_name(s) for s in final_build),
+            "",
+        ]
+
+        score_label = "Army 1" if mode == GeneralRankDialog.MODE_FIXED_OPPONENT else "Challenger"
+        for idx, round_data in enumerate(rounds, 1):
+            candidate = round_data.get("candidate", "")
+            lines.append(f"Round {idx}: Candidate {_name(candidate)}")
+            for trial in round_data.get("trials", []):
+                slot = int(trial.get("slot", 0)) + 1
+                challenger = trial.get("challenger", []) or []
+                wr = float(trial.get("win_rate", 0.0)) * 100.0
+                lines.append(
+                    f"  Slot {slot}: {', '.join(_name(s) for s in challenger)} -> "
+                    f"{trial.get('army1_wins', 0)}-{trial.get('army2_wins', 0)} ({wr:.1f}% {score_label})"
+                )
+            selected = round_data.get("selected_build", []) or []
+            lines.append("  Selected Build: " + ", ".join(_name(s) for s in selected))
+            lines.append("")
+
+        return "\n".join(lines).strip()
 
     def _update_seed_display(self) -> None:
         """Refresh the text next to the seed selection button."""

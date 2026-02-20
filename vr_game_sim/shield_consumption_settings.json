@@ -3,7 +3,7 @@
   "archers_vs_infantry_shield_consumption": 1.0,
   "archers_vs_pikemen_shield_consumption": 1.0,
   "infantry_vs_archers_shield_consumption": 1.0,
-  "infantry_vs_infantry_shield_consumption": 0.888,
+  "infantry_vs_infantry_shield_consumption": 0.88,
   "infantry_vs_pikemen_shield_consumption": 1.0,
   "pikemen_vs_archers_shield_consumption": 1.0,
   "pikemen_vs_infantry_shield_consumption": 1.0,

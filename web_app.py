@@ -8,7 +8,6 @@ import tempfile
 import time
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.gear_definitions import GEAR_REGISTRY, GEAR_SLOT_ORDER
@@ -507,21 +506,36 @@ sim_debug_settings = {
     "per_skill_cooldown_overrides": per_skill_cooldown_overrides,
 }
 
+battle_count = st.number_input("Battle Count", min_value=1, value=300, step=1)
+
 
 if st.button("Run Simulation ⚔️", use_container_width=True):
     with st.spinner("The Vikings are fighting..."):
         try:
             setup_data = [attacker_cfg, defender_cfg]
             st.session_state["_latest_setup_data"] = setup_data
-            armies = create_armies_from_data(setup_data)
-            sim = GameSimulator(armies[0], armies[1], track_stats=True, **sim_debug_settings)
-            with contextlib.redirect_stdout(io.StringIO()):
-                sim.simulate_battle(max_rounds=int(max_rounds) if limit_rounds else None)
+            attacker_wins = 0
+            defender_wins = 0
+            sim = None
+
+            for _ in range(int(battle_count)):
+                armies = create_armies_from_data(setup_data)
+                sim = GameSimulator(armies[0], armies[1], track_stats=True, **sim_debug_settings)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    sim.simulate_battle(max_rounds=int(max_rounds) if limit_rounds else None)
+
+                if sim.army1.current_troop_count > sim.army2.current_troop_count:
+                    attacker_wins += 1
+                elif sim.army2.current_troop_count > sim.army1.current_troop_count:
+                    defender_wins += 1
+
+            if sim is None:
+                raise RuntimeError("Simulation failed to produce results")
 
             html_output = _build_overall_performance_html(sim)
-            st.success("Simulation Complete!")
-            st.subheader("Overall Performance HTML")
-            components.html(html_output, height=700, scrolling=True)
+            st.subheader("Win Rates")
+            st.write(f"{attacker_cfg['army_name']}: {(attacker_wins / battle_count) * 100:.2f}%")
+            st.write(f"{defender_cfg['army_name']}: {(defender_wins / battle_count) * 100:.2f}%")
             st.download_button(
                 "Download Overall Performance HTML",
                 data=html_output,
@@ -529,6 +543,5 @@ if st.button("Run Simulation ⚔️", use_container_width=True):
                 mime="text/html",
                 use_container_width=True,
             )
-            st.code(json.dumps(setup_data, indent=2), language="json")
         except Exception as e:
             st.error(f"An error occurred: {e}")

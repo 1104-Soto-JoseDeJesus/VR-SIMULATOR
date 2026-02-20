@@ -1095,11 +1095,8 @@ class GameSimulator:
         self, skill_id: str, defs: List[SkillDefinition], triggering_army: Army
     ) -> str:
         """Return the instance key of the duplicate mount skill with the highest merged value.
-        If tied, choose randomly once and cache for the battle.
+        Selection is based on the provided definitions (same-round trigger set).
         """
-        cache = getattr(triggering_army, "mount_attribution_cache", {})
-        if skill_id in cache:
-            return cache[skill_id]
         if len(defs) <= 1:
             return defs[0].get("instance_key") or (
                 f"{skill_id}::mount::{defs[0].get('mount_instance_index', 0)}"
@@ -1140,7 +1137,6 @@ class GameSimulator:
             elif rep_value == best_value and rep_value > float("-inf"):
                 candidates.append(inst_key)
         winner = random.choice(candidates) if len(candidates) > 1 else (candidates[0] if candidates else skill_id)
-        cache[skill_id] = winner
         return winner
 
     def _apply_mount_skill_non_damage_config(self, base_config: Dict[str, Any], merged_config: Dict[str, Any],
@@ -1178,6 +1174,21 @@ class GameSimulator:
                 cfg[key] = value
         return cfg
 
+    def _prune_mount_duplicate_pending_effects(
+        self,
+        source_ids: List[str],
+        triggering_army: Army,
+        opponent_army: Army,
+    ) -> None:
+        tracked_ids = {sid for sid in source_ids if sid}
+        if not tracked_ids:
+            return
+        for army in (triggering_army, opponent_army):
+            army.upcoming_effects = [e for e in army.upcoming_effects if e.source_skill_id not in tracked_ids]
+            army.effects_to_activate_next_round = [
+                e for e in army.effects_to_activate_next_round if e.source_skill_id not in tracked_ids
+            ]
+
     def _process_skill_triggers(self, triggering_army: Army, opponent_army: Army, trigger_type: SkillTriggerType,
                                 event_data: Optional[Dict[str, Any]] = None):
         actual_effect_target = opponent_army
@@ -1205,10 +1216,6 @@ class GameSimulator:
                     if skill_def.get("mount_instance_index") is None and skill_def.get("instance_key") is None:
                         skill_def["instance_key"] = f"{skill_id}::army::{idx}"
 
-        mount_skill_non_damage_configs = {
-            skill_id: self._merge_mount_skill_non_damage_configs(defs)
-            for skill_id, defs in mount_skill_groups.items()
-        }
         mount_skill_damage_allowance = {
             skill_id: sum(1 for sd in defs if self._mount_skill_has_direct_damage(sd))
             for skill_id, defs in mount_skill_groups.items()
@@ -1465,45 +1472,47 @@ class GameSimulator:
                     attribution_winner_key = cooldown_key
                     if skill_def.get("type") == SkillType.MOUNT_SKILL:
                         defs = mount_skill_groups.get(skill_id, [])
+                        dot_hot_present = self._mount_skill_has_dot_hot_components(skill_def)
+
                         if len(defs) > 1:
+                            triggered_map = triggering_army.mount_skill_triggered_instances_this_round.setdefault(skill_id, {})
+                            triggered_map[mount_tracking_key] = skill_def
+                            same_round_defs = list(triggered_map.values())
                             attribution_winner_key = self._get_mount_attribution_instance_key(
-                                skill_id, defs, triggering_army
+                                skill_id, same_round_defs, triggering_army
                             )
-                            include_non_damage = (
-                                mount_tracking_key
-                                not in triggering_army.mount_skill_non_damage_applied_this_round
-                            )
-                            dot_hot_present = self._mount_skill_has_dot_hot_components(skill_def)
+                            include_non_damage = cooldown_key == attribution_winner_key
                             if dot_hot_present:
-                                include_dot_hot = (
-                                    skill_id not in triggering_army.mount_skill_dot_hot_applied_this_round
+                                include_dot_hot = cooldown_key == attribution_winner_key
+                            merged_cfg = self._merge_mount_skill_non_damage_configs(same_round_defs)
+                            if len(same_round_defs) > 1 and cooldown_key == attribution_winner_key:
+                                self._prune_mount_duplicate_pending_effects(
+                                    [
+                                        f"{skill_id}::mount::{sd.get('mount_instance_index')}"
+                                        if sd.get("mount_instance_index") is not None
+                                        else (sd.get("instance_key") or skill_id)
+                                        for sd in same_round_defs
+                                    ],
+                                    triggering_army,
+                                    actual_effect_target,
                                 )
-                            if cooldown_key != attribution_winner_key:
-                                include_non_damage = False
-                                include_dot_hot = False
                         else:
                             include_non_damage = (
                                 mount_tracking_key
                                 not in triggering_army.mount_skill_non_damage_applied_this_round
                             )
-                            dot_hot_present = self._mount_skill_has_dot_hot_components(skill_def)
                             if dot_hot_present:
                                 include_dot_hot = (
                                     skill_id not in triggering_army.mount_skill_dot_hot_applied_this_round
                                 )
-                        merged_cfg = mount_skill_non_damage_configs.get(skill_id, {})
+                            merged_cfg = self._extract_mount_skill_non_damage_components(skill_def)
+
                         effective_skill_def = copy.deepcopy(skill_def)
                         base_cfg = effective_skill_def.get("config", {}) or {}
                         effective_skill_def["config"] = self._apply_mount_skill_non_damage_config(
                             base_cfg, merged_cfg, include_non_damage, include_dot_hot
                         )
-                        id_to_use = (
-                            attribution_winner_key
-                            if (include_non_damage or include_dot_hot)
-                            else cooldown_key
-                        )
-                        if id_to_use != skill_id:
-                            effective_skill_def["id"] = id_to_use
+                        effective_skill_def["id"] = cooldown_key
                     prev_crit_context = (
                         self._active_skill_id,
                         self._active_skill_label,
@@ -2587,6 +2596,7 @@ class GameSimulator:
                 army.mount_skill_damage_triggers_this_round.clear()
                 army.mount_skill_non_damage_applied_this_round.clear()
                 army.mount_skill_dot_hot_applied_this_round.clear()
+                army.mount_skill_triggered_instances_this_round.clear()
                 army.maniacal_hot_triggered_this_round = False
                 army.healing_hymn_triggered_this_round = False
                 army.forceful_ambush_shield_triggered_this_round = False

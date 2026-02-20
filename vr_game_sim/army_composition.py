@@ -135,6 +135,7 @@ class Army:
     mount_skill_damage_triggers_this_round: Dict[str, int] = field(init=False, default_factory=dict)
     mount_skill_non_damage_applied_this_round: Set[str] = field(init=False, default_factory=set)
     mount_skill_dot_hot_applied_this_round: Set[str] = field(init=False, default_factory=set)
+    mount_skill_triggered_instances_this_round: Dict[str, Dict[str, SkillDefinition]] = field(init=False, default_factory=dict)
     mount_attribution_cache: Dict[str, str] = field(init=False, default_factory=dict)
 
     skill_trigger_counts: Dict[str, int] = field(init=False, default_factory=dict)
@@ -2383,6 +2384,7 @@ class Army:
         self.on_receiving_healing_rolls_this_round.clear()
         self.skill_trigger_counts_this_round.clear()
         self.skill_triggers_against_this_round.clear()
+        self.mount_skill_triggered_instances_this_round.clear()
         self.pending_hp_damage_this_round = 0.0  # Reset here is good
         self.pending_hp_healing_this_round = 0.0  # Reset here is good
         self.unrevivable_troops = 0.0

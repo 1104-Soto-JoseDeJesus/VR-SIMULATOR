@@ -1,0 +1,122 @@
+[
+    {
+        "army_name": "Sasha/Alf",
+        "unit_type": "archers",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Sasha",
+                "talent_ids": [
+                    "talent_forest_force",
+                    "talent_natures_killer",
+                    "talent_life_cycle"
+                ],
+                "base_skill_ids": [
+                    "base_skill_nature_blessing",
+                    "base_skill_floral_burial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_bone_corroding_arrow",
+                    "plugin_this_too_shall_pass"
+                ],
+                "gear_ids": {
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Alf",
+                "talent_ids": [
+                    "talent_fiery_poison_bullet",
+                    "talent_fiery_poison_bomb",
+                    "talent_agile_missile"
+                ],
+                "base_skill_ids": [
+                    "base_skill_huginns_slingshot",
+                    "base_skill_chain_meteor"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_helas_curse",
+                    "plugin_poison_arrow"
+                ],
+                "gear_ids": {
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                }
+            }
+        ]
+    },
+    {
+        "army_name": "Sasha/Alf (2)",
+        "unit_type": "archers",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Sasha",
+                "talent_ids": [
+                    "talent_forest_force",
+                    "talent_natures_killer",
+                    "talent_life_cycle"
+                ],
+                "base_skill_ids": [
+                    "base_skill_nature_blessing",
+                    "base_skill_floral_burial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_bone_corroding_arrow",
+                    "plugin_this_too_shall_pass"
+                ],
+                "gear_ids": {
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Alf",
+                "talent_ids": [
+                    "talent_fiery_poison_bullet",
+                    "talent_fiery_poison_bomb",
+                    "talent_agile_missile"
+                ],
+                "base_skill_ids": [
+                    "base_skill_huginns_slingshot",
+                    "base_skill_chain_meteor"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_helas_curse",
+                    "plugin_poison_arrow"
+                ],
+                "gear_ids": {
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                }
+            }
+        ]
+    }
+]

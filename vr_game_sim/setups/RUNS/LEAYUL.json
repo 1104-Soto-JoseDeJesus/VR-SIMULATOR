@@ -1,0 +1,122 @@
+[
+    {
+        "army_name": "Leandra/Yulmi",
+        "unit_type": "archers",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Leandra",
+                "talent_ids": [
+                    "talent_soul_awakening",
+                    "talent_flexible_strike",
+                    "talent_opportune_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_vengeful_fury",
+                    "base_skill_serrated_flourish"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_bone_corroding_arrow",
+                    "plugin_this_too_shall_pass"
+                ],
+                "gear_ids": {
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Yulmi",
+                "talent_ids": [
+                    "talent_dreadful_curse",
+                    "talent_high_fighting_spirit",
+                    "talent_low_whispers"
+                ],
+                "base_skill_ids": [
+                    "base_skill_plague",
+                    "rage_skill_undead_harvest"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_helas_curse",
+                    "plugin_poison_arrow"
+                ],
+                "gear_ids": {
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                }
+            }
+        ]
+    },
+    {
+        "army_name": "Leandra/Yulmi (2)",
+        "unit_type": "archers",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Leandra",
+                "talent_ids": [
+                    "talent_soul_awakening",
+                    "talent_flexible_strike",
+                    "talent_opportune_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_vengeful_fury",
+                    "base_skill_serrated_flourish"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_bone_corroding_arrow",
+                    "plugin_this_too_shall_pass"
+                ],
+                "gear_ids": {
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Yulmi",
+                "talent_ids": [
+                    "talent_dreadful_curse",
+                    "talent_high_fighting_spirit",
+                    "talent_low_whispers"
+                ],
+                "base_skill_ids": [
+                    "base_skill_plague",
+                    "rage_skill_undead_harvest"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_helas_curse",
+                    "plugin_poison_arrow"
+                ],
+                "gear_ids": {
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                }
+            }
+        ]
+    }
+]

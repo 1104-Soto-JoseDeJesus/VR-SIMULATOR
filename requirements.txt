@@ -4,3 +4,4 @@ pytest
 colorama
 Pillow
 PyQt6
+streamlit

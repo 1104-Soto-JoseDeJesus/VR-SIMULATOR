@@ -1,0 +1,122 @@
+[
+    {
+        "army_name": "Margit/Lagertha",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Margit",
+                "talent_ids": [
+                    "talent_cutting_blade",
+                    "talent_thirst_for_blood",
+                    "talent_seas_grace"
+                ],
+                "base_skill_ids": [
+                    "base_skill_ride_the_waves",
+                    "base_skill_raging_tide"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_first_strike",
+                    "plugin_enrage"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_epic",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Lagertha",
+                "talent_ids": [
+                    "talent_shieldaxe_attack",
+                    "talent_chiefs_might",
+                    "talent_fatal_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_shield_breaker",
+                    "rage_skill_showdown"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_blessing",
+                    "plugin_odins_asylum"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            }
+        ]
+    },
+    {
+        "army_name": "Margit/Lagertha (2)",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Margit",
+                "talent_ids": [
+                    "talent_cutting_blade",
+                    "talent_thirst_for_blood",
+                    "talent_seas_grace"
+                ],
+                "base_skill_ids": [
+                    "base_skill_ride_the_waves",
+                    "base_skill_raging_tide"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_first_strike",
+                    "plugin_enrage"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_epic",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Lagertha",
+                "talent_ids": [
+                    "talent_shieldaxe_attack",
+                    "talent_chiefs_might",
+                    "talent_fatal_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_shield_breaker",
+                    "rage_skill_showdown"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_blessing",
+                    "plugin_odins_asylum"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            }
+        ]
+    }
+]

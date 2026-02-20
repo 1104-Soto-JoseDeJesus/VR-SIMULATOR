@@ -1,0 +1,122 @@
+[
+    {
+        "army_name": "Verdandi/Artur",
+        "unit_type": "archers",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Verdandi",
+                "talent_ids": [
+                    "talent_hunting_instinct",
+                    "talent_hunting_experience",
+                    "talent_targeted_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_rapid_fire",
+                    "base_skill_raining_arrows"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_first_strike",
+                    "plugin_fiery_rage"
+                ],
+                "gear_ids": {
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Artur",
+                "talent_ids": [
+                    "talent_hellfire_shelter",
+                    "talent_pent_up_anger",
+                    "talent_furious_fire"
+                ],
+                "base_skill_ids": [
+                    "base_skill_torment",
+                    "base_skill_incineration"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_helas_curse",
+                    "plugin_divine_blessing"
+                ],
+                "gear_ids": {
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                }
+            }
+        ]
+    },
+    {
+        "army_name": "Verdandi/Artur (2)",
+        "unit_type": "archers",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Verdandi",
+                "talent_ids": [
+                    "talent_hunting_instinct",
+                    "talent_hunting_experience",
+                    "talent_targeted_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_rapid_fire",
+                    "base_skill_raining_arrows"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_first_strike",
+                    "plugin_fiery_rage"
+                ],
+                "gear_ids": {
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Artur",
+                "talent_ids": [
+                    "talent_hellfire_shelter",
+                    "talent_pent_up_anger",
+                    "talent_furious_fire"
+                ],
+                "base_skill_ids": [
+                    "base_skill_torment",
+                    "base_skill_incineration"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_helas_curse",
+                    "plugin_divine_blessing"
+                ],
+                "gear_ids": {
+                    "head": "gear_divine_crown_legendary",
+                    "weapon": "gear_gleaming_longbow_legendary",
+                    "chest": "gear_verdant_armor_legendary",
+                    "boots": "gear_thicket_boots_legendary"
+                }
+            }
+        ]
+    }
+]

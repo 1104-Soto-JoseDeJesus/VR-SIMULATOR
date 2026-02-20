@@ -300,6 +300,7 @@ def _build_overall_performance_html(sim: GameSimulator) -> str:
     setup_data = getattr(st.session_state, "_latest_setup_data", None) or []
     if setup_data:
         try:
+            os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
             from PyQt6 import QtWidgets
             from vr_game_sim.gui_main import MainWindow, build_skill_summaries
 
@@ -343,10 +344,10 @@ def _build_overall_performance_html(sim: GameSimulator) -> str:
                         lambda *args, **kwargs: (out_path, "HTML Files (*.html)")
                     )
                     window._export_summary_html(
-                        include_sample_details=False,
-                        include_sample_log=False,
-                        dialog_title="Export Overall Performance HTML",
-                        filename_suffix="overall_performance",
+                        include_sample_details=True,
+                        include_sample_log=True,
+                        dialog_title="Export Overall Performance & Sample Battle HTML",
+                        filename_suffix="overall_performance_sample",
                         debug_mode=False,
                     )
                 finally:

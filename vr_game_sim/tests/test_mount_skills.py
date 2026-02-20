@@ -127,6 +127,28 @@ def test_new_command_mount_skills_registered():
             assert config.get("rage_gain") == expectations["rage_gain"]
 
 
+
+
+def test_mount_reactive_rage_effect_names_are_skill_specific():
+    assert SKILL_REGISTRY_GLOBAL["mount_bloodthirsty_eye"]["config"]["effect_name"] == "Bloodthirsty Eye Rage Gain"
+    assert SKILL_REGISTRY_GLOBAL["mount_manic_heal"]["config"]["effect_name"] == "Manic Heal Rage Gain"
+    assert SKILL_REGISTRY_GLOBAL["mount_wolfus_gnaw"]["config"]["effect_name"] == "Wolfus Gnaw Rage Gain"
+
+
+def test_mount_passive_crit_effect_names_match_skill_label():
+    for skill_id, skill_def in SKILL_REGISTRY_GLOBAL.items():
+        if skill_def.get("type") != SkillType.MOUNT_SKILL:
+            continue
+        for effect in skill_def.get("passive_effects", []) or []:
+            if effect.get("effect_type") != EffectType.STAT_MOD:
+                continue
+            stat = effect.get("stat_to_mod")
+            if stat == StatType.REACTIVE_SKILL_CRIT_RATE:
+                assert effect.get("name") == "Mount Reactive Crit Boost"
+            elif stat == StatType.COOPERATION_SKILL_CRIT_RATE:
+                assert effect.get("name") == "Mount Cooperation Crit Boost"
+            elif stat == StatType.COMMAND_SKILL_CRIT_RATE:
+                assert effect.get("name") == "Mount Command Crit Boost"
 def test_mount_skill_overrides_apply_to_heroes():
     damage_factor = 1337.0
     cfg = copy.deepcopy(_BASE_CFG)

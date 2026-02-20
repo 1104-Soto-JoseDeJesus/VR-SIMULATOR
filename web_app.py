@@ -2,9 +2,9 @@ import streamlit as st
 import json
 import os
 
-# Import your actual backend engine!
-from main import create_armies_from_data
-from game_simulator import GameSimulator
+# Notice we added "vr_game_sim." to the imports!
+from vr_game_sim.main import create_armies_from_data
+from vr_game_sim.game_simulator import GameSimulator
 
 st.set_page_config(page_title="VR Simulator", layout="wide")
 
@@ -14,7 +14,6 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.header("Attacker")
-    # You can expand these lists later by importing your actual hero lists!
     att_primary = st.selectbox("Primary Hero", ["Yulmi", "Artur", "Ivor", "Lagertha"], key="att_p")
     att_troops = st.number_input("Troop Count", value=350000, step=1000, key="att_t")
 
@@ -28,8 +27,9 @@ st.divider()
 if st.button("Run Simulation ⚔️", use_container_width=True):
     with st.spinner("The Vikings are fighting..."):
         try:
-            # 1. Load a safe, valid template from your setups
-            template_path = os.path.join("setups", "1v1", "CHECK.json")
+            # We also updated the path here to look inside vr_game_sim
+            template_path = os.path.join("vr_game_sim", "setups", "1v1", "CHECK.json")
+
             with open(template_path, "r") as f:
                 setup_data = json.load(f)
 

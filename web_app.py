@@ -1,7 +1,11 @@
 import contextlib
+import copy
 import html
 import io
 import json
+import os
+import tempfile
+import time
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -294,6 +298,66 @@ def _skill_rows_for_army(army) -> list[dict]:
 
 
 def _build_overall_performance_html(sim: GameSimulator) -> str:
+    setup_data = getattr(st.session_state, "_latest_setup_data", None) or []
+    if setup_data:
+        try:
+            from PyQt6 import QtWidgets
+            from vr_game_sim.gui_main import MainWindow, build_skill_summaries
+
+            _app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+            window = MainWindow()
+            summary = build_skill_summaries([sim.army1, sim.army2], setup_data)
+            winner = 0
+            if sim.army1.current_troop_count > sim.army2.current_troop_count:
+                winner = 1
+            elif sim.army2.current_troop_count > sim.army1.current_troop_count:
+                winner = 2
+
+            hist_dir = os.path.join(os.path.dirname(__file__), "vr_game_sim", "histograms")
+            histograms = []
+            if os.path.isdir(hist_dir):
+                histograms = [
+                    os.path.join(hist_dir, name)
+                    for name in sorted(os.listdir(hist_dir))
+                    if name.lower().endswith(".png")
+                ]
+
+            window._last_simulation_payload = {
+                "report_text": getattr(getattr(sim, "report_builder", None), "get_report_text", lambda: "")(),
+                "rounds": copy.deepcopy(getattr(getattr(sim, "report_builder", None), "get_rounds", lambda: [])()),
+                "summary": copy.deepcopy(summary),
+                "win_rate": 1.0 if winner == 1 else 0.0,
+                "runs": 1,
+                "best_match": {"winner": winner, "summary": copy.deepcopy(summary)},
+                "setup": [copy.deepcopy(cfg) for cfg in setup_data],
+                "histograms": histograms,
+                "generated_at": time.time(),
+                "army_names": [sim.army1.name or "Army 1", sim.army2.name or "Army 2"],
+                "cooldown_settings": {"hero": True, "plugin": True, "gem": True, "mount": True},
+            }
+
+            with tempfile.TemporaryDirectory(prefix="vr_web_export_") as tmp_dir:
+                out_path = os.path.join(tmp_dir, "overall_performance.html")
+                original_get_save = QtWidgets.QFileDialog.getSaveFileName
+                try:
+                    QtWidgets.QFileDialog.getSaveFileName = staticmethod(
+                        lambda *args, **kwargs: (out_path, "HTML Files (*.html)")
+                    )
+                    window._export_summary_html(
+                        include_sample_details=False,
+                        include_sample_log=False,
+                        dialog_title="Export Overall Performance HTML",
+                        filename_suffix="overall_performance",
+                        debug_mode=False,
+                    )
+                finally:
+                    QtWidgets.QFileDialog.getSaveFileName = original_get_save
+                if os.path.exists(out_path):
+                    return open(out_path, "r", encoding="utf-8").read()
+            window.close()
+        except Exception:
+            pass
+
     army_data = []
     for army in [sim.army1, sim.army2]:
         army_data.append(
@@ -448,6 +512,7 @@ if st.button("Run Simulation ⚔️", use_container_width=True):
     with st.spinner("The Vikings are fighting..."):
         try:
             setup_data = [attacker_cfg, defender_cfg]
+            st.session_state["_latest_setup_data"] = setup_data
             armies = create_armies_from_data(setup_data)
             sim = GameSimulator(armies[0], armies[1], track_stats=True, **sim_debug_settings)
             with contextlib.redirect_stdout(io.StringIO()):

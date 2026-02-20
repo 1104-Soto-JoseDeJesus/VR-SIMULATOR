@@ -6,8 +6,8 @@
         "count": 200000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.15,
-        "def_mod": 2.6452,
+        "atk_mod": 2.65,
+        "def_mod": 2.65,
         "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
         "unrevivable_ratio_method": "dynamic",
@@ -24,18 +24,9 @@
                     "base_skill_ride_the_waves",
                     "base_skill_raging_tide"
                 ],
-                "plugin_skill_ids": [],
-                "skill_overrides": {
-                    "mount_strangled_death": {
-                        "passive_effects": {
-                            "0": {
-                                "magnitude": 0.0
-                            }
-                        }
-                    }
-                },
-                "mount_skill_ids": [
-                    "mount_strangled_death"
+                "plugin_skill_ids": [
+                    "plugin_blessed_negation",
+                    "plugin_enrage"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -55,18 +46,9 @@
                     "base_skill_shield_breaker",
                     "rage_skill_showdown"
                 ],
-                "plugin_skill_ids": [],
-                "skill_overrides": {
-                    "mount_stinging_tongue": {
-                        "passive_effects": {
-                            "0": {
-                                "magnitude": 0.0
-                            }
-                        }
-                    }
-                },
-                "mount_skill_ids": [
-                    "mount_stinging_tongue"
+                "plugin_skill_ids": [
+                    "plugin_breaking_free",
+                    "plugin_trap_of_despair"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -78,79 +60,61 @@
         ]
     },
     {
-        "army_name": "Margit/Lagertha (2)",
-        "unit_type": "infantry",
+        "army_name": "Rosky/Helgar",
+        "unit_type": "pikemen",
         "tier": 10,
         "count": 200000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.15,
-        "def_mod": 2.6452,
+        "atk_mod": 2.65,
+        "def_mod": 2.65,
         "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
         "unrevivable_ratio_method": "dynamic",
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Margit",
+                "hero_name_or_preset": "Rosky",
                 "talent_ids": [
-                    "talent_cutting_blade",
-                    "talent_thirst_for_blood",
-                    "talent_seas_grace"
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
                 ],
                 "base_skill_ids": [
-                    "base_skill_ride_the_waves",
-                    "base_skill_raging_tide"
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
                 ],
-                "plugin_skill_ids": [],
-                "skill_overrides": {
-                    "mount_bloodthirst_gaze": {
-                        "passive_effects": {
-                            "0": {
-                                "magnitude": 0.0
-                            }
-                        }
-                    }
-                },
-                "mount_skill_ids": [
-                    "mount_bloodthirst_gaze"
+                "plugin_skill_ids": [
+                    "plugin_divine_shield",
+                    "plugin_divine_blessing"
                 ],
                 "gear_ids": {
-                    "head": "gear_blazing_helmet_legendary",
-                    "weapon": "gear_immolated_axe_legendary",
-                    "chest": "gear_inferno_armor_legendary",
-                    "boots": "gear_ferocious_boots_legendary"
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
                 }
             },
             {
-                "hero_name_or_preset": "Lagertha",
+                "hero_name_or_preset": "Helgar",
                 "talent_ids": [
-                    "talent_shieldaxe_attack",
-                    "talent_chiefs_might",
-                    "talent_fatal_strike"
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
                 ],
                 "base_skill_ids": [
-                    "base_skill_shield_breaker",
-                    "rage_skill_showdown"
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
                 ],
-                "plugin_skill_ids": [],
-                "skill_overrides": {
-                    "mount_soul_of_fury": {
-                        "passive_effects": {
-                            "0": {
-                                "magnitude": 0.0
-                            }
-                        }
-                    }
-                },
-                "mount_skill_ids": [
-                    "mount_soul_of_fury"
+                "plugin_skill_ids": [
+                    "plugin_hymn_of_life",
+                    "plugin_deadly_counterattack"
                 ],
                 "gear_ids": {
-                    "head": "gear_blazing_helmet_legendary",
-                    "weapon": "gear_immolated_axe_legendary",
-                    "chest": "gear_inferno_armor_legendary",
-                    "boots": "gear_ferocious_boots_legendary"
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
                 }
             }
         ]

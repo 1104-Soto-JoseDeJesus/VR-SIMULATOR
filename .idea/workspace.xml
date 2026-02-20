@@ -4,11 +4,41 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0ec79d29-f83e-4486-9f45-deb2b221e113" name="Changes" comment="" />
+    <list default="true" id="0ec79d29-f83e-4486-9f45-deb2b221e113" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/cooldown_defaults.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/cooldown_defaults.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/damage_accumulated_army1.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/damage_accumulated_army1.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/damage_accumulated_army2.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/damage_accumulated_army2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/diff_vs_rounds.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/diff_vs_rounds.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/enemy_remaining_troops.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/enemy_remaining_troops.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/heal_accumulated_army1.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/heal_accumulated_army1.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/heal_accumulated_army2.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/heal_accumulated_army2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/own_remaining_troops.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/own_remaining_troops.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/rage_per_round_army1.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/rage_per_round_army1.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/rage_per_round_army2.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/rage_per_round_army2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/rolling_stats.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/rolling_stats.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/rounds_cdf.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/rounds_cdf.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/rounds_to_battle_end.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/rounds_to_battle_end.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/shield_accumulated_army1.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/shield_accumulated_army1.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/shield_accumulated_army2.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/shield_accumulated_army2.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/troop_difference.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/troop_difference.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/unrevivable_victory_distribution.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/unrevivable_victory_distribution.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/histograms/victory_distribution.png" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/histograms/victory_distribution.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/setups/_last_run_setup.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/setups/_last_run_setup.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/shield_consumption_settings.json" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/shield_consumption_settings.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/vr_game_sim/web_app.py" beforeDir="false" afterPath="$PROJECT_DIR$/vr_game_sim/web_app.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -33,28 +63,34 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Python.__main__.executor&quot;: &quot;Run&quot;,
-    &quot;Python.gui_main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.gui_main_v2.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.skill_definitions.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/josee/PycharmProjects/VR-SIMULATOR&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.keymap&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.__main__.executor": "Run",
+    "Python.gui_main.executor": "Run",
+    "Python.gui_main_v2.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.skill_definitions.executor": "Run",
+    "Python.web_app.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "C:/Users/josee/PycharmProjects/VR-SIMULATOR",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.keymap",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\josee\PycharmProjects\VR-SIMULATOR\vr_game_sim" />
+    </key>
+  </component>
   <component name="RunManager" selected="Python.gui_main">
     <configuration name="gui_main" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="VR-SIMULATOR" />

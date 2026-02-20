@@ -1,11 +1,11 @@
 import contextlib
 import copy
-import html
 import io
 import json
 import os
 import tempfile
 import time
+from pathlib import Path
 
 import streamlit as st
 
@@ -296,145 +296,70 @@ def _skill_rows_for_army(army) -> list[dict]:
     return rows
 
 
-def _build_overall_performance_html(sim: GameSimulator) -> str:
+def _build_overall_performance_html(sim: GameSimulator) -> tuple[str, str]:
     setup_data = getattr(st.session_state, "_latest_setup_data", None) or []
-    if setup_data:
-        try:
-            os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-            from PyQt6 import QtWidgets
-            from vr_game_sim.gui_main import MainWindow, build_skill_summaries
+    if not setup_data:
+        raise RuntimeError("Missing setup data required for GUI-equivalent overall performance export")
 
-            _app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-            window = MainWindow()
-            summary = build_skill_summaries([sim.army1, sim.army2], setup_data)
-            winner = 0
-            if sim.army1.current_troop_count > sim.army2.current_troop_count:
-                winner = 1
-            elif sim.army2.current_troop_count > sim.army1.current_troop_count:
-                winner = 2
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PyQt6 import QtWidgets
+    from vr_game_sim.gui_main import MainWindow, build_skill_summaries
 
-            hist_dir = os.path.join(os.path.dirname(__file__), "vr_game_sim", "histograms")
-            histograms = []
-            if os.path.isdir(hist_dir):
-                histograms = [
-                    os.path.join(hist_dir, name)
-                    for name in sorted(os.listdir(hist_dir))
-                    if name.lower().endswith(".png")
-                ]
+    _app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    window = MainWindow()
+    try:
+        summary = build_skill_summaries([sim.army1, sim.army2], setup_data)
+        winner = 0
+        if sim.army1.current_troop_count > sim.army2.current_troop_count:
+            winner = 1
+        elif sim.army2.current_troop_count > sim.army1.current_troop_count:
+            winner = 2
 
-            window._last_simulation_payload = {
-                "report_text": getattr(getattr(sim, "report_builder", None), "get_report_text", lambda: "")(),
-                "rounds": copy.deepcopy(getattr(getattr(sim, "report_builder", None), "get_rounds", lambda: [])()),
-                "summary": copy.deepcopy(summary),
-                "win_rate": 1.0 if winner == 1 else 0.0,
-                "runs": 1,
-                "best_match": {"winner": winner, "summary": copy.deepcopy(summary)},
-                "setup": [copy.deepcopy(cfg) for cfg in setup_data],
-                "histograms": histograms,
-                "generated_at": time.time(),
-                "army_names": [sim.army1.name or "Army 1", sim.army2.name or "Army 2"],
-                "cooldown_settings": {"hero": True, "plugin": True, "gem": True, "mount": True},
-            }
+        hist_dir = os.path.join(os.path.dirname(__file__), "vr_game_sim", "histograms")
+        histograms = []
+        if os.path.isdir(hist_dir):
+            histograms = [
+                os.path.join(hist_dir, name)
+                for name in sorted(os.listdir(hist_dir))
+                if name.lower().endswith(".png")
+            ]
 
-            with tempfile.TemporaryDirectory(prefix="vr_web_export_") as tmp_dir:
-                out_path = os.path.join(tmp_dir, "overall_performance.html")
-                original_get_save = QtWidgets.QFileDialog.getSaveFileName
-                try:
-                    QtWidgets.QFileDialog.getSaveFileName = staticmethod(
-                        lambda *args, **kwargs: (out_path, "HTML Files (*.html)")
-                    )
-                    window._export_summary_html(
-                        include_sample_details=True,
-                        include_sample_log=True,
-                        dialog_title="Export Overall Performance & Sample Battle HTML",
-                        filename_suffix="overall_performance_sample",
-                        debug_mode=False,
-                    )
-                finally:
-                    QtWidgets.QFileDialog.getSaveFileName = original_get_save
-                if os.path.exists(out_path):
-                    return open(out_path, "r", encoding="utf-8").read()
-            window.close()
-        except Exception:
-            pass
+        window._last_simulation_payload = {
+            "report_text": getattr(getattr(sim, "report_builder", None), "get_report_text", lambda: "")(),
+            "rounds": copy.deepcopy(getattr(getattr(sim, "report_builder", None), "get_rounds", lambda: [])()),
+            "summary": copy.deepcopy(summary),
+            "win_rate": 1.0 if winner == 1 else 0.0,
+            "runs": 1,
+            "best_match": {"winner": winner, "summary": copy.deepcopy(summary)},
+            "setup": [copy.deepcopy(cfg) for cfg in setup_data],
+            "histograms": histograms,
+            "generated_at": time.time(),
+            "army_names": [sim.army1.name or "Army 1", sim.army2.name or "Army 2"],
+            "cooldown_settings": {"hero": True, "plugin": True, "gem": True, "mount": True},
+        }
 
-    army_data = []
-    for army in [sim.army1, sim.army2]:
-        army_data.append(
-            {
-                "name": army.name,
-                "final_troops": int(round(army.current_troop_count)),
-                "unrevivable": int(round(army.unrevivable_troops)),
-                "skill_rows": _skill_rows_for_army(army),
-            }
-        )
+        with tempfile.TemporaryDirectory(prefix="vr_web_export_") as tmp_dir:
+            out_path = os.path.join(tmp_dir, "overall_performance.html")
+            original_get_save = QtWidgets.QFileDialog.getSaveFileName
+            try:
+                QtWidgets.QFileDialog.getSaveFileName = staticmethod(
+                    lambda *args, **kwargs: (out_path, "HTML Files (*.html)")
+                )
+                window._export_summary_html(
+                    include_sample_details=True,
+                    include_sample_log=True,
+                    dialog_title="Export Overall Performance & Sample Battle HTML",
+                    filename_suffix="overall_performance_sample",
+                    debug_mode=False,
+                )
+            finally:
+                QtWidgets.QFileDialog.getSaveFileName = original_get_save
+            if os.path.exists(out_path):
+                return Path(out_path).read_text(encoding="utf-8"), "overall_performance_sample.html"
+    finally:
+        window.close()
 
-    winner = "Draw"
-    if sim.army1.current_troop_count > sim.army2.current_troop_count:
-        winner = sim.army1.name
-    elif sim.army2.current_troop_count > sim.army1.current_troop_count:
-        winner = sim.army2.name
-
-    def render_rows(rows: list[dict]) -> str:
-        if not rows:
-            return "<tr><td colspan='7'>No skill metrics recorded.</td></tr>"
-        return "".join(
-            "<tr>"
-            f"<td>{html.escape(row['skill_name'])}</td>"
-            f"<td>{row['casts']}</td>"
-            f"<td>{row['damage']}</td>"
-            f"<td>{row['kills']}</td>"
-            f"<td>{row['healing']}</td>"
-            f"<td>{row['shield']}</td>"
-            f"<td>{row['rage']}</td>"
-            "</tr>"
-            for row in rows
-            if row["casts"] > 0
-            or row["damage"] > 0
-            or row["kills"] > 0
-            or row["healing"] > 0
-            or row["shield"] > 0
-            or row["rage"] > 0
-        )
-
-    cards = []
-    for army in army_data:
-        cards.append(
-            "<section class='army-card'>"
-            f"<h2>{html.escape(army['name'])}</h2>"
-            f"<p><strong>Final Troops:</strong> {army['final_troops']:,} &nbsp;|&nbsp; <strong>Unrevivable:</strong> {army['unrevivable']:,}</p>"
-            "<table><thead><tr>"
-            "<th>Skill</th><th>Casts</th><th>Damage</th><th>Kills</th><th>Healing</th><th>Shield</th><th>Rage</th>"
-            "</tr></thead><tbody>"
-            f"{render_rows(army['skill_rows'])}"
-            "</tbody></table></section>"
-        )
-
-    return f"""<!DOCTYPE html>
-<html lang=\"en\">
-<head>
-  <meta charset=\"UTF-8\" />
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />
-  <title>Overall Performance</title>
-  <style>
-    body {{ font-family: Arial, sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }}
-    h1 {{ margin-top:0; }}
-    .summary {{ background:#1e293b; border-radius:10px; padding:16px; margin-bottom:20px; }}
-    .army-card {{ background:#1e293b; border-radius:10px; padding:16px; margin-bottom:16px; }}
-    table {{ width:100%; border-collapse:collapse; }}
-    th, td {{ border-bottom:1px solid #334155; padding:8px; text-align:left; font-size:14px; }}
-    th {{ color:#93c5fd; }}
-  </style>
-</head>
-<body>
-  <h1>Overall Performance</h1>
-  <div class=\"summary\">
-    <p><strong>Winner:</strong> {html.escape(winner)}</p>
-    <p><strong>Total Rounds:</strong> {int(sim.round)}</p>
-  </div>
-  {''.join(cards)}
-</body>
-</html>"""
+    raise RuntimeError("GUI-equivalent overall performance export did not produce an HTML file")
 
 
 col1, col2 = st.columns(2)
@@ -533,14 +458,14 @@ if st.button("Run Simulation ⚔️", use_container_width=True):
             if sim is None:
                 raise RuntimeError("Simulation failed to produce results")
 
-            html_output = _build_overall_performance_html(sim)
+            html_output, export_file_name = _build_overall_performance_html(sim)
             st.subheader("Win Rates")
             st.write(f"{attacker_cfg['army_name']}: {(attacker_wins / battle_count) * 100:.2f}%")
             st.write(f"{defender_cfg['army_name']}: {(defender_wins / battle_count) * 100:.2f}%")
             st.download_button(
-                "Download Overall Performance HTML",
+                "Download Overall Performance HTML (GUI Export)",
                 data=html_output,
-                file_name="overall_performance.html",
+                file_name=export_file_name,
                 mime="text/html",
                 use_container_width=True,
             )

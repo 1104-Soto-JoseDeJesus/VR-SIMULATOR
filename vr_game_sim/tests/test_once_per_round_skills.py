@@ -7,6 +7,7 @@ from vr_game_sim.constants import EFFECT_NAME_MANIACAL_HOT
 from vr_game_sim.unit_definition import Unit
 from vr_game_sim.hero_definition import Hero
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
+from vr_game_sim.enums import SkillTriggerType
 from vr_game_sim.skill_logic.talent_handlers import handle_talent_maniacal
 
 
@@ -145,3 +146,20 @@ def test_maniacal_applies_one_hot_per_round(monkeypatch):
 
     assert happened_third
     assert len(new_hot_queue) == 1
+
+
+def test_duplicate_counterattack_skills_from_different_heroes_trigger_same_round(monkeypatch):
+    monkeypatch.setattr(random, "random", lambda: 0.0)
+    hero1 = Hero("H1", [], [], ["talent_blade_counter"], SKILL_REGISTRY_GLOBAL)
+    hero2 = Hero("H2", [], [], ["talent_blade_counter"], SKILL_REGISTRY_GLOBAL)
+    army = Army("A", Unit("pikemen", 5, initial_count=10), heroes=[hero1, hero2])
+    enemy = Army("E", Unit("archers", 5, initial_count=10), heroes=[])
+    sim = GameSimulator(army, enemy, track_stats=False)
+
+    _start_round(sim)
+    sim._process_skill_triggers(army, enemy, SkillTriggerType.ON_COUNTER_ATTACK)
+
+    trigger_keys = [key for key in army.triggered_skills_this_round if key.startswith("talent_blade_counter")]
+    assert len(trigger_keys) == 2
+    assert len(set(trigger_keys)) == 2
+    assert army.skill_trigger_counts.get("talent_blade_counter", 0) == 2

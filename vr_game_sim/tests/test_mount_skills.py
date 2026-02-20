@@ -228,6 +228,122 @@ def test_duplicate_mount_damage_and_buff_resolution():
     )
 
 
+
+
+def test_duplicate_mount_non_damage_applies_when_only_non_winner_triggers_later_round():
+    cfg = copy.deepcopy(_BASE_CFG)
+    cfg["heroes"][0]["mount_skill_ids"] = ["mount_flame_serpent", "mount_flame_serpent"]
+
+    army, opponent = create_armies_from_data([cfg, cfg])[0:2]
+    hero = army.heroes[0]
+    mount_skills = [skill for skill in hero.skills if skill.get("id") == "mount_flame_serpent"]
+    assert len(mount_skills) == 2
+
+    low_magnitude = 0.05
+    high_magnitude = 0.12
+    for idx, skill in enumerate(mount_skills):
+        skill["trigger_chance"] = 0.0
+        skill_config = skill.get("config", {})
+        skill_config.update({"trigger_interval": 1, "damage_factor": 0.0})
+        skill_config["stat_mods"] = [
+            {
+                "stat_to_mod": StatType.BURN_DAMAGE_BOOST,
+                "buff_magnitude": high_magnitude if idx else low_magnitude,
+            }
+        ]
+
+    low_key = f"mount_flame_serpent::mount::{mount_skills[0]['mount_instance_index']}"
+    high_key = f"mount_flame_serpent::mount::{mount_skills[1]['mount_instance_index']}"
+
+    simulator = GameSimulator(army, opponent, mode="battlefield")
+
+    # Round 1: only the higher-magnitude duplicate triggers.
+    army.army_round = 1
+    opponent.army_round = 1
+    mount_skills[0]["trigger_chance"] = 0.0
+    mount_skills[1]["trigger_chance"] = 1.0
+    simulator._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND)
+    assert high_key in army.mount_skill_non_damage_applied_this_round
+    assert low_key not in army.mount_skill_non_damage_applied_this_round
+
+    # Round 2: only the lower-magnitude duplicate triggers; it must still apply.
+    army.triggered_skills_this_round.clear()
+    army.skill_trigger_counts_this_round.clear()
+    army.skill_triggers_against_this_round.clear()
+    army.mount_skill_damage_triggers_this_round.clear()
+    army.mount_skill_non_damage_applied_this_round.clear()
+    army.mount_skill_dot_hot_applied_this_round.clear()
+    army.army_round = 2
+    opponent.army_round = 2
+    mount_skills[0]["trigger_chance"] = 1.0
+    mount_skills[1]["trigger_chance"] = 0.0
+
+    simulator._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND)
+
+    assert low_key in army.mount_skill_non_damage_applied_this_round
+
+
+def test_duplicate_mount_retrigger_replaces_stronger_active_effect():
+    cfg = copy.deepcopy(_BASE_CFG)
+    cfg["heroes"][0]["mount_skill_ids"] = ["mount_flame_serpent", "mount_flame_serpent"]
+
+    army, opponent = create_armies_from_data([cfg, cfg])[0:2]
+    mount_skills = [skill for skill in army.heroes[0].skills if skill.get("id") == "mount_flame_serpent"]
+    assert len(mount_skills) == 2
+
+    low_magnitude = 0.05
+    high_magnitude = 0.12
+    for idx, skill in enumerate(mount_skills):
+        skill["trigger_chance"] = 0.0
+        skill_cfg = skill.get("config", {})
+        skill_cfg.update({"trigger_interval": 1, "damage_factor": 0.0})
+        skill_cfg["stat_mods"] = [
+            {
+                "stat_to_mod": StatType.BURN_DAMAGE_BOOST,
+                "buff_magnitude": high_magnitude if idx else low_magnitude,
+            }
+        ]
+
+    simulator = GameSimulator(army, opponent, mode="battlefield")
+
+    army.army_round = 1
+    opponent.army_round = 1
+    mount_skills[0]["trigger_chance"] = 0.0
+    mount_skills[1]["trigger_chance"] = 1.0
+    simulator._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND)
+    army.activate_queued_effects()
+
+    round1_effects = army.active_effects + army.effects_to_activate_next_round + army.upcoming_effects
+    round1_boosts = [
+        effect.magnitude
+        for effect in round1_effects
+        if getattr(effect, "_stat_type_from_config", lambda: None)() == StatType.BURN_DAMAGE_BOOST
+    ]
+    assert round1_boosts == [high_magnitude]
+
+    army.triggered_skills_this_round.clear()
+    army.skill_trigger_counts_this_round.clear()
+    army.skill_triggers_against_this_round.clear()
+    army.mount_skill_damage_triggers_this_round.clear()
+    army.mount_skill_non_damage_applied_this_round.clear()
+    army.mount_skill_dot_hot_applied_this_round.clear()
+    army.army_round = 2
+    opponent.army_round = 2
+
+    mount_skills[0]["trigger_chance"] = 1.0
+    mount_skills[1]["trigger_chance"] = 0.0
+    simulator._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND)
+    army.activate_queued_effects()
+
+    round2_effects = army.active_effects + army.effects_to_activate_next_round + army.upcoming_effects
+    round2_boosts = [
+        effect.magnitude
+        for effect in round2_effects
+        if getattr(effect, "_stat_type_from_config", lambda: None)() == StatType.BURN_DAMAGE_BOOST
+    ]
+    assert round2_boosts == [low_magnitude]
+
+
 def test_duplicate_mount_damage_active_cast_cooldown_per_instance():
     cfg = copy.deepcopy(_BASE_CFG)
     cfg["heroes"][0]["mount_skill_ids"] = ["mount_strangled_death", "mount_strangled_death"]

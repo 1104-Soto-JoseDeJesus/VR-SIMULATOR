@@ -1194,21 +1194,24 @@ class GameSimulator:
         gem_skills = getattr(triggering_army, "gem_skills", []) or []
         skill_definitions.extend(gem_skills)
 
+        skill_groups: Dict[str, List[SkillDefinition]] = {}
         mount_skill_groups: Dict[str, List[SkillDefinition]] = {}
         for skill_def in skill_definitions:
+            skill_groups.setdefault(skill_def["id"], []).append(skill_def)
             if self._is_mount_skill(skill_def):
                 mount_skill_groups.setdefault(skill_def["id"], []).append(skill_def)
 
-        for skill_id, defs in mount_skill_groups.items():
-            if len(defs) > 1:
-                for idx, skill_def in enumerate(defs):
-                    if skill_def.get("mount_instance_index") is None and skill_def.get("instance_key") is None:
-                        skill_def["instance_key"] = f"{skill_id}::army::{idx}"
+        for skill_id, defs in skill_groups.items():
+            if len(defs) <= 1:
+                continue
+            for idx, skill_def in enumerate(defs):
+                if skill_def.get("mount_instance_index") is not None:
+                    continue
+                if skill_def.get("instance_key") is None:
+                    skill_def["instance_key"] = f"{skill_id}::instance::{idx}"
 
-        mount_skill_non_damage_configs = {
-            skill_id: self._merge_mount_skill_non_damage_configs(defs)
-            for skill_id, defs in mount_skill_groups.items()
-        }
+        mount_skill_triggered_instances: Dict[str, List[str]] = {}
+
         mount_skill_damage_allowance = {
             skill_id: sum(1 for sd in defs if self._mount_skill_has_direct_damage(sd))
             for skill_id, defs in mount_skill_groups.items()
@@ -1268,14 +1271,13 @@ class GameSimulator:
                     skill_id_early = skill_def["id"]
                     cooldown_key_early = skill_id_early
                     trigger_key_early = skill_id_early
-                    if self._is_mount_skill(skill_def):
-                        instance_index = skill_def.get("mount_instance_index")
-                        instance_key = skill_def.get("instance_key")
-                        if instance_index is not None:
-                            cooldown_key_early = f"{skill_id_early}::mount::{instance_index}"
-                        elif instance_key is not None:
-                            cooldown_key_early = str(instance_key)
-                        trigger_key_early = cooldown_key_early
+                    instance_index = skill_def.get("mount_instance_index")
+                    instance_key = skill_def.get("instance_key")
+                    if instance_index is not None:
+                        cooldown_key_early = f"{skill_id_early}::mount::{instance_index}"
+                    elif instance_key is not None:
+                        cooldown_key_early = str(instance_key)
+                    trigger_key_early = cooldown_key_early
                     rolls_set = getattr(triggering_army, "on_receiving_healing_rolls_this_round", None)
                     if (
                         not self.multi_heal_trig_enabled
@@ -1306,14 +1308,14 @@ class GameSimulator:
                     cooldown_key = skill_id
                     trigger_key = skill_id
                     mount_tracking_key = skill_id
+                    instance_index = skill_def.get("mount_instance_index")
+                    instance_key = skill_def.get("instance_key")
+                    if instance_index is not None:
+                        cooldown_key = f"{skill_id}::mount::{instance_index}"
+                    elif instance_key is not None:
+                        cooldown_key = str(instance_key)
+                    trigger_key = cooldown_key
                     if self._is_mount_skill(skill_def):
-                        instance_index = skill_def.get("mount_instance_index")
-                        instance_key = skill_def.get("instance_key")
-                        if instance_index is not None:
-                            cooldown_key = f"{skill_id}::mount::{instance_index}"
-                        elif instance_key is not None:
-                            cooldown_key = str(instance_key)
-                        trigger_key = cooldown_key
                         mount_tracking_key = cooldown_key
                     cooldown = None
                     if not use_window_limit and skill_def.get("trigger") != SkillTriggerType.CHANCE_PER_ROUND:
@@ -1459,51 +1461,29 @@ class GameSimulator:
                             continue
 
                     effective_skill_def = skill_def
-                    include_non_damage = True
-                    include_dot_hot = True
-                    dot_hot_present = False
-                    attribution_winner_key = cooldown_key
                     if skill_def.get("type") == SkillType.MOUNT_SKILL:
                         defs = mount_skill_groups.get(skill_id, [])
-                        if len(defs) > 1:
-                            attribution_winner_key = self._get_mount_attribution_instance_key(
-                                skill_id, defs, triggering_army
-                            )
-                            include_non_damage = (
-                                mount_tracking_key
-                                not in triggering_army.mount_skill_non_damage_applied_this_round
-                            )
-                            dot_hot_present = self._mount_skill_has_dot_hot_components(skill_def)
-                            if dot_hot_present:
-                                include_dot_hot = (
-                                    skill_id not in triggering_army.mount_skill_dot_hot_applied_this_round
-                                )
-                            if cooldown_key != attribution_winner_key:
-                                include_non_damage = False
-                                include_dot_hot = False
-                        else:
-                            include_non_damage = (
-                                mount_tracking_key
-                                not in triggering_army.mount_skill_non_damage_applied_this_round
-                            )
-                            dot_hot_present = self._mount_skill_has_dot_hot_components(skill_def)
-                            if dot_hot_present:
-                                include_dot_hot = (
-                                    skill_id not in triggering_army.mount_skill_dot_hot_applied_this_round
-                                )
-                        merged_cfg = mount_skill_non_damage_configs.get(skill_id, {})
                         effective_skill_def = copy.deepcopy(skill_def)
-                        base_cfg = effective_skill_def.get("config", {}) or {}
-                        effective_skill_def["config"] = self._apply_mount_skill_non_damage_config(
-                            base_cfg, merged_cfg, include_non_damage, include_dot_hot
-                        )
-                        id_to_use = (
-                            attribution_winner_key
-                            if (include_non_damage or include_dot_hot)
-                            else cooldown_key
-                        )
-                        if id_to_use != skill_id:
-                            effective_skill_def["id"] = id_to_use
+                        if len(defs) > 1:
+                            effective_skill_def["id"] = cooldown_key
+                            triggered_keys = mount_skill_triggered_instances.get(skill_id, [])
+                            merge_keys = set(triggered_keys + [mount_tracking_key])
+
+                            def _mount_key(sd: SkillDefinition) -> str:
+                                idx = sd.get("mount_instance_index")
+                                if idx is not None:
+                                    return f"{skill_id}::mount::{idx}"
+                                ikey = sd.get("instance_key")
+                                if ikey is not None:
+                                    return str(ikey)
+                                return skill_id
+
+                            defs_for_merge = [sd for sd in defs if _mount_key(sd) in merge_keys]
+                            merged_cfg = self._merge_mount_skill_non_damage_configs(defs_for_merge)
+                            base_cfg = effective_skill_def.get("config", {}) or {}
+                            effective_skill_def["config"] = self._apply_mount_skill_non_damage_config(
+                                base_cfg, merged_cfg, include_non_damage=True, include_dot_hot=True
+                            )
                     prev_crit_context = (
                         self._active_skill_id,
                         self._active_skill_label,
@@ -1583,14 +1563,15 @@ class GameSimulator:
                         )
                         triggering_army.increment_skill_trigger_count(trigger_count_key)
 
-                        if self._is_mount_skill(skill_def) and an_effect_truly_happened and (
-                            include_non_damage or include_dot_hot
-                        ):
+                        if self._is_mount_skill(skill_def) and an_effect_truly_happened:
                             triggering_army.mount_skill_non_damage_applied_this_round.add(
                                 mount_tracking_key
                             )
-                        if include_dot_hot and dot_hot_present and self._is_mount_skill(skill_def):
-                            triggering_army.mount_skill_dot_hot_applied_this_round.add(skill_id)
+                            mount_skill_triggered_instances.setdefault(skill_id, []).append(
+                                mount_tracking_key
+                            )
+                            if self._mount_skill_has_dot_hot_components(skill_def):
+                                triggering_army.mount_skill_dot_hot_applied_this_round.add(skill_id)
 
                         if self._is_mount_skill(skill_def) and self._mount_skill_has_direct_damage(effective_skill_def):
                             had_damage = any(details for _, details in log_details_current_skill if details and "damage_done_hp" in details)

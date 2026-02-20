@@ -1548,6 +1548,32 @@ class Army:
             owner_army.skill_source_overrides[canonical_effect_name] = source_for_effect
             target_army.skill_source_overrides[canonical_effect_name] = source_for_effect
 
+        allow_duplicate_names = {
+            EFFECT_NAME_JUDGEMENT_MARKER,
+            EFFECT_NAME_PENDING_JUDGEMENT_MARKERS,
+            EFFECT_NAME_NATURE_MARK,
+            EFFECT_NAME_BERSERK_FURY_BUFF,
+            EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
+        }
+        def _effect_source_group(source_id: Any) -> Any:
+            if not isinstance(source_id, str):
+                return source_id
+            if "::mount::" in source_id:
+                return source_id.split("::mount::", 1)[0]
+            return source_id
+
+        if canonical_effect_name not in allow_duplicate_names:
+            source_group = _effect_source_group(source_for_effect)
+            for queued_list in (target_army.upcoming_effects, target_army.effects_to_activate_next_round):
+                for i in range(len(queued_list) - 1, -1, -1):
+                    queued_eff = queued_list[i]
+                    if (
+                        queued_eff.name == canonical_effect_name
+                        and _effect_source_group(queued_eff.source_skill_id) == source_group
+                    ):
+                        queued_list.pop(i)
+                        break
+
         inst = EffectInstance(
             id=uuid.uuid4(),
             source_skill_id=source_for_effect,
@@ -2254,12 +2280,20 @@ class Army:
                 EFFECT_NAME_BERSERK_FURY_RAGE_GAIN,
             }
             if not allow_duplicates:
+                def _effect_source_group(source_id: Any) -> Any:
+                    if not isinstance(source_id, str):
+                        return source_id
+                    if "::mount::" in source_id:
+                        return source_id.split("::mount::", 1)[0]
+                    return source_id
+
+                source_group = _effect_source_group(new_effect.source_skill_id)
                 replaced_in_active = False
                 for i in range(len(self.active_effects) - 1, -1, -1):
                     existing_active_effect = self.active_effects[i]
                     if (
                         existing_active_effect.name == new_effect.name
-                        and existing_active_effect.source_skill_id == new_effect.source_skill_id
+                        and _effect_source_group(existing_active_effect.source_skill_id) == source_group
                     ):
                         self.active_effects.pop(i)
                         replaced_in_active = True
@@ -2270,7 +2304,7 @@ class Army:
                     already_staged_effect = effects_to_add_to_active[i]
                     if (
                         already_staged_effect.name == new_effect.name
-                        and already_staged_effect.source_skill_id == new_effect.source_skill_id
+                        and _effect_source_group(already_staged_effect.source_skill_id) == source_group
                     ):
                         effects_to_add_to_active.pop(i)
                         replaced_in_staged = True

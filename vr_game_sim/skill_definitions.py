@@ -5102,7 +5102,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5132,7 +5132,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5162,7 +5162,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5190,7 +5190,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5229,7 +5229,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5259,7 +5259,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5289,7 +5289,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5319,7 +5319,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5354,7 +5354,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5389,7 +5389,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5424,7 +5424,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5463,7 +5463,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5492,7 +5492,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_REACTIVE_CRIT_BOOST,
                 "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5529,7 +5529,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_REACTIVE_CRIT_BOOST,
                 "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5553,7 +5553,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_REACTIVE_CRIT_BOOST,
                 "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5591,7 +5591,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_REACTIVE_CRIT_BOOST,
                 "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5619,7 +5619,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_REACTIVE_CRIT_BOOST,
                 "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5656,7 +5656,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_REACTIVE_CRIT_BOOST,
                 "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5693,7 +5693,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_REACTIVE_CRIT_BOOST,
                 "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5721,7 +5721,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_REACTIVE_CRIT_BOOST,
                 "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5754,7 +5754,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_REACTIVE_CRIT_BOOST,
                 "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5787,7 +5787,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_REACTIVE_CRIT_BOOST,
                 "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -5820,7 +5820,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_REACTIVE_CRIT_BOOST,
                 "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6210,7 +6210,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "labels": [PluginSkillLabel.REACTIVE],
         "config": {
             "rage_gain": 100,
-            "effect_name": EFFECT_NAME_BLOODTHIRSTY_EYE_RAGE_GAIN,
+            "effect_name": EFFECT_NAME_MANIC_HEAL_RAGE_GAIN,
             "conditional_effect_condition": "less_troops",
             "conditional_damage_factor": 650.0,
             "conditional_heal_factor": 650.0,
@@ -6241,7 +6241,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "labels": [PluginSkillLabel.REACTIVE],
         "config": {
             "rage_gain": 100,
-            "effect_name": EFFECT_NAME_BLOODTHIRSTY_EYE_RAGE_GAIN,
+            "effect_name": EFFECT_NAME_WOLFUS_GNAW_RAGE_GAIN,
             "conditional_effect_condition": "more_troops",
             "conditional_damage_factor": 850.0,
             "disarm_chance": 1.0,
@@ -6284,7 +6284,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_REACTIVE_CRIT_BOOST,
                 "stat_to_mod": StatType.REACTIVE_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6308,7 +6308,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COOP_CRIT_BOOST,
                 "stat_to_mod": StatType.COOPERATION_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6340,7 +6340,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COOP_CRIT_BOOST,
                 "stat_to_mod": StatType.COOPERATION_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6367,7 +6367,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COOP_CRIT_BOOST,
                 "stat_to_mod": StatType.COOPERATION_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6399,7 +6399,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COOP_CRIT_BOOST,
                 "stat_to_mod": StatType.COOPERATION_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6431,7 +6431,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COOP_CRIT_BOOST,
                 "stat_to_mod": StatType.COOPERATION_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6463,7 +6463,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COOP_CRIT_BOOST,
                 "stat_to_mod": StatType.COOPERATION_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6487,7 +6487,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COOP_CRIT_BOOST,
                 "stat_to_mod": StatType.COOPERATION_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6519,7 +6519,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COOP_CRIT_BOOST,
                 "stat_to_mod": StatType.COOPERATION_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6546,7 +6546,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COOP_CRIT_BOOST,
                 "stat_to_mod": StatType.COOPERATION_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6578,7 +6578,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COOP_CRIT_BOOST,
                 "stat_to_mod": StatType.COOPERATION_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6610,7 +6610,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COOP_CRIT_BOOST,
                 "stat_to_mod": StatType.COOPERATION_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6642,7 +6642,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COOP_CRIT_BOOST,
                 "stat_to_mod": StatType.COOPERATION_SKILL_CRIT_RATE,
                 "magnitude": 0.02,
                 "duration": -1,
@@ -6674,7 +6674,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -6706,7 +6706,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -6738,7 +6738,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -6770,7 +6770,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -6802,7 +6802,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -6836,7 +6836,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -6869,7 +6869,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -6903,7 +6903,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -6937,7 +6937,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -6968,7 +6968,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -6999,7 +6999,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -7030,7 +7030,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -7061,7 +7061,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -7091,7 +7091,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,
@@ -7123,7 +7123,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "passive_effects": [
             {
                 "effect_type": EffectType.STAT_MOD,
-                "name": EFFECT_NAME_CRIPPLING_STRIKE_CRIT,
+                "name": EFFECT_NAME_MOUNT_COMMAND_CRIT_BOOST,
                 "stat_to_mod": StatType.COMMAND_SKILL_CRIT_RATE,
                 "magnitude": 0.03,
                 "duration": -1,

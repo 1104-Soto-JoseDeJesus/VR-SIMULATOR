@@ -1792,29 +1792,31 @@ class Army:
                     if tick_offset >= total_ticks and effect in self.active_effects:
                         self.active_effects.remove(effect)
 
-            elif effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
-                periodic_rage_config_keys = (
-                    "rage_per_round",
-                    "start_rage_gain_round",
-                    "end_rage_gain_round",
+            elif (
+                effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+                and phase == 'start_of_round'
+                and effect.name not in {
+                    EFFECT_NAME_CONCENTRATION_RAGE_GAIN,
+                    EFFECT_NAME_MOUNT_PERIODIC_RAGE_GAIN,
+                    EFFECT_NAME_UNTAMED_WILDERNESS_RAGE_GAIN,
+                }
+                and all(
+                    key in effect.config
+                    for key in (
+                        "rage_per_round",
+                        "start_rage_gain_round",
+                        "end_rage_gain_round",
+                    )
                 )
-                if (
-                    phase == 'start_of_round'
-                    and effect.name not in {
-                        EFFECT_NAME_CONCENTRATION_RAGE_GAIN,
-                        EFFECT_NAME_MOUNT_PERIODIC_RAGE_GAIN,
-                        EFFECT_NAME_UNTAMED_WILDERNESS_RAGE_GAIN,
-                    }
-                    and all(key in effect.config for key in periodic_rage_config_keys)
-                ):
-                    start_gain_round = effect.config.get("start_rage_gain_round", 0)
-                    end_gain_round = effect.config.get("end_rage_gain_round", 0)
-                    current_round = getattr(self, "army_round", self.simulator.round if self.simulator else 0)
-                    if start_gain_round <= current_round <= end_gain_round:
-                        rage_to_gain = effect.config.get("rage_per_round", 0)
-                        if rage_to_gain > 0:
-                            source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
-                            self.add_rage(rage_to_gain, source_id)
+            ):
+                start_gain_round = effect.config.get("start_rage_gain_round", 0)
+                end_gain_round = effect.config.get("end_rage_gain_round", 0)
+                current_round = getattr(self, "army_round", self.simulator.round if self.simulator else 0)
+                if start_gain_round <= current_round <= end_gain_round:
+                    rage_to_gain = effect.config.get("rage_per_round", 0)
+                    if rage_to_gain > 0:
+                        source_id = effect.config.get("source_skill_id_override") or effect.source_skill_id
+                        self.add_rage(rage_to_gain, source_id)
 
             elif effect.name in (
                 EFFECT_NAME_DELAYED_RAGE_GAIN,

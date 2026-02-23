@@ -366,7 +366,7 @@ const HeroesSkillsAndTalents = [
         skillawakedescr: "Deal direct damage 1 time (Damage Factor 1,500) to the target and grant deployed Troops a shield (Shield Factor 600) for 2 seconds.",
         talentonename: "Blade Counter",
         talentonetype: "Counterattack",
-        talentonedescr: "When deployed Troop counterattacks, there is a 15% chance to increase Counterattack Damage by 30% for 4 seconds. Also, there is a 25% chance to gain Immunity to Broken Blade for 4 seconds.",
+        talentonedescr: "When deployed Troop counterattacks, there is a 15% chance to increase Counterattack Damage by 30% for 4 seconds. If this triggers, there is a 25% chance to gain Immunity to Broken Blade for 4 seconds.",
         talenttwoname: "Shield of Resistance",
         talentwotype: "Passive",
         talenttwodescr: "When deployed Troops receive healing, there is a 20% chance to grant them a shield (Shield Factor 950) for 2 seconds.",

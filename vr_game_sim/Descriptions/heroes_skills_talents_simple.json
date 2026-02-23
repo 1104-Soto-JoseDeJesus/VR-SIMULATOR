@@ -452,7 +452,7 @@
     "talents": [
       {
         "name": "Blade Counter",
-        "description": "When deployed Troop counterattacks, there is a 15% chance to increase Counterattack Damage by 30% for 4 seconds. Also, there is a 25% chance to gain Immunity to Broken Blade for 4 seconds."
+        "description": "When deployed Troop counterattacks, there is a 15% chance to increase Counterattack Damage by 30% for 4 seconds. If this triggers, there is a 25% chance to gain Immunity to Broken Blade for 4 seconds."
       },
       {
         "name": "Shield of Resistance",

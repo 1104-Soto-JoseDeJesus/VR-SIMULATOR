@@ -114,14 +114,42 @@ def handle_talent_blade_counter(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: S
                                 ev_data: Optional[Dict[str, Any]], sim: GameSimulatorRef) -> Tuple[
     bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
     eff_hpnd, logs = False, []
-    for sub_eff_def in sk_def.get("sub_effects", []):
-        if random.random() < sub_eff_def.get("chance", 1.0):
-            eff_data = sub_eff_def["effect_to_apply"].copy()
-            if "name" not in eff_data: eff_data["name"] = f"{sk_def['id']}_{sub_eff_def.get('name_suffix', 'Effect')}"
-            cr_eff = trig_army._create_and_add_single_effect(eff_data, sk_def["id"], trig_army, trig_army, opp_army)
-            if cr_eff: eff_hpnd = True; logs.append(
-                (f"{sub_eff_def.get('name_suffix', 'Effect')}: {cr_eff.get_functionality_description()} for {cr_eff.duration + 1} round(s).",
-                 None))
+    sub_effects = sk_def.get("sub_effects", [])
+    damage_boost_sub_eff = next(
+        (sub_eff for sub_eff in sub_effects if sub_eff.get("name_suffix") == "Damage Boost"),
+        sub_effects[0] if sub_effects else None,
+    )
+    if not damage_boost_sub_eff:
+        return eff_hpnd, logs
+
+    if random.random() >= damage_boost_sub_eff.get("chance", 1.0):
+        return eff_hpnd, logs
+
+    boost_eff_data = damage_boost_sub_eff["effect_to_apply"].copy()
+    if "name" not in boost_eff_data: boost_eff_data["name"] = f"{sk_def['id']}_{damage_boost_sub_eff.get('name_suffix', 'Effect')}"
+    boost_eff = trig_army._create_and_add_single_effect(boost_eff_data, sk_def["id"], trig_army, trig_army, opp_army)
+    if boost_eff:
+        eff_hpnd = True
+        logs.append(
+            (f"{damage_boost_sub_eff.get('name_suffix', 'Effect')}: {boost_eff.get_functionality_description()} for {boost_eff.duration + 1} round(s).",
+             None)
+        )
+
+    immunity_sub_eff = next(
+        (sub_eff for sub_eff in sub_effects if sub_eff.get("name_suffix") == "Broken Blade Immunity"),
+        None,
+    )
+    if immunity_sub_eff and random.random() < immunity_sub_eff.get("chance", 1.0):
+        immunity_eff_data = immunity_sub_eff["effect_to_apply"].copy()
+        if "name" not in immunity_eff_data: immunity_eff_data["name"] = f"{sk_def['id']}_{immunity_sub_eff.get('name_suffix', 'Effect')}"
+        immunity_eff = trig_army._create_and_add_single_effect(immunity_eff_data, sk_def["id"], trig_army, trig_army,
+                                                                opp_army)
+        if immunity_eff:
+            eff_hpnd = True
+            logs.append(
+                (f"{immunity_sub_eff.get('name_suffix', 'Effect')}: {immunity_eff.get_functionality_description()} for {immunity_eff.duration + 1} round(s).",
+                 None)
+            )
     return eff_hpnd, logs
 
 

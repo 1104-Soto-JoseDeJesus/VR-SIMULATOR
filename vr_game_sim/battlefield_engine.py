@@ -122,6 +122,7 @@ class BattlefieldEngine:
         advantage_mode: str = "multiplicative",
         per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
         fairness_rage_enabled: bool = True,
+        rage_thresholds_by_type: Optional[Dict[str, Any]] = None,
     ) -> None:
         # Registry of armies keyed by name.
         self._armies: Dict[str, _ArmyContext] = {}
@@ -157,6 +158,16 @@ class BattlefieldEngine:
         self._pending_state_updates: Dict[str, Dict[str, Any]] = {}
         self._state_listeners: List[Callable[[str, Dict[str, Any]], None]] = []
 
+        rage_threshold_mapping: Dict[str, int] = {}
+        if isinstance(rage_thresholds_by_type, dict):
+            for key, value in rage_thresholds_by_type.items():
+                if not isinstance(key, str):
+                    continue
+                try:
+                    rage_threshold_mapping[key] = int(value)
+                except (TypeError, ValueError):
+                    continue
+
         self._simulator_kwargs = {
             "cooldowns_enabled": bool(cooldowns_enabled),
             "hero_cooldowns_enabled": None
@@ -181,7 +192,7 @@ class BattlefieldEngine:
             if per_skill_cooldown_overrides
             else {},
             "fairness_rage_enabled": bool(fairness_rage_enabled),
-            "rage_thresholds_by_type": {},
+            "rage_thresholds_by_type": rage_threshold_mapping,
         }
 
     def get_engaged_enemies(self, army_name: str) -> List[Army]:

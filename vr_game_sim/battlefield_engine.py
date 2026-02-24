@@ -181,6 +181,7 @@ class BattlefieldEngine:
             if per_skill_cooldown_overrides
             else {},
             "fairness_rage_enabled": bool(fairness_rage_enabled),
+            "rage_thresholds_by_type": {},
         }
 
     def get_engaged_enemies(self, army_name: str) -> List[Army]:
@@ -205,6 +206,7 @@ class BattlefieldEngine:
         advantage_mode: Any = _UNSET,
         per_skill_cooldown_overrides: Any = _UNSET,
         fairness_rage_enabled: Any = _UNSET,
+        rage_thresholds_by_type: Any = _UNSET,
     ) -> None:
         """Update the default settings passed to new :class:`GameSimulator` instances."""
 
@@ -251,6 +253,18 @@ class BattlefieldEngine:
             self._simulator_kwargs["per_skill_cooldown_overrides"] = mapping
         if fairness_rage_enabled is not self._UNSET:
             self._simulator_kwargs["fairness_rage_enabled"] = bool(fairness_rage_enabled)
+        if rage_thresholds_by_type is not self._UNSET:
+            mapping: Dict[str, int] = {}
+            if isinstance(rage_thresholds_by_type, dict):
+                for key, value in rage_thresholds_by_type.items():
+                    if not isinstance(key, str):
+                        continue
+                    try:
+                        int_value = int(value)
+                    except (TypeError, ValueError):
+                        continue
+                    mapping[key] = int_value
+            self._simulator_kwargs["rage_thresholds_by_type"] = mapping
 
     # ------------------------------------------------------------------
     # Reset

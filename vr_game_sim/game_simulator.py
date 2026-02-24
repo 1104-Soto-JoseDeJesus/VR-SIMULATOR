@@ -34,7 +34,7 @@ from .report_builder import ReportBuilder
 from . import troop_scalar_config, heal_shield_pairing_config, shield_consumption_config
 from colorama import Fore
 
-# Main hero rage skill requires base + 50 rage to trigger (1050 when base is 1000)
+# Main hero rage skill trigger uses troop-type threshold overrides when present; otherwise base + 50 applies.
 RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET = 50
 
 # Skills that trigger on active skill casts but have a 1 trigger per 9 rounds limit instead of 2
@@ -210,6 +210,38 @@ class GameSimulator:
             interval_start += steps * interval_length
         return interval_start
 
+
+    def _normalize_rage_thresholds_by_type(
+        self, rage_thresholds_by_type: Optional[Dict[str, Any]]
+    ) -> Dict[str, int]:
+        normalized: Dict[str, int] = {}
+        if not isinstance(rage_thresholds_by_type, dict):
+            return normalized
+        for raw_type, raw_threshold in rage_thresholds_by_type.items():
+            if not isinstance(raw_type, str):
+                continue
+            unit_type = raw_type.strip().lower()
+            if unit_type not in {"infantry", "archers", "pikemen"}:
+                continue
+            try:
+                threshold = int(raw_threshold)
+            except (TypeError, ValueError):
+                continue
+            if threshold < 0:
+                continue
+            normalized[unit_type] = threshold
+        return normalized
+
+    def _rage_threshold_for_army(self, army: Army, rage_cost: int) -> int:
+        fallback_threshold = int(rage_cost) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+        unit_type = getattr(getattr(army, "unit", None), "unit_type", None)
+        if not isinstance(unit_type, str):
+            return fallback_threshold
+        override = self.rage_thresholds_by_type.get(unit_type.lower())
+        if isinstance(override, int) and override >= 0:
+            return override
+        return fallback_threshold
+
     def __init__(
         self,
         army1: Army,
@@ -229,6 +261,7 @@ class GameSimulator:
         advantage_mode: str = "multiplicative",
         per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
         fairness_rage_enabled: bool = True,
+        rage_thresholds_by_type: Optional[Dict[str, Any]] = None,
     ):
         self.army1: Army = army1
         self.army2: Army = army2
@@ -264,6 +297,9 @@ class GameSimulator:
             interval_active_cast_cooldowns_enabled
         )
         self.fairness_rage_enabled: bool = bool(fairness_rage_enabled)
+        self.rage_thresholds_by_type: Dict[str, int] = self._normalize_rage_thresholds_by_type(
+            rage_thresholds_by_type
+        )
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
             self.army1.name: [], self.army2.name: []
@@ -1762,7 +1798,7 @@ class GameSimulator:
 
         if not is_hero2_delayed_trigger:
             rage_cost = skill_def.get("rage_cost", 1000)
-            effective_threshold = rage_cost + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+            effective_threshold = self._rage_threshold_for_army(army, rage_cost)
             if army.current_rage < effective_threshold:
                 army.hero1_rage_skill_queued_this_round = False
                 army.hero1_rage_skill_scheduled_round = None
@@ -2639,7 +2675,7 @@ class GameSimulator:
                                              event_data={'opponent_for_shield_calc': opponent})
                 army.activate_queued_effects()
 
-            # Immediate trigger: if rage >= 1050 after delayed/base rage, queue for execution this round
+            # Immediate trigger: if rage meets configured threshold after delayed/base rage, queue for execution this round
             for army in (self.army1, self.army2):
                 if (
                     army.current_troop_count > 0
@@ -2653,7 +2689,7 @@ class GameSimulator:
                 ):
                     skill_def = army.hero1_rage_skill_def
                     if skill_def is not None:
-                        effective_threshold = skill_def.get("rage_cost", 1000) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+                        effective_threshold = self._rage_threshold_for_army(army, int(skill_def.get("rage_cost", 1000)))
                         if army.current_rage >= effective_threshold:
                             army.hero1_rage_skill_queued_this_round = True
 
@@ -2767,7 +2803,7 @@ class GameSimulator:
                     self.army2.activate_queued_effects()
                     self._calculate_and_log_attack(self.army1, self.army2, is_counter=True)
 
-            # Immediate trigger after combat (base rage): if rage >= 1050, execute this round
+            # Immediate trigger after combat (base rage): if rage meets configured threshold, execute this round
             if self.army1.current_troop_count > 0 and self.army2.current_troop_count > 0:
                 for army in (self.army1, self.army2):
                     if (
@@ -2781,7 +2817,7 @@ class GameSimulator:
                     ):
                         skill_def = army.hero1_rage_skill_def
                         if skill_def is not None:
-                            effective_threshold = skill_def.get("rage_cost", 1000) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+                            effective_threshold = self._rage_threshold_for_army(army, int(skill_def.get("rage_cost", 1000)))
                             if army.current_rage >= effective_threshold:
                                 army.hero1_rage_skill_queued_this_round = True
                 if self.army1.hero1_rage_skill_queued_this_round:

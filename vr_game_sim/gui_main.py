@@ -66,7 +66,11 @@ from vr_game_sim.navmesh import NavMesh
 from itertools import zip_longest
 
 from vr_game_sim.gui.arena_stats import ArenaStatsHeader, ArenaStatsRow
-from vr_game_sim.cooldown_persistence import load_cooldown_defaults, save_cooldown_defaults
+from vr_game_sim.cooldown_persistence import (
+    DEFAULT_RAGE_THRESHOLDS_BY_TYPE,
+    load_cooldown_defaults,
+    save_cooldown_defaults,
+)
 from vr_game_sim.skill_override_utils import diff_structures
 
 
@@ -7951,6 +7955,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.per_skill_cooldown_overrides: dict[str, bool] = dict(
             _cd_defaults.get("skills") or {}
         )
+        self.rage_thresholds_by_type: dict[str, int] = dict(
+            _cd_defaults.get("rage_thresholds_by_type")
+            or DEFAULT_RAGE_THRESHOLDS_BY_TYPE
+        )
         self.damage_reduction_affects_dots: bool = True
         self.fairness_rage_enabled: bool = True
         self.troop_advantage_mode: str = "multiplicative"
@@ -7981,6 +7989,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "fairness_rage_enabled": self.fairness_rage_enabled,
             "advantage_mode": self.troop_advantage_mode,
             "per_skill_cooldown_overrides": dict(self.per_skill_cooldown_overrides),
+            "rage_thresholds_by_type": dict(self.rage_thresholds_by_type),
         }
         if include_max_rounds and hasattr(self, "max_rounds_checkbox") and hasattr(self, "max_rounds_spin"):
             if self.max_rounds_checkbox.isChecked():
@@ -8078,7 +8087,37 @@ class MainWindow(QtWidgets.QMainWindow):
                 "mount": bool(self.mount_cooldowns_enabled),
             },
             "skills": dict(self.per_skill_cooldown_overrides),
+            "rage_thresholds_by_type": dict(self.rage_thresholds_by_type),
         }
+
+    def _open_rage_thresholds_by_type_dialog(self) -> None:
+        """Open a dialog for configuring rage trigger thresholds per troop type."""
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Rage requirements per type")
+        layout = QtWidgets.QFormLayout(dialog)
+
+        spinboxes: dict[str, QtWidgets.QSpinBox] = {}
+        for unit_type in ("infantry", "archers", "pikemen"):
+            spin = QtWidgets.QSpinBox(dialog)
+            spin.setRange(0, 5000)
+            spin.setValue(int(self.rage_thresholds_by_type.get(unit_type, 1050)))
+            spinboxes[unit_type] = spin
+            layout.addRow(f"{unit_type.title()}:", spin)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Save
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel,
+            parent=dialog,
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            self.rage_thresholds_by_type = {
+                unit_type: int(spin.value()) for unit_type, spin in spinboxes.items()
+            }
+            self._save_cooldown_defaults()
 
     def _save_cooldown_defaults(self) -> None:
         """Persist the current cooldown configuration to disk."""
@@ -8300,6 +8339,8 @@ class MainWindow(QtWidgets.QMainWindow):
         multi_heal_trig_action.setCheckable(True)
         multi_heal_trig_action.setChecked(self.multi_heal_trig_enabled)
         multi_heal_trig_action.toggled.connect(self._on_multi_heal_trig_toggled)
+        rage_threshold_action = dbg_menu.addAction("Rage req per type…")
+        rage_threshold_action.triggered.connect(self._open_rage_thresholds_by_type_dialog)
         pairing_action = dbg_menu.addAction("Heal/Shield Pairing Multipliers…")
         pairing_action.triggered.connect(self._open_heal_shield_pairing_dialog)
         shield_consumption_action = dbg_menu.addAction("Shield consumption…")

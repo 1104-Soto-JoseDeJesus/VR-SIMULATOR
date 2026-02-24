@@ -6,6 +6,8 @@ from typing import Any, Dict
 
 
 DEFAULTS_PATH = os.path.join(os.path.dirname(__file__), "cooldown_defaults.json")
+RAGE_THRESHOLD_TYPES = ("infantry", "archers", "pikemen")
+DEFAULT_RAGE_THRESHOLDS_BY_TYPE = {unit_type: 1050 for unit_type in RAGE_THRESHOLD_TYPES}
 
 
 def _default_payload() -> Dict[str, Any]:
@@ -23,7 +25,21 @@ def _default_payload() -> Dict[str, Any]:
             "mount": True,
         },
         "skills": {},
+        "rage_thresholds_by_type": dict(DEFAULT_RAGE_THRESHOLDS_BY_TYPE),
     }
+
+
+def _sanitize_rage_thresholds(raw_thresholds: Any) -> Dict[str, int]:
+    sanitized = dict(DEFAULT_RAGE_THRESHOLDS_BY_TYPE)
+    if not isinstance(raw_thresholds, dict):
+        return sanitized
+    for unit_type, default_threshold in DEFAULT_RAGE_THRESHOLDS_BY_TYPE.items():
+        try:
+            value = int(raw_thresholds.get(unit_type, default_threshold))
+        except (TypeError, ValueError):
+            value = default_threshold
+        sanitized[unit_type] = value
+    return sanitized
 
 
 def load_cooldown_defaults(path: str | None = None) -> Dict[str, Any]:
@@ -66,6 +82,9 @@ def load_cooldown_defaults(path: str | None = None) -> Dict[str, Any]:
         except Exception:
             continue
     defaults["skills"] = skills_cfg
+    defaults["rage_thresholds_by_type"] = _sanitize_rage_thresholds(
+        data.get("rage_thresholds_by_type")
+    )
     return defaults
 
 
@@ -99,6 +118,9 @@ def save_cooldown_defaults(payload: Dict[str, Any], path: str | None = None) -> 
             except Exception:
                 continue
     safe_payload["skills"] = skills_cfg
+    safe_payload["rage_thresholds_by_type"] = _sanitize_rage_thresholds(
+        payload.get("rage_thresholds_by_type")
+    )
 
     try:
         with open(filename, "w", encoding="utf-8") as fh:
@@ -106,5 +128,4 @@ def save_cooldown_defaults(payload: Dict[str, Any], path: str | None = None) -> 
     except OSError:
         # Ignore write errors – they should not interrupt the GUI workflow.
         return
-
 

@@ -8,6 +8,7 @@ from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.hero_definition import Hero
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
 from vr_game_sim.unit_definition import Unit
+from vr_game_sim import rage_threshold_config
 
 
 def make_army_with_rage_skill(name="Army"):
@@ -290,3 +291,20 @@ def test_rage_skill_absorbed_damage_still_triggers_reaction():
     assert defender.pending_hp_damage_this_round == 0
     assert defender.skill_trigger_counts.get("talent_tit_for_tat") == 1
     assert attacker.pending_hp_damage_this_round > 0
+
+
+def test_rage_skill_uses_per_type_threshold_override():
+    army1 = Army("A1", Unit("archers", 5, initial_count=10), heroes=[Hero("Tester", [], ["base_skill_snakes_frenzy"], [], SKILL_REGISTRY_GLOBAL)])
+    army2 = Army("A2", Unit("pikemen", 5, initial_count=10), heroes=[])
+
+    sim = GameSimulator(army1, army2, mode="arena")
+    sim.round = 1
+
+    rage_threshold_config.apply_session_settings({"archers": 950})
+    try:
+        army1.current_rage = 1000
+        army1.hero1_rage_skill_queued_this_round = True
+        sim._execute_rage_skills(army1, army2)
+        assert army1.current_rage == 0
+    finally:
+        rage_threshold_config.reset_to_defaults()

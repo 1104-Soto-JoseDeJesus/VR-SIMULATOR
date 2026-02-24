@@ -56,7 +56,13 @@ from vr_game_sim.main import (
     HISTOGRAM_TEXT_COLOR,
     SeedTarget,
 )
-from vr_game_sim import dynamic_unrevivable_config, troop_scalar_config, heal_shield_pairing_config, shield_consumption_config
+from vr_game_sim import (
+    dynamic_unrevivable_config,
+    troop_scalar_config,
+    heal_shield_pairing_config,
+    shield_consumption_config,
+    rage_threshold_config,
+)
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.enums import StatType
 from vr_game_sim.metadata_loader import get_skill_description
@@ -1814,6 +1820,93 @@ class TroopScalarDialog(QtWidgets.QDialog):
         self._emit_multiplier(value)
         self.accept()
         self._status.clear()
+
+
+class RageThresholdPerTypeDialog(QtWidgets.QDialog):
+    """Dialog for configuring per-troop-type rage trigger thresholds."""
+
+    settings_applied = QtCore.pyqtSignal()
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Rage Req Per Type")
+        self.setMinimumWidth(420)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        description = QtWidgets.QLabel(
+            "Set the main hero rage skill trigger requirement for each troop type."
+        )
+        description.setWordWrap(True)
+        layout.addWidget(description)
+
+        form = QtWidgets.QFormLayout()
+        self._threshold_spins: dict[str, QtWidgets.QSpinBox] = {}
+        for unit_type in rage_threshold_config.UNIT_TYPES:
+            spin = QtWidgets.QSpinBox()
+            spin.setRange(0, 100000)
+            spin.setSingleStep(25)
+            label = unit_type.capitalize()
+            form.addRow(f"{label}:", spin)
+            self._threshold_spins[unit_type] = spin
+        layout.addLayout(form)
+
+        self._status = QtWidgets.QLabel("")
+        self._status.setWordWrap(True)
+        layout.addWidget(self._status)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        session_btn = QtWidgets.QPushButton("Session Apply")
+        session_btn.clicked.connect(self._apply_session)
+        btn_row.addWidget(session_btn)
+
+        save_btn = QtWidgets.QPushButton("Save")
+        save_btn.clicked.connect(self._save_settings)
+        btn_row.addWidget(save_btn)
+
+        reset_btn = QtWidgets.QPushButton("Reset to Default")
+        reset_btn.clicked.connect(self._reset_defaults)
+        btn_row.addWidget(reset_btn)
+        btn_row.addStretch(1)
+        layout.addLayout(btn_row)
+
+        close_btn = QtWidgets.QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        layout.addWidget(close_btn, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+
+        self._load_current_settings()
+
+    def _load_current_settings(self) -> None:
+        settings = rage_threshold_config.get_settings()
+        for unit_type, spin in self._threshold_spins.items():
+            spin.setValue(int(settings.get(unit_type, 1050)))
+
+    def _gather_settings(self) -> dict[str, int]:
+        return {unit_type: int(spin.value()) for unit_type, spin in self._threshold_spins.items()}
+
+    def _apply_session(self) -> None:
+        try:
+            rage_threshold_config.apply_session_settings(self._gather_settings())
+        except rage_threshold_config.RageThresholdConfigError as exc:
+            QtWidgets.QMessageBox.critical(self, "Apply Failed", str(exc))
+            return
+        self._status.setText("Session rage thresholds applied.")
+        self.settings_applied.emit()
+
+    def _save_settings(self) -> None:
+        try:
+            rage_threshold_config.save_universal_settings(self._gather_settings())
+        except (OSError, rage_threshold_config.RageThresholdConfigError) as exc:
+            QtWidgets.QMessageBox.critical(self, "Save Failed", str(exc))
+            return
+        self._status.setText("Rage thresholds saved to disk.")
+        self._load_current_settings()
+        self.settings_applied.emit()
+
+    def _reset_defaults(self) -> None:
+        rage_threshold_config.reset_to_defaults()
+        self._load_current_settings()
+        self._status.setText("Rage thresholds reset to defaults.")
+        self.settings_applied.emit()
 
 
 class HealShieldPairingDialog(QtWidgets.QDialog):
@@ -7956,6 +8049,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.troop_advantage_mode: str = "multiplicative"
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
         self._troop_scalar_multiplier = troop_scalar_config.get_multiplier()
+        self._rage_threshold_settings = rage_threshold_config.get_settings()
         main_layout = self._init_tabs()
         self._init_status_controls(main_layout)
         self._sim_start_time: float | None = None
@@ -8022,11 +8116,19 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg.multiplier_applied.connect(self._on_troop_scalar_multiplier_changed)
         dlg.exec()
 
+    def _open_rage_threshold_per_type_dialog(self) -> None:
+        dialog = RageThresholdPerTypeDialog(self)
+        dialog.settings_applied.connect(self._on_rage_threshold_settings_changed)
+        dialog.exec()
+
     def _on_dynamic_unrevivable_settings_changed(self) -> None:
         self._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
 
     def _on_troop_scalar_multiplier_changed(self, value: float) -> None:
         self._troop_scalar_multiplier = float(value)
+
+    def _on_rage_threshold_settings_changed(self) -> None:
+        self._rage_threshold_settings = rage_threshold_config.get_settings()
 
     def _on_hero_cooldowns_toggled(self, checked: bool) -> None:
         self.hero_cooldowns_enabled = bool(checked)
@@ -8243,6 +8345,8 @@ class MainWindow(QtWidgets.QMainWindow):
         dynamic_action.triggered.connect(self.open_dynamic_unrevivable_tool)
         troop_scalar_action = dbg_menu.addAction("Change Troop Scalar…")
         troop_scalar_action.triggered.connect(self.open_troop_scalar_tool)
+        rage_req_per_type_action = dbg_menu.addAction("Rage Req Per Type…")
+        rage_req_per_type_action.triggered.connect(self._open_rage_threshold_per_type_dialog)
         cooldowns_menu = dbg_menu.addMenu("Cooldowns")
         hero_cooldowns_action = cooldowns_menu.addAction("Hero cooldowns")
         hero_cooldowns_action.setCheckable(True)

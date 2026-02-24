@@ -35,7 +35,7 @@ from math import atan2, cos, sin, hypot, pi, degrees, radians
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .army_composition import Army
-from .game_simulator import GameSimulator, RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+from .game_simulator import GameSimulator
 from .enums import SkillTriggerType
 from .battlefield_report_builder import BattlefieldReportBuilder
 from .constants import EFFECT_NAME_DISARM_DEBUFF
@@ -1150,7 +1150,7 @@ class BattlefieldEngine:
             )
             army.activate_queued_effects()
 
-        # Immediate trigger: if rage >= 1050 after start-of-round effects, queue for execution this round
+        # Immediate trigger after start-of-round effects if threshold is met.
         for army, ctx in ((atk, atk_ctx), (dfd, dfd_ctx)):
             if (
                 army.current_troop_count > 0
@@ -1164,7 +1164,7 @@ class BattlefieldEngine:
             ):
                 skill_def = army.hero1_rage_skill_def
                 if skill_def is not None:
-                    effective_threshold = skill_def.get("rage_cost", 1000) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+                    effective_threshold = sim._get_main_hero_rage_threshold(army, skill_def)
                     if army.current_rage >= effective_threshold:
                         army.hero1_rage_skill_queued_this_round = True
 
@@ -1291,7 +1291,7 @@ class BattlefieldEngine:
                 dfd.activate_queued_effects()
                 sim._calculate_and_log_attack(atk, dfd, is_counter=True)
 
-        # Immediate trigger after combat (base rage): if rage >= 1050, execute this round
+        # Immediate trigger after combat if threshold is met: execute this round
         if atk.current_troop_count > 0 and dfd.current_troop_count > 0:
             for army, ctx in ((atk, atk_ctx), (dfd, dfd_ctx)):
                 if (
@@ -1305,7 +1305,7 @@ class BattlefieldEngine:
                 ):
                     skill_def = army.hero1_rage_skill_def
                     if skill_def is not None:
-                        effective_threshold = skill_def.get("rage_cost", 1000) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+                        effective_threshold = sim._get_main_hero_rage_threshold(army, skill_def)
                         if army.current_rage >= effective_threshold:
                             army.hero1_rage_skill_queued_this_round = True
             if (

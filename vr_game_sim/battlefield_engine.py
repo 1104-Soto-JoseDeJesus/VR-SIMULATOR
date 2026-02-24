@@ -35,7 +35,8 @@ from math import atan2, cos, sin, hypot, pi, degrees, radians
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .army_composition import Army
-from .game_simulator import GameSimulator, RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+from .game_simulator import GameSimulator
+from . import rage_threshold_config
 from .enums import SkillTriggerType
 from .battlefield_report_builder import BattlefieldReportBuilder
 from .constants import EFFECT_NAME_DISARM_DEBUFF
@@ -1164,7 +1165,7 @@ class BattlefieldEngine:
             ):
                 skill_def = army.hero1_rage_skill_def
                 if skill_def is not None:
-                    effective_threshold = skill_def.get("rage_cost", 1000) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+                    effective_threshold = rage_threshold_config.get_threshold(army.unit.unit_type)
                     if army.current_rage >= effective_threshold:
                         army.hero1_rage_skill_queued_this_round = True
 
@@ -1305,7 +1306,7 @@ class BattlefieldEngine:
                 ):
                     skill_def = army.hero1_rage_skill_def
                     if skill_def is not None:
-                        effective_threshold = skill_def.get("rage_cost", 1000) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+                        effective_threshold = rage_threshold_config.get_threshold(army.unit.unit_type)
                         if army.current_rage >= effective_threshold:
                             army.hero1_rage_skill_queued_this_round = True
             if (

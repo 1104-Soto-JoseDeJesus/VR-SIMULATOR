@@ -56,7 +56,14 @@ from vr_game_sim.main import (
     HISTOGRAM_TEXT_COLOR,
     SeedTarget,
 )
-from vr_game_sim import dynamic_unrevivable_config, troop_scalar_config, heal_shield_pairing_config, shield_consumption_config
+from vr_game_sim import (
+    dynamic_unrevivable_config,
+    troop_scalar_config,
+    heal_shield_pairing_config,
+    shield_consumption_config,
+    rage_threshold_config,
+    rage_gain_per_troop_config,
+)
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL, SkillType
 from vr_game_sim.enums import StatType
 from vr_game_sim.metadata_loader import get_skill_description
@@ -2018,6 +2025,146 @@ class ShieldConsumptionDialog(QtWidgets.QDialog):
         self._load_current_settings()
         self._status.setText("Multipliers reset to defaults.")
         self.settings_applied.emit()
+
+
+class RageThresholdDialog(QtWidgets.QDialog):
+    """Dialog for configuring rage skill trigger threshold per troop type."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Rage TH per troop type")
+        self.setMinimumSize(400, 300)
+
+        main_layout = QtWidgets.QVBoxLayout(self)
+        self._spins: dict[str, QtWidgets.QSpinBox] = {}
+
+        group = QtWidgets.QGroupBox("Rage Skill Trigger Threshold")
+        form = QtWidgets.QFormLayout(group)
+        labels = [("Archers", "archers"), ("Infantry", "infantry"), ("Pikemen", "pikemen")]
+        for label, unit_type in labels:
+            spin = QtWidgets.QSpinBox()
+            spin.setRange(500, 2000)
+            spin.setSingleStep(10)
+            form.addRow(f"{label}:", spin)
+            self._spins[unit_type] = spin
+        main_layout.addWidget(group)
+
+        info = QtWidgets.QLabel(
+            "Override the rage threshold for the main hero rage skill per troop type. "
+            "Default is 1050. Settings persist across sessions."
+        )
+        info.setWordWrap(True)
+        main_layout.addWidget(info)
+
+        self._status = QtWidgets.QLabel("")
+        self._status.setWordWrap(True)
+        main_layout.addWidget(self._status)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        main_layout.addLayout(btn_row)
+        save_btn = QtWidgets.QPushButton("Save")
+        save_btn.clicked.connect(self._save_settings)
+        btn_row.addWidget(save_btn)
+        reset_btn = QtWidgets.QPushButton("Reset to Default")
+        reset_btn.clicked.connect(self._reset_defaults)
+        btn_row.addWidget(reset_btn)
+        btn_row.addStretch(1)
+        close_btn = QtWidgets.QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        main_layout.addWidget(close_btn, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+
+        self._load_current_settings()
+
+    def _load_current_settings(self) -> None:
+        for unit_type, spin in self._spins.items():
+            spin.setValue(rage_threshold_config.get_threshold(unit_type))
+
+    def _gather_settings(self) -> dict[str, int]:
+        return {key: spin.value() for key, spin in self._spins.items()}
+
+    def _save_settings(self) -> None:
+        try:
+            rage_threshold_config.save_overrides(self._gather_settings())
+        except (OSError, ValueError) as exc:
+            QtWidgets.QMessageBox.critical(self, "Save Failed", str(exc))
+            return
+        self._status.setText("Rage thresholds saved to disk.")
+        self._load_current_settings()
+
+    def _reset_defaults(self) -> None:
+        rage_threshold_config.save_overrides({})
+        self._load_current_settings()
+        self._status.setText("Rage thresholds reset to defaults (1050).")
+
+
+class RageGainPerTroopDialog(QtWidgets.QDialog):
+    """Dialog for configuring base rage gain per troop type on basic attack."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Rage Gain per troop type")
+        self.setMinimumSize(400, 300)
+
+        main_layout = QtWidgets.QVBoxLayout(self)
+        self._spins: dict[str, QtWidgets.QSpinBox] = {}
+
+        group = QtWidgets.QGroupBox("Base Rage per Basic Attack")
+        form = QtWidgets.QFormLayout(group)
+        labels = [("Archers", "archers"), ("Infantry", "infantry"), ("Pikemen", "pikemen")]
+        for label, unit_type in labels:
+            spin = QtWidgets.QSpinBox()
+            spin.setRange(0, 200)
+            spin.setSingleStep(5)
+            form.addRow(f"{label}:", spin)
+            self._spins[unit_type] = spin
+        main_layout.addWidget(group)
+
+        info = QtWidgets.QLabel(
+            "Override the base rage gained per basic attack per round per troop type. "
+            "Default is 100. Settings persist across sessions."
+        )
+        info.setWordWrap(True)
+        main_layout.addWidget(info)
+
+        self._status = QtWidgets.QLabel("")
+        self._status.setWordWrap(True)
+        main_layout.addWidget(self._status)
+
+        btn_row = QtWidgets.QHBoxLayout()
+        main_layout.addLayout(btn_row)
+        save_btn = QtWidgets.QPushButton("Save")
+        save_btn.clicked.connect(self._save_settings)
+        btn_row.addWidget(save_btn)
+        reset_btn = QtWidgets.QPushButton("Reset to Default")
+        reset_btn.clicked.connect(self._reset_defaults)
+        btn_row.addWidget(reset_btn)
+        btn_row.addStretch(1)
+        close_btn = QtWidgets.QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        main_layout.addWidget(close_btn, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+
+        self._load_current_settings()
+
+    def _load_current_settings(self) -> None:
+        for unit_type, spin in self._spins.items():
+            spin.setValue(rage_gain_per_troop_config.get_base_rage(unit_type))
+
+    def _gather_settings(self) -> dict[str, int]:
+        return {key: spin.value() for key, spin in self._spins.items()}
+
+    def _save_settings(self) -> None:
+        try:
+            rage_gain_per_troop_config.save_overrides(self._gather_settings())
+        except (OSError, ValueError) as exc:
+            QtWidgets.QMessageBox.critical(self, "Save Failed", str(exc))
+            return
+        self._status.setText("Rage gain settings saved to disk.")
+        self._load_current_settings()
+
+    def _reset_defaults(self) -> None:
+        rage_gain_per_troop_config.save_overrides({})
+        self._load_current_settings()
+        self._status.setText("Rage gain settings reset to defaults (100).")
 
 
 PathComponent = str | int
@@ -8016,6 +8163,16 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog.settings_applied.connect(lambda: None)
         dialog.exec()
 
+    def open_rage_threshold_dialog(self) -> None:
+        """Open the rage threshold per troop type configuration dialog."""
+        dlg = RageThresholdDialog(self)
+        dlg.exec()
+
+    def open_rage_gain_per_troop_dialog(self) -> None:
+        """Open the rage gain per troop type configuration dialog."""
+        dlg = RageGainPerTroopDialog(self)
+        dlg.exec()
+
     def open_troop_scalar_tool(self) -> None:
         """Open the troop scalar multiplier configuration dialog."""
         dlg = TroopScalarDialog(self)
@@ -8304,6 +8461,10 @@ class MainWindow(QtWidgets.QMainWindow):
         pairing_action.triggered.connect(self._open_heal_shield_pairing_dialog)
         shield_consumption_action = dbg_menu.addAction("Shield consumption…")
         shield_consumption_action.triggered.connect(self._open_shield_consumption_dialog)
+        rage_th_action = dbg_menu.addAction("Rage TH per troop type…")
+        rage_th_action.triggered.connect(self.open_rage_threshold_dialog)
+        rage_gain_action = dbg_menu.addAction("Rage Gain per troop type…")
+        rage_gain_action.triggered.connect(self.open_rage_gain_per_troop_dialog)
         star_action = dbg_menu.addAction("Star Layout")
         star_action.triggered.connect(self.open_star_overlay_tuner)
         debug_btn.setMenu(dbg_menu)

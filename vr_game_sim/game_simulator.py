@@ -31,7 +31,13 @@ from .dynamic_unrevivable_config import (
     get_type_settings as get_dynamic_unrevivable_type_settings,
 )
 from .report_builder import ReportBuilder
-from . import troop_scalar_config, heal_shield_pairing_config, shield_consumption_config
+from . import (
+    troop_scalar_config,
+    heal_shield_pairing_config,
+    shield_consumption_config,
+    rage_threshold_config,
+    rage_gain_per_troop_config,
+)
 from colorama import Fore
 
 # Main hero rage skill requires base + 50 rage to trigger (1050 when base is 1000)
@@ -1761,8 +1767,7 @@ class GameSimulator:
         is_silenced = False
 
         if not is_hero2_delayed_trigger:
-            rage_cost = skill_def.get("rage_cost", 1000)
-            effective_threshold = rage_cost + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+            effective_threshold = rage_threshold_config.get_threshold(army.unit.unit_type)
             if army.current_rage < effective_threshold:
                 army.hero1_rage_skill_queued_this_round = False
                 army.hero1_rage_skill_scheduled_round = None
@@ -1919,7 +1924,8 @@ class GameSimulator:
             if att is stronger:
                 att.base_rage_awarded_this_round = True
                 return
-        gained = att.add_rage(100, source_skill_id="base_rage")
+        base_rage = rage_gain_per_troop_config.get_base_rage(att.unit.unit_type)
+        gained = att.add_rage(base_rage, source_skill_id="base_rage")
         if gained > 0:
             att.base_rage_awarded_this_round = True
 
@@ -2653,7 +2659,7 @@ class GameSimulator:
                 ):
                     skill_def = army.hero1_rage_skill_def
                     if skill_def is not None:
-                        effective_threshold = skill_def.get("rage_cost", 1000) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+                        effective_threshold = rage_threshold_config.get_threshold(army.unit.unit_type)
                         if army.current_rage >= effective_threshold:
                             army.hero1_rage_skill_queued_this_round = True
 
@@ -2781,7 +2787,7 @@ class GameSimulator:
                     ):
                         skill_def = army.hero1_rage_skill_def
                         if skill_def is not None:
-                            effective_threshold = skill_def.get("rage_cost", 1000) + RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET
+                            effective_threshold = rage_threshold_config.get_threshold(army.unit.unit_type)
                             if army.current_rage >= effective_threshold:
                                 army.hero1_rage_skill_queued_this_round = True
                 if self.army1.hero1_rage_skill_queued_this_round:

@@ -287,7 +287,8 @@ def test_gem_retribution_counts_kills():
     assert defender.skill_kill_totals.get("gem_retribution", 0.0) > 0.0
 
 
-def test_retribution_rate_capped_at_100_percent():
+def test_retribution_rate_can_exceed_100_percent():
+    """Retribution is not capped at 100%; 200% returns 200 damage on 100 taken."""
     attacker, defender, sim = _make_armies()
 
     effect_data = {
@@ -313,7 +314,7 @@ def test_retribution_rate_capped_at_100_percent():
         context_desc="test",
     )
 
-    assert attacker.pending_hp_damage_this_round == pytest.approx(100.0)
+    assert attacker.pending_hp_damage_this_round == pytest.approx(200.0)
 
 
 def test_skill_summary_includes_gem_skills():

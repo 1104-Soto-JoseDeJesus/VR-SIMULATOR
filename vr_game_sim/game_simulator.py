@@ -842,14 +842,14 @@ class GameSimulator:
             )
             skill_map[sid] = skill_map.get(sid, 0.0) + actual_skill_hp_damage_to_troops
 
-        if actual_skill_hp_damage_to_troops > 0 and apply_target:
+        if damage_no_dr > 0 and apply_target:
             skill_name = "skill damage"
             if source_skill_def:
                 skill_name = f"skill '{source_skill_def.get('name', source_skill_def.get('id', 'skill'))}'"
             self._apply_retribution_damage(
                 defender=apply_target,
                 attacker=source_army,
-                damage_taken=actual_skill_hp_damage_to_troops,
+                damage_taken=damage_no_dr,
                 context_desc=skill_name,
             )
         # Skill damage is tracked for commitment totals but no longer logged
@@ -961,7 +961,7 @@ class GameSimulator:
 
         for effect in retribution_effects:
             rate = float(effect.config.get("retribution_rate", 0))
-            rate = min(max(rate, 0.0), 1.0)
+            rate = max(rate, 0.0)  # Allow > 100%
             if rate <= 0:
                 continue
             returned_hp = damage_taken * rate
@@ -2225,12 +2225,13 @@ class GameSimulator:
             calculation_steps=calc_steps,
         )
 
-        if hp_damage_to_troops > 0:
+        total_combat_damage = hp_damage_to_troops + absorbed_by_shield
+        if total_combat_damage > 0:
             context = "counter-attack" if is_counter else "basic attack"
             self._apply_retribution_damage(
                 defender=dfd,
                 attacker=att,
-                damage_taken=hp_damage_to_troops,
+                damage_taken=total_combat_damage,
                 context_desc=context,
             )
 

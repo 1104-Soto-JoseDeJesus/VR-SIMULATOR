@@ -120,6 +120,13 @@ class EffectInstance:
             return False
         if self.config.get("evasion_chance", 0.0) > 0:
             return self.is_beneficial_for_target()
+        # Retribution effects are always dispellable when beneficial
+        if (
+            self.effect_type == EffectType.CUSTOM_SKILL_EFFECT
+            and self.config.get("retribution_rate", 0) > 0
+            and self.is_beneficial_for_target()
+        ):
+            return True
         if not self.config.get("is_dispellable", True):
             return False
         return self.is_beneficial_for_target()

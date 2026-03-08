@@ -317,6 +317,38 @@ def test_retribution_rate_can_exceed_100_percent():
     assert attacker.pending_hp_damage_this_round == pytest.approx(200.0)
 
 
+def test_retribution_hp_ratio_scaling():
+    """Retribution damage is scaled by (attacker_hp / defender_hp) when HP per troop differs."""
+    # Defender: infantry (198 HP/troop), Attacker: archers (169 HP/troop)
+    # Ratio = 198/169, so returned = (100 * 1.0) / (198/169) = 100 * 169/198 ≈ 85.35
+    atk_unit = Unit(unit_type="archers", tier=5, initial_count=100)
+    dfd_unit = Unit(unit_type="infantry", tier=5, initial_count=100)
+    attacker = Army(name="A", unit=atk_unit)
+    defender = Army(name="D", unit=dfd_unit)
+    sim = GameSimulator(attacker, defender)
+
+    effect_data = {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": "Gem Retribution",
+        "duration": -1,
+        "config": {"retribution_rate": 1.0},
+    }
+    defender._create_and_add_single_effect(
+        effect_data, "gem_retribution", defender, defender, attacker
+    )
+    defender.activate_queued_effects()
+
+    sim._apply_retribution_damage(
+        defender=defender,
+        attacker=attacker,
+        damage_taken=100.0,
+        context_desc="test",
+    )
+
+    expected = 100.0 * (169 / 198)  # attacker_hp / defender_hp
+    assert attacker.pending_hp_damage_this_round == pytest.approx(expected)
+
+
 def test_skill_summary_includes_gem_skills():
     gui_main = pytest.importorskip("vr_game_sim.gui_main", exc_type=ImportError)
     build_army_skill_summary = gui_main.build_army_skill_summary

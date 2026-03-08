@@ -702,6 +702,10 @@ class GameSimulator:
             * dmg_multiplier_no_defender_positive
         )
 
+        # Pre-DR and pre-boosts: exclude skill_damage_percent_boosts (attacker) and total_dr_magnitude (defender)
+        dmg_multiplier_pre_dr_and_boosts = advantaged_multiplier(defender_positive_mags)
+        damage_pre_dr_and_boosts = skill_hp_damage_potential * dmg_multiplier_pre_dr_and_boosts
+
         preview_hp_damage_to_troops, preview_absorbed_by_shield = apply_target.preview_shield_absorption(
             damage_after_all_mods
         )
@@ -842,14 +846,14 @@ class GameSimulator:
             )
             skill_map[sid] = skill_map.get(sid, 0.0) + actual_skill_hp_damage_to_troops
 
-        if damage_no_dr > 0 and apply_target:
+        if damage_pre_dr_and_boosts > 0 and apply_target:
             skill_name = "skill damage"
             if source_skill_def:
                 skill_name = f"skill '{source_skill_def.get('name', source_skill_def.get('id', 'skill'))}'"
             self._apply_retribution_damage(
                 defender=apply_target,
                 attacker=source_army,
-                damage_taken=damage_no_dr,
+                damage_taken=damage_pre_dr_and_boosts,
                 context_desc=skill_name,
             )
         # Skill damage is tracked for commitment totals but no longer logged
@@ -959,12 +963,20 @@ class GameSimulator:
         if not retribution_effects:
             return
 
+        defender_hp_per_troop = defender.unit.effective_hp_per_troop(defender.active_effects)
+        attacker_hp_per_troop = attacker.unit.effective_hp_per_troop(attacker.active_effects)
+        if defender_hp_per_troop <= 0:
+            defender_hp_per_troop = 1
+        if attacker_hp_per_troop <= 0:
+            attacker_hp_per_troop = 1
+        hp_ratio = defender_hp_per_troop / attacker_hp_per_troop
+
         for effect in retribution_effects:
             rate = float(effect.config.get("retribution_rate", 0))
             rate = max(rate, 0.0)  # Allow > 100%
             if rate <= 0:
                 continue
-            returned_hp = damage_taken * rate
+            returned_hp = (damage_taken * rate) / hp_ratio
             if returned_hp <= 0:
                 continue
 

@@ -1,0 +1,134 @@
+[
+    {
+        "army_name": "Athelstan/Leandra",
+        "unit_type": "archers",
+        "tier": 7,
+        "count": 2000000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Athelstan",
+                "talent_ids": [
+                    "talent_erudite",
+                    "talent_strategize",
+                    "talent_adaptable_to_changes"
+                ],
+                "base_skill_ids": [
+                    "base_skill_heart_of_tolerance",
+                    "base_skill_holy_enlightenment"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_poison_arrow",
+                    "plugin_divine_blessing"
+                ],
+                "mount_skill_ids": [
+                    "mount_untamed_wilderness"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Leandra",
+                "talent_ids": [
+                    "talent_soul_awakening",
+                    "talent_flexible_strike",
+                    "talent_opportune_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_vengeful_fury",
+                    "base_skill_serrated_flourish"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_this_too_shall_pass",
+                    "plugin_bone_corroding_arrow"
+                ],
+                "mount_skill_ids": [
+                    "mount_pain_n_fury"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            }
+        ]
+    },
+    {
+        "army_name": "Rolfe/Rosky",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 2000000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rolfe",
+                "talent_ids": [
+                    "talent_assassination_raid",
+                    "talent_scale_armor_shield",
+                    "talent_feigned_death_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_inspiration_arrives",
+                    "base_skill_indomitable_spirit"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_shield",
+                    "plugin_divine_blessing"
+                ],
+                "mount_skill_ids": [
+                    "mount_retaliation_fangs"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_hymn_of_life",
+                    "plugin_deadly_counterattack"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                },
+                "mount_skill_ids": [
+                    "mount_hoof_strike"
+                ]
+            }
+        ]
+    }
+]

@@ -1,41 +1,32 @@
 [
     {
-        "army_name": "Margit/Lagertha",
+        "army_name": "Harald/Gregory",
         "unit_type": "infantry",
-        "tier": 10,
-        "count": 200000,
+        "tier": 7,
+        "count": 300000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.15,
-        "def_mod": 2.6452,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
         "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
         "unrevivable_ratio_method": "dynamic",
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Margit",
+                "hero_name_or_preset": "Harald",
                 "talent_ids": [
-                    "talent_cutting_blade",
-                    "talent_thirst_for_blood",
-                    "talent_seas_grace"
+                    "talent_battle_preparation",
+                    "talent_coordinated_strike",
+                    "talent_slow_strike"
                 ],
                 "base_skill_ids": [
-                    "base_skill_ride_the_waves",
-                    "base_skill_raging_tide"
+                    "base_skill_fleet_raider",
+                    "base_skill_raging_smash"
                 ],
-                "plugin_skill_ids": [],
-                "skill_overrides": {
-                    "mount_strangled_death": {
-                        "passive_effects": {
-                            "0": {
-                                "magnitude": 0.0
-                            }
-                        }
-                    }
-                },
-                "mount_skill_ids": [
-                    "mount_strangled_death"
+                "plugin_skill_ids": [
+                    "plugin_silencer",
+                    "plugin_thors_determination"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -45,28 +36,19 @@
                 }
             },
             {
-                "hero_name_or_preset": "Lagertha",
+                "hero_name_or_preset": "Gregory",
                 "talent_ids": [
-                    "talent_shieldaxe_attack",
-                    "talent_chiefs_might",
-                    "talent_fatal_strike"
+                    "talent_great_morale",
+                    "talent_missing_beat",
+                    "talent_excite"
                 ],
                 "base_skill_ids": [
-                    "base_skill_shield_breaker",
-                    "rage_skill_showdown"
+                    "base_skill_drumming_disturbance",
+                    "base_skill_inspiring_dance"
                 ],
-                "plugin_skill_ids": [],
-                "skill_overrides": {
-                    "mount_stinging_tongue": {
-                        "passive_effects": {
-                            "0": {
-                                "magnitude": 0.0
-                            }
-                        }
-                    }
-                },
-                "mount_skill_ids": [
-                    "mount_stinging_tongue"
+                "plugin_skill_ids": [
+                    "plugin_blessed_by_fate",
+                    "plugin_wild_indulgence"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -78,42 +60,33 @@
         ]
     },
     {
-        "army_name": "Margit/Lagertha (2)",
+        "army_name": "Harald/Gregory (2)",
         "unit_type": "infantry",
-        "tier": 10,
-        "count": 200000,
+        "tier": 7,
+        "count": 300000,
         "is_rally": false,
         "rally_config": null,
-        "atk_mod": 2.15,
-        "def_mod": 2.6452,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
         "hp_mod": 1.0,
         "unrevivable_ratio": 0.65,
         "unrevivable_ratio_method": "dynamic",
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Margit",
+                "hero_name_or_preset": "Harald",
                 "talent_ids": [
-                    "talent_cutting_blade",
-                    "talent_thirst_for_blood",
-                    "talent_seas_grace"
+                    "talent_battle_preparation",
+                    "talent_coordinated_strike",
+                    "talent_slow_strike"
                 ],
                 "base_skill_ids": [
-                    "base_skill_ride_the_waves",
-                    "base_skill_raging_tide"
+                    "base_skill_fleet_raider",
+                    "base_skill_raging_smash"
                 ],
-                "plugin_skill_ids": [],
-                "skill_overrides": {
-                    "mount_bloodthirst_gaze": {
-                        "passive_effects": {
-                            "0": {
-                                "magnitude": 0.0
-                            }
-                        }
-                    }
-                },
-                "mount_skill_ids": [
-                    "mount_bloodthirst_gaze"
+                "plugin_skill_ids": [
+                    "plugin_silencer",
+                    "plugin_thors_determination"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -123,28 +96,19 @@
                 }
             },
             {
-                "hero_name_or_preset": "Lagertha",
+                "hero_name_or_preset": "Gregory",
                 "talent_ids": [
-                    "talent_shieldaxe_attack",
-                    "talent_chiefs_might",
-                    "talent_fatal_strike"
+                    "talent_great_morale",
+                    "talent_missing_beat",
+                    "talent_excite"
                 ],
                 "base_skill_ids": [
-                    "base_skill_shield_breaker",
-                    "rage_skill_showdown"
+                    "base_skill_drumming_disturbance",
+                    "base_skill_inspiring_dance"
                 ],
-                "plugin_skill_ids": [],
-                "skill_overrides": {
-                    "mount_soul_of_fury": {
-                        "passive_effects": {
-                            "0": {
-                                "magnitude": 0.0
-                            }
-                        }
-                    }
-                },
-                "mount_skill_ids": [
-                    "mount_soul_of_fury"
+                "plugin_skill_ids": [
+                    "plugin_blessed_by_fate",
+                    "plugin_wild_indulgence"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",

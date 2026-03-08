@@ -1,0 +1,202 @@
+[
+    {
+        "army_name": "Margit/Lagertha",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 350000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 4.0,
+        "def_mod": 4.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Margit",
+                "talent_ids": [
+                    "talent_cutting_blade",
+                    "talent_thirst_for_blood",
+                    "talent_seas_grace"
+                ],
+                "base_skill_ids": [
+                    "base_skill_ride_the_waves",
+                    "base_skill_raging_tide"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_enrage",
+                    "plugin_disarmament"
+                ],
+                "mount_skill_ids": [
+                    "mount_bloodthirst_gaze",
+                    "mount_ripping_claws"
+                ],
+                "skill_overrides": {
+                    "mount_bloodthirst_gaze": {
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    },
+                    "mount_ripping_claws": {
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Lagertha",
+                "talent_ids": [
+                    "talent_shieldaxe_attack",
+                    "talent_chiefs_might",
+                    "talent_fatal_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_shield_breaker",
+                    "rage_skill_showdown"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_blessing",
+                    "plugin_silent_invasion"
+                ],
+                "mount_skill_ids": [
+                    "mount_strangled_death",
+                    "mount_fatal_chomp"
+                ],
+                "skill_overrides": {
+                    "mount_strangled_death": {
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    },
+                    "mount_fatal_chomp": {
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            }
+        ]
+    },
+    {
+        "army_name": "Margit/Lagertha (2)",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 350000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 4.0,
+        "def_mod": 4.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Margit",
+                "talent_ids": [
+                    "talent_cutting_blade",
+                    "talent_thirst_for_blood",
+                    "talent_seas_grace"
+                ],
+                "base_skill_ids": [
+                    "base_skill_ride_the_waves",
+                    "base_skill_raging_tide"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_enrage",
+                    "plugin_disarmament"
+                ],
+                "mount_skill_ids": [
+                    "mount_bloodthirst_gaze",
+                    "mount_bloodwing_assault"
+                ],
+                "skill_overrides": {
+                    "mount_bloodthirst_gaze": {
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    },
+                    "mount_bloodwing_assault": {
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Lagertha",
+                "talent_ids": [
+                    "talent_shieldaxe_attack",
+                    "talent_chiefs_might",
+                    "talent_fatal_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_shield_breaker",
+                    "rage_skill_showdown"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_blessing",
+                    "plugin_silent_invasion"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                },
+                "skill_overrides": {
+                    "mount_soul_of_fury": {
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    },
+                    "mount_icicle_armor": {
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "mount_skill_ids": [
+                    "mount_soul_of_fury",
+                    "mount_icicle_armor"
+                ]
+            }
+        ]
+    }
+]

@@ -1,0 +1,122 @@
+[
+    {
+        "army_name": "Bjorn/Hobert",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Bjorn",
+                "talent_ids": [
+                    "talent_trained_up",
+                    "talent_undefeated",
+                    "talent_fatal_bleeding"
+                ],
+                "base_skill_ids": [
+                    "base_skill_crippling_pursuit",
+                    "base_skill_lethal_fracture"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_first_strike",
+                    "plugin_odins_asylum"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Hobert",
+                "talent_ids": [
+                    "talent_bold_shieldaxe",
+                    "talent_fearless_pursuit",
+                    "talent_steadfast_armor"
+                ],
+                "base_skill_ids": [
+                    "base_skill_berserk_fury",
+                    "base_skill_brutal_blow"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_enchanted_pursuit",
+                    "plugin_breaking_free"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            }
+        ]
+    },
+    {
+        "army_name": "Bjorn/Hobert (2)",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Bjorn",
+                "talent_ids": [
+                    "talent_trained_up",
+                    "talent_undefeated",
+                    "talent_fatal_bleeding"
+                ],
+                "base_skill_ids": [
+                    "base_skill_crippling_pursuit",
+                    "base_skill_lethal_fracture"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_first_strike",
+                    "plugin_odins_asylum"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Hobert",
+                "talent_ids": [
+                    "talent_bold_shieldaxe",
+                    "talent_fearless_pursuit",
+                    "talent_steadfast_armor"
+                ],
+                "base_skill_ids": [
+                    "base_skill_berserk_fury",
+                    "base_skill_brutal_blow"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_enchanted_pursuit",
+                    "plugin_breaking_free"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            }
+        ]
+    }
+]

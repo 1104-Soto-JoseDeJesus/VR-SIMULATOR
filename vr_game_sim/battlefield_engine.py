@@ -1150,6 +1150,13 @@ class BattlefieldEngine:
                 event_data={"opponent_for_shield_calc": primary_opponent},
             )
             army.activate_queued_effects()
+            sim._process_skill_triggers(
+                army,
+                primary_opponent,
+                SkillTriggerType.ON_SHIELD_SCHEDULED,
+                event_data={"opponent_for_shield_calc": primary_opponent},
+            )
+            army.activate_queued_effects()
 
         # Immediate trigger: if rage >= 1050 after start-of-round effects, queue for execution this round
         for army, ctx in ((atk, atk_ctx), (dfd, dfd_ctx)):

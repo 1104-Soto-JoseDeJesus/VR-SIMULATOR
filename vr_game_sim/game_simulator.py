@@ -1343,7 +1343,7 @@ class GameSimulator:
                     cooldown = None
                     if not use_window_limit and skill_def.get("trigger") != SkillTriggerType.CHANCE_PER_ROUND:
                         cooldown_enabled = self._cooldown_enabled_for_skill(skill_def)
-                        if skill_def.get("trigger") == SkillTriggerType.ON_COUNTER_ATTACK:
+                        if skill_def.get("trigger") in (SkillTriggerType.ON_COUNTER_ATTACK, SkillTriggerType.ON_SHIELD_SCHEDULED):
                             cooldown_enabled = True
                         cooldown = (
                             skill_cfg.get("cooldown_rounds") if cooldown_enabled else None
@@ -2655,6 +2655,9 @@ class GameSimulator:
                 army.apply_start_of_round_rage_deductions()
                 army.activate_queued_effects()
                 self._process_skill_triggers(army, opponent, SkillTriggerType.CHANCE_PER_ROUND,
+                                             event_data={'opponent_for_shield_calc': opponent})
+                army.activate_queued_effects()
+                self._process_skill_triggers(army, opponent, SkillTriggerType.ON_SHIELD_SCHEDULED,
                                              event_data={'opponent_for_shield_calc': opponent})
                 army.activate_queued_effects()
 

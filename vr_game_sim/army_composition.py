@@ -40,7 +40,10 @@ from .constants import (
     EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
     EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
     EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY,
+    EFFECT_NAME_PENDING_GREEN_CHANT_PURIFY,
     EFFECT_NAME_PENDING_HALO_OF_SACRIFICE_CLEANSE,
+    EFFECT_NAME_PENDING_DARKMOON_ELEGY_CLEANSE,
+    EFFECT_NAME_PENDING_DARKMOON_ELEGY_DISPEL,
     EFFECT_NAME_DEER_REDEMPTION_CLEANSE,
     EFFECT_NAME_DIVINE_AWE_CLEANSE,
     EFFECT_NAME_BLESSED_DEW_CLEANSE,
@@ -908,6 +911,8 @@ class Army:
         calculation_steps: Optional[list[dict[str, Any]]] = None,
     ) -> float:
         if not self.simulator or healer_army.current_troop_count <= 0: return 0.0
+        if any(eff.config.get("blocks_healing") for eff in self.active_effects):
+            return 0.0
         multi_heal_enabled = bool(
             getattr(self.simulator, "multi_heal_trig_enabled", False)
         )
@@ -1601,8 +1606,10 @@ class Army:
             EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE,
             EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
             EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY,
+            EFFECT_NAME_PENDING_GREEN_CHANT_PURIFY,
             EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
             EFFECT_NAME_PENDING_HALO_OF_SACRIFICE_CLEANSE,
+            EFFECT_NAME_PENDING_DARKMOON_ELEGY_CLEANSE,
             EFFECT_NAME_DEER_REDEMPTION_CLEANSE,
             EFFECT_NAME_DIVINE_AWE_CLEANSE,
             EFFECT_NAME_BLESSED_DEW_CLEANSE,
@@ -1718,6 +1725,7 @@ class Army:
                         EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
                         EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
                         EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP,
+                        EFFECT_NAME_PENDING_DARKMOON_ELEGY_DISPEL,
                     }
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT
                 ):
@@ -1946,8 +1954,10 @@ class Army:
 
             elif effect.name in [EFFECT_NAME_PENDING_AWAKENING_CLEANSE, EFFECT_NAME_PENDING_WILD_INDULGENCE_CLEANSE,
                                  EFFECT_NAME_PENDING_BREAKING_FREE_CLEANSE, EFFECT_NAME_PENDING_BRUTAL_BLOW_CLEANSE,
-                                 EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY, EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
+                                 EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY, EFFECT_NAME_PENDING_GREEN_CHANT_PURIFY,
+                                 EFFECT_NAME_PENDING_HEIMDALL_PURIFY,
                                  EFFECT_NAME_PENDING_HALO_OF_SACRIFICE_CLEANSE,
+                                 EFFECT_NAME_PENDING_DARKMOON_ELEGY_CLEANSE,
                                  EFFECT_NAME_DEER_REDEMPTION_CLEANSE, EFFECT_NAME_DIVINE_AWE_CLEANSE,
                                  EFFECT_NAME_BLESSED_DEW_CLEANSE,
                                  EFFECT_NAME_WINTERS_CORONATION_PURIFY] \
@@ -1960,7 +1970,8 @@ class Army:
                                  EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL,
                                  EFFECT_NAME_PENDING_HEIMDALL_DISPEL,
                                  EFFECT_NAME_PENDING_SHIELD_REFLECTOR_REMOVAL,
-                                 EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP] \
+                                 EFFECT_NAME_PENDING_MOUNT_SHIELD_STRIP,
+                                 EFFECT_NAME_PENDING_DARKMOON_ELEGY_DISPEL] \
                     and effect.effect_type == EffectType.CUSTOM_SKILL_EFFECT:
                 if phase == 'start_of_round':
                     apply_pending_buff_removal(

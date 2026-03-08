@@ -1651,6 +1651,141 @@ def handle_rage_brutal_blow(triggering_army: ArmyRef, opponent_army: ArmyRef,
     return happened, logs, dmg_flag
 
 
+# --- Vali Base Skill Handler ---
+def handle_base_skill_curse_of_the_frost(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
+    damage_factor = cfg.get("damage_factor_slow", 900.0) if enemy_has_slow else cfg.get("damage_factor", 600.0)
+    if damage_factor > 0 and simulator:
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            happened = True
+        logs.append((
+            f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}."
+            + (" Enemy slowed: bonus damage and shield." if enemy_has_slow else ""),
+            {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+        ))
+
+    if enemy_has_slow:
+        shield_factor = cfg.get("shield_factor", 500.0)
+        shield_duration = cfg.get("shield_duration", 1)
+        if shield_factor > 0:
+            shield_data = {
+                "effect_type": EffectType.SHIELD,
+                "name": EFFECT_NAME_CURSE_OF_THE_FROST_SHIELD,
+                "duration": shield_duration,
+                "magnitude_calc_type": "dynamic_shield_resistance_v1",
+                "shield_factor": shield_factor,
+                "activate_next_round": True,
+            }
+            created = triggering_army._create_and_add_single_effect(
+                shield_data, skill_id, triggering_army, triggering_army, opponent_army
+            )
+            if created:
+                happened = True
+                logs.append((f"Gains shield (Factor: {shield_factor}) for {shield_duration + 1} rounds (starting next round).", None))
+
+    return happened, logs
+
+
+# --- Sephina Base Skill Handler ---
+def handle_base_skill_darkmoon_elegy(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    enemy_has_silence = any(eff.name == EFFECT_NAME_SILENCE_DEBUFF for eff in opponent_army.active_effects)
+    damage_factor = cfg.get("damage_factor", 500.0)
+    if enemy_has_silence:
+        damage_factor += cfg.get("extra_damage_if_silence", 1000.0)
+    if damage_factor > 0 and simulator:
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            happened = True
+        logs.append((
+            f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}."
+            + (" Enemy silenced: bonus damage and dispel." if enemy_has_silence else ""),
+            {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+        ))
+
+    eligible_debuffs = [
+        eff for eff in triggering_army.active_effects
+        if (
+            eff.effect_type == EffectType.DEBUFF
+            or (
+                eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                and eff.config.get("dot_type") in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
+            )
+            or eff.config.get("prevents_counterattack")
+            or eff.config.get("prevents_basic_attack")
+            or eff.config.get("prevents_rage_skill_cast")
+        )
+        and eff.name not in PROTECTED_MARKER_EFFECTS
+        and eff.duration > 0
+    ]
+    if eligible_debuffs:
+        selected = random.choice(eligible_debuffs)
+        pending_cleanse = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_PENDING_DARKMOON_ELEGY_CLEANSE,
+            "duration": 0,
+            "config": {
+                "debuff_ids_to_remove": [selected.id],
+                "debuff_names_removed_log": [selected.name],
+            },
+            "activate_next_round": True,
+        }
+        if triggering_army._create_and_add_single_effect(
+            pending_cleanse, skill_id, triggering_army, triggering_army, opponent_army
+        ):
+            happened = True
+            logs.append((f"Schedules cleanse of '{selected.name}' next round.", None))
+
+    if enemy_has_silence:
+        eligible_buffs = [
+            eff for eff in opponent_army.active_effects
+            if eff.is_dispellable_buff_candidate() and eff.duration > 0
+        ]
+        if eligible_buffs:
+            selected = random.choice(eligible_buffs)
+            pending_dispel = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_PENDING_DARKMOON_ELEGY_DISPEL,
+                "duration": 0,
+                "config": {
+                    "buff_ids_to_remove": [selected.id],
+                    "targeted_buff_names_initial_log": [selected.name],
+                },
+                "activate_next_round": True,
+            }
+            if opponent_army._create_and_add_single_effect(
+                pending_dispel, skill_id, triggering_army, opponent_army, triggering_army
+            ):
+                happened = True
+                logs.append((f"Schedules dispel of '{selected.name}' from {opponent_army.name} next round.", None))
+
+    return happened, logs
+
+
 # --- Leandra Base Skill Handlers ---
 def handle_base_skill_vengeful_fury(
         triggering_army: ArmyRef, opponent_army: ArmyRef,

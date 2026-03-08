@@ -284,4 +284,14 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_winters_coronation", "rage_skill_triumphant_presence"],
         'plugin_skills': [],
     },
+    'vali': {
+        'talents': ["talent_icy_edge", "talent_ice_cleave", "talent_an_eye_for_an_eye"],
+        'base_skills': ["base_skill_curse_of_the_frost", "rage_skill_frostblade"],
+        'plugin_skills': [],
+    },
+    'sephina': {
+        'talents': ["talent_raven_feather_blade", "talent_death_ravens_shadow", "talent_ominous_raven_feather"],
+        'base_skills': ["base_skill_darkmoon_elegy", "rage_skill_moonlit_strike"],
+        'plugin_skills': [],
+    },
 }

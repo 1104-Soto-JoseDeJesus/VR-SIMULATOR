@@ -66,7 +66,9 @@ from .skill_logic.talent_handlers import (
     handle_talent_bear_spirit_protection, handle_talent_assassination_raid,
     handle_talent_scale_armor_shield, handle_talent_feigned_death_strike,
     handle_talent_shattered_edge, handle_talent_oathbreakers_blade, handle_talent_exiled_bloodblade,
-    handle_talent_northern_blood_feast, handle_talent_cold_iron_oath, handle_talent_royal_authority
+    handle_talent_northern_blood_feast, handle_talent_cold_iron_oath, handle_talent_royal_authority,
+    handle_talent_ice_cleave, handle_talent_an_eye_for_an_eye,
+    handle_talent_raven_feather_blade, handle_talent_death_ravens_shadow, handle_talent_ominous_raven_feather,
 )
 from .skill_logic.base_skill_handlers import (
     handle_base_skill_planned_attack, handle_base_skill_flame_guardian,
@@ -96,7 +98,8 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_plague, handle_base_skill_fatal_flying_axe,
     handle_base_skill_vengeful_fury, handle_base_skill_ride_the_waves, handle_base_skill_nature_blessing,
     handle_base_skill_nayas_hunting_instinct, handle_base_skill_inspiration_arrives,
-    handle_base_skill_broken_blade_charge, handle_base_skill_winters_coronation
+    handle_base_skill_broken_blade_charge, handle_base_skill_winters_coronation,
+    handle_base_skill_curse_of_the_frost, handle_base_skill_darkmoon_elegy,
 )
 from .skill_logic.plugin_skill_handlers import (
     handle_plugin_divine_blessing, handle_plugin_shield_support, handle_plugin_freyas_blessing,
@@ -120,6 +123,8 @@ from .skill_logic.plugin_skill_handlers import (
     handle_plugin_rest_and_counterattack, handle_plugin_bloodstained_icefield,
     handle_plugin_this_too_shall_pass, handle_plugin_silent_invasion,
     handle_plugin_deadly_counterattack, handle_plugin_bone_corroding_arrow,
+    handle_plugin_devastating_charge, handle_plugin_green_chant,
+    handle_plugin_berserk_killing_machine,
     # ROSKY PLUGIN SKILL HANDLERS
     handle_plugin_trap_of_despair, handle_plugin_poison_arrow,
     handle_plugin_venom_aggregation, handle_plugin_divine_shield
@@ -157,7 +162,8 @@ from .skill_logic.rage_skill_handlers import (
     # LEANDRA & MARGIT RAGE HANDLERS
     handle_rage_serrated_flourish, handle_rage_raging_tide,
     handle_rage_blizzard_spear, handle_rage_indomitable_spirit,
-    handle_rage_time_of_severance, handle_rage_triumphant_presence
+    handle_rage_time_of_severance, handle_rage_triumphant_presence,
+    handle_rage_frostblade, handle_rage_moonlit_strike,
 )
 from .skill_logic.utility_skill_handlers import (
     handle_generic_single_damage_skill,
@@ -1531,6 +1537,98 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         },
     },
 
+    # --- Vali Skills ---
+    "talent_icy_edge": {
+        "id": "talent_icy_edge", "name": "Icy Edge", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
+        "effects_to_apply": [
+            {"effect_type": EffectType.STAT_MOD, "name": "Icy Edge Basic Boost",
+             "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST, "magnitude": 0.30, "duration": -1},
+            {"effect_type": EffectType.STAT_MOD, "name": "Icy Edge Bleed Boost",
+             "stat_to_mod": StatType.BLEED_DAMAGE_BOOST, "magnitude": 0.10, "duration": -1},
+        ],
+    },
+    "talent_ice_cleave": {
+        "id": "talent_ice_cleave", "name": "Ice Cleave", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_ice_cleave,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"bleed_chance": 0.15, "bleed_factor": 450.0, "bleed_duration": 1,
+                   "silence_chance": 0.15, "silence_duration": 1,
+                   "slow_chance": 0.15, "slow_duration": 1},
+    },
+    "talent_an_eye_for_an_eye": {
+        "id": "talent_an_eye_for_an_eye", "name": "An Eye for an Eye", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_talent_an_eye_for_an_eye,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"retribution_rate": 0.25, "retribution_rate_bleed": 0.50,
+                   "retribution_duration": 1, "damage_factor_if_bleed": 750.0},
+    },
+    "base_skill_curse_of_the_frost": {
+        "id": "base_skill_curse_of_the_frost", "name": "Curse of the Frost", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_base_skill_curse_of_the_frost,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "effects_to_apply": [{
+            "effect_type": EffectType.STAT_MOD, "name": "Curse of the Frost Counter Reduction",
+            "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST, "magnitude": -0.15, "duration": -1,
+        }],
+        "config": {"damage_factor": 600.0, "damage_factor_slow": 900.0,
+                   "shield_factor": 500.0, "shield_duration": 1},
+    },
+    "rage_skill_frostblade": {
+        "id": "rage_skill_frostblade", "name": "Frostblade", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_frostblade,
+        "config": {"damage_factor": 1600.0, "extra_damage_if_bleed": 500.0, "heal_factor": 1200.0},
+    },
+
+    # --- Sephina Skills ---
+    "talent_raven_feather_blade": {
+        "id": "talent_raven_feather_blade", "name": "Raven Feather Blade", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_raven_feather_blade,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "effects_to_apply": [{
+            "effect_type": EffectType.STAT_MOD, "name": "Raven Feather Blade Basic Boost",
+            "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST, "magnitude": 0.30, "duration": -1,
+        }],
+        "config": {"heal_chance": 0.25, "heal_factor": 250.0},
+    },
+    "talent_death_ravens_shadow": {
+        "id": "talent_death_ravens_shadow", "name": "Death Ravens Shadow", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_death_ravens_shadow,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"damage_factor": 400.0, "bleed_factor": 200.0, "bleed_duration": 1,
+                   "extra_damage_factor": 425.0, "slow_duration": 2},
+    },
+    "talent_ominous_raven_feather": {
+        "id": "talent_ominous_raven_feather", "name": "Ominous Raven Feather", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_ominous_raven_feather,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"damage_chance": 0.15, "damage_factor": 325.0,
+                   "silence_chance": 0.15, "silence_duration": 0,
+                   "heal_chance": 0.15, "heal_factor": 325.0,
+                   "retribution_chance": 0.20, "retribution_rate": 0.50, "retribution_duration": 1},
+    },
+    "base_skill_darkmoon_elegy": {
+        "id": "base_skill_darkmoon_elegy", "name": "Darkmoon Elegy", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_base_skill_darkmoon_elegy,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"damage_factor": 500.0, "extra_damage_if_silence": 1000.0},
+    },
+    "rage_skill_moonlit_strike": {
+        "id": "rage_skill_moonlit_strike", "name": "Moonlit Strike", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_moonlit_strike,
+        "config": {"damage_factor": 1700.0, "extra_damage_if_silence": 1200.0,
+                   "bleed_factor": 300.0, "bleed_duration": 1},
+    },
+
 
     # --- Plugin Skills ---
     # ... (All existing plugin skills) ...
@@ -2003,6 +2101,31 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
                               "stat_to_mod": StatType.SHIELD_STRENGTH_MODIFIER, "magnitude": 0.20, "duration": -1}],
         "config": {"damage_chance": 0.20, "damage_factor": 850.0,
                    "immunity_chance": 0.50, "immunity_duration": 0}
+    },
+    "plugin_devastating_charge": {
+        "id": "plugin_devastating_charge", "name": "Devastating Charge", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_devastating_charge,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 6, "damage_factor": 700.0,
+                   "devastation_chance": 0.50, "devastation_duration": 0,
+                   "evasion_magnitude": 0.50, "evasion_duration": 0}
+    },
+    "plugin_green_chant": {
+        "id": "plugin_green_chant", "name": "Green Chant", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_SHIELD_SCHEDULED, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_plugin_green_chant,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"cooldown_rounds": 2, "heal_factor": 200.0, "heal_chance": 0.50,
+                   "damage_factor": 400.0, "damage_chance": 0.50}
+    },
+    "plugin_berserk_killing_machine": {
+        "id": "plugin_berserk_killing_machine", "name": "Berserk Killing Machine", "type": SkillType.PLUGIN_SKILL,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_plugin_berserk_killing_machine,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"rage_on_bleed": 25, "damage_factor_if_bleed": 250.0, "damage_chance_if_bleed": 0.25,
+                   "retribution_rate": 0.50, "retribution_duration": 1, "retribution_chance": 0.20}
     },
 
     # --- Jewel Skills: Tyr's Emerald ---

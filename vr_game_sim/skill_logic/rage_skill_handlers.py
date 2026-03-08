@@ -2057,3 +2057,130 @@ def handle_rage_floral_burial(
 
     return happened, logs, damage_flag
 
+
+# --- Vali Rage Skill Handler ---
+def handle_rage_frostblade(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    damage_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    potential_targets = [opponent_army]
+    additional_targets = event_data.get("additional_targets") or []
+    for extra in additional_targets:
+        if extra and extra not in potential_targets and extra.current_troop_count > 0:
+            potential_targets.append(extra)
+
+    damage_factor = cfg.get("damage_factor", 1600.0)
+    for target in potential_targets:
+        if not target or target.current_troop_count <= 0:
+            continue
+        if damage_factor > 0:
+            hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+                triggering_army, target, damage_factor, source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                target.pending_hp_damage_this_round += hp_damage
+                damage_flag = True
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append((
+                f"Deals damage (Factor: {damage_factor}) to {target.name}.",
+                {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+            ))
+
+        if target is opponent_army:
+            enemy_has_bleed = any(
+                eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+                for eff in opponent_army.active_effects
+            )
+            if enemy_has_bleed:
+                extra_damage = cfg.get("extra_damage_if_bleed", 500.0)
+                if extra_damage > 0:
+                    hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+                        triggering_army, opponent_army, extra_damage, source_skill_def=skill_def
+                    )
+                    if hp_damage > 0:
+                        opponent_army.pending_hp_damage_this_round += hp_damage
+                        damage_flag = True
+                    happened = True
+                    logs.append((
+                        f"Enemy bleeding: deals additional damage (Factor: {extra_damage}) to {opponent_army.name}.",
+                        {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+                    ))
+
+    has_retribution = any(
+        eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.config.get("retribution_rate", 0) > 0
+        for eff in triggering_army.active_effects
+    )
+    if has_retribution:
+        heal_factor = cfg.get("heal_factor", 1200.0)
+        if heal_factor > 0:
+            healed = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
+            )
+            if healed > 0:
+                happened = True
+                logs.append((f"Army has retribution: heals self for {healed:.0f} HP (Factor: {heal_factor}).", None))
+
+    return happened, logs, damage_flag
+
+
+# --- Sephina Rage Skill Handler ---
+def handle_rage_moonlit_strike(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    damage_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    damage_factor = cfg.get("damage_factor", 1700.0)
+    enemy_has_silence = any(eff.name == EFFECT_NAME_SILENCE_DEBUFF for eff in opponent_army.active_effects)
+    if enemy_has_silence:
+        damage_factor += cfg.get("extra_damage_if_silence", 1200.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((
+            f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}."
+            + (" Enemy silenced: bonus damage." if enemy_has_silence else ""),
+            {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+        ))
+
+    enemy_has_slow = any(eff.name == EFFECT_NAME_SLOW_DEBUFF for eff in opponent_army.active_effects)
+    if enemy_has_slow:
+        bleed_factor = cfg.get("bleed_factor", 300.0)
+        bleed_duration = cfg.get("bleed_duration", 1)
+        if bleed_factor > 0:
+            bleed_data = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": EFFECT_NAME_MOONLIT_STRIKE_BLEED,
+                "dot_type": DoTType.BLEED,
+                "status_effect_factor": bleed_factor,
+                "duration": bleed_duration,
+                "activate_next_round": True,
+            }
+            created = opponent_army._create_and_add_single_effect(
+                bleed_data, skill_id, triggering_army, opponent_army, triggering_army
+            )
+            if created:
+                happened = True
+                logs.append((f"Enemy slowed: inflicts bleed (Factor: {bleed_factor}) on {opponent_army.name} for {bleed_duration + 1} rounds (starting next round).", None))
+
+    return happened, logs, damage_flag
+

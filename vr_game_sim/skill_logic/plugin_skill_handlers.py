@@ -115,6 +115,223 @@ def handle_plugin_shield_support(
     return an_effect_happened, log_details
 
 
+def handle_plugin_devastating_charge(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    trigger_interval = skill_config.get("trigger_interval", 6)
+
+    if not (_get_army_round(triggering_army, simulator) > 0 and _get_army_round(triggering_army, simulator) % trigger_interval == 0):
+        return False, []
+
+    damage_factor = skill_config.get("damage_factor", 700.0)
+    if damage_factor > 0 and simulator:
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor,
+            source_skill_def=skill_def,
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            an_effect_happened = True
+        log_details.append(
+            (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+             {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}))
+
+    enemy_has_poison = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.POISON
+        for eff in opponent_army.active_effects
+    )
+    if enemy_has_poison and random.random() < skill_config.get("devastation_chance", 0.50):
+        devastation_duration = skill_config.get("devastation_duration", 0)
+        devastation_data = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DEVASTATION_DEBUFF,
+            "duration": devastation_duration,
+            "activate_next_round": True,
+            "config": {"blocks_healing": True},
+        }
+        created = opponent_army._create_and_add_single_effect(
+            devastation_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created:
+            an_effect_happened = True
+            log_details.append((f"Inflicts Devastation on {opponent_army.name} for {devastation_duration + 1} round(s) (blocks healing).", None))
+
+    enemy_has_burn = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BURN
+        for eff in opponent_army.active_effects
+    )
+    if enemy_has_burn:
+        evasion_duration = skill_config.get("evasion_duration", 0)
+        evasion_magnitude = skill_config.get("evasion_magnitude", 0.50)
+        evasion_data = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DEVASTATING_CHARGE_EVASION,
+            "duration": evasion_duration,
+            "activate_next_round": True,
+            "config": {
+                "evasion_chance": evasion_magnitude,
+                "applies_to": ["BASIC", "COUNTER", "SKILL"],
+                "is_dispellable": True,
+            },
+        }
+        created = triggering_army._create_and_add_single_effect(
+            evasion_data, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created:
+            an_effect_happened = True
+            log_details.append((f"Gains evasion {evasion_magnitude * 100:.0f}% for {evasion_duration + 1} round(s) (enemy burning).", None))
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_green_chant(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    has_shield_scheduled = any(
+        eff.effect_type == EffectType.SHIELD
+        for eff_list in [triggering_army.effects_to_activate_next_round, triggering_army.upcoming_effects]
+        for eff in eff_list
+    )
+    if not has_shield_scheduled:
+        return False, []
+
+    eligible_debuffs = [
+        eff
+        for eff in triggering_army.active_effects
+        if (
+            eff.effect_type == EffectType.DEBUFF
+            or (
+                eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                and eff.config.get("dot_type") in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
+            )
+            or eff.config.get("prevents_counterattack")
+            or eff.config.get("prevents_basic_attack")
+            or eff.config.get("prevents_rage_skill_cast")
+        )
+        and eff.name not in PROTECTED_MARKER_EFFECTS
+        and eff.duration > 0
+    ]
+    if eligible_debuffs:
+        selected = random.choice(eligible_debuffs)
+        pending_cleanse = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_PENDING_GREEN_CHANT_PURIFY,
+            "duration": 0,
+            "config": {
+                "debuff_ids_to_remove": [selected.id],
+                "debuff_names_removed_log": [selected.name],
+            },
+            "activate_next_round": True,
+        }
+        created_cleanse = triggering_army._create_and_add_single_effect(
+            pending_cleanse, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created_cleanse:
+            an_effect_happened = True
+            log_details.append((f"Purifies '{selected.name}' at start of next round.", None))
+
+    if random.random() < skill_config.get("heal_chance", 0.50):
+        heal_factor = skill_config.get("heal_factor", 200.0)
+        if heal_factor > 0:
+            healed = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
+            )
+            if healed > 0:
+                an_effect_happened = True
+                log_details.append((f"Heals self for {healed:.0f} HP (Factor: {heal_factor}).", None))
+
+    army_has_dot = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME
+        and eff.config.get("dot_type") in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
+        for eff in triggering_army.active_effects
+    )
+    if army_has_dot and random.random() < skill_config.get("damage_chance", 0.50):
+        damage_factor = skill_config.get("damage_factor", 400.0)
+        if damage_factor > 0 and simulator:
+            hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, damage_factor,
+                source_skill_def=skill_def,
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+                an_effect_happened = True
+            log_details.append(
+                (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name} (army has DoT).",
+                 {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}))
+
+    return an_effect_happened, log_details
+
+
+def handle_plugin_berserk_killing_machine(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    an_effect_happened = False
+    log_details: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    skill_config = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    enemy_has_bleed = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BLEED
+        for eff in opponent_army.active_effects
+    )
+
+    if enemy_has_bleed:
+        rage_amount = skill_config.get("rage_on_bleed", 25)
+        if rage_amount > 0:
+            gained = triggering_army.add_rage(rage_amount, source_skill_id=skill_id)
+            if gained > 0:
+                an_effect_happened = True
+                log_details.append((f"Gains {gained:.0f} rage (enemy bleeding).", None))
+
+        if random.random() < skill_config.get("damage_chance_if_bleed", 0.25):
+            damage_factor = skill_config.get("damage_factor_if_bleed", 250.0)
+            if damage_factor > 0 and simulator:
+                hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+                    triggering_army, opponent_army, damage_factor,
+                    source_skill_def=skill_def,
+                )
+                if hp_damage > 0:
+                    opponent_army.pending_hp_damage_this_round += hp_damage
+                    an_effect_happened = True
+                log_details.append(
+                    (f"Deals damage (Factor: {damage_factor}) to {opponent_army.name} (enemy bleeding, 25% proc).",
+                     {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps}))
+    else:
+        if random.random() < skill_config.get("retribution_chance", 0.20):
+            retribution_rate = skill_config.get("retribution_rate", 0.50)
+            retribution_duration = skill_config.get("retribution_duration", 1)
+            retribution_data = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_BERSERK_KILLING_MACHINE_RETRIBUTION,
+                "duration": retribution_duration,
+                "activate_next_round": True,
+                "config": {"retribution_rate": retribution_rate},
+            }
+            created = triggering_army._create_and_add_single_effect(
+                retribution_data, skill_id, triggering_army, triggering_army, opponent_army
+            )
+            if created:
+                an_effect_happened = True
+                log_details.append((f"Gains retribution {retribution_rate * 100:.0f}% for {retribution_duration + 1} round(s) (enemy not bleeding).", None))
+
+    return an_effect_happened, log_details
+
+
 def handle_plugin_freyas_blessing(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
         skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],

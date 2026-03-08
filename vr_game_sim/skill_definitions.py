@@ -69,6 +69,9 @@ from .skill_logic.talent_handlers import (
     handle_talent_northern_blood_feast, handle_talent_cold_iron_oath, handle_talent_royal_authority,
     handle_talent_ice_cleave, handle_talent_an_eye_for_an_eye,
     handle_talent_raven_feather_blade, handle_talent_death_ravens_shadow, handle_talent_ominous_raven_feather,
+    # GUNNAR & HILDA TALENT HANDLERS
+    handle_talent_high_tide_hunt, handle_talent_fierce_fighting_spirit, handle_talent_deadly_strike,
+    handle_talent_hammer_and_shield, handle_talent_savage_physique, handle_talent_berserk_counterattack,
 )
 from .skill_logic.base_skill_handlers import (
     handle_base_skill_planned_attack, handle_base_skill_flame_guardian,
@@ -100,6 +103,7 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_nayas_hunting_instinct, handle_base_skill_inspiration_arrives,
     handle_base_skill_broken_blade_charge, handle_base_skill_winters_coronation,
     handle_base_skill_curse_of_the_frost, handle_base_skill_darkmoon_elegy,
+    handle_base_skill_bloody_mad, handle_base_skill_boiling_fighting_spirit,
 )
 from .skill_logic.plugin_skill_handlers import (
     handle_plugin_divine_blessing, handle_plugin_shield_support, handle_plugin_freyas_blessing,
@@ -164,6 +168,7 @@ from .skill_logic.rage_skill_handlers import (
     handle_rage_blizzard_spear, handle_rage_indomitable_spirit,
     handle_rage_time_of_severance, handle_rage_triumphant_presence,
     handle_rage_frostblade, handle_rage_moonlit_strike,
+    handle_rage_one_stroke_one_kill, handle_rage_shatter,
 )
 from .skill_logic.utility_skill_handlers import (
     handle_generic_single_damage_skill,
@@ -1627,6 +1632,95 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_rage_moonlit_strike,
         "config": {"damage_factor": 1700.0, "extra_damage_if_silence": 1200.0,
                    "bleed_factor": 300.0, "bleed_duration": 1},
+    },
+
+    # --- Gunnar Skills ---
+    "talent_high_tide_hunt": {
+        "id": "talent_high_tide_hunt", "name": "High Tide Hunt", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_talent_high_tide_hunt,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_reduction_chance": 0.20, "damage_reduction_duration": 0,
+                   "heal_chance": 0.20, "heal_factor": 250.0, "cooldown_rounds": 3},
+        "effects_to_apply": [{"name_suffix": "Lacerate Boost", "stat_to_mod": StatType.LACERATE_DAMAGE_BOOST,
+                             "magnitude": 0.15, "duration": -1}],
+    },
+    "talent_fierce_fighting_spirit": {
+        "id": "talent_fierce_fighting_spirit", "name": "Fierce Fighting Spirit", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_RECEIVING_HEALING, "trigger_chance": 0.60, "target": "ENEMY",
+        "logic_handler": handle_talent_fierce_fighting_spirit,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 300.0, "broken_blade_duration": 0},
+    },
+    "talent_deadly_strike": {
+        "id": "talent_deadly_strike", "name": "Deadly Strike", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_talent_deadly_strike,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 650.0, "shield_factor": 650.0, "shield_duration": 1},
+    },
+    "base_skill_bloody_mad": {
+        "id": "base_skill_bloody_mad", "name": "Bloody Mad", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_RECEIVING_HEALING, "trigger_chance": 0.35, "target": "ENEMY",
+        "logic_handler": handle_base_skill_bloody_mad,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"lacerate_chance": 0.35, "lacerate_factor": 200.0, "lacerate_duration": 1,
+                   "shield_chance": 0.35, "shield_factor": 400.0, "shield_duration": 1},
+    },
+    "rage_skill_one_stroke_one_kill": {
+        "id": "rage_skill_one_stroke_one_kill", "name": "One Stroke, One Kill", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_one_stroke_one_kill,
+        "config": {"damage_factor": 1800.0, "lacerate_factor": 500.0, "lacerate_duration": 1,
+                   "broken_blade_duration": 2},
+    },
+
+    # --- Hilda Skills ---
+    "talent_hammer_and_shield": {
+        "id": "talent_hammer_and_shield", "name": "Hammer and Shield", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_talent_hammer_and_shield,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 200.0, "cooldown_rounds": 3},
+        "effects_to_apply": [
+            {"name_suffix": "Shield Boost", "stat_to_mod": StatType.SHIELD_STRENGTH_MODIFIER,
+             "magnitude": 0.15, "duration": -1},
+            {"name_suffix": "Lacerate Boost", "stat_to_mod": StatType.LACERATE_DAMAGE_BOOST,
+             "magnitude": 0.15, "duration": -1},
+        ],
+    },
+    "talent_savage_physique": {
+        "id": "talent_savage_physique", "name": "Savage Physique", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_RECEIVING_HEALING, "trigger_chance": 0.35, "target": "ENEMY",
+        "logic_handler": handle_talent_savage_physique,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 500.0, "delayed_rage_amount": 150.0,
+                   "counter_buff_magnitude": 0.50, "counter_buff_duration": 0, "cooldown_rounds": 2},
+    },
+    "talent_berserk_counterattack": {
+        "id": "talent_berserk_counterattack", "name": "Berserk Counterattack", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_HIT_BY_BASIC_ATTACK, "trigger_chance": 1.0, "target": "SELF",
+        "logic_handler": handle_talent_berserk_counterattack,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"shield_chance": 0.20, "shield_factor": 500.0, "shield_duration": 1,
+                   "broken_blade_chance": 0.15, "broken_blade_duration": 1,
+                   "lacerate_chance": 0.20, "lacerate_factor": 300.0, "lacerate_duration": 1,
+                   "cooldown_rounds": 3},
+    },
+    "base_skill_boiling_fighting_spirit": {
+        "id": "base_skill_boiling_fighting_spirit", "name": "Boiling Fighting Spirit", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
+        "logic_handler": handle_base_skill_boiling_fighting_spirit,
+        "labels": [PluginSkillLabel.REACTIVE],
+        "config": {"damage_factor": 400.0, "lacerate_factor": 300.0, "lacerate_duration": 2,
+                   "cooldown_rounds": 3},
+    },
+    "rage_skill_shatter": {
+        "id": "rage_skill_shatter", "name": "Shatter", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_shatter,
+        "config": {"damage_factor": 2000.0, "shield_factor": 500.0, "shield_duration": 1,
+                   "hot_factor": 400.0, "hot_duration": 1},
     },
 
 

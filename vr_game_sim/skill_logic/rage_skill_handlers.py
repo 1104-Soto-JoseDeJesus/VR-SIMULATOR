@@ -2131,6 +2131,140 @@ def handle_rage_frostblade(
     return happened, logs, damage_flag
 
 
+# --- Gunnar Rage Skill Handler ---
+def handle_rage_one_stroke_one_kill(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    damage_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    damage_factor = cfg.get("damage_factor", 1800.0)
+    if damage_factor > 0 and simulator:
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((
+            f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+            {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+        ))
+
+    lacerate_factor = cfg.get("lacerate_factor", 500.0)
+    lacerate_duration = cfg.get("lacerate_duration", 1)
+    if lacerate_factor > 0:
+        lacerate_data = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_ONE_STROKE_ONE_KILL_LACERATE,
+            "dot_type": DoTType.LACERATE,
+            "status_effect_factor": lacerate_factor,
+            "duration": lacerate_duration,
+            "activate_next_round": True,
+        }
+        if opponent_army._create_and_add_single_effect(
+            lacerate_data, skill_id, triggering_army, opponent_army, triggering_army
+        ):
+            happened = True
+            logs.append((f"Inflicts lacerate (Factor: {lacerate_factor}) on {opponent_army.name} for {lacerate_duration + 1} rounds (starting next round).", None))
+
+    has_shield = any(
+        eff.effect_type == EffectType.SHIELD and eff.magnitude > 0
+        for eff in triggering_army.active_effects
+    )
+    if has_shield:
+        broken_blade_duration = cfg.get("broken_blade_duration", 2)
+        debuff_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_ONE_STROKE_ONE_KILL_BROKEN_BLADE,
+            "duration": broken_blade_duration,
+            "config": {"prevents_counterattack": True},
+            "activate_next_round": True,
+        }
+        if opponent_army._create_and_add_single_effect(
+            debuff_data, skill_id, triggering_army, opponent_army, triggering_army
+        ):
+            happened = True
+            logs.append((f"Started with shield: inflicts Broken Blade on {opponent_army.name} for {broken_blade_duration + 1} rounds (starting next round).", None))
+
+    return happened, logs, damage_flag
+
+
+# --- Hilda Rage Skill Handler ---
+def handle_rage_shatter(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    damage_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    damage_factor = cfg.get("damage_factor", 2000.0)
+    if damage_factor > 0 and simulator:
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((
+            f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+            {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+        ))
+
+    shield_factor = cfg.get("shield_factor", 500.0)
+    shield_duration = cfg.get("shield_duration", 1)
+    if shield_factor > 0:
+        shield_data = {
+            "effect_type": EffectType.SHIELD,
+            "name": EFFECT_NAME_SHATTER_SHIELD,
+            "duration": shield_duration,
+            "magnitude_calc_type": "dynamic_shield_resistance_v1",
+            "shield_factor": shield_factor,
+            "activate_next_round": True,
+        }
+        if triggering_army._create_and_add_single_effect(
+            shield_data, skill_id, triggering_army, triggering_army, opponent_army
+        ):
+            happened = True
+            logs.append((f"Gains shield ({shield_factor} factor) for {shield_duration + 1} rounds (starting next round).", None))
+
+    enemy_has_lacerate = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.LACERATE
+        for eff in opponent_army.active_effects
+    )
+    if enemy_has_lacerate:
+        hot_factor = cfg.get("hot_factor", 400.0)
+        hot_duration = cfg.get("hot_duration", 1)
+        if hot_factor > 0:
+            hot_data = {
+                "effect_type": EffectType.HEAL_OVER_TIME,
+                "name": EFFECT_NAME_SHATTER_HOT,
+                "duration": hot_duration,
+                "magnitude": hot_factor,
+                "activate_next_round": True,
+            }
+            if triggering_army._create_and_add_single_effect(
+                hot_data, skill_id, triggering_army, triggering_army, opponent_army
+            ):
+                happened = True
+                logs.append((f"Enemy has lacerate: gains Heal Over Time ({hot_factor} factor) for {hot_duration + 1} rounds (starting next round).", None))
+
+    return happened, logs, damage_flag
+
+
 # --- Sephina Rage Skill Handler ---
 def handle_rage_moonlit_strike(
         triggering_army: ArmyRef, opponent_army: ArmyRef,

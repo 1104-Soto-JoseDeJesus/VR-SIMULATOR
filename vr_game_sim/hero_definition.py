@@ -294,4 +294,14 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_darkmoon_elegy", "rage_skill_moonlit_strike"],
         'plugin_skills': [],
     },
+    'gunnar': {
+        'talents': ["talent_high_tide_hunt", "talent_fierce_fighting_spirit", "talent_deadly_strike"],
+        'base_skills': ["base_skill_bloody_mad", "rage_skill_one_stroke_one_kill"],
+        'plugin_skills': [],
+    },
+    'hilda': {
+        'talents': ["talent_hammer_and_shield", "talent_savage_physique", "talent_berserk_counterattack"],
+        'base_skills': ["base_skill_boiling_fighting_spirit", "rage_skill_shatter"],
+        'plugin_skills': [],
+    },
 }

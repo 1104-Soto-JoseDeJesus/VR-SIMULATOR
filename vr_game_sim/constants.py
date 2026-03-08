@@ -33,6 +33,9 @@ BROKEN_BLADE_BLOCKED_COUNTERATTACK_SKILL_IDS = frozenset(
         "talent_scale_armor_shield",
         "base_skill_nayas_hunting_instinct",
         "talent_bold_charge",
+        "talent_high_tide_hunt",
+        "talent_hammer_and_shield",
+        "base_skill_boiling_fighting_spirit",
     }
 )
 
@@ -48,6 +51,7 @@ DISARM_BLOCKED_ON_HIT_BY_BASIC_ATTACK_SKILL_IDS = frozenset(
         "talent_revenge_echo",
         "talent_feigned_death_strike",
         "talent_trapped_beasts_struggle",
+        "talent_berserk_counterattack",
         "mount_pincer_strike",
         "mount_spiritual_blessing",
         "mount_beastly_rage",
@@ -365,6 +369,28 @@ EFFECT_NAME_PENDING_DARKMOON_ELEGY_CLEANSE = "PENDING_DARKMOON_ELEGY_CLEANSE"
 EFFECT_NAME_PENDING_DARKMOON_ELEGY_DISPEL = "PENDING_DARKMOON_ELEGY_DISPEL"
 EFFECT_NAME_MOONLIT_STRIKE_BLEED = "Moonlit Strike Bleed"
 
+# --- Gunnar Skill Effect Names ---
+EFFECT_NAME_HIGH_TIDE_HUNT_DAMAGE_REDUCTION = "High Tide Hunt Damage Reduction"
+EFFECT_NAME_FIERCE_FIGHTING_SPIRIT_BROKEN_BLADE = "Fierce Fighting Spirit Broken Blade"
+EFFECT_NAME_DEADLY_STRIKE_SHIELD = "Deadly Strike Shield"
+EFFECT_NAME_PENDING_DEADLY_STRIKE_DISPEL = "PENDING_DEADLY_STRIKE_DISPEL"
+EFFECT_NAME_BLOODY_MAD_LACERATE = "Bloody Mad Lacerate"
+EFFECT_NAME_BLOODY_MAD_SHIELD = "Bloody Mad Shield"
+EFFECT_NAME_ONE_STROKE_ONE_KILL_LACERATE = "One Stroke One Kill Lacerate"
+EFFECT_NAME_ONE_STROKE_ONE_KILL_BROKEN_BLADE = "One Stroke One Kill Broken Blade"
+
+# --- Hilda Skill Effect Names ---
+EFFECT_NAME_HAMMER_AND_SHIELD_SHIELD_BOOST = "Hammer and Shield Shield Boost"
+EFFECT_NAME_HAMMER_AND_SHIELD_LACERATE_BOOST = "Hammer and Shield Lacerate Boost"
+EFFECT_NAME_PENDING_SAVAGE_PHYSIQUE_PURIFY = "PENDING_SAVAGE_PHYSIQUE_PURIFY"
+EFFECT_NAME_SAVAGE_PHYSIQUE_COUNTER_BUFF = "Savage Physique Counter Buff"
+EFFECT_NAME_BERSERK_COUNTERATTACK_SHIELD = "Berserk Counterattack Shield"
+EFFECT_NAME_BERSERK_COUNTERATTACK_BROKEN_BLADE = "Berserk Counterattack Broken Blade"
+EFFECT_NAME_BERSERK_COUNTERATTACK_LACERATE = "Berserk Counterattack Lacerate"
+EFFECT_NAME_BOILING_FIGHTING_SPIRIT_LACERATE = "Boiling Fighting Spirit Lacerate"
+EFFECT_NAME_SHATTER_SHIELD = "Shatter Shield"
+EFFECT_NAME_SHATTER_HOT = "Shatter Heal Over Time"
+
 # --- Rosky Skill Effect Names ---
 EFFECT_NAME_BLADE_WIELDER_COUNTER_BOOST = "Blade Wielder Counter Boost"
 EFFECT_NAME_MANIACAL_HOT = "Maniacal Heal"
@@ -426,6 +452,7 @@ CUSTOM_EFFECT_PRIORITY = {
     EFFECT_NAME_PENDING_SEAS_GRACE_PURIFY: 0,
     EFFECT_NAME_PENDING_GREEN_CHANT_PURIFY: 0,
     EFFECT_NAME_PENDING_DARKMOON_ELEGY_CLEANSE: 0,
+    EFFECT_NAME_PENDING_SAVAGE_PHYSIQUE_PURIFY: 0,
     EFFECT_NAME_PENDING_HEIMDALL_PURIFY: 0,
     EFFECT_NAME_PENDING_HALO_OF_SACRIFICE_CLEANSE: 0,
     EFFECT_NAME_DEER_REDEMPTION_CLEANSE: 0,
@@ -435,6 +462,7 @@ CUSTOM_EFFECT_PRIORITY = {
     # Buff removals / dispels
     EFFECT_NAME_PENDING_LOKIS_TRICK_BUFF_REMOVAL: 1,
     EFFECT_NAME_PENDING_DARKMOON_ELEGY_DISPEL: 1,
+    EFFECT_NAME_PENDING_DEADLY_STRIKE_DISPEL: 1,
     EFFECT_NAME_PENDING_BLESSED_NEGATION_BUFF_REMOVAL: 1,
     EFFECT_NAME_PENDING_BRUTAL_BLOW_BUFF_REMOVAL: 1,
     EFFECT_NAME_PENDING_HEIMDALL_DISPEL: 1,

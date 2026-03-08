@@ -5126,3 +5126,331 @@ def handle_talent_ominous_raven_feather(
             logs.append((f"Gains retribution {retribution_rate * 100:.0f}% for {retribution_duration + 1} rounds (starting next round).", None))
 
     return happened, logs
+
+
+# --- Gunnar Talent Handlers ---
+def handle_talent_high_tide_hunt(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    if random.random() < cfg.get("damage_reduction_chance", 0.20):
+        reduction_duration = cfg.get("damage_reduction_duration", 0)
+        reduction_data = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_HIGH_TIDE_HUNT_DAMAGE_REDUCTION,
+            "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+            "magnitude": -0.30,
+            "duration": reduction_duration,
+            "activate_next_round": True,
+        }
+        created = triggering_army._create_and_add_single_effect(
+            reduction_data, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created:
+            happened = True
+            logs.append((f"Gains 30% damage reduction for {reduction_duration + 1} rounds (starting next round).", None))
+
+    if random.random() < cfg.get("heal_chance", 0.20):
+        heal_factor = cfg.get("heal_factor", 250.0)
+        if heal_factor > 0:
+            healed = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
+            )
+            if healed > 0:
+                happened = True
+                logs.append((f"Heals for {healed:.0f} HP.", None))
+
+    return happened, logs
+
+
+def handle_talent_fierce_fighting_spirit(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    damage_factor = cfg.get("damage_factor", 300.0)
+    if damage_factor > 0:
+        did_damage = _apply_damage_with_logging(
+            triggering_army, opponent_army, simulator, damage_factor, skill_def, logs
+        )
+        happened = happened or did_damage
+
+    enemy_has_lacerate = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.LACERATE
+        for eff in opponent_army.active_effects
+    )
+    if enemy_has_lacerate:
+        broken_blade_duration = cfg.get("broken_blade_duration", 0)
+        debuff_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_FIERCE_FIGHTING_SPIRIT_BROKEN_BLADE,
+            "duration": broken_blade_duration,
+            "config": {"prevents_counterattack": True},
+            "activate_next_round": True,
+        }
+        created = opponent_army._create_and_add_single_effect(
+            debuff_data, skill_id, triggering_army, opponent_army, triggering_army
+        )
+        if created:
+            happened = True
+            logs.append((f"Inflicts Broken Blade on {opponent_army.name} for {broken_blade_duration + 1} rounds (starting next round).", None))
+
+    return happened, logs
+
+
+def handle_talent_deadly_strike(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    damage_factor = cfg.get("damage_factor", 650.0)
+    if damage_factor > 0:
+        did_damage = _apply_damage_with_logging(
+            triggering_army, opponent_army, simulator, damage_factor, skill_def, logs
+        )
+        happened = happened or did_damage
+
+    eligible_buffs = [
+        eff for eff in opponent_army.active_effects
+        if eff.is_dispellable_buff_candidate() and eff.duration > 0
+    ]
+    if eligible_buffs:
+        selected = random.choice(eligible_buffs)
+        pending_dispel = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_PENDING_DEADLY_STRIKE_DISPEL,
+            "duration": 0,
+            "config": {
+                "buff_ids_to_remove": [selected.id],
+                "targeted_buff_names_initial_log": [selected.name],
+            },
+            "activate_next_round": True,
+        }
+        if opponent_army._create_and_add_single_effect(
+            pending_dispel, skill_id, triggering_army, opponent_army, triggering_army
+        ):
+            happened = True
+            logs.append((f"Schedules dispel of '{selected.name}' from {opponent_army.name} next round.", None))
+
+    shield_factor = cfg.get("shield_factor", 650.0)
+    shield_duration = cfg.get("shield_duration", 1)
+    if shield_factor > 0:
+        shield_data = {
+            "effect_type": EffectType.SHIELD,
+            "name": EFFECT_NAME_DEADLY_STRIKE_SHIELD,
+            "duration": shield_duration,
+            "magnitude_calc_type": "dynamic_shield_resistance_v1",
+            "shield_factor": shield_factor,
+            "activate_next_round": True,
+        }
+        created = triggering_army._create_and_add_single_effect(
+            shield_data, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created:
+            happened = True
+            logs.append((f"Gains shield ({shield_factor} factor) for {shield_duration + 1} rounds (starting next round).", None))
+
+    return happened, logs
+
+
+# --- Hilda Talent Handlers ---
+def handle_talent_hammer_and_shield(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    damage_factor = cfg.get("damage_factor", 200.0)
+    if damage_factor > 0:
+        did_damage = _apply_damage_with_logging(
+            triggering_army, opponent_army, simulator, damage_factor, skill_def, logs
+        )
+        happened = happened or did_damage
+
+    return happened, logs
+
+
+def handle_talent_savage_physique(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    damage_factor = cfg.get("damage_factor", 500.0)
+    if damage_factor > 0:
+        did_damage = _apply_damage_with_logging(
+            triggering_army, opponent_army, simulator, damage_factor, skill_def, logs
+        )
+        happened = happened or did_damage
+
+    eligible_debuffs = [
+        eff for eff in triggering_army.active_effects
+        if (
+            eff.effect_type == EffectType.DEBUFF
+            or (
+                eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                and eff.config.get("dot_type") in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
+            )
+            or eff.config.get("prevents_counterattack")
+            or eff.config.get("prevents_basic_attack")
+            or eff.config.get("prevents_rage_skill_cast")
+        )
+        and eff.name not in PROTECTED_MARKER_EFFECTS
+        and eff.duration > 0
+    ]
+    if len(eligible_debuffs) >= 2:
+        selected = random.sample(eligible_debuffs, 2)
+        debuff_ids = [e.id for e in selected]
+        pending_cleanse = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_PENDING_SAVAGE_PHYSIQUE_PURIFY,
+            "duration": 0,
+            "config": {
+                "debuff_ids_to_remove": debuff_ids,
+                "debuff_names_removed_log": [e.name for e in selected],
+            },
+            "activate_next_round": True,
+        }
+        if triggering_army._create_and_add_single_effect(
+            pending_cleanse, skill_id, triggering_army, triggering_army, opponent_army
+        ):
+            happened = True
+            logs.append((f"Purifies 2 debuffs next round.", None))
+    elif eligible_debuffs:
+        selected = random.choice(eligible_debuffs)
+        pending_cleanse = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_PENDING_SAVAGE_PHYSIQUE_PURIFY,
+            "duration": 0,
+            "config": {
+                "debuff_ids_to_remove": [selected.id],
+                "debuff_names_removed_log": [selected.name],
+            },
+            "activate_next_round": True,
+        }
+        if triggering_army._create_and_add_single_effect(
+            pending_cleanse, skill_id, triggering_army, triggering_army, opponent_army
+        ):
+            happened = True
+            logs.append((f"Purifies '{selected.name}' next round.", None))
+
+    if happened and _evaluate_mount_condition("has_shield", triggering_army, opponent_army):
+        rage_amount = cfg.get("delayed_rage_amount", 150.0)
+        if rage_amount > 0:
+            rage_data = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+                "duration": 0,
+                "config": {"rage_amount": rage_amount},
+                "activate_next_round": True,
+            }
+            if triggering_army._create_and_add_single_effect(
+                rage_data, skill_id, triggering_army, triggering_army, opponent_army
+            ):
+                logs.append((f"Gains {rage_amount:.0f} rage next round (had shield).", None))
+
+        counter_buff_magnitude = cfg.get("counter_buff_magnitude", 0.50)
+        counter_buff_duration = cfg.get("counter_buff_duration", 0)
+        if counter_buff_magnitude > 0:
+            counter_data = {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_SAVAGE_PHYSIQUE_COUNTER_BUFF,
+                "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST,
+                "magnitude": counter_buff_magnitude,
+                "duration": counter_buff_duration,
+                "activate_next_round": True,
+            }
+            if triggering_army._create_and_add_single_effect(
+                counter_data, skill_id, triggering_army, triggering_army, opponent_army
+            ):
+                logs.append((f"Gains +50% counter damage for {counter_buff_duration + 1} rounds (starting next round).", None))
+
+    return happened, logs
+
+
+def handle_talent_berserk_counterattack(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    if random.random() < cfg.get("shield_chance", 0.20):
+        shield_factor = cfg.get("shield_factor", 500.0)
+        shield_duration = cfg.get("shield_duration", 1)
+        if shield_factor > 0:
+            shield_data = {
+                "effect_type": EffectType.SHIELD,
+                "name": EFFECT_NAME_BERSERK_COUNTERATTACK_SHIELD,
+                "duration": shield_duration,
+                "magnitude_calc_type": "dynamic_shield_resistance_v1",
+                "shield_factor": shield_factor,
+                "activate_next_round": True,
+            }
+            if triggering_army._create_and_add_single_effect(
+                shield_data, skill_id, triggering_army, triggering_army, opponent_army
+            ):
+                happened = True
+                logs.append((f"Gains shield ({shield_factor} factor) for {shield_duration + 1} rounds (starting next round).", None))
+
+    if random.random() < cfg.get("broken_blade_chance", 0.15):
+        broken_blade_duration = cfg.get("broken_blade_duration", 1)
+        debuff_data = {
+            "effect_type": EffectType.DEBUFF,
+            "name": EFFECT_NAME_BERSERK_COUNTERATTACK_BROKEN_BLADE,
+            "duration": broken_blade_duration,
+            "config": {"prevents_counterattack": True},
+            "activate_next_round": True,
+        }
+        if opponent_army._create_and_add_single_effect(
+            debuff_data, skill_id, triggering_army, opponent_army, triggering_army
+        ):
+            happened = True
+            logs.append((f"Inflicts Broken Blade on {opponent_army.name} for {broken_blade_duration + 1} rounds (starting next round).", None))
+
+    if random.random() < cfg.get("lacerate_chance", 0.20):
+        lacerate_factor = cfg.get("lacerate_factor", 300.0)
+        lacerate_duration = cfg.get("lacerate_duration", 1)
+        if lacerate_factor > 0:
+            lacerate_data = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": EFFECT_NAME_BERSERK_COUNTERATTACK_LACERATE,
+                "dot_type": DoTType.LACERATE,
+                "status_effect_factor": lacerate_factor,
+                "duration": lacerate_duration,
+                "activate_next_round": True,
+            }
+            if opponent_army._create_and_add_single_effect(
+                lacerate_data, skill_id, triggering_army, opponent_army, triggering_army
+            ):
+                happened = True
+                logs.append((f"Inflicts lacerate (Factor: {lacerate_factor}) on {opponent_army.name} for {lacerate_duration + 1} rounds (starting next round).", None))
+
+    return happened, logs

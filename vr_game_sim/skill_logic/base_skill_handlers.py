@@ -978,6 +978,104 @@ def handle_base_skill_shield_breaker(
     return happened, logs
 
 
+# --- Gunnar Base Skill Handlers ---
+def handle_base_skill_bloody_mad(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    if random.random() < cfg.get("lacerate_chance", 0.35):
+        lacerate_factor = cfg.get("lacerate_factor", 200.0)
+        lacerate_duration = cfg.get("lacerate_duration", 1)
+        if lacerate_factor > 0:
+            lacerate_data = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": EFFECT_NAME_BLOODY_MAD_LACERATE,
+                "dot_type": DoTType.LACERATE,
+                "status_effect_factor": lacerate_factor,
+                "duration": lacerate_duration,
+                "activate_next_round": True,
+            }
+            if opponent_army._create_and_add_single_effect(
+                lacerate_data, skill_id, triggering_army, opponent_army, triggering_army
+            ):
+                happened = True
+                logs.append((f"Inflicts lacerate (Factor: {lacerate_factor}) on {opponent_army.name} for {lacerate_duration + 1} rounds (starting next round).", None))
+
+    if random.random() < cfg.get("shield_chance", 0.35):
+        shield_factor = cfg.get("shield_factor", 400.0)
+        shield_duration = cfg.get("shield_duration", 1)
+        if shield_factor > 0:
+            shield_data = {
+                "effect_type": EffectType.SHIELD,
+                "name": EFFECT_NAME_BLOODY_MAD_SHIELD,
+                "duration": shield_duration,
+                "magnitude_calc_type": "dynamic_shield_resistance_v1",
+                "shield_factor": shield_factor,
+                "activate_next_round": True,
+            }
+            if triggering_army._create_and_add_single_effect(
+                shield_data, skill_id, triggering_army, triggering_army, opponent_army
+            ):
+                happened = True
+                logs.append((f"Gains shield ({shield_factor} factor) for {shield_duration + 1} rounds (starting next round).", None))
+
+    return happened, logs
+
+
+# --- Hilda Base Skill Handlers ---
+def handle_base_skill_boiling_fighting_spirit(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    damage_factor = cfg.get("damage_factor", 400.0)
+    if damage_factor > 0 and simulator:
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            happened = True
+        logs.append((
+            f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+            {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+        ))
+
+    has_shield = any(
+        eff.effect_type == EffectType.SHIELD and eff.magnitude > 0
+        for eff in triggering_army.active_effects
+    )
+    if happened and has_shield:
+        lacerate_factor = cfg.get("lacerate_factor", 300.0)
+        lacerate_duration = cfg.get("lacerate_duration", 2)
+        if lacerate_factor > 0:
+            lacerate_data = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": EFFECT_NAME_BOILING_FIGHTING_SPIRIT_LACERATE,
+                "dot_type": DoTType.LACERATE,
+                "status_effect_factor": lacerate_factor,
+                "duration": lacerate_duration,
+                "activate_next_round": True,
+            }
+            if opponent_army._create_and_add_single_effect(
+                lacerate_data, skill_id, triggering_army, opponent_army, triggering_army
+            ):
+                logs.append((f"Had shield: inflicts lacerate (Factor: {lacerate_factor}) on {opponent_army.name} for {lacerate_duration + 1} rounds (starting next round).", None))
+
+    return happened, logs
+
+
 # --- Greta Base Skill Handlers ---
 def handle_base_skill_broken_blade_charge(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
@@ -1976,6 +2074,7 @@ def handle_base_skill_nature_blessing(
 
     return happened, logs
 
+
 # --- Helgar Base Skill Handlers ---
 def handle_base_skill_judgements_fury(
         triggering_army: ArmyRef, opponent_army: ArmyRef,
@@ -2095,3 +2194,4 @@ def handle_base_skill_shield_breaker(
                 happened = True
                 logs.append((f"Gains '{EFFECT_NAME_SHIELD_BREAKER_BASIC_BUFF}' for {buff_dur + 1} rounds (starting next round).", None))
     return happened, logs
+

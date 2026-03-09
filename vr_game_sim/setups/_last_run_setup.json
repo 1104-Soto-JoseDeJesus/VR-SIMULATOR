@@ -1,9 +1,9 @@
 [
     {
-        "army_name": "Harald/Gregory",
+        "army_name": "Vali/Sephina (2)",
         "unit_type": "infantry",
         "tier": 7,
-        "count": 300000,
+        "count": 200000,
         "is_rally": false,
         "rally_config": null,
         "atk_mod": 3.0,
@@ -14,19 +14,23 @@
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Harald",
+                "hero_name_or_preset": "Vali",
                 "talent_ids": [
-                    "talent_battle_preparation",
-                    "talent_coordinated_strike",
-                    "talent_slow_strike"
+                    "talent_icy_edge",
+                    "talent_ice_cleave",
+                    "talent_an_eye_for_an_eye"
                 ],
                 "base_skill_ids": [
-                    "base_skill_fleet_raider",
-                    "base_skill_raging_smash"
+                    "base_skill_curse_of_the_frost",
+                    "rage_skill_frostblade"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_silencer",
-                    "plugin_thors_determination"
+                    "plugin_furious_hack_and_slash",
+                    "plugin_berserk_killing_machine"
+                ],
+                "mount_skill_ids": [
+                    "mount_bloodthirst_gaze",
+                    "mount_bloodwing_assault"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -36,19 +40,23 @@
                 }
             },
             {
-                "hero_name_or_preset": "Gregory",
+                "hero_name_or_preset": "Sephina",
                 "talent_ids": [
-                    "talent_great_morale",
-                    "talent_missing_beat",
-                    "talent_excite"
+                    "talent_raven_feather_blade",
+                    "talent_death_ravens_shadow",
+                    "talent_ominous_raven_feather"
                 ],
                 "base_skill_ids": [
-                    "base_skill_drumming_disturbance",
-                    "base_skill_inspiring_dance"
+                    "base_skill_darkmoon_elegy",
+                    "rage_skill_moonlit_strike"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_blessed_by_fate",
-                    "plugin_wild_indulgence"
+                    "plugin_enrage",
+                    "plugin_silent_invasion"
+                ],
+                "mount_skill_ids": [
+                    "mount_soul_of_fury",
+                    "mount_blessed_dew"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -60,10 +68,10 @@
         ]
     },
     {
-        "army_name": "Harald/Gregory (2)",
+        "army_name": "Vali/Sephina",
         "unit_type": "infantry",
         "tier": 7,
-        "count": 300000,
+        "count": 200000,
         "is_rally": false,
         "rally_config": null,
         "atk_mod": 3.0,
@@ -74,19 +82,23 @@
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
             {
-                "hero_name_or_preset": "Harald",
+                "hero_name_or_preset": "Vali",
                 "talent_ids": [
-                    "talent_battle_preparation",
-                    "talent_coordinated_strike",
-                    "talent_slow_strike"
+                    "talent_icy_edge",
+                    "talent_ice_cleave",
+                    "talent_an_eye_for_an_eye"
                 ],
                 "base_skill_ids": [
-                    "base_skill_fleet_raider",
-                    "base_skill_raging_smash"
+                    "base_skill_curse_of_the_frost",
+                    "rage_skill_frostblade"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_silencer",
-                    "plugin_thors_determination"
+                    "plugin_furious_hack_and_slash",
+                    "plugin_berserk_killing_machine"
+                ],
+                "mount_skill_ids": [
+                    "mount_bloodthirst_gaze",
+                    "mount_fatal_chomp"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",
@@ -96,19 +108,23 @@
                 }
             },
             {
-                "hero_name_or_preset": "Gregory",
+                "hero_name_or_preset": "Sephina",
                 "talent_ids": [
-                    "talent_great_morale",
-                    "talent_missing_beat",
-                    "talent_excite"
+                    "talent_raven_feather_blade",
+                    "talent_death_ravens_shadow",
+                    "talent_ominous_raven_feather"
                 ],
                 "base_skill_ids": [
-                    "base_skill_drumming_disturbance",
-                    "base_skill_inspiring_dance"
+                    "base_skill_darkmoon_elegy",
+                    "rage_skill_moonlit_strike"
                 ],
                 "plugin_skill_ids": [
-                    "plugin_blessed_by_fate",
-                    "plugin_wild_indulgence"
+                    "plugin_enrage",
+                    "plugin_silent_invasion"
+                ],
+                "mount_skill_ids": [
+                    "mount_soul_of_fury",
+                    "mount_ripping_claws"
                 ],
                 "gear_ids": {
                     "head": "gear_blazing_helmet_legendary",

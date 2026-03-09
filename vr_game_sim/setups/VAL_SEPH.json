@@ -1,0 +1,138 @@
+[
+    {
+        "army_name": "Vali/Sephina (2)",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 200000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Vali",
+                "talent_ids": [
+                    "talent_icy_edge",
+                    "talent_ice_cleave",
+                    "talent_an_eye_for_an_eye"
+                ],
+                "base_skill_ids": [
+                    "base_skill_curse_of_the_frost",
+                    "rage_skill_frostblade"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_furious_hack_and_slash",
+                    "plugin_berserk_killing_machine"
+                ],
+                "mount_skill_ids": [
+                    "mount_bloodthirst_gaze",
+                    "mount_bloodwing_assault"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Sephina",
+                "talent_ids": [
+                    "talent_raven_feather_blade",
+                    "talent_death_ravens_shadow",
+                    "talent_ominous_raven_feather"
+                ],
+                "base_skill_ids": [
+                    "base_skill_darkmoon_elegy",
+                    "rage_skill_moonlit_strike"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_enrage",
+                    "plugin_silent_invasion"
+                ],
+                "mount_skill_ids": [
+                    "mount_soul_of_fury",
+                    "mount_blessed_dew"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            }
+        ]
+    },
+    {
+        "army_name": "Vali/Sephina",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 200000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Vali",
+                "talent_ids": [
+                    "talent_icy_edge",
+                    "talent_ice_cleave",
+                    "talent_an_eye_for_an_eye"
+                ],
+                "base_skill_ids": [
+                    "base_skill_curse_of_the_frost",
+                    "rage_skill_frostblade"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_furious_hack_and_slash",
+                    "plugin_berserk_killing_machine"
+                ],
+                "mount_skill_ids": [
+                    "mount_bloodthirst_gaze",
+                    "mount_fatal_chomp"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Sephina",
+                "talent_ids": [
+                    "talent_raven_feather_blade",
+                    "talent_death_ravens_shadow",
+                    "talent_ominous_raven_feather"
+                ],
+                "base_skill_ids": [
+                    "base_skill_darkmoon_elegy",
+                    "rage_skill_moonlit_strike"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_enrage",
+                    "plugin_silent_invasion"
+                ],
+                "mount_skill_ids": [
+                    "mount_soul_of_fury",
+                    "mount_ripping_claws"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            }
+        ]
+    }
+]

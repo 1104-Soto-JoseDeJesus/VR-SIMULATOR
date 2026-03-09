@@ -1,0 +1,138 @@
+[
+    {
+        "army_name": "Vali/Sephina (2)",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Vali",
+                "talent_ids": [
+                    "talent_icy_edge",
+                    "talent_ice_cleave",
+                    "talent_an_eye_for_an_eye"
+                ],
+                "base_skill_ids": [
+                    "base_skill_curse_of_the_frost",
+                    "rage_skill_frostblade"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_furious_hack_and_slash",
+                    "plugin_berserk_killing_machine"
+                ],
+                "mount_skill_ids": [
+                    "mount_bloodthirst_gaze",
+                    "mount_bloodwing_assault"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Sephina",
+                "talent_ids": [
+                    "talent_raven_feather_blade",
+                    "talent_death_ravens_shadow",
+                    "talent_ominous_raven_feather"
+                ],
+                "base_skill_ids": [
+                    "base_skill_darkmoon_elegy",
+                    "rage_skill_moonlit_strike"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_enrage",
+                    "plugin_silent_invasion"
+                ],
+                "mount_skill_ids": [
+                    "mount_soul_of_fury",
+                    "mount_blessed_dew"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            }
+        ]
+    },
+    {
+        "army_name": "Rosky/Gunnar",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_blessing",
+                    "plugin_berserk_killing_machine"
+                ],
+                "mount_skill_ids": [
+                    "mount_power_swipe",
+                    "mount_evil_threat"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Gunnar",
+                "talent_ids": [
+                    "talent_high_tide_hunt",
+                    "talent_fierce_fighting_spirit",
+                    "talent_deadly_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_bloody_mad",
+                    "rage_skill_one_stroke_one_kill"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_green_chant",
+                    "plugin_valkyries_gaze"
+                ],
+                "mount_skill_ids": [
+                    "mount_power_swipe",
+                    "mount_evil_threat"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            }
+        ]
+    }
+]

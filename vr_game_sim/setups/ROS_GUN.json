@@ -1,0 +1,138 @@
+[
+    {
+        "army_name": "Rosky/Gunnar (2)",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_blessing",
+                    "plugin_deadly_counterattack"
+                ],
+                "mount_skill_ids": [
+                    "mount_power_swipe",
+                    "mount_evil_threat"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Gunnar",
+                "talent_ids": [
+                    "talent_high_tide_hunt",
+                    "talent_fierce_fighting_spirit",
+                    "talent_deadly_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_bloody_mad",
+                    "rage_skill_one_stroke_one_kill"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_green_chant",
+                    "plugin_valkyries_gaze"
+                ],
+                "mount_skill_ids": [
+                    "mount_power_swipe",
+                    "mount_evil_threat"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            }
+        ]
+    },
+    {
+        "army_name": "Rosky/Gunnar",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_blessing",
+                    "plugin_deadly_counterattack"
+                ],
+                "mount_skill_ids": [
+                    "mount_power_swipe",
+                    "mount_evil_threat"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Gunnar",
+                "talent_ids": [
+                    "talent_high_tide_hunt",
+                    "talent_fierce_fighting_spirit",
+                    "talent_deadly_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_bloody_mad",
+                    "rage_skill_one_stroke_one_kill"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_green_chant",
+                    "plugin_valkyries_gaze"
+                ],
+                "mount_skill_ids": [
+                    "mount_power_swipe",
+                    "mount_evil_threat"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            }
+        ]
+    }
+]

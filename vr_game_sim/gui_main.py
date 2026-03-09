@@ -6263,14 +6263,30 @@ class MountSkillRankWorker(QtCore.QThread):
 
                 cfg1 = copy.deepcopy(self.base_cfg1)
                 cfg2 = copy.deepcopy(self.base_cfg2)
-                # Replace only the first hero's mount skill in each army so the rank
-                # reflects "which skill on hero 1" rather than "mono skill on all heroes".
+                # Replace only the first hero's first mount skill slot; keep slot 2 and
+                # secondary hero's mount skills unchanged.
                 heroes1 = cfg1.get("heroes", [])
                 if heroes1:
-                    heroes1[0]["mount_skill_ids"] = [skill_a]
+                    orig1 = heroes1[0].get("mount_skill_ids", []) or []
+                    if isinstance(orig1, (list, tuple)):
+                        orig1 = [s for s in orig1 if isinstance(s, str)][:2]
+                    else:
+                        orig1 = []
+                    new1 = [skill_a]
+                    if len(orig1) >= 2:
+                        new1.append(orig1[1])
+                    heroes1[0]["mount_skill_ids"] = new1
                 heroes2 = cfg2.get("heroes", [])
                 if heroes2:
-                    heroes2[0]["mount_skill_ids"] = [skill_b]
+                    orig2 = heroes2[0].get("mount_skill_ids", []) or []
+                    if isinstance(orig2, (list, tuple)):
+                        orig2 = [s for s in orig2 if isinstance(s, str)][:2]
+                    else:
+                        orig2 = []
+                    new2 = [skill_b]
+                    if len(orig2) >= 2:
+                        new2.append(orig2[1])
+                    heroes2[0]["mount_skill_ids"] = new2
 
                 setup_data = [cfg1, cfg2]
                 army1_wins, army2_wins, _draws = run_batch_return_winners(

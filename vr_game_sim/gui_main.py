@@ -6264,29 +6264,34 @@ class MountSkillRankWorker(QtCore.QThread):
                 cfg1 = copy.deepcopy(self.base_cfg1)
                 cfg2 = copy.deepcopy(self.base_cfg2)
                 # Replace only the first hero's first mount skill slot; keep slot 2 and
-                # secondary hero's mount skills unchanged.
+                # secondary hero's mount skills unchanged. Preserve slot 2 even when
+                # slot 1 was empty (config may store a single skill at index 0).
+                def _merge_rank_into_slot1(orig: list, ranked_skill: str) -> list[str]:
+                    orig = [s for s in orig if isinstance(s, str) and s.strip()][:2]
+                    if len(orig) >= 2:
+                        return [ranked_skill, orig[1]]
+                    if len(orig) == 1:
+                        return [ranked_skill, orig[0]]
+                    return [ranked_skill]
+
                 heroes1 = cfg1.get("heroes", [])
                 if heroes1:
                     orig1 = heroes1[0].get("mount_skill_ids", []) or []
                     if isinstance(orig1, (list, tuple)):
-                        orig1 = [s for s in orig1 if isinstance(s, str)][:2]
+                        heroes1[0]["mount_skill_ids"] = _merge_rank_into_slot1(
+                            list(orig1), skill_a
+                        )
                     else:
-                        orig1 = []
-                    new1 = [skill_a]
-                    if len(orig1) >= 2:
-                        new1.append(orig1[1])
-                    heroes1[0]["mount_skill_ids"] = new1
+                        heroes1[0]["mount_skill_ids"] = [skill_a]
                 heroes2 = cfg2.get("heroes", [])
                 if heroes2:
                     orig2 = heroes2[0].get("mount_skill_ids", []) or []
                     if isinstance(orig2, (list, tuple)):
-                        orig2 = [s for s in orig2 if isinstance(s, str)][:2]
+                        heroes2[0]["mount_skill_ids"] = _merge_rank_into_slot1(
+                            list(orig2), skill_b
+                        )
                     else:
-                        orig2 = []
-                    new2 = [skill_b]
-                    if len(orig2) >= 2:
-                        new2.append(orig2[1])
-                    heroes2[0]["mount_skill_ids"] = new2
+                        heroes2[0]["mount_skill_ids"] = [skill_b]
 
                 setup_data = [cfg1, cfg2]
                 army1_wins, army2_wins, _draws = run_batch_return_winners(

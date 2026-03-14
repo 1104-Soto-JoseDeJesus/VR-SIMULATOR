@@ -2994,6 +2994,46 @@ class MountSkillRankQueueDialog(QtWidgets.QDialog):
         return getattr(self, "_queue_result", [])
 
 
+GEAR_QUICK_FILL_PRESETS: dict[str, dict[str, str]] = {
+    "Pike Legendary": {
+        "head": "gear_abyssal_crown_legendary",
+        "weapon": "gear_marine_halberd_legendary",
+        "chest": "gear_bylgjas_armor_legendary",
+        "boots": "gear_tsunami_plated_boots_legendary",
+    },
+    "Pike Epic": {
+        "head": "gear_abyssal_crown_epic",
+        "weapon": "gear_marine_halberd_epic",
+        "chest": "gear_bylgjas_armor_epic",
+        "boots": "gear_tsunami_plated_boots_epic",
+    },
+    "Archer Legendary": {
+        "head": "gear_divine_crown_legendary",
+        "weapon": "gear_gleaming_longbow_legendary",
+        "chest": "gear_verdant_armor_legendary",
+        "boots": "gear_thicket_boots_legendary",
+    },
+    "Archer Epic": {
+        "head": "gear_divine_crown_epic",
+        "weapon": "gear_gleaming_longbow_epic",
+        "chest": "gear_verdant_armor_epic",
+        "boots": "gear_thicket_boots_epic",
+    },
+    "Infantry Legendary": {
+        "head": "gear_blazing_helmet_legendary",
+        "weapon": "gear_immolated_axe_legendary",
+        "chest": "gear_inferno_armor_legendary",
+        "boots": "gear_ferocious_boots_legendary",
+    },
+    "Infantry Epic": {
+        "head": "gear_blazing_helmet_epic",
+        "weapon": "gear_immolated_axe_epic",
+        "chest": "gear_inferno_armor_epic",
+        "boots": "gear_ferocious_boots_epic",
+    },
+}
+
+
 class GearSelectionDialog(QtWidgets.QDialog):
     """Dialog for assigning gear to each hero slot."""
 
@@ -3078,6 +3118,16 @@ class GearSelectionDialog(QtWidgets.QDialog):
                 form.addRow(f"{slot_label}:", combo)
                 self._slot_boxes[(hero_idx, slot_key)] = combo
 
+            quick_fill_layout = QtWidgets.QHBoxLayout()
+            for preset_name in GEAR_QUICK_FILL_PRESETS:
+                btn = QtWidgets.QPushButton(preset_name)
+                btn.setEnabled(hero_active)
+                btn.clicked.connect(
+                    lambda checked, h=hero_idx, p=preset_name: self._apply_gear_preset(h, p)
+                )
+                quick_fill_layout.addWidget(btn)
+            form.addRow("Quick fill:", quick_fill_layout)
+
             layout.addWidget(group)
 
         btn_box = QtWidgets.QDialogButtonBox(
@@ -3087,6 +3137,18 @@ class GearSelectionDialog(QtWidgets.QDialog):
         btn_box.accepted.connect(self.accept)
         btn_box.rejected.connect(self.reject)
         layout.addWidget(btn_box)
+
+    def _apply_gear_preset(self, hero_idx: int, preset_name: str) -> None:
+        """Set the 4 gear slots for a hero to the given preset."""
+        preset = GEAR_QUICK_FILL_PRESETS.get(preset_name)
+        if not preset:
+            return
+        for slot_key, gear_id in preset.items():
+            combo = self._slot_boxes.get((hero_idx, slot_key))
+            if combo:
+                idx = combo.findData(gear_id)
+                if idx >= 0:
+                    combo.setCurrentIndex(idx)
 
     def result(self) -> dict[int, dict[str, str]]:
         selections: dict[int, dict[str, str]] = {}
@@ -3503,11 +3565,11 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.unit_combo.currentTextChanged.connect(self._unit_changed)
         self.tier_spin = QtWidgets.QSpinBox()
         self.tier_spin.setRange(min(Unit.ALLOWED_TIERS), max(Unit.ALLOWED_TIERS))
-        self.tier_spin.setValue(5)
+        self.tier_spin.setValue(7)
 
         self.count_spin = ThousandSepSpinBox()
         self.count_spin.setRange(0, 100000000)
-        self.count_spin.setValue(100000)
+        self.count_spin.setValue(300000)
 
         self.rally_checkbox = QtWidgets.QCheckBox("Treat as rally army")
         self._rally_config: dict | None = None
@@ -3516,19 +3578,19 @@ class ArmyFrame(QtWidgets.QGroupBox):
         self.atk_edit.setRange(-10.0, 10.0)
         self.atk_edit.setDecimals(4)
         self.atk_edit.setSingleStep(0.0001)
-        self.atk_edit.setValue(0.0)
+        self.atk_edit.setValue(3.0)
 
         self.def_edit = QtWidgets.QDoubleSpinBox()
         self.def_edit.setRange(-10.0, 10.0)
         self.def_edit.setDecimals(4)
         self.def_edit.setSingleStep(0.0001)
-        self.def_edit.setValue(0.0)
+        self.def_edit.setValue(3.0)
 
         self.hp_edit = QtWidgets.QDoubleSpinBox()
         self.hp_edit.setRange(-10.0, 10.0)
         self.hp_edit.setDecimals(4)
         self.hp_edit.setSingleStep(0.0001)
-        self.hp_edit.setValue(0.0)
+        self.hp_edit.setValue(1.0)
 
         self.unrevivable_spin = QtWidgets.QDoubleSpinBox()
         self.unrevivable_spin.setRange(0.0, 1.0)
@@ -3549,6 +3611,7 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self._on_unrevivable_method_changed
         )
         self._on_unrevivable_method_changed(self.unrevivable_method_combo.currentText())
+        self.unrevivable_method_combo.setCurrentText("Dynamic")
 
         self.hero1_combo = QtWidgets.QComboBox()
         self.hero2_combo = QtWidgets.QComboBox()
@@ -4195,13 +4258,13 @@ class ArmyFrame(QtWidgets.QGroupBox):
             self.name_edit.setText(cfg.get("army_name", f"Army {self.index}"))
             self.unit_combo.setCurrentText(cfg.get("unit_type", "pikemen"))
             self._unit_changed(self.unit_combo.currentText())
-            self.tier_spin.setValue(int(cfg.get("tier", 5)))
-            self.count_spin.setValue(int(cfg.get("count", 100000)))
+            self.tier_spin.setValue(int(cfg.get("tier", 7)))
+            self.count_spin.setValue(int(cfg.get("count", 300000)))
             self.rally_checkbox.setChecked(bool(cfg.get("is_rally", False)))
             self._rally_config = copy.deepcopy(cfg.get("rally_config")) if cfg.get("rally_config") else None
-            self.atk_edit.setValue(float(cfg.get("atk_mod", 0)))
-            self.def_edit.setValue(float(cfg.get("def_mod", 0)))
-            self.hp_edit.setValue(float(cfg.get("hp_mod", 0)))
+            self.atk_edit.setValue(float(cfg.get("atk_mod", 3)))
+            self.def_edit.setValue(float(cfg.get("def_mod", 3)))
+            self.hp_edit.setValue(float(cfg.get("hp_mod", 1)))
 
             self.unrevivable_spin.setValue(float(cfg.get("unrevivable_ratio", 0.65)))
             unrevivable_method = str(cfg.get("unrevivable_ratio_method") or "").strip().lower()

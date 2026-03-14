@@ -1,0 +1,475 @@
+{
+  "targeting_mode": "custom",
+  "entries": [
+    {
+      "army_name": "Rollo/Gregory",
+      "team": "team1",
+      "column": 0,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Rollo/Gregory",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.5,
+        "def_mod": 2.5,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Rollo",
+            "talent_ids": [
+              "talent_patient_waiting",
+              "talent_revolutionary_resolve",
+              "talent_adaptable_agility"
+            ],
+            "base_skill_ids": [
+              "base_skill_tough_choice",
+              "base_skill_bloody_pillage"
+            ],
+            "plugin_skill_ids": [
+              "plugin_tidal_attack",
+              "plugin_heightened_chance"
+            ]
+          },
+          {
+            "hero_name_or_preset": "Gregory",
+            "talent_ids": [
+              "talent_great_morale",
+              "talent_missing_beat",
+              "talent_excite"
+            ],
+            "base_skill_ids": [
+              "base_skill_drumming_disturbance",
+              "base_skill_inspiring_dance"
+            ],
+            "plugin_skill_ids": [
+              "plugin_chance_of_reversal",
+              "plugin_breaking_free"
+            ]
+          }
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Bjorn/Hobert",
+      "team": "team1",
+      "column": 1,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Bjorn/Hobert",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.5,
+        "def_mod": 2.5,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Bjorn",
+            "talent_ids": [
+              "talent_trained_up",
+              "talent_undefeated",
+              "talent_fatal_bleeding"
+            ],
+            "base_skill_ids": [
+              "base_skill_crippling_pursuit",
+              "base_skill_lethal_fracture"
+            ],
+            "plugin_skill_ids": [
+              "plugin_bloodstained_icefield",
+              "plugin_divine_blessing"
+            ]
+          },
+          {
+            "hero_name_or_preset": "Hobert",
+            "talent_ids": [
+              "talent_bold_shieldaxe",
+              "talent_fearless_pursuit",
+              "talent_steadfast_armor"
+            ],
+            "base_skill_ids": [
+              "base_skill_berserk_fury",
+              "base_skill_brutal_blow"
+            ],
+            "plugin_skill_ids": [
+              "plugin_blessed_by_fate",
+              "plugin_rapid_attack"
+            ]
+          }
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Margit/Lagertha",
+      "team": "team1",
+      "column": 2,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Margit/Lagertha",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 4.0,
+        "def_mod": 2.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Margit",
+            "talent_ids": [
+              "talent_cutting_blade",
+              "talent_thirst_for_blood",
+              "talent_seas_grace"
+            ],
+            "base_skill_ids": [
+              "base_skill_ride_the_waves",
+              "base_skill_raging_tide"
+            ],
+            "plugin_skill_ids": [
+              "plugin_first_strike",
+              "plugin_enrage"
+            ]
+          },
+          {
+            "hero_name_or_preset": "Lagertha",
+            "talent_ids": [
+              "talent_shieldaxe_attack",
+              "talent_chiefs_might",
+              "talent_fatal_strike"
+            ],
+            "base_skill_ids": [
+              "base_skill_shield_breaker",
+              "rage_skill_showdown"
+            ],
+            "plugin_skill_ids": [
+              "plugin_trap_of_despair",
+              "plugin_odins_asylum"
+            ]
+          }
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Harald/Jens",
+      "team": "team1",
+      "column": 3,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Harald/Jens",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 4.0,
+        "def_mod": 2.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Harald",
+            "talent_ids": [
+              "talent_battle_preparation",
+              "talent_coordinated_strike",
+              "talent_slow_strike"
+            ],
+            "base_skill_ids": [
+              "base_skill_fleet_raider",
+              "base_skill_raging_smash"
+            ],
+            "plugin_skill_ids": [
+              "plugin_silent_invasion",
+              "plugin_silencer"
+            ]
+          },
+          {
+            "hero_name_or_preset": "Jens",
+            "talent_ids": [
+              "talent_godly_wrath",
+              "talent_divine_blite",
+              "talent_divine_punishment"
+            ],
+            "base_skill_ids": [
+              "base_skill_divine_energize",
+              "base_skill_heavenly_descent"
+            ],
+            "plugin_skill_ids": [
+              "plugin_enchanted_pursuit",
+              "plugin_splinter"
+            ]
+          }
+        ],
+        "team": "red",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Bjorn/Hobert2",
+      "team": "team2",
+      "column": 0,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Bjorn/Hobert2",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Bjorn",
+            "talent_ids": [
+              "talent_trained_up",
+              "talent_undefeated",
+              "talent_fatal_bleeding"
+            ],
+            "base_skill_ids": [
+              "base_skill_crippling_pursuit",
+              "base_skill_lethal_fracture"
+            ],
+            "plugin_skill_ids": [
+              "plugin_first_strike",
+              "plugin_odins_asylum"
+            ]
+          },
+          {
+            "hero_name_or_preset": "Hobert",
+            "talent_ids": [
+              "talent_bold_shieldaxe",
+              "talent_fearless_pursuit",
+              "talent_steadfast_armor"
+            ],
+            "base_skill_ids": [
+              "base_skill_berserk_fury",
+              "base_skill_brutal_blow"
+            ],
+            "plugin_skill_ids": [
+              "plugin_breaking_free",
+              "plugin_enchanted_pursuit"
+            ]
+          }
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Margit/Lagertha2",
+      "team": "team2",
+      "column": 1,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Margit/Lagertha2",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Margit",
+            "talent_ids": [
+              "talent_cutting_blade",
+              "talent_thirst_for_blood",
+              "talent_seas_grace"
+            ],
+            "base_skill_ids": [
+              "base_skill_ride_the_waves",
+              "base_skill_raging_tide"
+            ],
+            "plugin_skill_ids": [
+              "plugin_blessed_negation",
+              "plugin_silent_invasion"
+            ]
+          },
+          {
+            "hero_name_or_preset": "Lagertha",
+            "talent_ids": [
+              "talent_shieldaxe_attack",
+              "talent_chiefs_might",
+              "talent_fatal_strike"
+            ],
+            "base_skill_ids": [
+              "base_skill_shield_breaker",
+              "rage_skill_showdown"
+            ],
+            "plugin_skill_ids": [
+              "plugin_enrage",
+              "plugin_trap_of_despair"
+            ]
+          }
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Sasha/Alf",
+      "team": "team2",
+      "column": 2,
+      "row": 0,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Sasha/Alf",
+        "unit_type": "archers",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Sasha",
+            "talent_ids": [
+              "talent_forest_force",
+              "talent_natures_killer",
+              "talent_life_cycle"
+            ],
+            "base_skill_ids": [
+              "base_skill_nature_blessing",
+              "base_skill_floral_burial"
+            ],
+            "plugin_skill_ids": [
+              "plugin_divine_blessing",
+              "plugin_poison_arrow"
+            ]
+          },
+          {
+            "hero_name_or_preset": "Alf",
+            "talent_ids": [
+              "talent_fiery_poison_bullet",
+              "talent_fiery_poison_bomb",
+              "talent_agile_missile"
+            ],
+            "base_skill_ids": [
+              "base_skill_huginns_slingshot",
+              "base_skill_chain_meteor"
+            ],
+            "plugin_skill_ids": [
+              "plugin_bone_corroding_arrow",
+              "plugin_this_too_shall_pass"
+            ]
+          }
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
+    },
+    {
+      "army_name": "Harald/Gregory2",
+      "team": "team2",
+      "column": 0,
+      "row": 1,
+      "speed": 50.0,
+      "config": {
+        "army_name": "Harald/Gregory2",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 300000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.0,
+        "def_mod": 3.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+          {
+            "hero_name_or_preset": "Harald",
+            "talent_ids": [
+              "talent_battle_preparation",
+              "talent_coordinated_strike",
+              "talent_slow_strike"
+            ],
+            "base_skill_ids": [
+              "base_skill_fleet_raider",
+              "base_skill_raging_smash"
+            ],
+            "plugin_skill_ids": [
+              "plugin_blessed_by_fate",
+              "plugin_thors_determination"
+            ]
+          },
+          {
+            "hero_name_or_preset": "Gregory",
+            "talent_ids": [
+              "talent_great_morale",
+              "talent_missing_beat",
+              "talent_excite"
+            ],
+            "base_skill_ids": [
+              "base_skill_drumming_disturbance",
+              "base_skill_inspiring_dance"
+            ],
+            "plugin_skill_ids": [
+              "plugin_silencer",
+              "plugin_wild_indulgence"
+            ]
+          }
+        ],
+        "team": "blue",
+        "speed": 50.0
+      }
+    }
+  ],
+  "custom_targeting": {
+    "red": [
+      "Sasha/Alf",
+      "Margit/Lagertha2",
+      "Bjorn/Hobert2",
+      "Harald/Gregory2"
+    ],
+    "blue": [
+      "Margit/Lagertha",
+      "Bjorn/Hobert",
+      "Rollo/Gregory",
+      "Harald/Jens"
+    ]
+  }
+}

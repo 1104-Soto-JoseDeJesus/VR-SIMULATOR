@@ -50,6 +50,11 @@ interactive web report. It includes hoverable skill tooltips sourced from the
 in-game descriptions, jewel loadouts, troop modifiers, bonus stat overlays and
 a modern victory distribution chart that mirrors the simulation results.
 
+**Export Army Builds HTML (Screenshot-Friendly)** writes a compact single file
+with the same styling, but only army headers, heroes (talents, skills, plugins,
+gear, mounts), and jewel sockets—no charts or battle log—so the page fits
+better in one screenshot.
+
 ### Jewel skills
 
 Press **Jewel Skills** on an army frame to assign socketed abilities. Each of the

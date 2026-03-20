@@ -8808,6 +8808,10 @@ class MainWindow(QtWidgets.QMainWindow):
         export_html_action = QtGui.QAction("Export Overall Performance HTML", self)
         export_html_action.setShortcut(QtGui.QKeySequence("Ctrl+Alt+E"))
         export_html_action.triggered.connect(self.export_summary_html)
+        export_army_builds_html_action = QtGui.QAction(
+            "Export Army Builds HTML (Screenshot-Friendly)", self
+        )
+        export_army_builds_html_action.triggered.connect(self.export_army_builds_html)
         export_html_sample_action = QtGui.QAction(
             "Export Overall Performance & Sample Battle HTML", self
         )
@@ -8837,6 +8841,7 @@ class MainWindow(QtWidgets.QMainWindow):
             export_fig_action,
             export_summary_action,
             export_html_action,
+            export_army_builds_html_action,
             export_html_sample_action,
             export_html_sample_summary_action,
             export_debug_html_action,
@@ -10587,8 +10592,13 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog_title: str,
         filename_suffix: str,
         debug_mode: bool = False,
+        builds_only: bool = False,
     ) -> None:
         """Export the latest battle summary as an interactive HTML bundle."""
+
+        if builds_only:
+            include_sample_details = False
+            include_sample_log = False
 
         payload = self._last_simulation_payload
         if not payload:
@@ -11957,8 +11967,16 @@ class MainWindow(QtWidgets.QMainWindow):
                     + "</div>"
                 )
 
+            army_info_block = (
+                "<div class=\"section\"><h3>Army Info</h3><div class=\"stat-row\">"
+                + "".join(stats_html)
+                + "</div></div>"
+            )
+            if builds_only:
+                army_info_block = ""
+            card_class = "army-card army-builds-card" if builds_only else "army-card"
             armies_html.append(
-                "<section class=\"army-card\">"
+                f"<section class=\"{card_class}\">"
                 + "<header class=\"army-header\">"
                 + "<div class=\"army-title\">"
                 + (
@@ -11973,9 +11991,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 + bonus_button_markup
                 + bonus_fallback_markup
                 + "</header>"
-                + "<div class=\"section\"><h3>Army Info</h3><div class=\"stat-row\">"
-                + "".join(stats_html)
-                + "</div></div>"
+                + army_info_block
                 + "<div class=\"section\"><h3>Heroes</h3><div class=\"hero-grid\">"
                 + "".join(hero_cards)
                 + "</div></div>"
@@ -11986,7 +12002,8 @@ class MainWindow(QtWidgets.QMainWindow):
             )
 
         if armies_html:
-            armies_markup = "<section class=\"army-grid\">" + "".join(armies_html) + "</section>"
+            grid_cls = "army-grid army-builds-export" if builds_only else "army-grid"
+            armies_markup = f"<section class=\"{grid_cls}\">" + "".join(armies_html) + "</section>"
         else:
             armies_markup = ""
 
@@ -12164,6 +12181,14 @@ class MainWindow(QtWidgets.QMainWindow):
         victory_markup = "".join(victory_sections)
 
         sample_markup = ""
+        summary_markup = ""
+        army_block_markup = ""
+        ansi_escape_re = re.compile(r"\x1b\[[0-9;]*m")
+
+        def strip_ansi_text(value: Any) -> str:
+            text = normalize_metadata_text(value)
+            return ansi_escape_re.sub("", text)
+
         if include_sample_details:
             battle_rounds = 0
             round_count_raw = sample_data_raw.get("round_count") if isinstance(sample_data_raw, dict) else None
@@ -12207,11 +12232,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     )
                     + "</ul></div>"
                 )
-            ansi_escape_re = re.compile(r"\x1b\[[0-9;]*m")
-
-            def strip_ansi_text(value: Any) -> str:
-                text = normalize_metadata_text(value)
-                return ansi_escape_re.sub("", text)
 
         def format_log_text(value: Any, preserve_breaks: bool = False) -> str:
             raw = strip_ansi_text(value).strip()
@@ -12617,21 +12637,156 @@ class MainWindow(QtWidgets.QMainWindow):
                     "<section class=\"card sample-log-card\"><h2>Sample Battle Log</h2><p class=\"empty-state\">No round data available.</p></section>"
                 )
 
-        sample_markup = (
-            "<section class=\"card sample-card\">"
-            + "<h2>Sample Battle Details</h2>"
-            + summary_markup
-            + army_block_markup
-            + "</section>"
-            + battle_log_markup
+        if include_sample_details:
+            sample_markup = (
+                "<section class=\"card sample-card\">"
+                + "<h2>Sample Battle Details</h2>"
+                + summary_markup
+                + army_block_markup
+                + "</section>"
+                + battle_log_markup
+            )
+        else:
+            sample_markup = battle_log_markup if include_sample_log else ""
+
+        if builds_only:
+            victory_markup = ""
+            sample_markup = ""
+
+        page_title = (
+            "Army Builds"
+            if builds_only
+            else (
+                "Overall Performance & Sample Battle"
+                if include_sample_details
+                else "Overall Performance"
+            )
         )
+        body_class = " class=\"builds-only\"" if builds_only else ""
+        builds_only_css = """
+        body.builds-only {
+            padding: 14px 10px 28px;
+        }
+        body.builds-only main {
+            gap: 14px;
+            max-width: 1600px;
+        }
+        body.builds-only .header h1 {
+            font-size: 1.65rem;
+        }
+        body.builds-only .army-builds-export {
+            grid-template-columns: repeat(2, minmax(300px, 1fr));
+            gap: 14px;
+            align-items: start;
+        }
+        body.builds-only .army-builds-card {
+            padding: 14px 16px;
+            gap: 14px;
+        }
+        body.builds-only .army-header {
+            gap: 10px;
+        }
+        body.builds-only .unit-icon {
+            width: 56px;
+            height: 56px;
+            padding: 8px;
+        }
+        body.builds-only .army-title h2 {
+            font-size: 1.25rem;
+        }
+        body.builds-only .army-title p {
+            font-size: 0.85rem;
+        }
+        body.builds-only .section {
+            gap: 10px;
+        }
+        body.builds-only .section > h3 {
+            font-size: 1rem;
+            margin-bottom: 0;
+        }
+        body.builds-only .hero-grid {
+            grid-template-columns: repeat(2, minmax(220px, 1fr));
+            gap: 10px;
+        }
+        body.builds-only .hero-card {
+            padding: 12px;
+            gap: 10px;
+        }
+        body.builds-only .hero-header {
+            gap: 10px;
+        }
+        body.builds-only .hero-portrait {
+            width: 72px;
+            height: 72px;
+        }
+        body.builds-only .hero-section {
+            gap: 5px;
+        }
+        body.builds-only .hero-section h5 {
+            font-size: 0.8rem;
+        }
+        body.builds-only .pill-list {
+            gap: 5px;
+        }
+        body.builds-only .skill-pill {
+            padding: 4px 9px;
+            font-size: 0.78rem;
+        }
+        body.builds-only .plugin-grid {
+            gap: 10px;
+        }
+        body.builds-only .plugin-icon {
+            width: 96px;
+            height: 96px;
+            padding: 8px;
+        }
+        body.builds-only .gear-grid {
+            gap: 8px;
+            max-width: 220px;
+        }
+        body.builds-only .gear-slot {
+            max-width: 100px;
+        }
+        body.builds-only .mount-grid img,
+        body.builds-only .mount-grid .placeholder-empty {
+            width: 76px;
+            height: 76px;
+        }
+        body.builds-only .jewel-grid {
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+        }
+        body.builds-only .jewel-card {
+            padding: 8px 10px;
+        }
+        body.builds-only .jewel-card img {
+            width: 36px;
+            height: 36px;
+        }
+        body.builds-only .bonus-button {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+        }
+        body.builds-only .bonus-button img {
+            width: 22px;
+            height: 22px;
+        }
+        @media (max-width: 720px) {
+            body.builds-only .army-builds-export {
+                grid-template-columns: 1fr;
+            }
+            body.builds-only .hero-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+""" if builds_only else ""
 
         html_output = f"""<!DOCTYPE html>
 <html lang=\"en\">
 <head>
     <meta charset=\"utf-8\">
     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
-    <title>{'Overall Performance &amp; Sample Battle' if include_sample_details else 'Overall Performance'} - {html.escape(army_names[0] if army_names else 'Army 1')} vs {html.escape(army_names[1] if len(army_names) > 1 else 'Army 2')}</title>
+    <title>{html.escape(page_title)} - {html.escape(army_names[0] if army_names else 'Army 1')} vs {html.escape(army_names[1] if len(army_names) > 1 else 'Army 2')}</title>
     <style>
         :root {{
             --bg: #080b16;
@@ -13981,12 +14136,13 @@ class MainWindow(QtWidgets.QMainWindow):
                 align-items: flex-start;
             }}
         }}
+{builds_only_css}
     </style>
 </head>
-<body>
+<body{body_class}>
     <main>
         <header class=\"header\">
-            <h1>{'Overall Performance &amp; Sample Battle' if include_sample_details else 'Overall Performance'}</h1>
+            <h1>{html.escape(page_title)}</h1>
             <p>Generated {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))}</p>
         </header>
         {victory_markup}
@@ -14537,7 +14693,12 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         self.last_setup_dir = os.path.dirname(save_path)
-        self.status.setText(f"HTML summary exported to {os.path.basename(save_path)}")
+        if builds_only:
+            self.status.setText(
+                f"Army builds HTML exported to {os.path.basename(save_path)}"
+            )
+        else:
+            self.status.setText(f"HTML summary exported to {os.path.basename(save_path)}")
 
     def export_summary_html(self) -> None:
         self._export_summary_html(
@@ -14570,6 +14731,16 @@ class MainWindow(QtWidgets.QMainWindow):
             dialog_title="Export Debug HTML",
             filename_suffix="debug",
             debug_mode=True,
+        )
+
+    def export_army_builds_html(self) -> None:
+        """Compact HTML with heroes, jewels, and gear only (screenshot-friendly)."""
+        self._export_summary_html(
+            include_sample_details=False,
+            include_sample_log=False,
+            dialog_title="Export Army Builds HTML",
+            filename_suffix="army_builds",
+            builds_only=True,
         )
 
     def export_pdf(self) -> None:

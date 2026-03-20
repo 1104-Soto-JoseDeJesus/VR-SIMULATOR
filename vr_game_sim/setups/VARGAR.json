@@ -33,12 +33,18 @@
               "base_skill_vital_blessing"
             ],
             "plugin_skill_ids": [
-              "plugin_freyas_blessing",
-              "plugin_divine_blessing"
+              "plugin_chance_of_reversal",
+              "plugin_awakening"
             ],
             "mount_skill_ids": [
               "mount_power_swipe"
             ],
+            "gear_ids": {
+              "head": "gear_abyssal_crown_epic",
+              "weapon": "gear_marine_halberd_epic",
+              "chest": "gear_bylgjas_armor_epic",
+              "boots": "gear_tsunami_plated_boots_epic"
+            },
             "skill_overrides": {
               "mount_power_swipe": {
                 "config": {
@@ -50,12 +56,6 @@
                   }
                 }
               }
-            },
-            "gear_ids": {
-              "head": "gear_abyssal_crown_epic",
-              "weapon": "gear_marine_halberd_epic",
-              "chest": "gear_bylgjas_armor_epic",
-              "boots": "gear_tsunami_plated_boots_epic"
             }
           },
           {
@@ -71,11 +71,17 @@
             ],
             "plugin_skill_ids": [
               "plugin_rest_and_counterattack",
-              "plugin_baldr_blessing"
+              "plugin_hymn_of_life"
             ],
             "mount_skill_ids": [
               "mount_ragebeast_soul"
             ],
+            "gear_ids": {
+              "head": "gear_abyssal_crown_epic",
+              "weapon": "gear_marine_halberd_epic",
+              "chest": "gear_bylgjas_armor_epic",
+              "boots": "gear_tsunami_plated_boots_epic"
+            },
             "skill_overrides": {
               "mount_ragebeast_soul": {
                 "config": {
@@ -87,12 +93,6 @@
                   }
                 }
               }
-            },
-            "gear_ids": {
-              "head": "gear_abyssal_crown_epic",
-              "weapon": "gear_marine_halberd_epic",
-              "chest": "gear_bylgjas_armor_epic",
-              "boots": "gear_tsunami_plated_boots_epic"
             }
           }
         ],
@@ -132,12 +132,18 @@
               "base_skill_indomitable_spirit"
             ],
             "plugin_skill_ids": [
-              "plugin_rapid_defense",
+              "plugin_shield_support",
               "plugin_divine_shield"
             ],
             "mount_skill_ids": [
               "mount_ragebeast_soul"
             ],
+            "gear_ids": {
+              "head": "gear_abyssal_crown_legendary",
+              "weapon": "gear_marine_halberd_legendary",
+              "chest": "gear_bylgjas_armor_legendary",
+              "boots": "gear_tsunami_plated_boots_legendary"
+            },
             "skill_overrides": {
               "mount_ragebeast_soul": {
                 "config": {
@@ -149,12 +155,6 @@
                   }
                 }
               }
-            },
-            "gear_ids": {
-              "head": "gear_abyssal_crown_legendary",
-              "weapon": "gear_marine_halberd_legendary",
-              "chest": "gear_bylgjas_armor_legendary",
-              "boots": "gear_tsunami_plated_boots_legendary"
             }
           },
           {
@@ -170,11 +170,17 @@
             ],
             "plugin_skill_ids": [
               "plugin_deadly_counterattack",
-              "plugin_hymn_of_life"
+              "plugin_lokis_trick"
             ],
             "mount_skill_ids": [
               "mount_impenetrable_scales"
             ],
+            "gear_ids": {
+              "head": "gear_abyssal_crown_legendary",
+              "weapon": "gear_marine_halberd_legendary",
+              "chest": "gear_bylgjas_armor_legendary",
+              "boots": "gear_tsunami_plated_boots_legendary"
+            },
             "skill_overrides": {
               "mount_impenetrable_scales": {
                 "sub_effects": {
@@ -190,12 +196,6 @@
                   }
                 }
               }
-            },
-            "gear_ids": {
-              "head": "gear_abyssal_crown_legendary",
-              "weapon": "gear_marine_halberd_legendary",
-              "chest": "gear_bylgjas_armor_legendary",
-              "boots": "gear_tsunami_plated_boots_legendary"
             }
           }
         ],
@@ -204,13 +204,13 @@
       }
     },
     {
-      "army_name": "Bjorn/Hobert",
+      "army_name": "Harald/Hobert2",
       "team": "team1",
       "column": 1,
       "row": 1,
       "speed": 50.0,
       "config": {
-        "army_name": "Bjorn/Hobert",
+        "army_name": "Harald/Hobert2",
         "unit_type": "infantry",
         "tier": 5,
         "count": 150000,
@@ -224,19 +224,19 @@
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
           {
-            "hero_name_or_preset": "Bjorn",
+            "hero_name_or_preset": "Harald",
             "talent_ids": [
-              "talent_trained_up",
-              "talent_undefeated",
-              "talent_fatal_bleeding"
+              "talent_battle_preparation",
+              "talent_coordinated_strike",
+              "talent_slow_strike"
             ],
             "base_skill_ids": [
-              "base_skill_crippling_pursuit",
-              "base_skill_lethal_fracture"
+              "base_skill_fleet_raider",
+              "base_skill_raging_smash"
             ],
             "plugin_skill_ids": [
-              "plugin_odins_asylum",
-              "plugin_first_strike"
+              "plugin_bloodstained_icefield",
+              "plugin_silencer"
             ],
             "mount_skill_ids": [
               "mount_razor_sharp_spikes"
@@ -246,6 +246,20 @@
               "weapon": "gear_immolated_axe_epic",
               "chest": "gear_inferno_armor_epic",
               "boots": "gear_ferocious_boots_epic"
+            },
+            "skill_overrides": {
+              "mount_razor_sharp_spikes": {
+                "effects_to_apply": {
+                  "0": {
+                    "magnitude": 0.197
+                  }
+                },
+                "passive_effects": {
+                  "0": {
+                    "magnitude": 0.0
+                  }
+                }
+              }
             }
           },
           {
@@ -260,12 +274,18 @@
               "base_skill_brutal_blow"
             ],
             "plugin_skill_ids": [
-              "plugin_breaking_free",
-              "plugin_enchanted_pursuit"
+              "plugin_thors_determination",
+              "plugin_blow_of_chaos"
             ],
             "mount_skill_ids": [
               "mount_bloodthirst_gaze"
             ],
+            "gear_ids": {
+              "head": "gear_blazing_helmet_epic",
+              "weapon": "gear_immolated_axe_epic",
+              "chest": "gear_inferno_armor_epic",
+              "boots": "gear_ferocious_boots_epic"
+            },
             "skill_overrides": {
               "mount_bloodthirst_gaze": {
                 "config": {
@@ -277,12 +297,6 @@
                   }
                 }
               }
-            },
-            "gear_ids": {
-              "head": "gear_blazing_helmet_epic",
-              "weapon": "gear_immolated_axe_epic",
-              "chest": "gear_inferno_armor_epic",
-              "boots": "gear_ferocious_boots_epic"
             }
           }
         ],
@@ -323,11 +337,17 @@
             ],
             "plugin_skill_ids": [
               "plugin_trap_of_despair",
-              "plugin_enrage"
+              "plugin_odins_asylum"
             ],
             "mount_skill_ids": [
               "mount_bloodthirst_gaze"
             ],
+            "gear_ids": {
+              "head": "gear_blazing_helmet_legendary",
+              "weapon": "gear_immolated_axe_legendary",
+              "chest": "gear_inferno_armor_legendary",
+              "boots": "gear_ferocious_boots_legendary"
+            },
             "skill_overrides": {
               "mount_bloodthirst_gaze": {
                 "config": {
@@ -339,12 +359,6 @@
                   }
                 }
               }
-            },
-            "gear_ids": {
-              "head": "gear_blazing_helmet_legendary",
-              "weapon": "gear_immolated_axe_legendary",
-              "chest": "gear_inferno_armor_legendary",
-              "boots": "gear_ferocious_boots_legendary"
             }
           },
           {
@@ -359,12 +373,18 @@
               "rage_skill_showdown"
             ],
             "plugin_skill_ids": [
-              "plugin_blessed_negation",
-              "plugin_silent_invasion"
+              "plugin_first_strike",
+              "plugin_enrage"
             ],
             "mount_skill_ids": [
               "mount_soul_of_fury"
             ],
+            "gear_ids": {
+              "head": "gear_blazing_helmet_legendary",
+              "weapon": "gear_immolated_axe_legendary",
+              "chest": "gear_inferno_armor_legendary",
+              "boots": "gear_ferocious_boots_legendary"
+            },
             "skill_overrides": {
               "mount_soul_of_fury": {
                 "config": {
@@ -376,12 +396,6 @@
                   }
                 }
               }
-            },
-            "gear_ids": {
-              "head": "gear_blazing_helmet_legendary",
-              "weapon": "gear_immolated_axe_legendary",
-              "chest": "gear_inferno_armor_legendary",
-              "boots": "gear_ferocious_boots_legendary"
             }
           }
         ],
@@ -390,13 +404,13 @@
       }
     },
     {
-      "army_name": "Yulmi/Leandra2",
+      "army_name": "Leandra/Yulmi2",
       "team": "team1",
       "column": 3,
       "row": 1,
       "speed": 50.0,
       "config": {
-        "army_name": "Yulmi/Leandra2",
+        "army_name": "Leandra/Yulmi2",
         "unit_type": "archers",
         "tier": 5,
         "count": 150000,
@@ -410,43 +424,6 @@
         "use_dynamic_unrevivable_ratio": true,
         "heroes": [
           {
-            "hero_name_or_preset": "Yulmi",
-            "talent_ids": [
-              "talent_dreadful_curse",
-              "talent_high_fighting_spirit",
-              "talent_low_whispers"
-            ],
-            "base_skill_ids": [
-              "base_skill_plague",
-              "rage_skill_undead_harvest"
-            ],
-            "plugin_skill_ids": [
-              "plugin_helas_curse",
-              "plugin_poison_arrow"
-            ],
-            "mount_skill_ids": [
-              "mount_pain_n_fury"
-            ],
-            "gear_ids": {
-              "head": "gear_divine_crown_epic",
-              "weapon": "gear_gleaming_longbow_epic",
-              "chest": "gear_verdant_armor_epic",
-              "boots": "gear_thicket_boots_legendary"
-            },
-            "skill_overrides": {
-              "mount_pain_n_fury": {
-                "config": {
-                  "rage_gain": 82.0
-                },
-                "passive_effects": {
-                  "0": {
-                    "magnitude": 0.0
-                  }
-                }
-              }
-            }
-          },
-          {
             "hero_name_or_preset": "Leandra",
             "talent_ids": [
               "talent_soul_awakening",
@@ -458,18 +435,12 @@
               "base_skill_serrated_flourish"
             ],
             "plugin_skill_ids": [
-              "plugin_this_too_shall_pass",
-              "plugin_bone_corroding_arrow"
+              "plugin_blessed_negation",
+              "plugin_poison_arrow"
             ],
             "mount_skill_ids": [
               "mount_pain_n_fury"
             ],
-            "gear_ids": {
-              "head": "gear_divine_crown_epic",
-              "weapon": "gear_gleaming_longbow_epic",
-              "chest": "gear_verdant_armor_legendary",
-              "boots": "gear_thicket_boots_legendary"
-            },
             "skill_overrides": {
               "mount_pain_n_fury": {
                 "config": {
@@ -481,6 +452,49 @@
                   }
                 }
               }
+            },
+            "gear_ids": {
+              "head": "gear_divine_crown_epic",
+              "weapon": "gear_gleaming_longbow_epic",
+              "chest": "gear_verdant_armor_epic",
+              "boots": "gear_thicket_boots_legendary"
+            }
+          },
+          {
+            "hero_name_or_preset": "Yulmi",
+            "talent_ids": [
+              "talent_dreadful_curse",
+              "talent_high_fighting_spirit",
+              "talent_low_whispers"
+            ],
+            "base_skill_ids": [
+              "base_skill_plague",
+              "rage_skill_undead_harvest"
+            ],
+            "plugin_skill_ids": [
+              "plugin_this_too_shall_pass",
+              "plugin_fiery_detonation"
+            ],
+            "mount_skill_ids": [
+              "mount_pain_n_fury"
+            ],
+            "skill_overrides": {
+              "mount_pain_n_fury": {
+                "config": {
+                  "rage_gain": 82.0
+                },
+                "passive_effects": {
+                  "0": {
+                    "magnitude": 0.0
+                  }
+                }
+              }
+            },
+            "gear_ids": {
+              "head": "gear_divine_crown_epic",
+              "weapon": "gear_gleaming_longbow_epic",
+              "chest": "gear_verdant_armor_legendary",
+              "boots": "gear_thicket_boots_legendary"
             }
           }
         ],

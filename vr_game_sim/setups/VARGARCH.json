@@ -4,7 +4,7 @@
     {
       "army_name": "Yvette/Helgar2",
       "team": "team1",
-      "column": 2,
+      "column": 1,
       "row": 0,
       "speed": 50.0,
       "config": {
@@ -103,7 +103,7 @@
     {
       "army_name": "Rolfe/Rosky2",
       "team": "team1",
-      "column": 3,
+      "column": 2,
       "row": 0,
       "speed": 50.0,
       "config": {
@@ -206,7 +206,7 @@
     {
       "army_name": "Bjorn/Hobert",
       "team": "team1",
-      "column": 1,
+      "column": 0,
       "row": 1,
       "speed": 50.0,
       "config": {
@@ -293,7 +293,7 @@
     {
       "army_name": "Margit/Lagertha2",
       "team": "team1",
-      "column": 2,
+      "column": 1,
       "row": 1,
       "speed": 50.0,
       "config": {
@@ -392,7 +392,7 @@
     {
       "army_name": "Yulmi/Leandra2",
       "team": "team1",
-      "column": 3,
+      "column": 2,
       "row": 1,
       "speed": 50.0,
       "config": {

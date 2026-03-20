@@ -364,6 +364,50 @@ class ArenaEngine(BattlefieldEngine):
         if mode == "legacy":
             # Temporarily boost speed for armies that must travel diagonally or
             # from the back row so engagements start at predictable times.
+            def _legacy_back_row_speed_to_defender(
+                sx: float,
+                sy: float,
+                tx: float,
+                ty: float,
+                defender_base: float,
+            ) -> float:
+                # Same geometry as legacy back-row closure toward a defender; pace
+                # is caller-chosen (4 s window for back→front).
+                dx, dy = tx - sx, ty - sy
+                mv = 2 * defender_base
+                dist_vec = hypot(dx, dy)
+                if dist_vec > 1e-6:
+                    dx -= mv * dx / dist_vec
+                    dy -= mv * dy / dist_vec
+                required_dist = hypot(dx, dy) - ENGAGEMENT_DISTANCE
+                # Fudge 3.95 vs 4 s for discrete steps (back→front only).
+                return required_dist / 3.95
+
+            back_to_front_speeds: List[float] = []
+            for entry in entries:
+                ctx = self._armies[entry["army"].name]
+                target_name = ctx.direct_target
+                if target_name is None:
+                    continue
+                tgt_ctx = self._armies.get(target_name)
+                if tgt_ctx is None:
+                    continue
+                if entry.get("row") != 1 or row_map.get(target_name) != 0:
+                    continue
+                sx, sy = ctx.position
+                tx, ty = tgt_ctx.position
+                back_to_front_speeds.append(
+                    _legacy_back_row_speed_to_defender(
+                        sx, sy, tx, ty, tgt_ctx.base_speed
+                    )
+                )
+
+            nominal_back_row_speed = (
+                sum(back_to_front_speeds) / len(back_to_front_speeds)
+                if back_to_front_speeds
+                else self.default_speed
+            )
+
             for entry in entries:
                 army = entry["army"]
                 ctx = self._armies[army.name]
@@ -379,26 +423,19 @@ class ArenaEngine(BattlefieldEngine):
                 attacker_row = entry.get("row")
                 target_row = row_map.get(target_name)
                 if attacker_row == 1 and target_row == 0:
-                    # Back row moving to a front defender – boost to engage in ~4 s.
-                    # Use the defender's base speed for a theoretical forward
-                    # advance.  ``tgt_ctx.speed`` may have been temporarily
-                    # increased by another attacker which would otherwise reduce
-                    # the calculated requirement here and make diagonal back row
-                    # arrivals miss the 4 s window.
-                    dx = tx - sx
-                    dy = ty - sy
-                    mv = 2 * tgt_ctx.base_speed
-                    dist_vec = hypot(dx, dy)
-                    if dist_vec > 1e-6:
-                        dx -= mv * dx / dist_vec
-                        dy -= mv * dy / dist_vec
-                    required_dist = hypot(dx, dy) - ENGAGEMENT_DISTANCE
-                    # Apply a small fudge factor (3.95 instead of 4) so the
-                    # engagement completes before the 4 s mark even with discrete
-                    # simulation steps.
-                    needed_speed = required_dist / 3.95
+                    # Back row vs front – boost to engage in ~4 s.  Uses the
+                    # defender's base speed for a theoretical forward advance.
+                    needed_speed = _legacy_back_row_speed_to_defender(
+                        sx, sy, tx, ty, tgt_ctx.base_speed
+                    )
                     if needed_speed > ctx.base_speed:
                         ctx.speed = needed_speed
+                elif attacker_row == 1 and target_row == 1:
+                    # Back vs back: match the general back→front march rate (mean
+                    # across lanes) so peers no longer crawl, but do not scale
+                    # speed up to close in ~4 s—longer separation ⇒ longer time.
+                    if nominal_back_row_speed > ctx.base_speed:
+                        ctx.speed = nominal_back_row_speed
                 elif abs(sy - ty) > 1e-6:
                     # Diagonal engagement – ensure it completes in ~2 s.
                     # Diagonal attackers previously reached their target a full

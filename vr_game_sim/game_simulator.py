@@ -1851,7 +1851,10 @@ class GameSimulator:
             }
             if (
                 self.mode in ("arena", "battlefield")
-                and skill_def.get("id") == "base_skill_indomitable_spirit"
+                and skill_def.get("id") in (
+                    "base_skill_indomitable_spirit",
+                    "rage_skill_frostblade",
+                )
                 and "additional_targets" not in handler_event_data
             ):
                 engine = getattr(self, "parent_engine", None)

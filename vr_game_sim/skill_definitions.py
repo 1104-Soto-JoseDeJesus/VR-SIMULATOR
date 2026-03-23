@@ -1575,9 +1575,10 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_base_skill_curse_of_the_frost,
         "labels": [PluginSkillLabel.COOPERATION],
-        "effects_to_apply": [{
+        "passive_effects": [{
             "effect_type": EffectType.STAT_MOD, "name": "Curse of the Frost Counter Reduction",
             "stat_to_mod": StatType.COUNTER_DAMAGE_ADJUST, "magnitude": -0.15, "duration": -1,
+            "config": {"is_dispellable": False},
         }],
         "config": {"damage_factor": 600.0, "damage_factor_slow": 900.0,
                    "shield_factor": 500.0, "shield_duration": 1},
@@ -1595,9 +1596,10 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 1.0, "target": "ENEMY",
         "logic_handler": handle_talent_raven_feather_blade,
         "labels": [PluginSkillLabel.COOPERATION],
-        "effects_to_apply": [{
+        "passive_effects": [{
             "effect_type": EffectType.STAT_MOD, "name": "Raven Feather Blade Basic Boost",
             "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST, "magnitude": 0.30, "duration": -1,
+            "config": {"is_dispellable": False},
         }],
         "config": {"heal_chance": 0.25, "heal_factor": 250.0},
     },

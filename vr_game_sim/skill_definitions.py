@@ -302,7 +302,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "talent_massive_shield", "name": "Massive Shield", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
         "effects_to_apply": [{"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_MASSIVE_SHIELD_BOOST,
-                              "stat_to_mod": StatType.SHIELD_STRENGTH_MODIFIER, "magnitude": 0.15,
+                              "stat_to_mod": StatType.SHIELD_STRENGTH_MODIFIER, "magnitude": 0.20,
                               "duration": -1, "activate_next_round": False}]
     },
     "talent_bold_charge": {
@@ -310,14 +310,14 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.ON_COUNTER_ATTACK, "trigger_chance": 0.20, "target": "ENEMY",
         "logic_handler": handle_generic_single_damage_skill,
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"damage_factor": 250.0}
+        "config": {"damage_factor": 500.0}
     },
     "talent_specialized_attack": {
         "id": "talent_specialized_attack", "name": "Specialized Attack", "type": SkillType.TALENT,
         "trigger": SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE, "trigger_chance": 0.50, "target": "ENEMY",
         "logic_handler": handle_generic_single_damage_skill,
         "labels": [PluginSkillLabel.REACTIVE],
-        "config": {"damage_factor": 1250.0}
+        "config": {"damage_factor": 1500.0}
     },
     "talent_power_of_silence": {
         "id": "talent_power_of_silence", "name": "Power of Silence", "type": SkillType.TALENT,
@@ -428,7 +428,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
         "effects_to_apply": [
             {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_SCORCHING_ARROW_BURN_BOOST,
-             "stat_to_mod": StatType.BURN_DAMAGE_BOOST, "magnitude": 0.15, "duration": -1}
+             "stat_to_mod": StatType.BURN_DAMAGE_BOOST, "magnitude": 0.20, "duration": -1}
         ]
     },
     "talent_multi_shot_arrow": {
@@ -436,7 +436,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE, "trigger_chance": 0.50, "target": "ENEMY",
         "logic_handler": handle_talent_multi_shot_arrow, # Uses generic damage, but specific handler for clarity
         "labels": [PluginSkillLabel.COMMAND],
-        "config": {"damage_factor": 750.0}
+        "config": {"damage_factor": 1000}
     },
     "talent_poised_shot": {
         "id": "talent_poised_shot", "name": "Poised Shot", "type": SkillType.TALENT,
@@ -444,7 +444,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_talent_poised_shot,
         "labels": [PluginSkillLabel.COOPERATION],
         "config": {
-            "damage_factor": 575.0,
+            "damage_factor": 700.0,
             "rage_reduction_chance": 0.15,
             "rage_reduction_amount": 150
         }
@@ -661,13 +661,13 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "id": "base_skill_ready_to_pounce", "name": "Ready to Pounce", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE, "trigger_chance": 1.0, "target": "SELF",
         "logic_handler": handle_base_skill_ready_to_pounce,
-        "config": {"buff_magnitude": 1.0, "buff_duration": 1}
+        "config": {"buff_magnitude": 1.25, "buff_duration": 1}
     },
     "base_skill_paralyzing_terror": {
         "id": "base_skill_paralyzing_terror", "name": "Paralyzing Terror", "type": SkillType.BASE_SKILL,
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
         "logic_handler": handle_rage_skill_paralyzing_terror,
-        "config": {"damage_factor": 450.0, "shield_factor": 700.0, "shield_duration": 2}
+        "config": {"damage_factor": 600.0, "shield_factor": 800.0, "shield_duration": 2}
     },
     "base_skill_threatening_blade": {
         "id": "base_skill_threatening_blade", "name": "Threatening Blade", "type": SkillType.BASE_SKILL,
@@ -852,7 +852,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "logic_handler": handle_base_skill_enchanted_arrow,
         "labels": [PluginSkillLabel.COMMAND],
         "config": {
-            "burn_factor": 600.0,
+            "burn_factor": 750.0,
             "burn_duration": 1 # For 2 active rounds (applied next round)
         }
     },
@@ -861,7 +861,7 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
         "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY", # Damage ENEMY, rage gain SELF
         "logic_handler": handle_rage_concentration,
         "config": {
-            "damage_factor": 1250.0,
+            "damage_factor": 1500.0,
             "base_rage_gain": 100,      # Rage gained in N+1 and N+2
             "bonus_rage_if_burning": 200, # Additional rage in N+1 if enemy burning at cast
             "rage_gain_duration": 1      # Custom effect lasts for 2 processing ticks (N+1, N+2)

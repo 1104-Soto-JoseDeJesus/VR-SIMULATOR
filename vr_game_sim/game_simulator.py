@@ -46,6 +46,7 @@ RAGE_SKILL_INTERNAL_THRESHOLD_OFFSET = 50
 # Skills that trigger on active skill casts but have a 1 trigger per 9 rounds limit instead of 2
 ACTIVE_CAST_ONE_TRIGGER_SKILLS = {
     "talent_excite",
+    "talent_mad_arsonist",
     "talent_revolutionary_resolve",
     "base_skill_enchanted_arrow",
     "plugin_joint_offense",

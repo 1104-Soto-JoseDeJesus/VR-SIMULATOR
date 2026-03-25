@@ -1725,6 +1725,51 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
                    "hot_factor": 400.0, "hot_duration": 1},
     },
 
+    # --- Cecia Skills ---
+    "talent_death_fight": {
+        "id": "talent_death_fight", "name": "Death Fight", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
+        "effects_to_apply": [{
+            "effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_DEATH_FIGHT_BASIC_BOOST,
+            "stat_to_mod": StatType.BASIC_DAMAGE_ADJUST, "magnitude": 0.25, "duration": -1,
+        }],
+    },
+    "talent_mad_arsonist": {
+        "id": "talent_mad_arsonist", "name": "Mad Arsonist", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_OWN_RAGE_SKILL_CAST, "trigger_chance": 0.50, "target": "ENEMY",
+        "logic_handler": handle_generic_single_damage_skill,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"damage_factor": 1000.0},
+    },
+    "talent_power_war_axe": {
+        "id": "talent_power_war_axe", "name": "Power War Axe", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_BASIC_ATTACK, "trigger_chance": 0.15, "target": "ENEMY",
+        "logic_handler": handle_generic_single_damage_skill,
+        "labels": [PluginSkillLabel.COOPERATION],
+        "config": {"damage_factor": 1000.0},
+    },
+    "base_skill_all_in": {
+        "id": "base_skill_all_in", "name": "All In", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
+        "effects_to_apply": [
+            {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_ALL_IN_DEFENSE_MOD,
+             "stat_to_mod": StatType.BASE_DEFENSE_MULTIPLIER, "magnitude": -0.10, "duration": -1},
+            {"effect_type": EffectType.STAT_MOD, "name": EFFECT_NAME_ALL_IN_ATTACK_MOD,
+             "stat_to_mod": StatType.BASE_ATTACK_MULTIPLIER, "magnitude": 0.60, "duration": -1},
+        ],
+    },
+    "base_skill_fight_for_life": {
+        "id": "base_skill_fight_for_life", "name": "Fight for Life", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_generic_damage_rage_skill,
+        "config": {
+            "damage_factor": 1600.0,
+            "enemy_basic_vulnerability_magnitude": 0.50,
+            "enemy_basic_vulnerability_duration": 2,
+            "enemy_basic_vulnerability_effect_name": EFFECT_NAME_FIGHT_FOR_LIFE_BASIC_VULN,
+        },
+    },
+
 
     # --- Plugin Skills ---
     # ... (All existing plugin skills) ...

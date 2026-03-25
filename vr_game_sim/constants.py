@@ -254,6 +254,11 @@ EFFECT_NAME_GODLY_WRATH_COOP_RATE = "Godly Wrath Cooperation Boost"
 EFFECT_NAME_DIVINE_ENERGIZE_VULNERABILITY = "Divine Energize Vulnerability"
 EFFECT_NAME_HEAVENLY_DESCENT_BLEED = "Heavenly Descent Bleed"
 EFFECT_NAME_DIVINE_PUNISHMENT_BASIC_BUFF = "Divine Punishment Attack Buff"
+# --- Cecia Skill Effect Names ---
+EFFECT_NAME_DEATH_FIGHT_BASIC_BOOST = "Death Fight Basic Damage Boost"
+EFFECT_NAME_ALL_IN_DEFENSE_MOD = "All In Defense Mod"
+EFFECT_NAME_ALL_IN_ATTACK_MOD = "All In Attack Mod"
+EFFECT_NAME_FIGHT_FOR_LIFE_BASIC_VULN = "Fight for Life Basic Damage Taken Debuff"
 # --- Rollo Skill Effect Names ---
 EFFECT_NAME_PATIENT_WAITING_BUFF = "Patient and Waiting Attack Buff"
 EFFECT_NAME_TOUGH_CHOICE_BASIC_BUFF = "Tough Choice Basic Damage Buff"

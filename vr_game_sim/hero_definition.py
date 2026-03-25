@@ -304,4 +304,9 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_boiling_fighting_spirit", "rage_skill_shatter"],
         'plugin_skills': [],
     },
+    'cecia': {
+        'talents': ["talent_death_fight", "talent_mad_arsonist", "talent_power_war_axe"],
+        'base_skills': ["base_skill_all_in", "base_skill_fight_for_life"],
+        'plugin_skills': [],
+    },
 }

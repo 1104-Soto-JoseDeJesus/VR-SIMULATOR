@@ -257,6 +257,39 @@ def handle_generic_damage_rage_skill(army: ArmyRef, opp: ArmyRef, sk_def: SkillD
             dmg_dealt_flag = True
         logs.append((f"Deals damage to {opp.name}.",
                      {"damage_done_hp": round(raw_log_dmg), "absorbed_hp": round(absrb), "potential_kills": kills, "calculation_steps": calc_steps}))
+    vul_mag = sk_cfg.get("enemy_basic_vulnerability_magnitude", 0.0) or 0.0
+    vul_dur = sk_cfg.get("enemy_basic_vulnerability_duration")
+    vul_name = sk_cfg.get(
+        "enemy_basic_vulnerability_effect_name", EFFECT_NAME_DIVINE_ENERGIZE_VULNERABILITY
+    )
+    if vul_mag != 0 and vul_dur is not None:
+        try:
+            vul_dur_int = int(vul_dur)
+        except (TypeError, ValueError):
+            vul_dur_int = 0
+        if vul_dur_int >= 0:
+            sk_id = sk_def["id"]
+            debuff_data = {
+                "effect_type": EffectType.STAT_MOD,
+                "name": vul_name,
+                "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+                "magnitude": float(vul_mag),
+                "duration": vul_dur_int,
+                "activate_next_round": True,
+                "config_filter": {"attack_type": "BASIC"},
+            }
+            created = opp._create_and_add_single_effect(
+                debuff_data, sk_id, army, opp, army
+            )
+            if created:
+                eff_hpnd = True
+                logs.append(
+                    (
+                        f"Inflicts vulnerability: {created.get_functionality_description()} on {opp.name} "
+                        f"for {vul_dur_int + 1} rounds (starting next round).",
+                        None,
+                    )
+                )
     return eff_hpnd, logs, dmg_dealt_flag
 
 

@@ -236,6 +236,7 @@ class GameSimulator:
         advantage_mode: str = "multiplicative",
         per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
         fairness_rage_enabled: bool = True,
+        fdc_dummy_counter_only: bool = False,
     ):
         self.army1: Army = army1
         self.army2: Army = army2
@@ -271,6 +272,7 @@ class GameSimulator:
             interval_active_cast_cooldowns_enabled
         )
         self.fairness_rage_enabled: bool = bool(fairness_rage_enabled)
+        self.fdc_dummy_counter_only: bool = bool(fdc_dummy_counter_only)
         self.round_combat_actions_log: List[Dict[str, Any]] = []
         self.round_skill_triggers_log: Dict[str, List[Dict[str, Any]]] = {
             self.army1.name: [], self.army2.name: []
@@ -481,6 +483,13 @@ class GameSimulator:
 
         calc_target = target_army
         apply_target = damage_application_target or target_army
+
+        if (
+            self.fdc_dummy_counter_only
+            and source_army is self.army2
+            and apply_target is self.army1
+        ):
+            return 0.0, 0.0, 0, 0.0, []
 
         evasion_effect = None
         calc_steps: list[dict[str, Any]] = []
@@ -953,6 +962,13 @@ class GameSimulator:
         """Apply retribution damage from defender back to attacker if applicable."""
 
         if damage_taken <= 0 or attacker.current_troop_count <= 0:
+            return
+
+        if (
+            self.fdc_dummy_counter_only
+            and attacker is self.army1
+            and defender is self.army2
+        ):
             return
 
         retribution_effects = [
@@ -1977,6 +1993,14 @@ class GameSimulator:
     def _calculate_and_log_attack(self, att: Army, dfd: Army, is_counter: bool) -> Tuple[float, float, float, int]:
         if att.current_troop_count <= 0: return 0.0, 0.0, 0.0, 0
 
+        if (
+            self.fdc_dummy_counter_only
+            and att is self.army2
+            and dfd is self.army1
+            and not is_counter
+        ):
+            return 0.0, 0.0, 0.0, 0
+
         prevent_config_key = "prevents_counterattack" if is_counter else "prevents_basic_attack"
         prevent_effect_name = EFFECT_NAME_BROKEN_BLADE_DEBUFF if is_counter else EFFECT_NAME_DISARM_DEBUFF
         action_name_log = "counter-attack" if is_counter else "basic attack"
@@ -2196,7 +2220,9 @@ class GameSimulator:
                 )
 
         if hp_damage_to_troops > 0:
-            dfd.pending_hp_damage_this_round += hp_damage_to_troops
+            dfd.receive_pending_hp_damage(
+                hp_damage_to_troops, att, from_counter_attack=is_counter
+            )
 
         defender_hp_per_troop = dfd.unit.effective_hp_per_troop(dfd.active_effects)
         if defender_hp_per_troop <= 0: defender_hp_per_troop = 1

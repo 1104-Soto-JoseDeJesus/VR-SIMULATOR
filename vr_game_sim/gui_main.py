@@ -55,6 +55,8 @@ from vr_game_sim.main import (
     HISTOGRAM_BG_COLOR,
     HISTOGRAM_TEXT_COLOR,
     SeedTarget,
+    _run_fdc_pair,
+    _run_fdc_pair_metrics,
 )
 from vr_game_sim import (
     dynamic_unrevivable_config,
@@ -6089,6 +6091,199 @@ def _simulate_arena_battle(
     return winner, remaining, summary, timed_out, heavily_wounded_data
 
 
+class FdcWorker(QtCore.QThread):
+    """Run Field Damage Comparison duels (one fresh dummy per attacker)."""
+
+    progress_update = QtCore.pyqtSignal(int, int)
+    finished_summaries = QtCore.pyqtSignal(list)
+    finished_batch_stats = QtCore.pyqtSignal(dict)
+    error = QtCore.pyqtSignal(str)
+
+    def __init__(
+        self,
+        pairs: list[tuple[int, dict[str, Any]]],
+        dummy_cfg: dict[str, Any],
+        *,
+        max_rounds: int | None,
+        shared_seed: bool,
+        base_seed: int | None,
+        batch_runs: int = 1,
+        dynamic_settings: dict[str, float] | None,
+        troop_scalar_multiplier: float | None,
+        cooldowns_enabled: bool = True,
+        hero_cooldowns_enabled: bool = True,
+        plugin_cooldowns_enabled: bool = True,
+        gem_cooldowns_enabled: bool = True,
+        mount_cooldowns_enabled: bool = True,
+        damage_reduction_affects_dots: bool = True,
+        multi_heal_trig_enabled: bool = False,
+        interval_active_cast_cooldowns_enabled: bool = True,
+        fairness_rage_enabled: bool = True,
+        advantage_mode: str = "multiplicative",
+        per_skill_cooldown_overrides: dict[str, bool] | None = None,
+        fdc_dummy_counter_only: bool = False,
+    ) -> None:
+        super().__init__()
+        self.pairs = pairs
+        self.dummy_cfg = dummy_cfg
+        self.max_rounds = max_rounds
+        self.shared_seed = shared_seed
+        self.base_seed = base_seed if base_seed is not None else random.randrange(1 << 30)
+        self.dynamic_settings = dict(dynamic_settings) if dynamic_settings else None
+        self.troop_scalar_multiplier = troop_scalar_multiplier
+        self.cooldowns_enabled = cooldowns_enabled
+        self.hero_cooldowns_enabled = hero_cooldowns_enabled
+        self.plugin_cooldowns_enabled = plugin_cooldowns_enabled
+        self.gem_cooldowns_enabled = gem_cooldowns_enabled
+        self.mount_cooldowns_enabled = mount_cooldowns_enabled
+        self.damage_reduction_affects_dots = damage_reduction_affects_dots
+        self.multi_heal_trig_enabled = multi_heal_trig_enabled
+        self.interval_active_cast_cooldowns_enabled = interval_active_cast_cooldowns_enabled
+        self.fairness_rage_enabled = fairness_rage_enabled
+        self.advantage_mode = advantage_mode
+        self.per_skill_cooldown_overrides = dict(per_skill_cooldown_overrides or {})
+        self.fdc_dummy_counter_only = bool(fdc_dummy_counter_only)
+        self.batch_runs = max(1, int(batch_runs))
+        self._cancelled = threading.Event()
+
+    def cancel(self) -> None:
+        self._cancelled.set()
+
+    def run(self) -> None:
+        try:
+            if self.dynamic_settings is not None:
+                dynamic_unrevivable_config.apply_session_settings(self.dynamic_settings)
+
+            mult = (
+                troop_scalar_config.get_multiplier()
+                if self.troop_scalar_multiplier is None
+                else float(self.troop_scalar_multiplier)
+            )
+            troop_scalar_config.set_session_multiplier(mult)
+
+            total_pairs = len(self.pairs)
+            if self.batch_runs <= 1:
+                flat: list[dict[str, Any]] = []
+                for i, (slot_index, attacker_cfg) in enumerate(self.pairs):
+                    if self._cancelled.is_set():
+                        raise RuntimeError("cancelled")
+                    seed: int | None
+                    if self.shared_seed:
+                        seed = int(self.base_seed)
+                    else:
+                        seed = random.randrange(1 << 30)
+                    red_s, blue_s = _run_fdc_pair(
+                        attacker_cfg,
+                        self.dummy_cfg,
+                        slot_index=slot_index,
+                        seed=seed,
+                        max_rounds=self.max_rounds,
+                        cooldowns_enabled=self.cooldowns_enabled,
+                        hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+                        plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+                        gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+                        mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+                        damage_reduction_affects_dots=self.damage_reduction_affects_dots,
+                        multi_heal_trig_enabled=self.multi_heal_trig_enabled,
+                        interval_active_cast_cooldowns_enabled=self.interval_active_cast_cooldowns_enabled,
+                        fairness_rage_enabled=self.fairness_rage_enabled,
+                        advantage_mode=self.advantage_mode,
+                        per_skill_cooldown_overrides=self.per_skill_cooldown_overrides,
+                        fdc_dummy_counter_only=self.fdc_dummy_counter_only,
+                    )
+                    flat.append(red_s)
+                    flat.append(blue_s)
+                    self.progress_update.emit(i + 1, total_pairs)
+
+                if self._cancelled.is_set():
+                    raise RuntimeError("cancelled")
+                self.finished_summaries.emit(flat)
+            else:
+                slots = [s for s, _ in self.pairs]
+                kill_wins = {s: 0 for s in slots}
+                hw_wins = {s: 0 for s in slots}
+                sum_kills = {s: 0.0 for s in slots}
+                sum_hw = {s: 0.0 for s in slots}
+                labels: dict[int, str] = {s: "" for s in slots}
+                total_prog = self.batch_runs * total_pairs
+                done = 0
+                for _br in range(self.batch_runs):
+                    if self._cancelled.is_set():
+                        raise RuntimeError("cancelled")
+                    iter_seed_shared = (
+                        random.randrange(1 << 30) if self.shared_seed else 0
+                    )
+                    iter_metrics: list[dict[str, Any]] = []
+                    for slot_index, attacker_cfg in self.pairs:
+                        if self._cancelled.is_set():
+                            raise RuntimeError("cancelled")
+                        seed: int | None
+                        if self.shared_seed:
+                            seed = iter_seed_shared
+                        else:
+                            seed = random.randrange(1 << 30)
+                        m = _run_fdc_pair_metrics(
+                            attacker_cfg,
+                            self.dummy_cfg,
+                            slot_index=slot_index,
+                            seed=seed,
+                            max_rounds=self.max_rounds,
+                            cooldowns_enabled=self.cooldowns_enabled,
+                            hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+                            plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+                            gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+                            mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+                            damage_reduction_affects_dots=self.damage_reduction_affects_dots,
+                            multi_heal_trig_enabled=self.multi_heal_trig_enabled,
+                            interval_active_cast_cooldowns_enabled=self.interval_active_cast_cooldowns_enabled,
+                            fairness_rage_enabled=self.fairness_rage_enabled,
+                            advantage_mode=self.advantage_mode,
+                            per_skill_cooldown_overrides=self.per_skill_cooldown_overrides,
+                            fdc_dummy_counter_only=self.fdc_dummy_counter_only,
+                        )
+                        iter_metrics.append(m)
+                        si = m["slot_index"]
+                        sum_kills[si] += float(m["kills"])
+                        sum_hw[si] += float(m["heavily_wounded_dealt"])
+                        labels[si] = str(m["label"])
+                        done += 1
+                        self.progress_update.emit(done, total_prog)
+
+                    max_k = max(m["kills"] for m in iter_metrics)
+                    for m in iter_metrics:
+                        if m["kills"] == max_k:
+                            kill_wins[m["slot_index"]] += 1
+                    max_h = max(m["heavily_wounded_dealt"] for m in iter_metrics)
+                    for m in iter_metrics:
+                        if m["heavily_wounded_dealt"] == max_h:
+                            hw_wins[m["slot_index"]] += 1
+
+                if self._cancelled.is_set():
+                    raise RuntimeError("cancelled")
+                br = float(self.batch_runs)
+                self.finished_batch_stats.emit(
+                    {
+                        "runs": self.batch_runs,
+                        "slots": slots,
+                        "labels": {s: labels.get(s, f"Attacker {s}") for s in slots},
+                        "kill_wins": kill_wins,
+                        "hw_wins": hw_wins,
+                        "avg_kills": {s: sum_kills[s] / br for s in slots},
+                        "avg_hw_dealt": {s: sum_hw[s] / br for s in slots},
+                    }
+                )
+        except RuntimeError as exc:
+            if str(exc) == "cancelled":
+                if self.batch_runs > 1:
+                    self.finished_batch_stats.emit({})
+                else:
+                    self.finished_summaries.emit([])
+            else:
+                self.error.emit(str(exc))
+        except Exception as exc:  # pragma: no cover - GUI safeguard
+            self.error.emit(str(exc))
+
+
 class SimulationWorker(QtCore.QThread):
     progress_update = QtCore.pyqtSignal(int, int)
     finished_text = QtCore.pyqtSignal(str, object, object)
@@ -8033,6 +8228,451 @@ class ArenaTab(QtWidgets.QWidget):
             self.view.sceneRect(), QtCore.Qt.AspectRatioMode.KeepAspectRatio
         )
 
+
+class FdcTab(QtWidgets.QWidget):
+    """Field Damage Comparison: up to five attackers vs separate dummy instances."""
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._fdc_worker: FdcWorker | None = None
+        outer = QtWidgets.QVBoxLayout(self)
+
+        controls = QtWidgets.QHBoxLayout()
+        self.run_btn = QtWidgets.QPushButton("Run FDC")
+        self.run_btn.clicked.connect(self._on_run_clicked)
+        controls.addWidget(self.run_btn)
+        self.max_rounds_checkbox = QtWidgets.QCheckBox("Stop at max rounds")
+        controls.addWidget(self.max_rounds_checkbox)
+        controls.addWidget(QtWidgets.QLabel("Max rounds:"))
+        self.max_rounds_spin = QtWidgets.QSpinBox()
+        self.max_rounds_spin.setRange(1, 10000)
+        self.max_rounds_spin.setValue(100)
+        controls.addWidget(self.max_rounds_spin)
+        self.shared_seed_checkbox = QtWidgets.QCheckBox("Same RNG seed for all duels")
+        self.shared_seed_checkbox.setChecked(True)
+        self.shared_seed_checkbox.setToolTip(
+            "When checked, every duel uses the same seed so random procs line up across attackers."
+        )
+        controls.addWidget(self.shared_seed_checkbox)
+        controls.addStretch()
+        outer.addLayout(controls)
+
+        preset_row = QtWidgets.QHBoxLayout()
+        self.fdc_save_preset_btn = QtWidgets.QPushButton("Save FDC preset…")
+        self.fdc_save_preset_btn.clicked.connect(self._fdc_save_preset)
+        preset_row.addWidget(self.fdc_save_preset_btn)
+        self.fdc_load_preset_btn = QtWidgets.QPushButton("Load FDC preset…")
+        self.fdc_load_preset_btn.clicked.connect(self._fdc_load_preset)
+        preset_row.addWidget(self.fdc_load_preset_btn)
+        self.batch_runs_checkbox = QtWidgets.QCheckBox("Batch runs")
+        self.batch_runs_checkbox.setToolTip(
+            "Run multiple independent passes; results show kill/HW-dealt contest wins and averages (no skill breakdown)."
+        )
+        preset_row.addWidget(self.batch_runs_checkbox)
+        preset_row.addWidget(QtWidgets.QLabel("Runs:"))
+        self.batch_runs_spin = QtWidgets.QSpinBox()
+        self.batch_runs_spin.setRange(2, 50_000)
+        self.batch_runs_spin.setValue(100)
+        self.batch_runs_spin.setEnabled(False)
+        self.batch_runs_checkbox.toggled.connect(self.batch_runs_spin.setEnabled)
+        preset_row.addWidget(self.batch_runs_spin)
+        preset_row.addStretch()
+        outer.addLayout(preset_row)
+
+        self._fdc_preset_dir = os.path.join(
+            os.path.dirname(__file__), "setups", "fdc"
+        )
+
+        hint = QtWidgets.QLabel(
+            "Each enabled attacker fights its own copy of the damage dummy (not a shared pool). "
+            "Cooldown and simulator options follow the main window Debug menu."
+        )
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #bbbbbb;")
+        outer.addWidget(hint)
+
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
+        left_scroll = QtWidgets.QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_inner = QtWidgets.QWidget()
+        left_col = QtWidgets.QVBoxLayout(left_inner)
+
+        self.attacker_frames: list[ArmyFrame] = []
+        self.attacker_enable_checks: list[QtWidgets.QCheckBox] = []
+        for i in range(5):
+            slot = QtWidgets.QWidget()
+            slot_l = QtWidgets.QVBoxLayout(slot)
+            slot_l.setContentsMargins(0, 0, 0, 0)
+            if i == 0:
+                spacer = QtWidgets.QLabel("Attacker 1 (required)")
+                spacer.setStyleSheet("color: #aaaaaa;")
+                slot_l.addWidget(spacer)
+            else:
+                cb = QtWidgets.QCheckBox(f"Enable attacker {i + 1}")
+                cb.setChecked(False)
+                self.attacker_enable_checks.append(cb)
+                slot_l.addWidget(cb)
+            fr = ArmyFrame(i + 1)
+            fr.setTitle(f"Attacker {i + 1}")
+            self.attacker_frames.append(fr)
+            slot_l.addWidget(fr)
+            left_col.addWidget(slot)
+
+        left_col.addStretch()
+        left_scroll.setWidget(left_inner)
+
+        right_panel = QtWidgets.QWidget()
+        right_l = QtWidgets.QVBoxLayout(right_panel)
+        self.dummy_frame = ArmyFrame(6)
+        self.dummy_frame.setTitle("Damage dummy")
+        right_l.addWidget(self.dummy_frame)
+        self.ca_enable_checkbox = QtWidgets.QCheckBox("CA enable")
+        self.ca_enable_checkbox.setToolTip(
+            "When enabled, the damage dummy only applies counter-attack HP damage to attackers. "
+            "Its basic attacks, skills, talents, DoTs, and retribution to attackers are suppressed."
+        )
+        right_l.addWidget(self.ca_enable_checkbox)
+        right_l.addStretch()
+
+        splitter.addWidget(left_scroll)
+        splitter.addWidget(right_panel)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        outer.addWidget(splitter, stretch=1)
+
+        all_frames = self.attacker_frames + [self.dummy_frame]
+        for f in all_frames:
+            f.set_peer_frames([x for x in all_frames if x is not f])
+
+        def _gear_slot(frame: ArmyFrame) -> None:
+            def _go() -> None:
+                w = self.window()
+                if w is not None:
+                    w._open_gear_dialog(frame)
+
+            return _go
+
+        for fr in all_frames:
+            fr.gear_btn.clicked.connect(_gear_slot(fr))
+
+        self._fdc_results_title = QtWidgets.QLabel("Skill breakdown (per duel)")
+        self._fdc_results_title.setStyleSheet("font-weight: bold;")
+        outer.addWidget(self._fdc_results_title)
+        self._fdc_results_scroll = QtWidgets.QScrollArea()
+        self._fdc_results_scroll.setWidgetResizable(True)
+        self._fdc_results_scroll.setMinimumHeight(220)
+        placeholder = QtWidgets.QLabel("Run FDC to see results.")
+        placeholder.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self._fdc_results_scroll.setWidget(placeholder)
+        outer.addWidget(self._fdc_results_scroll)
+
+    def _on_run_clicked(self) -> None:
+        worker = self._fdc_worker
+        if worker is not None and worker.isRunning():
+            worker.cancel()
+            self.run_btn.setEnabled(False)
+            return
+
+        window = self.window()
+        if window is None:
+            return
+
+        pairs: list[tuple[int, dict[str, Any]]] = []
+        for i, fr in enumerate(self.attacker_frames):
+            if i > 0:
+                idx = i - 1
+                if idx < len(self.attacker_enable_checks) and not self.attacker_enable_checks[
+                    idx
+                ].isChecked():
+                    continue
+            cfg = fr.build_config()
+            pairs.append((i + 1, cfg))
+
+        if not pairs:
+            QtWidgets.QMessageBox.information(
+                self, "FDC", "Enable at least one attacker and configure it."
+            )
+            return
+
+        dummy_cfg = self.dummy_frame.build_config()
+        for _slot, acfg in pairs:
+            try:
+                create_armies_from_data([acfg, dummy_cfg])
+            except Exception as exc:
+                QtWidgets.QMessageBox.warning(
+                    self,
+                    "FDC",
+                    f"Invalid army configuration:\n{exc}",
+                )
+                return
+
+        window._dynamic_unrevivable_settings = dynamic_unrevivable_config.get_settings()
+
+        dbg = window.get_simulator_debug_settings(include_max_rounds=False)
+        max_rounds: int | None = None
+        if self.max_rounds_checkbox.isChecked():
+            max_rounds = self.max_rounds_spin.value()
+
+        batch_runs = (
+            self.batch_runs_spin.value() if self.batch_runs_checkbox.isChecked() else 1
+        )
+
+        self._fdc_worker = FdcWorker(
+            pairs,
+            dummy_cfg,
+            max_rounds=max_rounds,
+            shared_seed=self.shared_seed_checkbox.isChecked(),
+            base_seed=random.randrange(1 << 30),
+            batch_runs=batch_runs,
+            dynamic_settings=dict(window._dynamic_unrevivable_settings),
+            troop_scalar_multiplier=float(window._troop_scalar_multiplier),
+            cooldowns_enabled=bool(dbg.get("cooldowns_enabled", True)),
+            hero_cooldowns_enabled=bool(dbg.get("hero_cooldowns_enabled", True)),
+            plugin_cooldowns_enabled=bool(dbg.get("plugin_cooldowns_enabled", True)),
+            gem_cooldowns_enabled=bool(dbg.get("gem_cooldowns_enabled", True)),
+            mount_cooldowns_enabled=bool(dbg.get("mount_cooldowns_enabled", True)),
+            damage_reduction_affects_dots=bool(dbg.get("damage_reduction_affects_dots", True)),
+            multi_heal_trig_enabled=bool(dbg.get("multi_heal_trig_enabled", False)),
+            interval_active_cast_cooldowns_enabled=bool(
+                dbg.get("interval_active_cast_cooldowns_enabled", True)
+            ),
+            fairness_rage_enabled=bool(dbg.get("fairness_rage_enabled", True)),
+            advantage_mode=str(dbg.get("advantage_mode", "multiplicative")),
+            per_skill_cooldown_overrides=dict(window.per_skill_cooldown_overrides),
+            fdc_dummy_counter_only=self.ca_enable_checkbox.isChecked(),
+        )
+
+        n = len(pairs)
+        total_steps = n * batch_runs
+        window.status.setText("Running Field Damage Comparison…")
+        window.progress.setRange(0, total_steps)
+        window.progress.setValue(0)
+        window.progress_eta.setText("")
+        window._sim_start_time = time.perf_counter()
+        self.run_btn.setText("Cancel")
+        self.run_btn.setEnabled(True)
+
+        if batch_runs > 1:
+            self._fdc_results_title.setText("Batch results")
+        else:
+            self._fdc_results_title.setText("Skill breakdown (per duel)")
+
+        self._fdc_worker.progress_update.connect(self._on_fdc_progress)
+        self._fdc_worker.finished_summaries.connect(self._on_fdc_finished)
+        self._fdc_worker.finished_batch_stats.connect(self._on_fdc_batch_finished)
+        self._fdc_worker.error.connect(self._on_fdc_error)
+        self._fdc_worker.finished.connect(self._fdc_worker.deleteLater)
+
+        def _cleanup() -> None:
+            self._fdc_worker = None
+            window.progress.setValue(0)
+            window.progress_eta.setText("")
+            window._sim_start_time = None
+            window.status.setText("Ready")
+            self.run_btn.setText("Run FDC")
+            self.run_btn.setEnabled(True)
+
+        self._fdc_worker.finished.connect(_cleanup)
+        self._fdc_worker.start()
+
+    def _on_fdc_progress(self, done: int, total: int) -> None:
+        window = self.window()
+        if window is not None:
+            window.progress.setValue(min(done, total))
+            if window._sim_start_time and done > 0 and total > 0:
+                elapsed = time.perf_counter() - window._sim_start_time
+                rate = elapsed / done
+                remaining = (total - done) * rate
+                window.progress_eta.setText(f"ETA: {remaining:.0f}s")
+
+    def _on_fdc_finished(self, summaries: list[dict[str, Any]]) -> None:
+        if not summaries:
+            return
+        self._populate_fdc_results(summaries)
+
+    def _on_fdc_error(self, message: str) -> None:
+        QtWidgets.QMessageBox.warning(self, "FDC", message)
+
+    def _populate_fdc_results(self, results: list[dict[str, Any]]) -> None:
+        old = self._fdc_results_scroll.takeWidget()
+        if old is not None:
+            old.deleteLater()
+
+        inner = QtWidgets.QWidget()
+        grid = QtWidgets.QGridLayout(inner)
+        grid.setContentsMargins(4, 4, 4, 4)
+        red_entries = [e for e in results if e.get("team", "red") == "red"]
+        blue_entries = [e for e in results if e.get("team", "blue") == "blue"]
+        max_healed = max((e.get("healed", 0) for e in results), default=1)
+        max_kills = max((e.get("kills", 0) for e in results), default=1)
+        max_heavily_wounded = max((e.get("heavily_wounded", 0) for e in results), default=1)
+        max_heavily_wounded_dealt = max(
+            (e.get("heavily_wounded_dealt", 0) for e in results), default=1
+        )
+
+        grid.addWidget(ArenaStatsHeader(), 0, 0)
+        for row, (red, blue) in enumerate(
+            zip_longest(red_entries, blue_entries), start=1
+        ):
+            row_widget = ArenaStatsRow(
+                red,
+                blue,
+                max_healed,
+                max_kills,
+                max_heavily_wounded,
+                max_heavily_wounded_dealt,
+            )
+            grid.addWidget(row_widget, row, 0)
+
+        self._fdc_results_scroll.setWidget(inner)
+
+    def _fdc_collect_preset_dict(self) -> dict[str, Any]:
+        enabled = [True] + [cb.isChecked() for cb in self.attacker_enable_checks]
+        return {
+            "version": 1,
+            "attackers_enabled": enabled,
+            "attacker_configs": [fr.build_config() for fr in self.attacker_frames],
+            "dummy": self.dummy_frame.build_config(),
+            "ca_enable": self.ca_enable_checkbox.isChecked(),
+            "max_rounds_enabled": self.max_rounds_checkbox.isChecked(),
+            "max_rounds": self.max_rounds_spin.value(),
+            "shared_seed": self.shared_seed_checkbox.isChecked(),
+            "batch_runs_enabled": self.batch_runs_checkbox.isChecked(),
+            "batch_runs": self.batch_runs_spin.value(),
+        }
+
+    def _fdc_save_preset(self) -> None:
+        os.makedirs(self._fdc_preset_dir, exist_ok=True)
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Save FDC preset",
+            self._fdc_preset_dir,
+            "JSON (*.json)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".json"):
+            path += ".json"
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(self._fdc_collect_preset_dict(), fh, indent=2)
+        except OSError as exc:
+            QtWidgets.QMessageBox.warning(self, "FDC", f"Could not save preset:\n{exc}")
+
+    def _fdc_load_preset(self) -> None:
+        os.makedirs(self._fdc_preset_dir, exist_ok=True)
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Load FDC preset",
+            self._fdc_preset_dir,
+            "JSON (*.json)",
+        )
+        if not path:
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, json.JSONDecodeError) as exc:
+            QtWidgets.QMessageBox.warning(self, "FDC", f"Could not load preset:\n{exc}")
+            return
+        if not isinstance(data, dict):
+            QtWidgets.QMessageBox.warning(self, "FDC", "Invalid preset file.")
+            return
+        cfgs = data.get("attacker_configs")
+        if not isinstance(cfgs, list):
+            QtWidgets.QMessageBox.warning(self, "FDC", "Preset missing attacker_configs.")
+            return
+        for i, fr in enumerate(self.attacker_frames):
+            if i < len(cfgs) and isinstance(cfgs[i], dict):
+                fr.populate_from_config(copy.deepcopy(cfgs[i]))
+        en = data.get("attackers_enabled")
+        if isinstance(en, list):
+            for i, cb in enumerate(self.attacker_enable_checks):
+                idx = i + 1
+                if idx < len(en):
+                    cb.setChecked(bool(en[idx]))
+        dum = data.get("dummy")
+        if isinstance(dum, dict):
+            self.dummy_frame.populate_from_config(copy.deepcopy(dum))
+        self.ca_enable_checkbox.setChecked(bool(data.get("ca_enable", False)))
+        if "max_rounds_enabled" in data:
+            self.max_rounds_checkbox.setChecked(bool(data["max_rounds_enabled"]))
+        if "max_rounds" in data:
+            try:
+                self.max_rounds_spin.setValue(int(data["max_rounds"]))
+            except (TypeError, ValueError):
+                pass
+        if "shared_seed" in data:
+            self.shared_seed_checkbox.setChecked(bool(data["shared_seed"]))
+        if "batch_runs_enabled" in data:
+            self.batch_runs_checkbox.setChecked(bool(data["batch_runs_enabled"]))
+        if "batch_runs" in data:
+            try:
+                v = int(data["batch_runs"])
+                self.batch_runs_spin.setValue(max(2, min(50_000, v)))
+            except (TypeError, ValueError):
+                pass
+
+    def _on_fdc_batch_finished(self, payload: dict[str, Any]) -> None:
+        old = self._fdc_results_scroll.takeWidget()
+        if old is not None:
+            old.deleteLater()
+
+        if not payload or "runs" not in payload:
+            inner = QtWidgets.QWidget()
+            v = QtWidgets.QVBoxLayout(inner)
+            v.addWidget(QtWidgets.QLabel("Run cancelled."))
+            self._fdc_results_scroll.setWidget(inner)
+            self._fdc_results_title.setText("Batch results")
+            return
+
+        inner = QtWidgets.QWidget()
+        v = QtWidgets.QVBoxLayout(inner)
+        runs = int(payload["runs"])
+        slots: list[int] = list(payload["slots"])
+        labels: dict[int, str] = payload.get("labels") or {}
+        kill_wins: dict[int, int] = payload.get("kill_wins") or {}
+        hw_wins: dict[int, int] = payload.get("hw_wins") or {}
+        avg_k: dict[int, float] = payload.get("avg_kills") or {}
+        avg_hw: dict[int, float] = payload.get("avg_hw_dealt") or {}
+
+        summary = QtWidgets.QLabel(
+            f"{runs} batch run(s), {len(slots)} attacker(s) per run. "
+            "Per run: top kills and top heavily wounded dealt to the dummy each earn one win (ties both count)."
+        )
+        summary.setWordWrap(True)
+        v.addWidget(summary)
+
+        table = QtWidgets.QTableWidget(len(slots), 5)
+        table.setHorizontalHeaderLabels(
+            [
+                "Army",
+                "Kill contest wins",
+                "HW dealt contest wins",
+                "Avg kills",
+                "Avg HW dealt",
+            ]
+        )
+        for row, s in enumerate(slots):
+            table.setItem(row, 0, QtWidgets.QTableWidgetItem(labels.get(s, f"Attacker {s}")))
+            table.setItem(row, 1, QtWidgets.QTableWidgetItem(str(kill_wins.get(s, 0))))
+            table.setItem(row, 2, QtWidgets.QTableWidgetItem(str(hw_wins.get(s, 0))))
+            table.setItem(
+                row,
+                3,
+                QtWidgets.QTableWidgetItem(f"{avg_k.get(s, 0.0):.2f}"),
+            )
+            table.setItem(
+                row,
+                4,
+                QtWidgets.QTableWidgetItem(f"{avg_hw.get(s, 0.0):.2f}"),
+            )
+        table.resizeColumnsToContents()
+        table.horizontalHeader().setStretchLastSection(True)
+        v.addWidget(table)
+        self._fdc_results_scroll.setWidget(inner)
+
+
 def display_histograms(
     scroll: QtWidgets.QScrollArea,
     army1_name: str = "Army 1",
@@ -8341,7 +8981,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         info_lbl = QtWidgets.QLabel(
             "Toggle whether individual skills and talents should respect their cooldowns.\n"
-            "These settings apply to both 1v1 and arena simulations."
+            "These settings apply to 1v1, arena, and FDC simulations."
         )
         info_lbl.setWordWrap(True)
         vbox.addWidget(info_lbl)
@@ -8616,6 +9256,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # --- Arena tab ---
         self.arena_tab = ArenaTab(self)
+
+        # --- Field Damage Comparison tab ---
+        self.fdc_tab = FdcTab(self)
 
         # --- Battlefield Reports tab ---
         self.battlefield_report_tab = QtWidgets.QWidget()
@@ -8927,6 +9570,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tabs.addTab(self.arena_tab, "Arena")
         self.tabs.addTab(self.arena_report_tab, "Arena Reports")
         self.tabs.addTab(self.arena_figures_tab, "Arena Figures")
+        self.tabs.addTab(self.fdc_tab, "FDC")
 
         self.tabs.currentChanged.connect(self._on_tab_changed)
 

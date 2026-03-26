@@ -238,6 +238,33 @@ class Army:
         if not hasattr(self.simulator, "_active_skill_crit_triggered"):
             self.simulator._active_skill_crit_triggered = False
 
+    def receive_pending_hp_damage(
+        self,
+        amount: float,
+        source_army: Optional["Army"],
+        *,
+        from_counter_attack: bool = False,
+    ) -> bool:
+        """Apply pending HP damage, honouring FDC dummy CA-only mode on this simulator.
+
+        Returns True if the damage was applied to pending HP.
+        """
+
+        if amount <= 0:
+            return False
+        sim = self.simulator
+        if (
+            sim is not None
+            and getattr(sim, "fdc_dummy_counter_only", False)
+            and source_army is not None
+            and source_army is sim.army2
+            and self is sim.army1
+            and not from_counter_attack
+        ):
+            return False
+        self.pending_hp_damage_this_round += amount
+        return True
+
     def clear_dynamic_unrevivable_tracking(self) -> None:
         self.dynamic_losses_by_opponent.clear()
         self.dynamic_kills_by_opponent.clear()
@@ -2144,11 +2171,21 @@ class Army:
                             if effect.config.get('original_caster_army_name') else None)
                         or effect.config.get('effect_owner_army_ref')
                     )
+                    dot_damage_into_shields = dot_damage_after_target_debuffs
+                    sim_dot = self.simulator
+                    if (
+                        sim_dot is not None
+                        and getattr(sim_dot, "fdc_dummy_counter_only", False)
+                        and caster_for_consumption is not None
+                        and caster_for_consumption is sim_dot.army2
+                        and self is sim_dot.army1
+                    ):
+                        dot_damage_into_shields = 0.0
                     attacker_type = caster_for_consumption.unit.unit_type if caster_for_consumption else "infantry"
                     defender_type = self.unit.unit_type
                     consumption_mult = shield_consumption_config.get_multiplier(attacker_type, defender_type)
                     damage_result_dict = self.apply_shields_and_get_hp_damage(
-                        dot_damage_after_target_debuffs, shield_consumption_mult=consumption_mult
+                        dot_damage_into_shields, shield_consumption_mult=consumption_mult
                     )
                     hp_damage_to_troops_dot = damage_result_dict['hp_damage_to_troops']
                     absorbed_by_shield_dot = damage_result_dict['absorbed_by_shield']
@@ -2187,17 +2224,19 @@ class Army:
 
                     attacker_name = effect.config.get("source_army_name", "Unknown")
                     if hp_damage_to_troops_dot > 0:
-                        self.pending_hp_damage_this_round += hp_damage_to_troops_dot
-                        self.damage_contributors_this_round[attacker_name] = (
-                            self.damage_contributors_this_round.get(attacker_name, 0.0)
-                            + hp_damage_to_troops_dot
-                        )
-                        skill_map = self.damage_contributors_by_skill_this_round.setdefault(
-                            attacker_name, {}
-                        )
-                        skill_map[effect.source_skill_id] = skill_map.get(
-                            effect.source_skill_id, 0.0
-                        ) + hp_damage_to_troops_dot
+                        if self.receive_pending_hp_damage(
+                            hp_damage_to_troops_dot, caster_for_consumption
+                        ):
+                            self.damage_contributors_this_round[attacker_name] = (
+                                self.damage_contributors_this_round.get(attacker_name, 0.0)
+                                + hp_damage_to_troops_dot
+                            )
+                            skill_map = self.damage_contributors_by_skill_this_round.setdefault(
+                                attacker_name, {}
+                            )
+                            skill_map[effect.source_skill_id] = skill_map.get(
+                                effect.source_skill_id, 0.0
+                            ) + hp_damage_to_troops_dot
 
                     dot_type_str = dot_type.value if isinstance(dot_type, DoTType) else "DoT"
                     enemy_hp_per_troop = self.unit.effective_hp_per_troop(self.active_effects)

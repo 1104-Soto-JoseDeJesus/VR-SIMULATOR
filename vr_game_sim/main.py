@@ -377,6 +377,136 @@ def _run_single_battle(
     return result
 
 
+def _run_fdc_pair(
+    attacker_cfg: Dict[str, Any],
+    dummy_cfg: Dict[str, Any],
+    *,
+    slot_index: int,
+    seed: int | None,
+    max_rounds: int | None,
+    cooldowns_enabled: bool = True,
+    hero_cooldowns_enabled: bool = True,
+    plugin_cooldowns_enabled: bool = True,
+    gem_cooldowns_enabled: bool = True,
+    mount_cooldowns_enabled: bool = True,
+    damage_reduction_affects_dots: bool = True,
+    multi_heal_trig_enabled: bool = False,
+    interval_active_cast_cooldowns_enabled: bool = True,
+    fairness_rage_enabled: bool = True,
+    advantage_mode: str = "multiplicative",
+    per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
+    fdc_dummy_counter_only: bool = False,
+) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    """Run one FDC attacker vs a fresh dummy copy; return arena-style skill summaries."""
+
+    from vr_game_sim.report_builder import ReportBuilder
+    from vr_game_sim.gui_main import build_army_skill_summary
+
+    atk = copy.deepcopy(attacker_cfg)
+    dum = copy.deepcopy(dummy_cfg)
+    base_a = str(atk.get("army_name") or f"Attacker{slot_index}")
+    base_d = str(dum.get("army_name") or "Dummy")
+    atk["army_name"] = f"{base_a} (FDC #{slot_index})"
+    dum["army_name"] = f"{base_d} (FDC dummy #{slot_index})"
+
+    if seed is not None:
+        random.seed(int(seed))
+
+    armies = create_armies_from_data([atk, dum])
+    report_builder = ReportBuilder(use_color=False)
+    sim = GameSimulator(
+        armies[0],
+        armies[1],
+        report_builder,
+        track_stats=True,
+        cooldowns_enabled=cooldowns_enabled,
+        hero_cooldowns_enabled=hero_cooldowns_enabled,
+        plugin_cooldowns_enabled=plugin_cooldowns_enabled,
+        gem_cooldowns_enabled=gem_cooldowns_enabled,
+        mount_cooldowns_enabled=mount_cooldowns_enabled,
+        damage_reduction_affects_dots=damage_reduction_affects_dots,
+        multi_heal_trig_enabled=multi_heal_trig_enabled,
+        interval_active_cast_cooldowns_enabled=interval_active_cast_cooldowns_enabled,
+        fairness_rage_enabled=fairness_rage_enabled,
+        advantage_mode=advantage_mode,
+        per_skill_cooldown_overrides=per_skill_cooldown_overrides,
+        fdc_dummy_counter_only=fdc_dummy_counter_only,
+    )
+    with contextlib.redirect_stdout(io.StringIO()):
+        sim.simulate_battle(max_rounds=max_rounds)
+    red_summary = build_army_skill_summary(armies[0], atk, "red")
+    blue_summary = build_army_skill_summary(armies[1], dum, "blue")
+    return red_summary, blue_summary
+
+
+def _run_fdc_pair_metrics(
+    attacker_cfg: Dict[str, Any],
+    dummy_cfg: Dict[str, Any],
+    *,
+    slot_index: int,
+    seed: int | None,
+    max_rounds: int | None,
+    cooldowns_enabled: bool = True,
+    hero_cooldowns_enabled: bool = True,
+    plugin_cooldowns_enabled: bool = True,
+    gem_cooldowns_enabled: bool = True,
+    mount_cooldowns_enabled: bool = True,
+    damage_reduction_affects_dots: bool = True,
+    multi_heal_trig_enabled: bool = False,
+    interval_active_cast_cooldowns_enabled: bool = True,
+    fairness_rage_enabled: bool = True,
+    advantage_mode: str = "multiplicative",
+    per_skill_cooldown_overrides: Optional[Dict[str, bool]] = None,
+    fdc_dummy_counter_only: bool = False,
+) -> Dict[str, Any]:
+    """Run one FDC duel; return kills and heavily wounded dealt (attacker only), no skill breakdown."""
+
+    from vr_game_sim.report_builder import ReportBuilder
+
+    atk = copy.deepcopy(attacker_cfg)
+    dum = copy.deepcopy(dummy_cfg)
+    base_a = str(atk.get("army_name") or f"Attacker{slot_index}")
+    base_d = str(dum.get("army_name") or "Dummy")
+    atk["army_name"] = f"{base_a} (FDC #{slot_index})"
+    dum["army_name"] = f"{base_d} (FDC dummy #{slot_index})"
+
+    if seed is not None:
+        random.seed(int(seed))
+
+    armies = create_armies_from_data([atk, dum])
+    report_builder = ReportBuilder(use_color=False)
+    sim = GameSimulator(
+        armies[0],
+        armies[1],
+        report_builder,
+        track_stats=True,
+        cooldowns_enabled=cooldowns_enabled,
+        hero_cooldowns_enabled=hero_cooldowns_enabled,
+        plugin_cooldowns_enabled=plugin_cooldowns_enabled,
+        gem_cooldowns_enabled=gem_cooldowns_enabled,
+        mount_cooldowns_enabled=mount_cooldowns_enabled,
+        damage_reduction_affects_dots=damage_reduction_affects_dots,
+        multi_heal_trig_enabled=multi_heal_trig_enabled,
+        interval_active_cast_cooldowns_enabled=interval_active_cast_cooldowns_enabled,
+        fairness_rage_enabled=fairness_rage_enabled,
+        advantage_mode=advantage_mode,
+        per_skill_cooldown_overrides=per_skill_cooldown_overrides,
+        fdc_dummy_counter_only=fdc_dummy_counter_only,
+    )
+    with contextlib.redirect_stdout(io.StringIO()):
+        sim.simulate_battle(max_rounds=max_rounds)
+    a0 = armies[0]
+    kills = int(round(sum(a0.kills_dealt_history)))
+    hw_dealt = int(round(sum(a0.unrevivable_caused_by_opponent.values())))
+    label = str(attacker_cfg.get("army_name") or f"Attacker {slot_index}")
+    return {
+        "slot_index": slot_index,
+        "label": label,
+        "kills": kills,
+        "heavily_wounded_dealt": hw_dealt,
+    }
+
+
 def _run_single_battle_with_multiplier(
     setup_data: List[Dict[str, Any]],
     seed: int | None,

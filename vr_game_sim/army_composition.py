@@ -5,7 +5,7 @@ import copy
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Tuple, Set, Iterable
 
-from .enums import EffectType, SkillTriggerType, StatType, DoTType
+from .enums import EffectType, SkillTriggerType, StatType, DoTType, SkillType
 from .unit_definition import Unit
 from .hero_definition import Hero
 from .effect_system import EffectInstance
@@ -1317,6 +1317,34 @@ class Army:
                 if current_round < last_round + 2:
                     return None
                 target_army.debuff_last_applied_round[canonical_effect_name] = current_round
+
+        if source_skill_id and "::" in source_skill_id:
+            base_mount_sid = source_skill_id.split("::", 1)[0]
+            reg = SKILL_REGISTRY_GLOBAL.get(base_mount_sid)
+            if reg and reg.get("type") == SkillType.MOUNT_SKILL:
+
+                def _source_base_skill_id(sid: Optional[str]) -> str:
+                    if not sid:
+                        return ""
+                    return sid.split("::", 1)[0] if "::" in sid else sid
+
+                for eff_list in (
+                    target_army.active_effects,
+                    target_army.upcoming_effects,
+                    target_army.effects_to_activate_next_round,
+                ):
+                    for eff in eff_list:
+                        if eff.name != canonical_effect_name:
+                            continue
+                        if _source_base_skill_id(getattr(eff, "source_skill_id", None)) != base_mount_sid:
+                            continue
+                        if self.simulator:
+                            self.simulator._log_skill_trigger(
+                                target_army,
+                                canonical_effect_name,
+                                f"Duplicate mount effect blocked (same skill '{base_mount_sid}').",
+                            )
+                        return None
 
         new_effect_duration = effect_data.get("duration", 1)
         activate_next_round_flag = effect_data.get("activate_next_round", False)

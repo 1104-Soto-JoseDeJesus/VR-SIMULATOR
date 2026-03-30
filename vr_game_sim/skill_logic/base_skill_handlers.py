@@ -205,6 +205,8 @@ def handle_base_skill_zeal(trig_army: ArmyRef, opp_army: ArmyRef, sk_def: SkillD
                 or eff.config.get("prevents_counterattack")
                 or eff.config.get("prevents_basic_attack")
                 or eff.name == EFFECT_NAME_SILENCE_DEBUFF
+                or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
+                or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
             )
             and eff.name not in PROTECTED_MARKER_EFFECTS
             and eff.duration > 0
@@ -1272,6 +1274,8 @@ def handle_base_skill_winters_coronation(
                     or eff.config.get("prevents_counterattack")
                     or eff.config.get("prevents_basic_attack")
                     or eff.config.get("prevents_rage_skill_cast")
+                    or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
+                    or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
                 )
                 and eff.name not in PROTECTED_MARKER_EFFECTS
                 and eff.duration > 0
@@ -1836,6 +1840,8 @@ def handle_base_skill_darkmoon_elegy(
             or eff.config.get("prevents_counterattack")
             or eff.config.get("prevents_basic_attack")
             or eff.config.get("prevents_rage_skill_cast")
+            or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
+            or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
         )
         and eff.name not in PROTECTED_MARKER_EFFECTS
         and eff.duration > 0

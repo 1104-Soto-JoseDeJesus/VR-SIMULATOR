@@ -1,0 +1,378 @@
+{
+  "version": 1,
+  "attackers_enabled": [
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "attacker_configs": [
+    {
+      "army_name": "Hobert/Lagertha",
+      "unit_type": "infantry",
+      "tier": 7,
+      "count": 300000,
+      "is_rally": false,
+      "rally_config": null,
+      "atk_mod": 3.0,
+      "def_mod": 3.0,
+      "hp_mod": 1.0,
+      "unrevivable_ratio": 0.65,
+      "unrevivable_ratio_method": "dynamic",
+      "use_dynamic_unrevivable_ratio": true,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Hobert",
+          "talent_ids": [
+            "talent_bold_shieldaxe",
+            "talent_fearless_pursuit",
+            "talent_steadfast_armor"
+          ],
+          "base_skill_ids": [
+            "base_skill_berserk_fury",
+            "base_skill_brutal_blow"
+          ],
+          "plugin_skill_ids": [
+            "plugin_divine_blessing",
+            "plugin_first_strike"
+          ],
+          "gear_ids": {
+            "head": "gear_blazing_helmet_legendary",
+            "weapon": "gear_immolated_axe_legendary",
+            "chest": "gear_inferno_armor_legendary",
+            "boots": "gear_ferocious_boots_legendary"
+          }
+        },
+        {
+          "hero_name_or_preset": "Lagertha",
+          "talent_ids": [
+            "talent_shieldaxe_attack",
+            "talent_chiefs_might",
+            "talent_fatal_strike"
+          ],
+          "base_skill_ids": [
+            "base_skill_shield_breaker",
+            "rage_skill_showdown"
+          ],
+          "plugin_skill_ids": [
+            "plugin_enrage",
+            "plugin_silent_invasion"
+          ],
+          "gear_ids": {
+            "head": "gear_blazing_helmet_legendary",
+            "weapon": "gear_immolated_axe_legendary",
+            "chest": "gear_inferno_armor_legendary",
+            "boots": "gear_ferocious_boots_legendary"
+          }
+        }
+      ]
+    },
+    {
+      "army_name": "Lagertha/Hobert",
+      "unit_type": "infantry",
+      "tier": 7,
+      "count": 300000,
+      "is_rally": false,
+      "rally_config": null,
+      "atk_mod": 3.0,
+      "def_mod": 3.0,
+      "hp_mod": 1.0,
+      "unrevivable_ratio": 0.65,
+      "unrevivable_ratio_method": "dynamic",
+      "use_dynamic_unrevivable_ratio": true,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Lagertha",
+          "talent_ids": [
+            "talent_shieldaxe_attack",
+            "talent_chiefs_might",
+            "talent_fatal_strike"
+          ],
+          "base_skill_ids": [
+            "base_skill_shield_breaker",
+            "rage_skill_showdown"
+          ],
+          "plugin_skill_ids": [
+            "plugin_first_strike",
+            "plugin_divine_blessing"
+          ],
+          "gear_ids": {
+            "head": "gear_blazing_helmet_legendary",
+            "weapon": "gear_immolated_axe_legendary",
+            "chest": "gear_inferno_armor_legendary",
+            "boots": "gear_ferocious_boots_legendary"
+          }
+        },
+        {
+          "hero_name_or_preset": "Hobert",
+          "talent_ids": [
+            "talent_bold_shieldaxe",
+            "talent_fearless_pursuit",
+            "talent_steadfast_armor"
+          ],
+          "base_skill_ids": [
+            "base_skill_berserk_fury",
+            "base_skill_brutal_blow"
+          ],
+          "plugin_skill_ids": [
+            "plugin_enrage",
+            "plugin_silent_invasion"
+          ],
+          "gear_ids": {
+            "head": "gear_blazing_helmet_legendary",
+            "weapon": "gear_immolated_axe_legendary",
+            "chest": "gear_inferno_armor_legendary",
+            "boots": "gear_ferocious_boots_legendary"
+          }
+        }
+      ]
+    },
+    {
+      "army_name": "Hobert/Lagertha (2)",
+      "unit_type": "infantry",
+      "tier": 7,
+      "count": 300000,
+      "is_rally": false,
+      "rally_config": null,
+      "atk_mod": 3.0,
+      "def_mod": 3.0,
+      "hp_mod": 1.0,
+      "unrevivable_ratio": 0.65,
+      "unrevivable_ratio_method": "dynamic",
+      "use_dynamic_unrevivable_ratio": true,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Hobert",
+          "talent_ids": [
+            "talent_bold_shieldaxe",
+            "talent_fearless_pursuit",
+            "talent_steadfast_armor"
+          ],
+          "base_skill_ids": [
+            "base_skill_berserk_fury",
+            "base_skill_brutal_blow"
+          ],
+          "plugin_skill_ids": [
+            "plugin_enrage",
+            "plugin_first_strike"
+          ],
+          "gear_ids": {
+            "head": "gear_blazing_helmet_legendary",
+            "weapon": "gear_immolated_axe_legendary",
+            "chest": "gear_inferno_armor_legendary",
+            "boots": "gear_ferocious_boots_legendary"
+          }
+        },
+        {
+          "hero_name_or_preset": "Lagertha",
+          "talent_ids": [
+            "talent_shieldaxe_attack",
+            "talent_chiefs_might",
+            "talent_fatal_strike"
+          ],
+          "base_skill_ids": [
+            "base_skill_shield_breaker",
+            "rage_skill_showdown"
+          ],
+          "plugin_skill_ids": [
+            "plugin_blessed_by_fate",
+            "plugin_divine_shield"
+          ],
+          "gear_ids": {
+            "head": "gear_blazing_helmet_legendary",
+            "weapon": "gear_immolated_axe_legendary",
+            "chest": "gear_inferno_armor_legendary",
+            "boots": "gear_ferocious_boots_legendary"
+          }
+        }
+      ]
+    },
+    {
+      "army_name": "Hobert/Lagertha (3)",
+      "unit_type": "infantry",
+      "tier": 7,
+      "count": 300000,
+      "is_rally": false,
+      "rally_config": null,
+      "atk_mod": 3.0,
+      "def_mod": 3.0,
+      "hp_mod": 1.0,
+      "unrevivable_ratio": 0.65,
+      "unrevivable_ratio_method": "dynamic",
+      "use_dynamic_unrevivable_ratio": true,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Hobert",
+          "talent_ids": [
+            "talent_bold_shieldaxe",
+            "talent_fearless_pursuit",
+            "talent_steadfast_armor"
+          ],
+          "base_skill_ids": [
+            "base_skill_berserk_fury",
+            "base_skill_brutal_blow"
+          ],
+          "plugin_skill_ids": [
+            "plugin_enrage",
+            "plugin_first_strike"
+          ],
+          "gear_ids": {
+            "head": "gear_blazing_helmet_legendary",
+            "weapon": "gear_immolated_axe_legendary",
+            "chest": "gear_inferno_armor_legendary",
+            "boots": "gear_ferocious_boots_legendary"
+          }
+        },
+        {
+          "hero_name_or_preset": "Lagertha",
+          "talent_ids": [
+            "talent_shieldaxe_attack",
+            "talent_chiefs_might",
+            "talent_fatal_strike"
+          ],
+          "base_skill_ids": [
+            "base_skill_shield_breaker",
+            "rage_skill_showdown"
+          ],
+          "plugin_skill_ids": [
+            "plugin_blessed_by_fate",
+            "plugin_divine_blessing"
+          ],
+          "gear_ids": {
+            "head": "gear_blazing_helmet_legendary",
+            "weapon": "gear_immolated_axe_legendary",
+            "chest": "gear_inferno_armor_legendary",
+            "boots": "gear_ferocious_boots_legendary"
+          }
+        }
+      ]
+    },
+    {
+      "army_name": "Hobert/Lagertha (4)",
+      "unit_type": "infantry",
+      "tier": 7,
+      "count": 300000,
+      "is_rally": false,
+      "rally_config": null,
+      "atk_mod": 3.0,
+      "def_mod": 3.0,
+      "hp_mod": 1.0,
+      "unrevivable_ratio": 0.65,
+      "unrevivable_ratio_method": "dynamic",
+      "use_dynamic_unrevivable_ratio": true,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Hobert",
+          "talent_ids": [
+            "talent_bold_shieldaxe",
+            "talent_fearless_pursuit",
+            "talent_steadfast_armor"
+          ],
+          "base_skill_ids": [
+            "base_skill_berserk_fury",
+            "base_skill_brutal_blow"
+          ],
+          "plugin_skill_ids": [
+            "plugin_enrage",
+            "plugin_first_strike"
+          ],
+          "gear_ids": {
+            "head": "gear_blazing_helmet_legendary",
+            "weapon": "gear_immolated_axe_legendary",
+            "chest": "gear_inferno_armor_legendary",
+            "boots": "gear_ferocious_boots_legendary"
+          }
+        },
+        {
+          "hero_name_or_preset": "Lagertha",
+          "talent_ids": [
+            "talent_shieldaxe_attack",
+            "talent_chiefs_might",
+            "talent_fatal_strike"
+          ],
+          "base_skill_ids": [
+            "base_skill_shield_breaker",
+            "rage_skill_showdown"
+          ],
+          "plugin_skill_ids": [
+            "plugin_divine_shield",
+            "plugin_divine_blessing"
+          ],
+          "gear_ids": {
+            "head": "gear_blazing_helmet_legendary",
+            "weapon": "gear_immolated_axe_legendary",
+            "chest": "gear_inferno_armor_legendary",
+            "boots": "gear_ferocious_boots_legendary"
+          }
+        }
+      ]
+    }
+  ],
+  "dummy": {
+    "army_name": "Margit/Lagertha",
+    "unit_type": "infantry",
+    "tier": 7,
+    "count": 300000,
+    "is_rally": false,
+    "rally_config": null,
+    "atk_mod": 3.0,
+    "def_mod": 3.0,
+    "hp_mod": 1.0,
+    "unrevivable_ratio": 0.65,
+    "unrevivable_ratio_method": "dynamic",
+    "use_dynamic_unrevivable_ratio": true,
+    "heroes": [
+      {
+        "hero_name_or_preset": "Margit",
+        "talent_ids": [
+          "talent_cutting_blade",
+          "talent_thirst_for_blood",
+          "talent_seas_grace"
+        ],
+        "base_skill_ids": [
+          "base_skill_ride_the_waves",
+          "base_skill_raging_tide"
+        ],
+        "plugin_skill_ids": [
+          "plugin_divine_blessing",
+          "plugin_first_strike"
+        ],
+        "gear_ids": {
+          "head": "gear_blazing_helmet_legendary",
+          "weapon": "gear_immolated_axe_legendary",
+          "chest": "gear_inferno_armor_legendary",
+          "boots": "gear_ferocious_boots_legendary"
+        }
+      },
+      {
+        "hero_name_or_preset": "Lagertha",
+        "talent_ids": [
+          "talent_shieldaxe_attack",
+          "talent_chiefs_might",
+          "talent_fatal_strike"
+        ],
+        "base_skill_ids": [
+          "base_skill_shield_breaker",
+          "rage_skill_showdown"
+        ],
+        "plugin_skill_ids": [
+          "plugin_odins_asylum",
+          "plugin_enrage"
+        ],
+        "gear_ids": {
+          "head": "gear_blazing_helmet_legendary",
+          "weapon": "gear_immolated_axe_legendary",
+          "chest": "gear_inferno_armor_legendary",
+          "boots": "gear_ferocious_boots_legendary"
+        }
+      }
+    ]
+  },
+  "ca_enable": true,
+  "max_rounds_enabled": true,
+  "max_rounds": 15,
+  "shared_seed": true,
+  "batch_runs_enabled": true,
+  "batch_runs": 100
+}

@@ -2,6 +2,7 @@ import copy
 
 import pytest
 
+from vr_game_sim.constants import EFFECT_NAME_HOOF_STRIKE_COUNTER_BOOST
 from vr_game_sim.enums import DoTType, EffectType, SkillType, SkillTriggerType, StatType
 from vr_game_sim.game_simulator import GameSimulator
 from vr_game_sim.skill_definitions import SKILL_REGISTRY_GLOBAL
@@ -248,6 +249,32 @@ def test_duplicate_mount_damage_and_buff_resolution():
     assert burn_boosts == [high_magnitude], (
         f"Expected one merged buff with high magnitude, got {burn_boosts}"
     )
+
+
+def test_duplicate_mount_hoof_strike_single_counter_buff():
+    """Same mount on two slots must not stack declarative reactive buffs (effects_to_apply)."""
+    cfg = copy.deepcopy(_BASE_CFG)
+    cfg["heroes"][0]["mount_skill_ids"] = ["mount_hoof_strike", "mount_hoof_strike"]
+
+    army, opponent = create_armies_from_data([cfg, cfg])[0:2]
+    mount_skills = [s for s in army.heroes[0].skills if s.get("id") == "mount_hoof_strike"]
+    assert len(mount_skills) == 2
+
+    simulator = GameSimulator(army, opponent, mode="battlefield")
+    army.army_round = 1
+    opponent.army_round = 1
+    army.mount_skill_triggered_instances_this_round.clear()
+
+    simulator._process_skill_triggers(army, opponent, SkillTriggerType.ON_RECEIVING_RAGE_SKILL_DAMAGE)
+
+    relevant = (
+        army.active_effects
+        + army.effects_to_activate_next_round
+        + army.upcoming_effects
+    )
+    hoof_buffs = [eff for eff in relevant if eff.name == EFFECT_NAME_HOOF_STRIKE_COUNTER_BOOST]
+    assert len(hoof_buffs) == 1
+    assert hoof_buffs[0].magnitude == pytest.approx(1.25)
 
 
 def test_duplicate_mount_damage_active_cast_cooldown_per_instance():
@@ -571,8 +598,9 @@ def test_duplicate_mount_periodic_rage_over_time_dedupes_non_damage_only():
     )
 
     assert opponent_single.pending_hp_damage_this_round > 0
+    # Two mount instances each roll skill crit separately; expect ~2× mean vs one roll, with high variance.
     assert opponent_double.pending_hp_damage_this_round == pytest.approx(
-        opponent_single.pending_hp_damage_this_round * 2
+        opponent_single.pending_hp_damage_this_round * 2, rel=0.55
     )
 
     rage_effects_single = [

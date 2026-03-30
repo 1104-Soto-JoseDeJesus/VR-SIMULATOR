@@ -1171,8 +1171,33 @@ class GameSimulator:
                 candidates = [inst_key]
             elif rep_value == best_value and rep_value > float("-inf"):
                 candidates.append(inst_key)
-        winner = random.choice(candidates) if len(candidates) > 1 else (candidates[0] if candidates else skill_id)
-        return winner
+        return min(candidates) if candidates else skill_id
+
+    def _apply_mount_declarative_effect_gating(
+        self,
+        effective_skill_def: SkillDefinition,
+        include_non_damage: bool,
+        include_dot_hot: bool,
+    ) -> None:
+        """Strip effects_to_apply / sub_effects for duplicate mount instances (mirrors config gating)."""
+        if include_non_damage and include_dot_hot:
+            return
+        if not include_non_damage:
+            effective_skill_def["effects_to_apply"] = []
+            effective_skill_def["sub_effects"] = []
+            return
+        dot_hot_types = {EffectType.DAMAGE_OVER_TIME, EffectType.HEAL_OVER_TIME}
+        effs = effective_skill_def.get("effects_to_apply") or []
+        effective_skill_def["effects_to_apply"] = [
+            e for e in effs if e.get("effect_type") not in dot_hot_types
+        ]
+        filtered_subs: List[Dict[str, Any]] = []
+        for sub in effective_skill_def.get("sub_effects") or []:
+            eta = sub.get("effect_to_apply") or {}
+            if eta.get("effect_type") in dot_hot_types:
+                continue
+            filtered_subs.append(sub)
+        effective_skill_def["sub_effects"] = filtered_subs
 
     def _apply_mount_skill_non_damage_config(self, base_config: Dict[str, Any], merged_config: Dict[str, Any],
                                              include_non_damage: bool, include_dot_hot: bool) -> Dict[str, Any]:
@@ -1548,6 +1573,9 @@ class GameSimulator:
                             base_cfg, merged_cfg, include_non_damage, include_dot_hot
                         )
                         effective_skill_def["id"] = cooldown_key
+                        self._apply_mount_declarative_effect_gating(
+                            effective_skill_def, include_non_damage, include_dot_hot
+                        )
                     prev_crit_context = (
                         self._active_skill_id,
                         self._active_skill_label,

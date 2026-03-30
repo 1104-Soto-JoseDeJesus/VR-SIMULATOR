@@ -3948,6 +3948,8 @@ def handle_talent_seas_grace(
             or eff.config.get("prevents_counterattack")
             or eff.config.get("prevents_basic_attack")
             or eff.config.get("prevents_rage_skill_cast")
+            or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
+            or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
         )
         and eff.name not in PROTECTED_MARKER_EFFECTS
         and eff.duration > 0
@@ -5318,6 +5320,8 @@ def handle_talent_savage_physique(
             or eff.config.get("prevents_counterattack")
             or eff.config.get("prevents_basic_attack")
             or eff.config.get("prevents_rage_skill_cast")
+            or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
+            or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
         )
         and eff.name not in PROTECTED_MARKER_EFFECTS
         and eff.duration > 0

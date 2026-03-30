@@ -1,0 +1,378 @@
+{
+  "version": 1,
+  "attackers_enabled": [
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "attacker_configs": [
+    {
+      "army_name": "Athelstan/Leandra",
+      "unit_type": "archers",
+      "tier": 7,
+      "count": 300000,
+      "is_rally": false,
+      "rally_config": null,
+      "atk_mod": 3.0,
+      "def_mod": 3.0,
+      "hp_mod": 1.0,
+      "unrevivable_ratio": 0.65,
+      "unrevivable_ratio_method": "dynamic",
+      "use_dynamic_unrevivable_ratio": true,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Athelstan",
+          "talent_ids": [
+            "talent_erudite",
+            "talent_strategize",
+            "talent_adaptable_to_changes"
+          ],
+          "base_skill_ids": [
+            "base_skill_heart_of_tolerance",
+            "base_skill_holy_enlightenment"
+          ],
+          "plugin_skill_ids": [
+            "plugin_divine_blessing",
+            "plugin_first_strike"
+          ],
+          "gear_ids": {
+            "head": "gear_divine_crown_legendary",
+            "weapon": "gear_gleaming_longbow_legendary",
+            "chest": "gear_verdant_armor_legendary",
+            "boots": "gear_thicket_boots_legendary"
+          }
+        },
+        {
+          "hero_name_or_preset": "Leandra",
+          "talent_ids": [
+            "talent_soul_awakening",
+            "talent_flexible_strike",
+            "talent_opportune_strike"
+          ],
+          "base_skill_ids": [
+            "base_skill_vengeful_fury",
+            "base_skill_serrated_flourish"
+          ],
+          "plugin_skill_ids": [
+            "plugin_bone_corroding_arrow",
+            "plugin_poison_arrow"
+          ],
+          "gear_ids": {
+            "head": "gear_divine_crown_legendary",
+            "weapon": "gear_gleaming_longbow_legendary",
+            "chest": "gear_verdant_armor_legendary",
+            "boots": "gear_thicket_boots_legendary"
+          }
+        }
+      ]
+    },
+    {
+      "army_name": "Athelstan/Alf",
+      "unit_type": "archers",
+      "tier": 7,
+      "count": 300000,
+      "is_rally": false,
+      "rally_config": null,
+      "atk_mod": 3.0,
+      "def_mod": 3.0,
+      "hp_mod": 1.0,
+      "unrevivable_ratio": 0.65,
+      "unrevivable_ratio_method": "dynamic",
+      "use_dynamic_unrevivable_ratio": true,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Athelstan",
+          "talent_ids": [
+            "talent_erudite",
+            "talent_strategize",
+            "talent_adaptable_to_changes"
+          ],
+          "base_skill_ids": [
+            "base_skill_heart_of_tolerance",
+            "base_skill_holy_enlightenment"
+          ],
+          "plugin_skill_ids": [
+            "plugin_divine_blessing",
+            "plugin_first_strike"
+          ],
+          "gear_ids": {
+            "head": "gear_divine_crown_legendary",
+            "weapon": "gear_gleaming_longbow_legendary",
+            "chest": "gear_verdant_armor_legendary",
+            "boots": "gear_thicket_boots_legendary"
+          }
+        },
+        {
+          "hero_name_or_preset": "Alf",
+          "talent_ids": [
+            "talent_fiery_poison_bullet",
+            "talent_fiery_poison_bomb",
+            "talent_agile_missile"
+          ],
+          "base_skill_ids": [
+            "base_skill_huginns_slingshot",
+            "base_skill_chain_meteor"
+          ],
+          "plugin_skill_ids": [
+            "plugin_bone_corroding_arrow",
+            "plugin_poison_arrow"
+          ],
+          "gear_ids": {
+            "head": "gear_divine_crown_legendary",
+            "weapon": "gear_gleaming_longbow_legendary",
+            "chest": "gear_verdant_armor_legendary",
+            "boots": "gear_thicket_boots_legendary"
+          }
+        }
+      ]
+    },
+    {
+      "army_name": "Athelstan/Sasha",
+      "unit_type": "archers",
+      "tier": 7,
+      "count": 300000,
+      "is_rally": false,
+      "rally_config": null,
+      "atk_mod": 3.0,
+      "def_mod": 3.0,
+      "hp_mod": 1.0,
+      "unrevivable_ratio": 0.65,
+      "unrevivable_ratio_method": "dynamic",
+      "use_dynamic_unrevivable_ratio": true,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Athelstan",
+          "talent_ids": [
+            "talent_erudite",
+            "talent_strategize",
+            "talent_adaptable_to_changes"
+          ],
+          "base_skill_ids": [
+            "base_skill_heart_of_tolerance",
+            "base_skill_holy_enlightenment"
+          ],
+          "plugin_skill_ids": [
+            "plugin_divine_blessing",
+            "plugin_first_strike"
+          ],
+          "gear_ids": {
+            "head": "gear_divine_crown_legendary",
+            "weapon": "gear_gleaming_longbow_legendary",
+            "chest": "gear_verdant_armor_legendary",
+            "boots": "gear_thicket_boots_legendary"
+          }
+        },
+        {
+          "hero_name_or_preset": "Sasha",
+          "talent_ids": [
+            "talent_forest_force",
+            "talent_natures_killer",
+            "talent_life_cycle"
+          ],
+          "base_skill_ids": [
+            "base_skill_nature_blessing",
+            "base_skill_floral_burial"
+          ],
+          "plugin_skill_ids": [
+            "plugin_poison_arrow",
+            "plugin_bone_corroding_arrow"
+          ],
+          "gear_ids": {
+            "head": "gear_divine_crown_legendary",
+            "weapon": "gear_gleaming_longbow_legendary",
+            "chest": "gear_verdant_armor_legendary",
+            "boots": "gear_thicket_boots_legendary"
+          }
+        }
+      ]
+    },
+    {
+      "army_name": "Sasha/Alf",
+      "unit_type": "archers",
+      "tier": 7,
+      "count": 300000,
+      "is_rally": false,
+      "rally_config": null,
+      "atk_mod": 3.0,
+      "def_mod": 3.0,
+      "hp_mod": 1.0,
+      "unrevivable_ratio": 0.65,
+      "unrevivable_ratio_method": "dynamic",
+      "use_dynamic_unrevivable_ratio": true,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Sasha",
+          "talent_ids": [
+            "talent_forest_force",
+            "talent_natures_killer",
+            "talent_life_cycle"
+          ],
+          "base_skill_ids": [
+            "base_skill_nature_blessing",
+            "base_skill_floral_burial"
+          ],
+          "plugin_skill_ids": [
+            "plugin_divine_blessing",
+            "plugin_first_strike"
+          ],
+          "gear_ids": {
+            "head": "gear_divine_crown_legendary",
+            "weapon": "gear_gleaming_longbow_legendary",
+            "chest": "gear_verdant_armor_legendary",
+            "boots": "gear_thicket_boots_legendary"
+          }
+        },
+        {
+          "hero_name_or_preset": "Alf",
+          "talent_ids": [
+            "talent_fiery_poison_bullet",
+            "talent_fiery_poison_bomb",
+            "talent_agile_missile"
+          ],
+          "base_skill_ids": [
+            "base_skill_huginns_slingshot",
+            "base_skill_chain_meteor"
+          ],
+          "plugin_skill_ids": [
+            "plugin_bone_corroding_arrow",
+            "plugin_poison_arrow"
+          ],
+          "gear_ids": {
+            "head": "gear_divine_crown_legendary",
+            "weapon": "gear_gleaming_longbow_legendary",
+            "chest": "gear_verdant_armor_legendary",
+            "boots": "gear_thicket_boots_legendary"
+          }
+        }
+      ]
+    },
+    {
+      "army_name": "Sasha/Leandra",
+      "unit_type": "archers",
+      "tier": 7,
+      "count": 300000,
+      "is_rally": false,
+      "rally_config": null,
+      "atk_mod": 3.0,
+      "def_mod": 3.0,
+      "hp_mod": 1.0,
+      "unrevivable_ratio": 0.65,
+      "unrevivable_ratio_method": "dynamic",
+      "use_dynamic_unrevivable_ratio": true,
+      "heroes": [
+        {
+          "hero_name_or_preset": "Sasha",
+          "talent_ids": [
+            "talent_forest_force",
+            "talent_natures_killer",
+            "talent_life_cycle"
+          ],
+          "base_skill_ids": [
+            "base_skill_nature_blessing",
+            "base_skill_floral_burial"
+          ],
+          "plugin_skill_ids": [
+            "plugin_divine_blessing",
+            "plugin_first_strike"
+          ],
+          "gear_ids": {
+            "head": "gear_divine_crown_legendary",
+            "weapon": "gear_gleaming_longbow_legendary",
+            "chest": "gear_verdant_armor_legendary",
+            "boots": "gear_thicket_boots_legendary"
+          }
+        },
+        {
+          "hero_name_or_preset": "Leandra",
+          "talent_ids": [
+            "talent_soul_awakening",
+            "talent_flexible_strike",
+            "talent_opportune_strike"
+          ],
+          "base_skill_ids": [
+            "base_skill_vengeful_fury",
+            "base_skill_serrated_flourish"
+          ],
+          "plugin_skill_ids": [
+            "plugin_bone_corroding_arrow",
+            "plugin_poison_arrow"
+          ],
+          "gear_ids": {
+            "head": "gear_divine_crown_legendary",
+            "weapon": "gear_gleaming_longbow_legendary",
+            "chest": "gear_verdant_armor_legendary",
+            "boots": "gear_thicket_boots_legendary"
+          }
+        }
+      ]
+    }
+  ],
+  "dummy": {
+    "army_name": "Rolfe/Rosky",
+    "unit_type": "pikemen",
+    "tier": 7,
+    "count": 300000,
+    "is_rally": false,
+    "rally_config": null,
+    "atk_mod": 3.0,
+    "def_mod": 3.0,
+    "hp_mod": 1.0,
+    "unrevivable_ratio": 0.65,
+    "unrevivable_ratio_method": "dynamic",
+    "use_dynamic_unrevivable_ratio": true,
+    "heroes": [
+      {
+        "hero_name_or_preset": "Rolfe",
+        "talent_ids": [
+          "talent_assassination_raid",
+          "talent_scale_armor_shield",
+          "talent_feigned_death_strike"
+        ],
+        "base_skill_ids": [
+          "base_skill_inspiration_arrives",
+          "base_skill_indomitable_spirit"
+        ],
+        "plugin_skill_ids": [
+          "plugin_divine_blessing",
+          "plugin_divine_shield"
+        ],
+        "gear_ids": {
+          "head": "gear_abyssal_crown_legendary",
+          "weapon": "gear_marine_halberd_legendary",
+          "chest": "gear_bylgjas_armor_legendary",
+          "boots": "gear_tsunami_plated_boots_legendary"
+        }
+      },
+      {
+        "hero_name_or_preset": "Rosky",
+        "talent_ids": [
+          "talent_blade_wielder",
+          "talent_maniacal",
+          "talent_pirate_tricks"
+        ],
+        "base_skill_ids": [
+          "base_skill_flurry",
+          "rage_skill_spirit_battleship"
+        ],
+        "plugin_skill_ids": [
+          "plugin_shield_reflector",
+          "plugin_hale_of_thorns"
+        ],
+        "gear_ids": {
+          "head": "gear_abyssal_crown_legendary",
+          "weapon": "gear_marine_halberd_legendary",
+          "chest": "gear_bylgjas_armor_legendary",
+          "boots": "gear_tsunami_plated_boots_legendary"
+        }
+      }
+    ]
+  },
+  "ca_enable": true,
+  "max_rounds_enabled": true,
+  "max_rounds": 20,
+  "shared_seed": true,
+  "batch_runs_enabled": true,
+  "batch_runs": 100
+}

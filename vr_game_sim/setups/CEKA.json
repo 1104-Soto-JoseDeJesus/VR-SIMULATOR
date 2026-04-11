@@ -1,0 +1,211 @@
+[
+    {
+        "army_name": "Margit/Lagertha",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 371000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 5.1482,
+        "def_mod": 2.749,
+        "hp_mod": 1.36,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Margit",
+                "talent_ids": [
+                    "talent_cutting_blade",
+                    "talent_thirst_for_blood",
+                    "talent_seas_grace"
+                ],
+                "base_skill_ids": [
+                    "base_skill_ride_the_waves",
+                    "base_skill_raging_tide"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_enrage",
+                    "plugin_blessed_negation"
+                ],
+                "mount_skill_ids": [
+                    "mount_soul_of_fury"
+                ],
+                "skill_overrides": {
+                    "mount_soul_of_fury": {
+                        "config": {
+                            "rage_gain": 90.0
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Lagertha",
+                "talent_ids": [
+                    "talent_shieldaxe_attack",
+                    "talent_chiefs_might",
+                    "talent_fatal_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_shield_breaker",
+                    "rage_skill_showdown"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_disarmament",
+                    "plugin_silent_invasion"
+                ],
+                "mount_skill_ids": [
+                    "mount_stinging_tongue"
+                ],
+                "skill_overrides": {
+                    "mount_stinging_tongue": {
+                        "config": {
+                            "damage_factor": 502.0
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            }
+        ],
+        "bonus_stats": {
+            "damage_reduction": {
+                "all": 0.111
+            },
+            "damage_boost": {
+                "all": 0.033,
+                "cooperation_crit_rate": 0.019,
+                "command_crit_rate": 0.0148
+            },
+            "bleed_boost": 0.03,
+            "heal_boost": 0.067,
+            "basic_boost": 0.08,
+            "counter_boost": 0.08,
+            "rage_skill_boost": 0.04,
+            "hero1_rage_skill_boost": 0.08,
+            "hero2_rage_skill_boost": 0.08,
+            "command_skill_boost": 0.016
+        },
+        "gem_skills": {
+            "friggs_agate": "gem_friggs_agate_vindictive_spears_epic"
+        }
+    },
+    {
+        "army_name": "Rosky/Helgar",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 361281,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 4.5463,
+        "def_mod": 3.4145,
+        "hp_mod": 1.4114,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_hymn_of_life",
+                    "plugin_shield_reflector"
+                ],
+                "mount_skill_ids": [
+                    "mount_beastly_rage"
+                ],
+                "skill_overrides": {
+                    "mount_beastly_rage": {
+                        "config": {
+                            "rage_gain": 71.0
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Helgar",
+                "talent_ids": [
+                    "talent_saintly_guardian",
+                    "talent_war_blessing",
+                    "talent_judgement_mark"
+                ],
+                "base_skill_ids": [
+                    "base_skill_judgements_fury",
+                    "rage_skill_ruling_trial"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_shield",
+                    "plugin_hale_of_thorns"
+                ],
+                "mount_skill_ids": [
+                    "mount_pincer_strike"
+                ],
+                "skill_overrides": {
+                    "mount_pincer_strike": {
+                        "config": {
+                            "damage_factor": 283.0
+                        },
+                        "passive_effects": {
+                            "0": {
+                                "magnitude": 0.0
+                            }
+                        }
+                    }
+                },
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            }
+        ],
+        "bonus_stats": {
+            "damage_reduction": {
+                "all": 0.123
+            },
+            "damage_boost": {
+                "all": 0.11
+            }
+        }
+    }
+]

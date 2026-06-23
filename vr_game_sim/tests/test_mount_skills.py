@@ -730,3 +730,94 @@ def test_mount_skill_fallback_aggregation():
     assert len(flame_entries) == 2
     kills = sorted(entry.get("kills", 0) for entry in flame_entries)
     assert kills == [0, 30], "Per-instance rows should not aggregate sibling stats"
+
+
+def _new_hero_mount_rank_cfg(hero_name: str) -> dict:
+    preset = {
+        "Vali": (
+            ["talent_icy_edge", "talent_ice_cleave", "talent_an_eye_for_an_eye"],
+            ["base_skill_curse_of_the_frost", "rage_skill_frostblade"],
+        ),
+        "Sephina": (
+            ["talent_raven_feather_blade", "talent_death_ravens_shadow", "talent_ominous_raven_feather"],
+            ["base_skill_darkmoon_elegy", "rage_skill_moonlit_strike"],
+        ),
+        "Gunnar": (
+            ["talent_high_tide_hunt", "talent_fierce_fighting_spirit", "talent_deadly_strike"],
+            ["base_skill_bloody_mad", "rage_skill_one_stroke_one_kill"],
+        ),
+        "Hilda": (
+            ["talent_hammer_and_shield", "talent_savage_physique", "talent_berserk_counterattack"],
+            ["base_skill_boiling_fighting_spirit", "rage_skill_shatter"],
+        ),
+    }
+    talents, base_skills = preset[hero_name]
+    return {
+        "army_name": f"{hero_name} Mount Rank",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 20000,
+        "is_rally": False,
+        "atk_mod": 1.0,
+        "def_mod": 1.0,
+        "hp_mod": 1.0,
+        "unrevivable_ratio": 0.65,
+        "heroes": [
+            {
+                "hero_name_or_preset": hero_name,
+                "talent_ids": talents,
+                "base_skill_ids": base_skills,
+                "plugin_skill_ids": [],
+                "mount_skill_ids": ["mount_bloodthirst_gaze", "mount_healing_leaf"],
+            }
+        ],
+    }
+
+
+@pytest.mark.parametrize("hero_name", ["Vali", "Sephina", "Gunnar", "Hilda"])
+def test_new_heroes_complete_mount_rank_winner_batch(hero_name):
+    from vr_game_sim.main import run_batch_return_winners
+
+    setup_data = [
+        _new_hero_mount_rank_cfg(hero_name),
+        _new_hero_mount_rank_cfg("Hilda" if hero_name != "Hilda" else "Gunnar"),
+    ]
+
+    army1_wins, army2_wins, draws = run_batch_return_winners(
+        setup_data,
+        runs=1,
+        num_workers=1,
+        max_rounds=5,
+    )
+
+    assert army1_wins + army2_wins + draws == 1
+
+
+def test_mount_rank_winner_batch_falls_back_when_process_pool_fails(monkeypatch):
+    import vr_game_sim.main as main_module
+
+    class FailingProcessPoolExecutor:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            raise OSError("spawn failed")
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(main_module, "ProcessPoolExecutor", FailingProcessPoolExecutor)
+
+    setup_data = [
+        _new_hero_mount_rank_cfg("Vali"),
+        _new_hero_mount_rank_cfg("Gunnar"),
+    ]
+
+    army1_wins, army2_wins, draws = main_module.run_batch_return_winners(
+        setup_data,
+        runs=1,
+        num_workers=2,
+        max_rounds=5,
+    )
+
+    assert army1_wins + army2_wins + draws == 1

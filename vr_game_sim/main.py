@@ -584,63 +584,26 @@ def run_batch_return_winners(
     seeds = [random.randrange(1 << 30) for _ in range(runs)]
     army1_wins = army2_wins = draws = 0
 
-    if num_workers > 1:
-        with ProcessPoolExecutor(
-            max_workers=num_workers, mp_context=multiprocessing.get_context("spawn")
-        ) as ex:
-            worker_inputs = [setup_data] * runs
-            settings_iter = repeat(dynamic_settings_payload, runs)
-            multiplier_iter = repeat(current_multiplier, runs)
-            advantage_iter = repeat(advantage_mode, runs)
-            fairness_rage_iter = repeat(fairness_rage_enabled, runs)
-            cooldown_base_iter = repeat(bool(cooldowns_enabled), runs)
-            hero_cd_iter = repeat(hero_cd, runs)
-            plugin_cd_iter = repeat(plugin_cd, runs)
-            gem_cd_iter = repeat(gem_cd, runs)
-            mount_cd_iter = repeat(mount_cd, runs)
-            multi_heal_iter = repeat(bool(multi_heal_trig_enabled), runs)
-            interval_active_cast_iter = repeat(
-                bool(interval_active_cast_cooldowns_enabled), runs
-            )
-            max_rounds_iter = repeat(max_rounds, runs)
-            results_iter = ex.map(
-                _run_single_battle_with_multiplier,
-                worker_inputs,
-                seeds,
-                settings_iter,
-                multiplier_iter,
-                advantage_iter,
-                cooldown_base_iter,
-                hero_cd_iter,
-                plugin_cd_iter,
-                gem_cd_iter,
-                mount_cd_iter,
-                multi_heal_iter,
-                interval_active_cast_iter,
-                fairness_rage_iter,
-                max_rounds_iter,
-            )
-            completed = 0
-            for own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev, army1_hw_dealt, army2_hw_dealt in results_iter:
-                if max_rounds is not None and both_rally_mode and r_taken >= max_rounds:
-                    if army1_hw_dealt > army2_hw_dealt:
-                        winner = 1
-                    elif army2_hw_dealt > army1_hw_dealt:
-                        winner = 2
-                    else:
-                        winner = 0
-                if winner == 1:
-                    army1_wins += 1
-                elif winner == 2:
-                    army2_wins += 1
-                else:
-                    draws += 1
-                completed += 1
-                if progress_callback:
-                    progress_callback(completed, runs)
-    else:
+    def _record_result(result_tuple: tuple) -> None:
+        nonlocal army1_wins, army2_wins, draws
+        own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev, army1_hw_dealt, army2_hw_dealt = result_tuple
+        if max_rounds is not None and both_rally_mode and r_taken >= max_rounds:
+            if army1_hw_dealt > army2_hw_dealt:
+                winner = 1
+            elif army2_hw_dealt > army1_hw_dealt:
+                winner = 2
+            else:
+                winner = 0
+        if winner == 1:
+            army1_wins += 1
+        elif winner == 2:
+            army2_wins += 1
+        else:
+            draws += 1
+
+    def _run_sequential() -> None:
         for i, seed_val in enumerate(seeds):
-            own, enemy, r_taken, diff, winner, army1_unrev, army2_unrev, army1_hw_dealt, army2_hw_dealt = _run_single_battle(
+            result_tuple = _run_single_battle(
                 setup_data,
                 seed=seed_val,
                 dynamic_settings=dynamic_settings_payload,
@@ -656,21 +619,64 @@ def run_batch_return_winners(
                 fairness_rage_enabled=fairness_rage_enabled,
                 max_rounds=max_rounds,
             )
-            if max_rounds is not None and both_rally_mode and r_taken >= max_rounds:
-                if army1_hw_dealt > army2_hw_dealt:
-                    winner = 1
-                elif army2_hw_dealt > army1_hw_dealt:
-                    winner = 2
-                else:
-                    winner = 0
-            if winner == 1:
-                army1_wins += 1
-            elif winner == 2:
-                army2_wins += 1
-            else:
-                draws += 1
+            _record_result(result_tuple)
             if progress_callback:
                 progress_callback(i + 1, runs)
+
+    if num_workers > 1:
+        try:
+            with ProcessPoolExecutor(
+                max_workers=num_workers, mp_context=multiprocessing.get_context("spawn")
+            ) as ex:
+                worker_inputs = [setup_data] * runs
+                settings_iter = repeat(dynamic_settings_payload, runs)
+                multiplier_iter = repeat(current_multiplier, runs)
+                advantage_iter = repeat(advantage_mode, runs)
+                fairness_rage_iter = repeat(fairness_rage_enabled, runs)
+                cooldown_base_iter = repeat(bool(cooldowns_enabled), runs)
+                hero_cd_iter = repeat(hero_cd, runs)
+                plugin_cd_iter = repeat(plugin_cd, runs)
+                gem_cd_iter = repeat(gem_cd, runs)
+                mount_cd_iter = repeat(mount_cd, runs)
+                multi_heal_iter = repeat(bool(multi_heal_trig_enabled), runs)
+                interval_active_cast_iter = repeat(
+                    bool(interval_active_cast_cooldowns_enabled), runs
+                )
+                max_rounds_iter = repeat(max_rounds, runs)
+                results_iter = ex.map(
+                    _run_single_battle_with_multiplier,
+                    worker_inputs,
+                    seeds,
+                    settings_iter,
+                    multiplier_iter,
+                    advantage_iter,
+                    cooldown_base_iter,
+                    hero_cd_iter,
+                    plugin_cd_iter,
+                    gem_cd_iter,
+                    mount_cd_iter,
+                    multi_heal_iter,
+                    interval_active_cast_iter,
+                    fairness_rage_iter,
+                    max_rounds_iter,
+                )
+                completed = 0
+                for result_tuple in results_iter:
+                    _record_result(result_tuple)
+                    completed += 1
+                    if progress_callback:
+                        progress_callback(completed, runs)
+        except RuntimeError:
+            raise
+        except Exception:
+            # A single failed child process used to abort the entire mount rank.
+            # Re-run the same seeds sequentially so transient spawn/pool failures
+            # do not prevent rank completion, while still allowing deterministic
+            # in-process exceptions to surface with the original traceback.
+            army1_wins = army2_wins = draws = 0
+            _run_sequential()
+    else:
+        _run_sequential()
 
     return army1_wins, army2_wins, draws
 

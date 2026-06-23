@@ -6515,6 +6515,16 @@ class MountSkillRankWorker(QtCore.QThread):
                 if self._cancelled.is_set():
                     raise RuntimeError("cancelled")
 
+            def _skill_label(skill_id: str) -> str:
+                skill_name = SKILL_REGISTRY_GLOBAL.get(skill_id, {}).get("name")
+                return f"{skill_name or skill_id} ({skill_id})"
+
+            def _first_hero_name(cfg: dict, fallback: str) -> str:
+                heroes = cfg.get("heroes") or []
+                if not heroes:
+                    return fallback
+                return str(heroes[0].get("hero_name_or_preset") or fallback)
+
             for skill_a, skill_b in pairs:
                 if self._cancelled.is_set():
                     raise RuntimeError("cancelled")
@@ -6552,22 +6562,34 @@ class MountSkillRankWorker(QtCore.QThread):
                         heroes2[0]["mount_skill_ids"] = [skill_b]
 
                 setup_data = [cfg1, cfg2]
-                army1_wins, army2_wins, _draws = run_batch_return_winners(
-                    setup_data,
-                    self.runs,
-                    num_workers=self.num_workers,
-                    progress_callback=progress_cb,
-                    cooldowns_enabled=True,
-                    hero_cooldowns_enabled=self.hero_cooldowns_enabled,
-                    plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
-                    gem_cooldowns_enabled=self.gem_cooldowns_enabled,
-                    mount_cooldowns_enabled=self.mount_cooldowns_enabled,
-                    multi_heal_trig_enabled=self.multi_heal_trig_enabled,
-                    interval_active_cast_cooldowns_enabled=self.interval_active_cast_cooldowns_enabled,
-                    fairness_rage_enabled=self.fairness_rage_enabled,
-                    advantage_mode=self.advantage_mode,
-                    max_rounds=self.max_rounds,
-                )
+                try:
+                    army1_wins, army2_wins, _draws = run_batch_return_winners(
+                        setup_data,
+                        self.runs,
+                        num_workers=self.num_workers,
+                        progress_callback=progress_cb,
+                        cooldowns_enabled=True,
+                        hero_cooldowns_enabled=self.hero_cooldowns_enabled,
+                        plugin_cooldowns_enabled=self.plugin_cooldowns_enabled,
+                        gem_cooldowns_enabled=self.gem_cooldowns_enabled,
+                        mount_cooldowns_enabled=self.mount_cooldowns_enabled,
+                        multi_heal_trig_enabled=self.multi_heal_trig_enabled,
+                        interval_active_cast_cooldowns_enabled=self.interval_active_cast_cooldowns_enabled,
+                        fairness_rage_enabled=self.fairness_rage_enabled,
+                        advantage_mode=self.advantage_mode,
+                        max_rounds=self.max_rounds,
+                    )
+                except RuntimeError:
+                    raise
+                except Exception as exc:
+                    hero1 = _first_hero_name(cfg1, "Army 1 hero")
+                    hero2 = _first_hero_name(cfg2, "Army 2 hero")
+                    raise RuntimeError(
+                        "Mount skill rank failed while comparing "
+                        f"{_skill_label(skill_a)} for {hero1} vs "
+                        f"{_skill_label(skill_b)} for {hero2} "
+                        f"({self.runs} runs, {self.num_workers} workers): {exc}"
+                    ) from exc
 
                 # Count overall match wins (1 per pair), not individual battle wins
                 if army1_wins > army2_wins:

@@ -2351,3 +2351,187 @@ def handle_rage_moonlit_strike(
 
     return happened, logs, damage_flag
 
+
+def _make_evasion_buff(name: str, evasion_chance: float, duration: int) -> Dict[str, Any]:
+    return {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": name,
+        "duration": duration,
+        "activate_next_round": True,
+        "config": {
+            "evasion_chance": evasion_chance,
+            "applies_to": ["BASIC", "COUNTER", "SKILL"],
+            "is_dispellable": True,
+        },
+    }
+
+
+# --- Heidrun Rage Skill Handler ---
+def handle_rage_dance_of_death(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    damage_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    is_hero2 = event_data.get("is_hero2_delayed_rage", False)
+
+    was_poisoned = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.POISON
+        for eff in opponent_army.active_effects
+    )
+    was_burning = any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == DoTType.BURN
+        for eff in opponent_army.active_effects
+    )
+
+    damage_factor = cfg.get("damage_factor", 600.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, is_hero2_rage_skill=is_hero2, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((
+            f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+            {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+        ))
+
+    poison_factor = cfg.get("poison_factor", 450.0)
+    poison_duration = cfg.get("poison_duration", 2)
+    if poison_factor > 0:
+        poison_effect = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_DANCE_OF_DEATH_POISON,
+            "dot_type": DoTType.POISON,
+            "status_effect_factor": poison_factor,
+            "duration": poison_duration,
+            "activate_next_round": True,
+        }
+        if opponent_army._create_and_add_single_effect(
+            poison_effect, skill_id, triggering_army, opponent_army, triggering_army
+        ):
+            happened = True
+            logs.append((
+                f"Inflicts '{EFFECT_NAME_DANCE_OF_DEATH_POISON}' on {opponent_army.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    if was_poisoned:
+        bonus_damage = cfg.get("bonus_damage_if_poisoned", 400.0)
+        if bonus_damage > 0:
+            hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, bonus_damage, is_hero2_rage_skill=is_hero2, source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+                damage_flag = True
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append((
+                f"Enemy already poisoned: deals additional damage (Factor: {bonus_damage}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+            ))
+
+    if was_burning:
+        evasion_buff = _make_evasion_buff(
+            EFFECT_NAME_DANCE_OF_DEATH_EVASION,
+            cfg.get("evasion_magnitude", 0.40),
+            cfg.get("evasion_duration", 0),
+        )
+        if triggering_army._create_and_add_single_effect(
+            evasion_buff, skill_id, triggering_army, triggering_army, opponent_army
+        ):
+            happened = True
+            logs.append(("Enemy already burning: gains evasion (+40%) for 1 round (starting next round).", None))
+
+    return happened, logs, damage_flag
+
+
+# --- Charlton Rage Skill Handler ---
+def handle_rage_face_perils_together(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Dict[str, Any],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]], bool]:
+    happened = False
+    damage_flag = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    is_hero2 = event_data.get("is_hero2_delayed_rage", False)
+
+    damage_factor = cfg.get("damage_factor", 1200.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_dmg, calc_steps = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, is_hero2_rage_skill=is_hero2, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+            damage_flag = True
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((
+            f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+            {"damage_done_hp": round(raw_dmg), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+        ))
+
+    poison_factor = cfg.get("poison_factor", 300.0)
+    poison_duration = cfg.get("poison_duration", 2)
+    if poison_factor > 0:
+        poison_effect = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_FACE_PERILS_TOGETHER_POISON,
+            "dot_type": DoTType.POISON,
+            "status_effect_factor": poison_factor,
+            "duration": poison_duration,
+            "activate_next_round": True,
+        }
+        if opponent_army._create_and_add_single_effect(
+            poison_effect, skill_id, triggering_army, opponent_army, triggering_army
+        ):
+            happened = True
+            logs.append((
+                f"Inflicts '{EFFECT_NAME_FACE_PERILS_TOGETHER_POISON}' on {opponent_army.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    evasion_buff = _make_evasion_buff(
+        EFFECT_NAME_FACE_PERILS_TOGETHER_EVASION,
+        cfg.get("evasion_magnitude", 0.20),
+        cfg.get("evasion_duration", 0),
+    )
+    if triggering_army._create_and_add_single_effect(
+        evasion_buff, skill_id, triggering_army, triggering_army, opponent_army
+    ):
+        happened = True
+        logs.append(("Gains evasion (+20%) for 1 round (starting next round).", None))
+
+    dmg_taken_magnitude = cfg.get("damage_taken_magnitude", 0.25)
+    dmg_taken_duration = cfg.get("damage_taken_duration", 0)
+    if dmg_taken_magnitude != 0:
+        debuff = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_FACE_PERILS_TOGETHER_DMG_TAKEN,
+            "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+            "magnitude": dmg_taken_magnitude,
+            "duration": dmg_taken_duration,
+            "activate_next_round": True,
+        }
+        if opponent_army._create_and_add_single_effect(
+            debuff, skill_id, triggering_army, opponent_army, triggering_army
+        ):
+            happened = True
+            logs.append((
+                f"Increases {opponent_army.name} damage received (+{dmg_taken_magnitude * 100:.0f}%) for {dmg_taken_duration + 1} round(s) (starting next round).",
+                None,
+            ))
+
+    return happened, logs, damage_flag
+

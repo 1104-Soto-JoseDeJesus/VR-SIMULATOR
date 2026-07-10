@@ -1,0 +1,138 @@
+[
+    {
+        "army_name": "Rosky/Rolfe",
+        "unit_type": "pikemen",
+        "tier": 7,
+        "count": 2620000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.77,
+        "def_mod": 3.08,
+        "hp_mod": 1.19,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Rosky",
+                "talent_ids": [
+                    "talent_blade_wielder",
+                    "talent_maniacal",
+                    "talent_pirate_tricks"
+                ],
+                "base_skill_ids": [
+                    "base_skill_flurry",
+                    "rage_skill_spirit_battleship"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_divine_shield",
+                    "plugin_divine_blessing"
+                ],
+                "mount_skill_ids": [
+                    "mount_power_swipe",
+                    "mount_evil_threat"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Rolfe",
+                "talent_ids": [
+                    "talent_assassination_raid",
+                    "talent_scale_armor_shield",
+                    "talent_feigned_death_strike"
+                ],
+                "base_skill_ids": [
+                    "base_skill_inspiration_arrives",
+                    "base_skill_indomitable_spirit"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_hymn_of_life",
+                    "plugin_deadly_counterattack"
+                ],
+                "mount_skill_ids": [
+                    "mount_purple_gold_scales",
+                    "mount_winged_guardian"
+                ],
+                "gear_ids": {
+                    "head": "gear_abyssal_crown_legendary",
+                    "weapon": "gear_marine_halberd_legendary",
+                    "chest": "gear_bylgjas_armor_legendary",
+                    "boots": "gear_tsunami_plated_boots_legendary"
+                }
+            }
+        ]
+    },
+    {
+        "army_name": "Vali/Sephina",
+        "unit_type": "infantry",
+        "tier": 7,
+        "count": 2620000,
+        "is_rally": false,
+        "rally_config": null,
+        "atk_mod": 3.77,
+        "def_mod": 3.08,
+        "hp_mod": 1.19,
+        "unrevivable_ratio": 0.65,
+        "unrevivable_ratio_method": "dynamic",
+        "use_dynamic_unrevivable_ratio": true,
+        "heroes": [
+            {
+                "hero_name_or_preset": "Vali",
+                "talent_ids": [
+                    "talent_icy_edge",
+                    "talent_ice_cleave",
+                    "talent_an_eye_for_an_eye"
+                ],
+                "base_skill_ids": [
+                    "base_skill_curse_of_the_frost",
+                    "rage_skill_frostblade"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_enrage",
+                    "plugin_silencer"
+                ],
+                "mount_skill_ids": [
+                    "mount_bloodthirst_gaze",
+                    "mount_divine_awe"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            },
+            {
+                "hero_name_or_preset": "Sephina",
+                "talent_ids": [
+                    "talent_raven_feather_blade",
+                    "talent_death_ravens_shadow",
+                    "talent_ominous_raven_feather"
+                ],
+                "base_skill_ids": [
+                    "base_skill_darkmoon_elegy",
+                    "rage_skill_moonlit_strike"
+                ],
+                "plugin_skill_ids": [
+                    "plugin_silent_invasion",
+                    "plugin_furious_hack_and_slash"
+                ],
+                "mount_skill_ids": [
+                    "mount_soul_of_fury",
+                    "mount_icedrake_breath"
+                ],
+                "gear_ids": {
+                    "head": "gear_blazing_helmet_legendary",
+                    "weapon": "gear_immolated_axe_legendary",
+                    "chest": "gear_inferno_armor_legendary",
+                    "boots": "gear_ferocious_boots_legendary"
+                }
+            }
+        ]
+    }
+]

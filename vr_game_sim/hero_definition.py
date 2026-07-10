@@ -309,4 +309,22 @@ HERO_PRESETS: Dict[str, Dict[str, List[str]]] = {
         'base_skills': ["base_skill_all_in", "base_skill_fight_for_life"],
         'plugin_skills': [],
     },
+    'heidrun': {
+        'talents': [
+            "talent_bloody_slash_venomous_bite",
+            "talent_armor_corroding_blood",
+            "talent_returning_blood_flame_edge",
+        ],
+        'base_skills': ["base_skill_burning_blade_scorching_heart", "rage_skill_dance_of_death"],
+        'plugin_skills': [],
+    },
+    'charlton': {
+        'talents': [
+            "talent_eagle_flame_pursuit",
+            "talent_shadowed_gaze_ambush",
+            "talent_heralding_eagles_cry",
+        ],
+        'base_skills': ["base_skill_foresight", "rage_skill_face_perils_together"],
+        'plugin_skills': [],
+    },
 }

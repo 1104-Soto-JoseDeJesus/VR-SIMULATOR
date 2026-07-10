@@ -59,7 +59,7 @@ class SeedTarget(TypedDict, total=False):
 # --- Configuration for Save/Load ---
 SETUPS_DIR = "setups"
 LAST_SETUP_FILENAME = os.path.join(SETUPS_DIR, "_last_run_setup.json")
-HISTOGRAM_DIR = "histograms"
+HISTOGRAM_DIR = os.path.join(os.path.dirname(__file__), "histograms")
 # Default size for generated histogram images (width, height in inches)
 # Reduced size so the four histogram images can be displayed together in a
 # 2x2 layout without exceeding a typical screen resolution.

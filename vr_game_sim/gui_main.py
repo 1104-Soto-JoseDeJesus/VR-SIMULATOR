@@ -53,6 +53,7 @@ from vr_game_sim.main import (
     save_army_to_file,
     load_army_from_file,
     HISTOGRAM_BG_COLOR,
+    HISTOGRAM_DIR,
     HISTOGRAM_TEXT_COLOR,
     SeedTarget,
     _run_fdc_pair,
@@ -8722,7 +8723,7 @@ def display_histograms(
     max_width = min(scroll_width - 40 if scroll_width > 40 else 300, screen_geom.width() // 2)
     max_height = screen_geom.height() // 2
     row = col = 0
-    base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+    base_hist_dir = HISTOGRAM_DIR
     for img_name in image_files:
         path = os.path.join(base_hist_dir, img_name)
         if not os.path.exists(path):
@@ -10003,7 +10004,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._set_skill_breakdown_message(self._skill_breakdown_default_message)
 
     def _collect_histogram_images(self) -> list[str]:
-        base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+        base_hist_dir = HISTOGRAM_DIR
         if not os.path.isdir(base_hist_dir):
             return []
         paths = []
@@ -10196,7 +10197,7 @@ class MainWindow(QtWidgets.QMainWindow):
             heavily_wounded_per_battle = results.get("heavily_wounded_per_battle")
             
             # If both rally mode and max_rounds, skip normal victory distribution and show only heavily wounded figures
-            base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+            base_hist_dir = HISTOGRAM_DIR
             os.makedirs(base_hist_dir, exist_ok=True)
             order = ["blue", "red"]
             color_map = {"blue": "#0000ff", "red": "#ff0000"}
@@ -10764,7 +10765,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "rage_per_round_army1.png",
             "rage_per_round_army2.png",
         ]
-        base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+        base_hist_dir = HISTOGRAM_DIR
         if not any(os.path.exists(os.path.join(base_hist_dir, f)) for f in image_files):
             QtWidgets.QMessageBox.warning(
                 self, "No Figures", "No histogram images found. Run a simulation first."
@@ -10797,7 +10798,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "victory_distribution.png",
             "unrevivable_victory_distribution.png",
         ]
-        base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+        base_hist_dir = HISTOGRAM_DIR
         hist_pixmaps: dict[str, QtGui.QPixmap] = {}
         for fname in image_files:
             path = os.path.join(base_hist_dir, fname)
@@ -11011,7 +11012,7 @@ class MainWindow(QtWidgets.QMainWindow):
             "rounds_to_battle_end.png",
             "victory_distribution.png",
         ]
-        base_hist_dir = os.path.join(os.path.dirname(__file__), "histograms")
+        base_hist_dir = HISTOGRAM_DIR
         hist_pixmaps = []
         for fname in image_files:
             path = os.path.join(base_hist_dir, fname)

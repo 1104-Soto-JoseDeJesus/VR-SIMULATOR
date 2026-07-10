@@ -5458,3 +5458,383 @@ def handle_talent_berserk_counterattack(
                 logs.append((f"Inflicts lacerate (Factor: {lacerate_factor}) on {opponent_army.name} for {lacerate_duration + 1} rounds (starting next round).", None))
 
     return happened, logs
+
+
+# --- Heidrun & Charlton shared helpers ---
+def _army_has_evasion(army: ArmyRef) -> bool:
+    """Return True if the army has any active or pending evasion effect."""
+    for eff_list in (
+        army.active_effects,
+        getattr(army, "effects_to_activate_next_round", []),
+        getattr(army, "upcoming_effects", []),
+    ):
+        for eff in eff_list:
+            if eff.config.get("evasion_chance", 0) > 0:
+                return True
+    return False
+
+
+def _enemy_has_dot(army: ArmyRef, dot_type: DoTType) -> bool:
+    return any(
+        eff.effect_type == EffectType.DAMAGE_OVER_TIME and eff.config.get("dot_type") == dot_type
+        for eff in army.active_effects
+    )
+
+
+def _eligible_self_debuffs(army: ArmyRef) -> List[Any]:
+    """Return active debuffs on ``army`` that a purify may remove."""
+    return [
+        eff
+        for eff in army.active_effects
+        if (
+            eff.effect_type == EffectType.DEBUFF
+            or (
+                eff.effect_type == EffectType.DAMAGE_OVER_TIME
+                and eff.config.get("dot_type") in [DoTType.BLEED, DoTType.POISON, DoTType.BURN, DoTType.LACERATE]
+            )
+            or eff.config.get("prevents_counterattack")
+            or eff.config.get("prevents_basic_attack")
+            or eff.config.get("prevents_rage_skill_cast")
+            or (eff.effect_type == EffectType.STAT_MOD and eff.is_harmful_for_target())
+            or (eff.effect_type == EffectType.CUSTOM_SKILL_EFFECT and eff.is_harmful_for_target())
+        )
+        and eff.name not in PROTECTED_MARKER_EFFECTS
+        and eff.duration > 0
+    ]
+
+
+def _make_evasion_buff(name: str, evasion_chance: float, duration: int) -> Dict[str, Any]:
+    return {
+        "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+        "name": name,
+        "duration": duration,
+        "activate_next_round": True,
+        "config": {
+            "evasion_chance": evasion_chance,
+            "applies_to": ["BASIC", "COUNTER", "SKILL"],
+            "is_dispellable": True,
+        },
+    }
+
+
+# --- Heidrun Talent Handlers ---
+def handle_talent_armor_corroding_blood(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+
+    poison_factor = cfg.get("poison_factor", 350.0)
+    poison_duration = cfg.get("poison_duration", 1)
+    if poison_factor > 0:
+        poison_effect = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_ARMOR_CORRODING_BLOOD_POISON,
+            "dot_type": DoTType.POISON,
+            "status_effect_factor": poison_factor,
+            "duration": poison_duration,
+            "activate_next_round": True,
+        }
+        if opponent_army._create_and_add_single_effect(
+            poison_effect, skill_id, triggering_army, opponent_army, triggering_army
+        ):
+            happened = True
+            logs.append((
+                f"Inflicts '{EFFECT_NAME_ARMOR_CORRODING_BLOOD_POISON}' on {opponent_army.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    dr_magnitude = cfg.get("damage_reduction_magnitude", -0.30)
+    dr_duration = cfg.get("damage_reduction_duration", 0)
+    if dr_magnitude != 0:
+        dr_effect = {
+            "effect_type": EffectType.STAT_MOD,
+            "name": EFFECT_NAME_ARMOR_CORRODING_BLOOD_DMG_RED,
+            "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+            "magnitude": dr_magnitude,
+            "duration": dr_duration,
+            "activate_next_round": True,
+        }
+        created_dr = triggering_army._create_and_add_single_effect(
+            dr_effect, skill_id, triggering_army, triggering_army, opponent_army
+        )
+        if created_dr:
+            happened = True
+            logs.append((
+                f"Reduces own damage received ({created_dr.get_functionality_description()}) for {dr_duration + 1} round(s) (starting next round).",
+                None,
+            ))
+
+    if _enemy_has_dot(opponent_army, DoTType.BURN):
+        eligible_buffs = [
+            eff for eff in opponent_army.active_effects
+            if eff.is_dispellable_buff_candidate() and eff.duration > 0
+        ]
+        if eligible_buffs:
+            selected = random.choice(eligible_buffs)
+            pending = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_PENDING_ARMOR_CORRODING_BLOOD_DISPEL,
+                "duration": 0,
+                "config": {
+                    "buff_ids_to_remove": [selected.id],
+                    "targeted_buff_names_initial_log": [selected.name or f"Buff ID ...{str(selected.id)[-4:]}"],
+                },
+                "activate_next_round": True,
+            }
+            if opponent_army._create_and_add_single_effect(
+                pending, skill_id, triggering_army, opponent_army, triggering_army
+            ):
+                happened = True
+                logs.append((
+                    f"Enemy is burning: dispels '{selected.name}' from {opponent_army.name} next round.",
+                    None,
+                ))
+
+    return happened, logs
+
+
+def handle_talent_returning_blood_flame_edge(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    burn_factor = cfg.get("burn_factor", 400.0)
+    burn_duration = cfg.get("burn_duration", 1)
+    if burn_factor > 0:
+        burn_effect = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_RETURNING_BLOOD_FLAME_EDGE_BURN,
+            "dot_type": DoTType.BURN,
+            "status_effect_factor": burn_factor,
+            "duration": burn_duration,
+            "activate_next_round": True,
+        }
+        if opponent_army._create_and_add_single_effect(
+            burn_effect, skill_id, triggering_army, opponent_army, triggering_army
+        ):
+            happened = True
+            logs.append((
+                f"Inflicts '{EFFECT_NAME_RETURNING_BLOOD_FLAME_EDGE_BURN}' on {opponent_army.name} (Factor: {burn_factor}) for {burn_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    if random.random() < cfg.get("evasion_chance_roll", 0.50):
+        evasion_buff = _make_evasion_buff(
+            EFFECT_NAME_RETURNING_BLOOD_FLAME_EDGE_EVASION,
+            cfg.get("evasion_magnitude", 0.40),
+            cfg.get("evasion_duration", 0),
+        )
+        if triggering_army._create_and_add_single_effect(
+            evasion_buff, skill_id, triggering_army, triggering_army, opponent_army
+        ):
+            happened = True
+            logs.append(("50% roll: gains evasion (+40%) for 1 round (starting next round).", None))
+
+    if random.random() < cfg.get("rage_chance_roll", 0.50):
+        rage_gain = cfg.get("rage_gain", 300)
+        if rage_gain > 0:
+            rage_effect = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+                "duration": 0,
+                "config": {"rage_amount": rage_gain},
+                "activate_next_round": True,
+            }
+            if triggering_army._create_and_add_single_effect(
+                rage_effect, skill_id, triggering_army, triggering_army, opponent_army
+            ):
+                happened = True
+                logs.append((f"50% roll: recovers {rage_gain} rage next round.", None))
+
+    if random.random() < cfg.get("purify_chance_roll", 0.50):
+        eligible_debuffs = _eligible_self_debuffs(triggering_army)
+        if eligible_debuffs:
+            selected = random.choice(eligible_debuffs)
+            pending_cleanse = {
+                "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+                "name": EFFECT_NAME_PENDING_RETURNING_BLOOD_FLAME_EDGE_PURIFY,
+                "duration": 0,
+                "config": {
+                    "debuff_ids_to_remove": [selected.id],
+                    "debuff_names_removed_log": [selected.name],
+                },
+                "activate_next_round": True,
+            }
+            if triggering_army._create_and_add_single_effect(
+                pending_cleanse, skill_id, triggering_army, triggering_army, opponent_army
+            ):
+                happened = True
+                logs.append((f"50% roll: purifies '{selected.name}' next round.", None))
+
+    return happened, logs
+
+
+# --- Charlton Talent Handlers ---
+def handle_talent_shadowed_gaze_ambush(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    interval = cfg.get("trigger_interval", 9)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    damage_factor = cfg.get("damage_factor", 750.0)
+    if damage_factor > 0:
+        hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
+            triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+        )
+        if hp_damage > 0:
+            opponent_army.pending_hp_damage_this_round += hp_damage
+        if hp_damage > 0 or absorbed > 0:
+            happened = True
+        logs.append((
+            f"Deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+            {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+        ))
+
+    eligible_buffs = [
+        eff for eff in opponent_army.active_effects
+        if eff.is_dispellable_buff_candidate() and eff.duration > 0
+    ]
+    if eligible_buffs:
+        selected = random.choice(eligible_buffs)
+        pending = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_PENDING_SHADOWED_GAZE_AMBUSH_DISPEL,
+            "duration": 0,
+            "config": {
+                "buff_ids_to_remove": [selected.id],
+                "targeted_buff_names_initial_log": [selected.name or f"Buff ID ...{str(selected.id)[-4:]}"],
+            },
+            "activate_next_round": True,
+        }
+        if opponent_army._create_and_add_single_effect(
+            pending, skill_id, triggering_army, opponent_army, triggering_army
+        ):
+            happened = True
+            logs.append((f"Dispels '{selected.name}' from {opponent_army.name} next round.", None))
+
+    rage_gain = cfg.get("rage_gain", 200)
+    if rage_gain > 0:
+        rage_effect = {
+            "effect_type": EffectType.CUSTOM_SKILL_EFFECT,
+            "name": EFFECT_NAME_DELAYED_RAGE_GAIN,
+            "duration": 0,
+            "config": {"rage_amount": rage_gain},
+            "activate_next_round": True,
+        }
+        if triggering_army._create_and_add_single_effect(
+            rage_effect, skill_id, triggering_army, triggering_army, opponent_army
+        ):
+            happened = True
+            logs.append((f"Recovers {rage_gain} rage next round.", None))
+
+    if _army_has_evasion(triggering_army):
+        poison_factor = cfg.get("poison_factor", 600.0)
+        poison_duration = cfg.get("poison_duration", 1)
+        if poison_factor > 0:
+            poison_effect = {
+                "effect_type": EffectType.DAMAGE_OVER_TIME,
+                "name": EFFECT_NAME_SHADOWED_GAZE_AMBUSH_POISON,
+                "dot_type": DoTType.POISON,
+                "status_effect_factor": poison_factor,
+                "duration": poison_duration,
+                "activate_next_round": True,
+            }
+            if opponent_army._create_and_add_single_effect(
+                poison_effect, skill_id, triggering_army, opponent_army, triggering_army
+            ):
+                happened = True
+                logs.append((
+                    f"Under evasion: inflicts '{EFFECT_NAME_SHADOWED_GAZE_AMBUSH_POISON}' on {opponent_army.name} (Factor: {poison_factor}) for {poison_duration + 1} rounds (starting next round).",
+                    None,
+                ))
+
+    return happened, logs
+
+
+def handle_talent_heralding_eagles_cry(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    interval = cfg.get("trigger_interval", 6)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    if _enemy_has_dot(opponent_army, DoTType.POISON):
+        damage_factor = cfg.get("damage_factor", 500.0)
+        if damage_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append((
+                f"Enemy poisoned: deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+            ))
+        dmg_taken_magnitude = cfg.get("damage_taken_magnitude", 0.20)
+        dmg_taken_duration = cfg.get("damage_taken_duration", 1)
+        if dmg_taken_magnitude != 0:
+            debuff = {
+                "effect_type": EffectType.STAT_MOD,
+                "name": EFFECT_NAME_HERALDING_EAGLES_CRY_DMG_TAKEN,
+                "stat_to_mod": StatType.DAMAGE_TAKEN_MULTIPLIER,
+                "magnitude": dmg_taken_magnitude,
+                "duration": dmg_taken_duration,
+                "activate_next_round": True,
+            }
+            if opponent_army._create_and_add_single_effect(
+                debuff, skill_id, triggering_army, opponent_army, triggering_army
+            ):
+                happened = True
+                logs.append((
+                    f"Increases {opponent_army.name} damage received (+{dmg_taken_magnitude * 100:.0f}%) for {dmg_taken_duration + 1} rounds (starting next round).",
+                    None,
+                ))
+
+    if _enemy_has_dot(opponent_army, DoTType.BURN):
+        heal_factor = cfg.get("heal_factor", 500.0)
+        if heal_factor > 0:
+            healed_amount = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
+            )
+            if healed_amount > 0:
+                happened = True
+                logs.append((f"Enemy burning: heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+        evasion_buff = _make_evasion_buff(
+            EFFECT_NAME_HERALDING_EAGLES_CRY_EVASION,
+            cfg.get("evasion_magnitude", 0.40),
+            cfg.get("evasion_duration", 0),
+        )
+        if triggering_army._create_and_add_single_effect(
+            evasion_buff, skill_id, triggering_army, triggering_army, opponent_army
+        ):
+            happened = True
+            logs.append(("Enemy burning: gains evasion (+40%) for 1 round (starting next round).", None))
+
+    return happened, logs

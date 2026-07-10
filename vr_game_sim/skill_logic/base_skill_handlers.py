@@ -2201,3 +2201,141 @@ def handle_base_skill_shield_breaker(
                 logs.append((f"Gains '{EFFECT_NAME_SHIELD_BREAKER_BASIC_BUFF}' for {buff_dur + 1} rounds (starting next round).", None))
     return happened, logs
 
+
+def _is_army_flanked(army: ArmyRef, simulator: GameSimulatorRef) -> bool:
+    """Return True when ``army`` is flanked by 2+ direct attackers in multi-engagement modes."""
+    if not simulator or simulator.mode not in ("battlefield", "arena"):
+        return False
+    engine = getattr(simulator, "parent_engine", None)
+    if not engine or not hasattr(engine, "get_direct_attackers"):
+        return False
+    try:
+        return len(engine.get_direct_attackers(army.name)) > 1
+    except Exception:
+        return False
+
+
+# --- Heidrun Base Skill Handler ---
+def handle_base_skill_burning_blade_scorching_heart(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    interval = cfg.get("trigger_interval", 9)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    burn_factor = cfg.get("burn_factor", 325.0)
+    burn_duration = cfg.get("burn_duration", 2)
+    if burn_factor > 0:
+        burn_effect = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_BURNING_BLADE_SCORCHING_HEART_BURN,
+            "dot_type": DoTType.BURN,
+            "status_effect_factor": burn_factor,
+            "duration": burn_duration,
+            "activate_next_round": True,
+        }
+        if opponent_army._create_and_add_single_effect(
+            burn_effect, skill_id, triggering_army, opponent_army, triggering_army
+        ):
+            happened = True
+            logs.append((
+                f"Inflicts '{EFFECT_NAME_BURNING_BLADE_SCORCHING_HEART_BURN}' on {opponent_army.name} (Factor: {burn_factor}) for {burn_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    own_troops = triggering_army.get_round_start_troops()
+    enemy_troops = opponent_army.get_round_start_troops() if opponent_army else 0
+    if own_troops > enemy_troops:
+        damage_factor = cfg.get("damage_factor", 650.0)
+        if damage_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append((
+                f"More units than enemy: deals damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+            ))
+    elif own_troops < enemy_troops:
+        heal_factor = cfg.get("heal_factor", 650.0)
+        if heal_factor > 0:
+            healed_amount = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
+            )
+            if healed_amount > 0:
+                happened = True
+                logs.append((f"Fewer units than enemy: heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    return happened, logs
+
+
+# --- Charlton Base Skill Handler ---
+def handle_base_skill_foresight(
+        triggering_army: ArmyRef, opponent_army: ArmyRef,
+        skill_def: SkillDefinition, event_data: Optional[Dict[str, Any]],
+        simulator: GameSimulatorRef
+) -> Tuple[bool, List[Tuple[str, Optional[Dict[str, Any]]]]]:
+    happened = False
+    logs: List[Tuple[str, Optional[Dict[str, Any]]]] = []
+    cfg = skill_def.get("config", {})
+    skill_id = skill_def["id"]
+    interval = cfg.get("trigger_interval", 9)
+    current_round = _get_army_round(triggering_army, simulator)
+    if not (current_round > 0 and current_round % interval == 0):
+        return False, []
+
+    burn_factor = cfg.get("burn_factor", 350.0)
+    burn_duration = cfg.get("burn_duration", 2)
+    if burn_factor > 0:
+        burn_effect = {
+            "effect_type": EffectType.DAMAGE_OVER_TIME,
+            "name": EFFECT_NAME_FORESIGHT_BURN,
+            "dot_type": DoTType.BURN,
+            "status_effect_factor": burn_factor,
+            "duration": burn_duration,
+            "activate_next_round": True,
+        }
+        if opponent_army._create_and_add_single_effect(
+            burn_effect, skill_id, triggering_army, opponent_army, triggering_army
+        ):
+            happened = True
+            logs.append((
+                f"Inflicts '{EFFECT_NAME_FORESIGHT_BURN}' on {opponent_army.name} (Factor: {burn_factor}) for {burn_duration + 1} rounds (starting next round).",
+                None,
+            ))
+
+    if _is_army_flanked(triggering_army, simulator):
+        damage_factor = cfg.get("damage_factor", 500.0)
+        if damage_factor > 0:
+            hp_damage, absorbed, kills, raw_logged_damage, calc_steps = simulator._calculate_generic_skill_damage(
+                triggering_army, opponent_army, damage_factor, source_skill_def=skill_def
+            )
+            if hp_damage > 0:
+                opponent_army.pending_hp_damage_this_round += hp_damage
+            if hp_damage > 0 or absorbed > 0:
+                happened = True
+            logs.append((
+                f"Flanked: deals additional damage (Factor: {damage_factor}) to {opponent_army.name}.",
+                {"damage_done_hp": round(raw_logged_damage), "absorbed_hp": round(absorbed), "potential_kills": kills, "calculation_steps": calc_steps},
+            ))
+        heal_factor = cfg.get("heal_factor", 500.0)
+        if heal_factor > 0:
+            healed_amount = triggering_army.calculate_and_add_pending_healing(
+                heal_factor, triggering_army, opponent_army, source_skill_id=skill_id
+            )
+            if healed_amount > 0:
+                happened = True
+                logs.append((f"Flanked: heals self for {healed_amount:.0f} HP (Factor: {heal_factor}).", None))
+
+    return happened, logs
+

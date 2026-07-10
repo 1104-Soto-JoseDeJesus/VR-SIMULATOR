@@ -72,6 +72,9 @@ from .skill_logic.talent_handlers import (
     # GUNNAR & HILDA TALENT HANDLERS
     handle_talent_high_tide_hunt, handle_talent_fierce_fighting_spirit, handle_talent_deadly_strike,
     handle_talent_hammer_and_shield, handle_talent_savage_physique, handle_talent_berserk_counterattack,
+    # HEIDRUN & CHARLTON TALENT HANDLERS
+    handle_talent_armor_corroding_blood, handle_talent_returning_blood_flame_edge,
+    handle_talent_shadowed_gaze_ambush, handle_talent_heralding_eagles_cry,
 )
 from .skill_logic.base_skill_handlers import (
     handle_base_skill_planned_attack, handle_base_skill_flame_guardian,
@@ -104,6 +107,8 @@ from .skill_logic.base_skill_handlers import (
     handle_base_skill_broken_blade_charge, handle_base_skill_winters_coronation,
     handle_base_skill_curse_of_the_frost, handle_base_skill_darkmoon_elegy,
     handle_base_skill_bloody_mad, handle_base_skill_boiling_fighting_spirit,
+    # HEIDRUN & CHARLTON BASE SKILL HANDLERS
+    handle_base_skill_burning_blade_scorching_heart, handle_base_skill_foresight,
 )
 from .skill_logic.plugin_skill_handlers import (
     handle_plugin_divine_blessing, handle_plugin_shield_support, handle_plugin_freyas_blessing,
@@ -169,6 +174,8 @@ from .skill_logic.rage_skill_handlers import (
     handle_rage_time_of_severance, handle_rage_triumphant_presence,
     handle_rage_frostblade, handle_rage_moonlit_strike,
     handle_rage_one_stroke_one_kill, handle_rage_shatter,
+    # HEIDRUN & CHARLTON RAGE SKILL HANDLERS
+    handle_rage_dance_of_death, handle_rage_face_perils_together,
 )
 from .skill_logic.utility_skill_handlers import (
     handle_generic_single_damage_skill,
@@ -1768,6 +1775,95 @@ SKILL_REGISTRY_GLOBAL: Dict[str, SkillDefinition] = {
             "enemy_basic_vulnerability_duration": 2,
             "enemy_basic_vulnerability_effect_name": EFFECT_NAME_FIGHT_FOR_LIFE_BASIC_VULN,
         },
+    },
+
+    # --- Heidrun Skills ---
+    "talent_bloody_slash_venomous_bite": {
+        "id": "talent_bloody_slash_venomous_bite", "name": "Bloody Slash, Venomous Bite", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
+        "effects_to_apply": [
+            {"effect_type": EffectType.STAT_MOD, "name": "Bloody Slash Rage Damage Boost",
+             "stat_to_mod": StatType.RAGE_SKILL_DAMAGE_MODIFIER, "magnitude": 0.20, "duration": -1},
+            {"effect_type": EffectType.STAT_MOD, "name": "Bloody Slash Poison Boost",
+             "stat_to_mod": StatType.POISON_DAMAGE_BOOST, "magnitude": 0.20, "duration": -1},
+        ]
+    },
+    "talent_armor_corroding_blood": {
+        "id": "talent_armor_corroding_blood", "name": "Armor-corroding Blood", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.ON_RECEIVING_HEALING, "trigger_chance": 0.50, "target": "ENEMY",
+        "logic_handler": handle_talent_armor_corroding_blood,
+        "config": {"poison_factor": 350.0, "poison_duration": 1,
+                   "damage_reduction_magnitude": -0.30, "damage_reduction_duration": 0}
+    },
+    "talent_returning_blood_flame_edge": {
+        "id": "talent_returning_blood_flame_edge", "name": "Returning Blood Flame Edge", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_returning_blood_flame_edge,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 6, "burn_factor": 400.0, "burn_duration": 1,
+                   "evasion_chance_roll": 0.50, "evasion_magnitude": 0.40, "evasion_duration": 0,
+                   "rage_chance_roll": 0.50, "rage_gain": 300,
+                   "purify_chance_roll": 0.50}
+    },
+    "base_skill_burning_blade_scorching_heart": {
+        "id": "base_skill_burning_blade_scorching_heart", "name": "Burning Blade, Scorching Heart", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_base_skill_burning_blade_scorching_heart,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 9, "burn_factor": 325.0, "burn_duration": 2,
+                   "damage_factor": 650.0, "heal_factor": 650.0}
+    },
+    "rage_skill_dance_of_death": {
+        "id": "rage_skill_dance_of_death", "name": "Dance of Death", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_dance_of_death,
+        "config": {"damage_factor": 600.0, "poison_factor": 450.0, "poison_duration": 2,
+                   "bonus_damage_if_poisoned": 400.0, "evasion_magnitude": 0.40, "evasion_duration": 0}
+    },
+
+    # --- Charlton Skills ---
+    "talent_eagle_flame_pursuit": {
+        "id": "talent_eagle_flame_pursuit", "name": "Eagle Flame Pursuit", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.PASSIVE, "target": "SELF", "logic_handler": None,
+        "effects_to_apply": [
+            {"effect_type": EffectType.STAT_MOD, "name": "Eagle Flame Pursuit Rage Damage Boost",
+             "stat_to_mod": StatType.RAGE_SKILL_DAMAGE_MODIFIER, "magnitude": 0.20, "duration": -1},
+            {"effect_type": EffectType.STAT_MOD, "name": "Eagle Flame Pursuit Burn Boost",
+             "stat_to_mod": StatType.BURN_DAMAGE_BOOST, "magnitude": 0.20, "duration": -1},
+        ]
+    },
+    "talent_shadowed_gaze_ambush": {
+        "id": "talent_shadowed_gaze_ambush", "name": "Shadowed Gaze Ambush", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_shadowed_gaze_ambush,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 9, "damage_factor": 750.0, "rage_gain": 200,
+                   "poison_factor": 600.0, "poison_duration": 1}
+    },
+    "talent_heralding_eagles_cry": {
+        "id": "talent_heralding_eagles_cry", "name": "Heralding Eagle's Cry", "type": SkillType.TALENT,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_talent_heralding_eagles_cry,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 6, "damage_factor": 500.0,
+                   "damage_taken_magnitude": 0.20, "damage_taken_duration": 1,
+                   "heal_factor": 500.0, "evasion_magnitude": 0.40, "evasion_duration": 0}
+    },
+    "base_skill_foresight": {
+        "id": "base_skill_foresight", "name": "Foresight", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.CHANCE_PER_ROUND, "trigger_chance": 1.0, "target": "ENEMY",
+        "logic_handler": handle_base_skill_foresight,
+        "labels": [PluginSkillLabel.COMMAND],
+        "config": {"trigger_interval": 9, "burn_factor": 350.0, "burn_duration": 2,
+                   "damage_factor": 500.0, "heal_factor": 500.0}
+    },
+    "rage_skill_face_perils_together": {
+        "id": "rage_skill_face_perils_together", "name": "Face Perils Together", "type": SkillType.BASE_SKILL,
+        "trigger": SkillTriggerType.RAGE_SKILL, "rage_cost": 1000, "target": "ENEMY",
+        "logic_handler": handle_rage_face_perils_together,
+        "config": {"damage_factor": 1200.0, "poison_factor": 300.0, "poison_duration": 2,
+                   "evasion_magnitude": 0.20, "evasion_duration": 0,
+                   "damage_taken_magnitude": 0.25, "damage_taken_duration": 0}
     },
 
 
